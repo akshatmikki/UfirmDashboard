@@ -38,7 +38,8 @@ const displayNameMap = {
   DA: "DA",
   PF: "PF",
   PftAmount: "PFT",
-  LwfEmployeeAmount: "LWF",
+  // LwfEmployeeAmount: "LWF",
+  LwfAmount: "LWF",
   Fine: "Fine",
   AdvanceAmount: "Adv.",
   UNIFORM: "Uniform",
@@ -694,7 +695,7 @@ export default function GenerateSalary() {
           <td>HRA</td>
           <td class="v-bold">${row.HRA || 0}</td>
           <td>LWF</td>
-          <td class="v-light">${row.LwfEmployeeAmount || 0}</td>
+          <td class="v-light">${row.LwfAmount || 0}</td>
           <td>Weekly Offs</td>
           <td>${row.WeekDaysOff || 0}</td>
         </tr>

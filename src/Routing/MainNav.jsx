@@ -312,8 +312,7 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzczMDM3NjQ5LCJleHAiOjE4MDQ1NzM2NDksImlhdCI6MTc3MzAzNzY0OX0.3HXQ0J4Dpwf55U3mHWfu2lr0zTxc4VUXI4F3mGCDgqM";
-
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzczMDMwNzc3LCJleHAiOjE4MDQ1NjY3NzcsImlhdCI6MTc3MzAzMDc3N30.AH41sQTCAUUqQch6W9VUGCj8FySIqsVDIpTzAixT8YY";
     //var token = window.sessionStorage.getItem("userinfo_key")
 
 
@@ -1060,15 +1059,17 @@ class MainNav extends React.Component {
                         </p>
                       </a>
                       <ul className="nav nav-treeview">
+
                         <li className="nav-item">
                           <Link
-                            to="/Account/App/GenerateSalary"
+                            to="/Account/App/SGNEW"
                             className="nav-link"
                           >
                             <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Generate Salary</p>
+                            <p>Salary Groups</p>
                           </Link>
                         </li>
+
 
                         <li className="nav-item">
                           <Link
@@ -1082,11 +1083,11 @@ class MainNav extends React.Component {
 
                         <li className="nav-item">
                           <Link
-                            to="/Account/App/SGNEW"
+                            to="/Account/App/GenerateSalary"
                             className="nav-link"
                           >
                             <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Salary Groups</p>
+                            <p>Generate Salary</p>
                           </Link>
                         </li>
 

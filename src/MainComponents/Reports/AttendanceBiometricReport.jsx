@@ -19,9 +19,6 @@ const AttendanceBiometricReport = () => {
     const [fromDate, setFromDate] = useState(null);
     const [toDate, setToDate] = useState(null);
     const [logs, setLogs] = useState([]);
-    const [loading, setLoading] = useState(false);
-
-    // ================= LOAD DEVICES =================
     useEffect(() => {
         const loadDevices = async () => {
             try {

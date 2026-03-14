@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { getEmployeesByOffices } from "../../Services/PayrollService";
+import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
 import {
     getAllClients,
     getClientByPropertyId,
@@ -69,24 +69,133 @@ export default function PFReport() {
     }, [selectedUnitId]);
 
     // Load Employees
+    // useEffect(() => {
+    //     const loadEmployees = async () => {
+    //         try {
+    //             if (!selectedPropertyId) {
+    //                 setEmployees([]);
+    //                 return;
+    //             }
+
+    //             const data = await getEmployeesByOffices([selectedPropertyId]);
+    //             setEmployees(data || []);
+    //         } catch (err) {
+    //             console.error("Employee load failed", err);
+    //             setEmployees([]);
+    //         }
+    //     };
+
+    //     loadEmployees();
+    // }, [selectedPropertyId]);
+
     useEffect(() => {
-        const loadEmployees = async () => {
-            try {
-                if (!selectedPropertyId) {
-                    setEmployees([]);
-                    return;
-                }
-
-                const data = await getEmployeesByOffices([selectedPropertyId]);
-                setEmployees(data || []);
-            } catch (err) {
-                console.error("Employee load failed", err);
+    const loadPFData = async () => {
+        try {
+            if (!selectedUnitId || !selectedPropertyId || !selectedMonth) {
                 setEmployees([]);
+                return;
             }
-        };
 
-        loadEmployees();
-    }, [selectedPropertyId]);
+            setLoading(true);
+
+            const [year, month] = selectedMonth.split("-");
+            const monthName = new Date(year, month - 1).toLocaleString(
+                "default",
+                { month: "long" }
+            );
+
+            const data =
+                await getFacilityMemberSalaryDetailsByClientBranch(
+                    selectedUnitId,
+                    selectedPropertyId,
+                    monthName,
+                    year
+                );
+
+            setEmployees(data || []);
+        } catch (error) {
+            console.error("PF report fetch failed", error);
+            setEmployees([]);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    loadPFData();
+}, [selectedUnitId, selectedPropertyId, selectedMonth]);
+
+    const handleExport = () => {
+        if (!selectedMonth || !selectedPropertyId) return;
+
+        const [year, month] = selectedMonth.split("-");
+        const monthName = new Date(year, month - 1).toLocaleString("default", {
+            month: "long",
+        });
+
+        let csvContent = "";
+
+        // Title
+        csvContent += `PF Report - ${monthName} ${year}\n\n`;
+
+        // Headers
+        const headers = [
+            "S.No",
+            "Employee Code",
+            "Employee Name",
+            "Designation",
+            "Working Days",
+            "Total Gross Earn",
+            "PF Wage",
+            "Pension Wage",
+            "EDLI Wage",
+            "12 %",
+            "3.67 %",
+            "8.33 %",
+            "13 %",
+            "Emp LWF",
+        ];
+
+        csvContent += headers.join(",") + "\n";
+
+        // Data Rows
+        employees.forEach((emp, index) => {
+            const row = [
+                index + 1,
+                emp?.Profile?.EmployeeCode || "-",
+                emp?.Profile?.EmployeeName || "-",
+                emp?.Profile?.Designation || "-",
+                "", // Working Days
+                "", // Total Gross
+                "", // PF Wage
+                "", // Pension Wage
+                "", // EDLI Wage
+                "", // 12%
+                "", // 3.67%
+                "", // 8.33%
+                "", // 13%
+                "", // LWF
+            ];
+
+            csvContent += row.join(",") + "\n";
+        });
+
+        const blob = new Blob([csvContent], {
+            type: "text/csv;charset=utf-8;",
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.setAttribute(
+            "download",
+            `PF_Report_${monthName}_${year}.csv`
+        );
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
 
     return (
         <div
@@ -163,16 +272,35 @@ export default function PFReport() {
                 </div>
             </div>
 
-            {/* Month Selector */}
-            <div style={{ marginBottom: 25 }}>
-                <label>Select Month:</label>
-                <input
-                    type="month"
-                    className="form-control"
-                    style={{ width: 200 }}
-                    value={selectedMonth}
-                    onChange={(e) => setSelectedMonth(e.target.value)}
-                />
+            {/* Month Selector & Export Button */}
+            <div
+                style={{
+                    marginBottom: 25,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                }}
+            >
+                {/* Left Side - Month */}
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <label style={{ fontWeight: 600 }}>Select Month:</label>
+                    <input
+                        type="month"
+                        className="form-control"
+                        style={{ width: 200 }}
+                        value={selectedMonth}
+                        onChange={(e) => setSelectedMonth(e.target.value)}
+                    />
+                </div>
+
+                {/* Right Side - Export Button */}
+                <button
+                    className="btn btn-success"
+                    onClick={handleExport}
+                    disabled={!selectedMonth || !selectedPropertyId}
+                >
+                    Export PF
+                </button>
             </div>
 
             {loading && <div>Loading PF data...</div>}
@@ -202,12 +330,33 @@ export default function PFReport() {
                         </tr>
                     </thead>
                     <tbody>
-                        <tr>
-                            <td colSpan="14" style={{ textAlign: "center" }}>
-                                Select month and unit to view PF report
-                            </td>
-                        </tr>
-                    </tbody>
+{employees.length === 0 ? (
+    <tr>
+        <td colSpan="14" style={{ textAlign: "center" }}>
+            Select month and unit to view PF report
+        </td>
+    </tr>
+) : (
+    employees.map((emp, index) => (
+        <tr key={emp.FacilityMemberId}>
+            <td>{index + 1}</td>
+            <td>{emp.FacilityMemberId}</td>
+            <td>{emp.FacilityMemberName}</td>
+            <td>{emp.Designation || "-"}</td>
+            <td>{emp.WorkingDays}</td>
+            <td>{emp.ProratedTotalGross}</td>
+            <td>{emp.Basic}</td>
+            <td>{emp.Basic}</td>
+            <td>{emp.Basic}</td>
+            <td>{(emp.Basic * 0.12).toFixed(2)}</td>
+            <td>{(emp.Basic * 0.0367).toFixed(2)}</td>
+            <td>{(emp.Basic * 0.0833).toFixed(2)}</td>
+            <td>{(emp.Basic * 0.13).toFixed(2)}</td>
+            <td>{emp.LwfEmployeeAmount || 0}</td>
+        </tr>
+    ))
+)}
+</tbody>
                 </table>
             </div>
         </div>

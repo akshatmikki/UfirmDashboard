@@ -1,5 +1,7 @@
 // Report.jsx
 import React, { useState } from "react";
+
+import SalaryReport from "../../ReactComponents/Reports/SalaryReport.jsx";
 import OTReport from "../../ReactComponents/Reports/OTReport.jsx";
 import PFReport from "../../ReactComponents/Reports/PFReport.jsx";
 import ESIReport from "../../ReactComponents/Reports/ESIReport.jsx";
@@ -9,6 +11,9 @@ export default function Report() {
 
   const renderReportComponent = () => {
     switch (selectedReport) {
+      case "SALARY":
+        return <SalaryReport />;
+
       case "OT":
         return <OTReport />;
       case "PF":
@@ -41,9 +46,12 @@ export default function Report() {
             onChange={(e) => setSelectedReport(e.target.value)}
           >
             <option value="">-- Select Report --</option>
+
+            <option value="SALARY">Salary Report</option>
             <option value="OT">OT Report</option>
             <option value="PF">PF Report</option>
             <option value="ESI">ESI Report</option>
+
           </select>
         </div>
       </div>

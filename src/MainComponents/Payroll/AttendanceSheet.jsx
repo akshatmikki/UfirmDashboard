@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 import {
   getAttendanceByProperties,
@@ -213,7 +215,7 @@ export default function AttendanceSheet() {
           weekDaysOff: att.WeekDaysOff,
           otDays: att.OtDays || "",
           otHours: att.OtHours || "",
-          totalDays: att.PayableDays ?? globalTotalDays,
+          totalDays: att.PayableDays ?? "",
           manualTotalDays: false,
           nhDays: att.NHDays ?? "",
           fhDays: att.FHDays ?? "",
@@ -499,7 +501,7 @@ export default function AttendanceSheet() {
               weekDaysOff: "",
               otDays: "",
               otHours: "",
-              totalDays: employeeSGMap[empId]?.totalDays ?? "",
+              totalDays: "",
               manualTotalDays: false,
             },
           }));
@@ -731,121 +733,85 @@ export default function AttendanceSheet() {
     }
   }
 
-  // ---------------------------------------------------------
-  // CSV Export
-  // ---------------------------------------------------------
-  function exportToCSV() {
-    const heading = `Attendance for: ${monthNames[month - 1]} ${year}\n\n`;
+  function exportToExcel() {
 
-    const header = [
-      "Employee Code",
-      "Employee Name",
-      "Designation",
-      "Working Days",
-      "EL",
-      "CL",
-      "SL",
-      "Leave Days",
-      "Payable Days",
-      "Week Days Off",
-      "OT Days",
-      "OT Hours",
-      "NH Days",
-      "FH Days",
-      "Holidays",
-      "Divide By Days",
-      "OT Month Days",
-      "PF Arrear",
-      "Other Arrear",
-      "Incentive",
-      "Advance Ded",
-      "Uniform Ded",
-      "BGV Ded",
-      "Room Ded",
-      "Fine Ded",
-      "Joining Kits",
-      "Other Ded",
-      "Food Ded",
-      "Status",
-    ].join(",") + "\n";
+    const data = employees.map((emp, idx) => {
 
-    const rows = employees.map((emp, idx) => {
-      const empId =
-        emp?.FacilityMember?.FacilityMemberId ?? emp?.EmpID ?? idx;
+      const empId = emp?.FacilityMember?.FacilityMemberId ?? idx;
 
-      const empCode = emp?.Profile?.EmployeeCode || "-";
-
+      const empCode = emp?.Profile?.EmployeeCode || "";
       const empName =
         emp?.Profile?.EmployeeName ||
         emp?.FacilityMember?.Name ||
-        "Unknown";
-
-      const designation =
-        emp?.EmployeeList?.Designation ||
-        emp?.Profile?.Designation ||
-        "-";
+        "";
 
       const inp = dayInputs[empId] || {};
       const saved =
-        filteredAttendance.find(
-          (a) => String(a.EmpID) === String(empId)
-        ) || {};
+        filteredAttendance.find(a => a.EmpID === empId) || {};
 
       const EL = Number(inp.EL ?? saved.EL ?? 0);
       const CL = Number(inp.CL ?? saved.CL ?? 0);
       const SL = Number(inp.SL ?? saved.SL ?? 0);
-      const leaveDays = EL + CL + SL;
 
-      const values = [
-        empCode,
-        empName,
-        designation,
-        inp.workingDays ?? saved.WorkingDays ?? "",
-        EL,
-        CL,
-        SL,
-        leaveDays,
-        inp.totalDays ?? saved.PayableDays ?? "",
-        inp.weekDaysOff ?? saved.WeekDaysOff ?? "",
-        inp.otDays ?? saved.OtDays ?? "",
-        inp.otHours ?? saved.OtHours ?? "",
-        inp.nhDays ?? saved.NHDays ?? "",
-        inp.fhDays ?? saved.FHDays ?? "",
-        inp.holidays ?? saved.Holidays ?? "",
-        inp.divideByDays ?? saved.DivideByDays ?? "",
-        inp.otMonthDays ?? saved.OtMonthDays ?? "",
-        inp.pfArrear ?? saved.PFArrear ?? "",
-        inp.otherArrear ?? saved.OtherArrear ?? "",
-        inp.incentive ?? saved.Incentive ?? "",
-        inp.advanceDed ?? saved.AdvanceDed ?? "",
-        inp.uniformDed ?? saved.UniformDed ?? "",
-        inp.bgvDed ?? saved.BGVDed ?? "",
-        inp.roomDed ?? saved.RoomDed ?? "",
-        inp.fineDed ?? saved.FineDed ?? "",
-        inp.joiningKits ?? saved.JoiningKits ?? "",
-        inp.otherDed ?? saved.OtherDed ?? "",
-        inp.foodDed ?? saved.FoodDed ?? "",
-        inp.status ?? saved.Status ?? "",
-      ];
+      return {
+        "S.No.": idx + 1,
+        EmpCode: empCode,
+        EmployeeName: empName,
 
-      // ✅ quote ONCE, escape internal quotes safely
-      return values
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(",");
+        WeeklyOff: inp.weekDaysOff ?? saved.WeekDaysOff ?? 0,
+        WorkingDays: inp.workingDays ?? saved.WorkingDays ?? 0,
+
+        EL: EL,
+        CL: CL,
+        SL: SL,
+
+        PayableDays: inp.totalDays ?? saved.PayableDays ?? 0,
+
+        OTDays: inp.otDays ?? saved.OtDays ?? 0,
+        OTHrs: inp.otHours ?? saved.OtHours ?? 0,
+
+        NHDays: inp.nhDays ?? saved.NHDays ?? 0,
+        FHDays: inp.fhDays ?? saved.FHDays ?? 0,
+        HoliDays: inp.holidays ?? saved.Holidays ?? 0,
+
+        "Divide by Days": inp.divideByDays ?? saved.DivideByDays ?? 0,
+        "Ot Month Days": inp.otMonthDays ?? saved.OtMonthDays ?? 0,
+
+        "PF Arrear": inp.pfArrear ?? saved.PFArrear ?? 0,
+        "Other Arrear": inp.otherArrear ?? saved.OtherArrear ?? 0,
+
+        Incentive: inp.incentive ?? saved.Incentive ?? 0,
+
+        AdvanceDed: inp.advanceDed ?? saved.AdvanceDed ?? 0,
+        UniformDed: inp.uniformDed ?? saved.UniformDed ?? 0,
+        BGVDed: inp.bgvDed ?? saved.BGVDed ?? 0,
+        RoomDed: inp.roomDed ?? saved.RoomDed ?? 0,
+        FineDed: inp.fineDed ?? saved.FineDed ?? 0,
+        JoiningKits: inp.joiningKits ?? saved.JoiningKits ?? 0,
+        OtherDed: inp.otherDed ?? saved.OtherDed ?? 0,
+        FoodDed: inp.foodDed ?? saved.FoodDed ?? 0,
+
+        Error: ""
+      };
     });
 
-    const csv = heading + header + rows.join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = window.URL.createObjectURL(blob);
+    const headers = Object.keys(data[0]);
+    const worksheet = XLSX.utils.json_to_sheet(data, { header: headers });
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `attendance_full_${monthNames[
-      month - 1
-    ].toLowerCase()}_${year}.csv`;
-    a.click();
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
 
-    window.URL.revokeObjectURL(url);
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array"
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type:
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    });
+
+    saveAs(blob, `attendance_${month}_${year}.xlsx`);
   }
 
   const allEmpIds = paginatedEmployees
@@ -1071,7 +1037,7 @@ export default function AttendanceSheet() {
           </select>
 
           <button
-            onClick={exportToCSV}
+            onClick={exportToExcel}
             style={{
               background: "#3182ce",
               color: "#fff",
