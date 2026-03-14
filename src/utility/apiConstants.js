@@ -146,6 +146,13 @@ const ApiConstants = {
       },
       attachPrefix: true,
     },
+    fetchManagedEmployeesByIdentity: {
+      apiConfig: {
+        url: 'https://api.urest.in:8096/api/EmployeeAccess/GetManagedEmployeesByIdentity',
+        method: 'GET'
+      },
+      attachPrefix: true,
+    },
     fetchBranch: {
       apiConfig: {
         url: 'Master/Branch/{CompanyId}/{BranchId}',

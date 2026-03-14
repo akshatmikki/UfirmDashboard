@@ -1,6 +1,8 @@
 ﻿import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import PriceBrowse from "./PriceBrowse.jsx"
 
 
-ReactDOM.render(<PriceBrowse /> , document.getElementById('pricebrowse'));
+const container = document.getElementById('pricebrowse');
+const root = createRoot(container);
+root.render(<PriceBrowse />);

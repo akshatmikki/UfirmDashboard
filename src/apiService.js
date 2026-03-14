@@ -92,7 +92,7 @@ class ApiService {
               console.log('First request canceled');
             }
             //console.log(error);
-            if (error && error.stack.indexOf('Network Error') >= 0) {
+            if (error && error.stack && error.stack.indexOf('Network Error') >= 0) {
               console.log('Error: ', error);
             }
             this.handleSessionTimout(error);

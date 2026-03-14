@@ -9,6 +9,7 @@ import { getAttendance, getFacilityMembers, getAllLocations, saveManualAttendanc
 import * as XLSX from "xlsx";
 import { getAllClients } from "../../Services/ClientService";
 import { useSelector } from 'react-redux';
+import { ROLE_RULES } from "../../Common/roleAccess";
 
 export default function AttendanceMaster() {
     const [rejectionDialog, setRejectionDialog] = useState(false);
@@ -27,6 +28,9 @@ export default function AttendanceMaster() {
     const userEmail = useSelector((state) => state.Commonreducer.userEmail);
     const userRole = useSelector((state) => state.Commonreducer.entrolval);
     const companyId = useSelector((state) => state.Commonreducer.companyid);
+    const managedEmployeeIds = useSelector((state) => state.Commonreducer.managedEmployeeIds);
+    const managedEmployeesLoaded = useSelector((state) => state.Commonreducer.managedEmployeesLoaded);
+    const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId);
     const [submittedData, setSubmittedData] = useState([]);
 
     // ✅ New States for Pending and Approved/Rejected dialogs
@@ -102,6 +106,38 @@ export default function AttendanceMaster() {
         return map;
     }, [employeeList]);
 
+    const roleSource = React.useMemo(() => {
+        const appElement = document.getElementById("app");
+        return appElement?.getAttribute("userrole") || userRole;
+    }, [userRole]);
+
+    const isManagerRole = React.useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource]);
+    const isAdminRole = React.useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource]);
+    const isHrRole = React.useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource]);
+    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole;
+
+    const filterManualAttendanceByManager = React.useCallback(
+        (records) => {
+            if (!applyManagerFilter) return records || [];
+            if (!managedEmployeesLoaded) return [];
+            if (!Array.isArray(managedEmployeeIds) || managedEmployeeIds.length === 0) return [];
+            const idSet = new Set(managedEmployeeIds.map((id) => Number(id)));
+            if (managerFacilityMemberId) {
+                idSet.delete(Number(managerFacilityMemberId));
+            }
+            return (records || []).filter((item) => idSet.has(Number(item.EmployeeId)));
+        },
+        [applyManagerFilter, managedEmployeesLoaded, managedEmployeeIds, managerFacilityMemberId]
+    );
+
+    useEffect(() => {
+        const filtered = filterManualAttendanceByManager(submittedData);
+        const pending = filtered.filter(item => !item.IsApproved && !item.IsRejected);
+        const processed = filtered.filter(item => item.IsApproved || item.IsRejected);
+        setPendingData(pending);
+        setApprovedRejectedData(processed);
+    }, [submittedData, filterManualAttendanceByManager]);
+
 
     // ✅ Location fetch API call
     useEffect(() => {
@@ -156,12 +192,6 @@ export default function AttendanceMaster() {
                 ApprovedOn: item.ApprovedOn ? new Date(item.ApprovedOn) : null
             }));
 
-            // Separate pending from approved/rejected
-            const pending = formattedData.filter(item => !item.IsApproved && !item.IsRejected);
-            const processed = formattedData.filter(item => item.IsApproved || item.IsRejected);
-
-            setPendingData(pending);
-            setApprovedRejectedData(processed);
             setSubmittedData(formattedData);
         } catch (error) {
             console.error("Failed to fetch saved attendance:", error);

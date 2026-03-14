@@ -1,5 +1,7 @@
 ﻿import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import ConnectionProfile from "./ConnectionProfile.jsx"
 
-ReactDOM.render(<ConnectionProfile /> , document.getElementById('ConnectionProfile'));
+const container = document.getElementById('ConnectionProfile');
+const root = createRoot(container);
+root.render(<ConnectionProfile />);

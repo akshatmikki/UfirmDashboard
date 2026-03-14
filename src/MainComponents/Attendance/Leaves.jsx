@@ -19,6 +19,7 @@ import {
 import { EmployeeLeaveService } from "../../Services/EmployeeLeaveService";
 import { FacilityLatlongService } from "../../Services/FacilityLatlongService";
 import { FilterMatchMode } from "primereact/api";
+import { ROLE_RULES } from "../../Common/roleAccess";
 
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -35,6 +36,9 @@ const Leaves = () => {
     const userId = useSelector((state) => state.Commonreducer.userId);
     const userName = useSelector((state) => state.Commonreducer.userName);
     const userRole = useSelector((state) => state.Commonreducer.entrolval);
+    const managedEmployees = useSelector((state) => state.Commonreducer.managedEmployees);
+    const managedEmployeesLoaded = useSelector((state) => state.Commonreducer.managedEmployeesLoaded);
+    const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId);
     const toast = useRef(null);
 
     const [filters, setFilters] = useState({
@@ -67,6 +71,56 @@ const Leaves = () => {
     // dropdown data
     const [employees, setEmployees] = useState([]);
     const [leaveTypes, setLeaveTypes] = useState([]); // ✅ corrected naming
+
+    const roleSource = React.useMemo(() => {
+        const appElement = document.getElementById("app");
+        return appElement?.getAttribute("userrole") || userRole;
+    }, [userRole]);
+
+    const isManagerRole = React.useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource]);
+    const isAdminRole = React.useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource]);
+    const isHrRole = React.useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource]);
+    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole;
+
+    const managedEmployeeIdSet = React.useMemo(() => {
+        const idSet = new Set();
+        (managedEmployees || []).forEach((emp) => {
+            const id = Number(emp.FacilityMemberId);
+            if (Number.isFinite(id)) idSet.add(id);
+        });
+        if (managerFacilityMemberId) {
+            idSet.delete(Number(managerFacilityMemberId));
+        }
+        return idSet;
+    }, [managedEmployees, managerFacilityMemberId]);
+
+    const managedMobileSet = React.useMemo(() => {
+        const mobileSet = new Set();
+        (managedEmployees || []).forEach((emp) => {
+            if (emp.MobileNumber != null) {
+                mobileSet.add(String(emp.MobileNumber).trim());
+            }
+        });
+        return mobileSet;
+    }, [managedEmployees]);
+
+    const filteredGridData = React.useMemo(() => {
+        if (!applyManagerFilter) return gridData;
+        if (!managedEmployeesLoaded) return [];
+        if (managedMobileSet.size === 0) return [];
+        return (gridData || []).filter((row) =>
+            managedMobileSet.has(String(row.MobileNo || "").trim())
+        );
+    }, [gridData, applyManagerFilter, managedEmployeesLoaded, managedMobileSet]);
+
+    const filteredEmployees = React.useMemo(() => {
+        if (!applyManagerFilter) return employees;
+        if (!managedEmployeesLoaded) return [];
+        if (managedEmployeeIdSet.size === 0) return [];
+        return (employees || []).filter((emp) =>
+            managedEmployeeIdSet.has(Number(emp.id))
+        );
+    }, [employees, applyManagerFilter, managedEmployeesLoaded, managedEmployeeIdSet]);
 
     useEffect(() => {
         if (propertyId) {
@@ -388,7 +442,7 @@ const Leaves = () => {
                         <div className="pr-6 pl-6">
                             {showTable && (
                                 <DataTable
-                                    value={gridData}
+                                    value={filteredGridData}
                                     loading={loading}
                                     header={header}
                                     paginator
@@ -423,7 +477,7 @@ const Leaves = () => {
                                         const type = leaveTypes.find((lt) => lt.value === typeId);
                                         return type ? type.label : "N/A";
                                     }} header="Leave Type" />
-                                    {gridData.some((row) => row.ActionRemarks && row.ActionRemarks.trim() !== "") && (
+                                    {filteredGridData.some((row) => row.ActionRemarks && row.ActionRemarks.trim() !== "") && (
                                         <Column field="ActionRemarks" header="Rejection Remark" />
                                     )}
                                     <Column header="Action" body={actionBodyTemplate} />
@@ -447,7 +501,7 @@ const Leaves = () => {
                         <label>Employee Name</label>
                         <Dropdown
                             value={employeeName}
-                            options={employees}
+                            options={filteredEmployees}
                             onChange={onEmployeeChange}
                             placeholder="Select Employee"
                         />

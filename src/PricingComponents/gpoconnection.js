@@ -1,6 +1,8 @@
 ﻿import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import PricingComponent from "./PricingConnection.jsx"
 import FileUplaod from "../ReactComponents/FileUploader/FileUploader.jsx"
 
-ReactDOM.render(<PricingComponent /> , document.getElementById('app'));
+const container = document.getElementById('app');
+const root = createRoot(container);
+root.render(<PricingComponent />);

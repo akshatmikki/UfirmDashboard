@@ -75,7 +75,7 @@ class ApiService {
           this.completeCallBack(response);
           resolve(response);
         }).catch((error) => {
-          if (error && error.stack.indexOf('Network Error') >= 0) {
+          if (error && error.stack && error.stack.indexOf('Network Error') >= 0) {
             console.log('Error: ', error);
           }
           this.handleSessionTimout(error);

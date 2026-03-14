@@ -10,7 +10,8 @@ import {
     ON_CLIENT_CHANGED,
     ON_PROPERTY_CHANGED,
     ON_USER_ROLE_CHANGED,
-    FETCH_DASHBOARDDATES
+    FETCH_DASHBOARDDATES,
+    SET_MANAGED_EMPLOYEES
 
 } from './constants';
 import { convertEsTojson } from '../../utility/common';
@@ -24,7 +25,12 @@ const initStateObj =
     puidn:0,
     puidnlist:[],
     entrolval:'User',
-    dashDates:""
+    dashDates:"",
+    managedEmployees: [],
+    managedEmployeeIds: [],
+    managedEmployeesIsAdmin: false,
+    managedEmployeesLoaded: false,
+    managerFacilityMemberId: null
  
 };
 
@@ -98,6 +104,17 @@ export default function commonreducer(state = initStateObj, action) {
                     {
                         return{
                             ...state, dashDates:action.dashboardDates
+                        }
+                    }
+                case SET_MANAGED_EMPLOYEES:
+                    {
+                        return {
+                            ...state,
+                            managedEmployees: Array.isArray(action.employees) ? action.employees : [],
+                            managedEmployeeIds: Array.isArray(action.employeeIds) ? action.employeeIds : [],
+                            managedEmployeesIsAdmin: !!action.isAdmin,
+                            managedEmployeesLoaded: true,
+                            managerFacilityMemberId: action.managerFacilityMemberId ?? null
                         }
                     }
         default:

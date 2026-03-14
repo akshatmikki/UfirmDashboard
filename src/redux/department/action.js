@@ -27,7 +27,8 @@ import {
     ON_CLIENT_CHANGED,
     ON_PROPERTY_CHANGED,
     ON_USER_ROLE_CHANGED,
-    FETCH_DASHBOARDDATES
+    FETCH_DASHBOARDDATES,
+    SET_MANAGED_EMPLOYEES
 } from './constants';
 
 
@@ -243,6 +244,21 @@ const updateproperty = ({ CompanyId, PropertyIds = [] }) => (
             };
           };
 
+const setManagedEmployees = ({
+    employees = [],
+    employeeIds = [],
+    isAdmin = false,
+    managerFacilityMemberId = null
+} = {}) => (
+    {
+        type: SET_MANAGED_EMPLOYEES,
+        employees,
+        employeeIds,
+        isAdmin,
+        managerFacilityMemberId
+    }
+);
+
     
 
 const departmentActions = {
@@ -274,7 +290,8 @@ const departmentActions = {
     updateclient,
     updateproperty,
     updateuserrole,
-    fetchDashDates
+    fetchDashDates,
+    setManagedEmployees
 };
 
 export default departmentActions;
