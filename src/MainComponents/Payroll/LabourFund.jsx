@@ -46,6 +46,8 @@ export default function LabourFund() {
     LwfAmount: 0,
     EmployeeAmount: 0,
     EmployerAmount: 0,
+    MaxRange: 0,
+    Percentage: 0,
   };
 
   const openDialog = (type, record = null) => {
@@ -123,7 +125,9 @@ export default function LabourFund() {
       stateName.includes(searchLwf.toLowerCase()) ||
       item.LwfAmount.toString().includes(searchLwf) ||
       item.EmployeeAmount.toString().includes(searchLwf) ||
-      item.EmployerAmount.toString().includes(searchLwf)
+      item.EmployerAmount.toString().includes(searchLwf) ||
+      item.MaxRange?.toString().includes(searchLwf) ||
+      item.Percentage?.toString().includes(searchLwf)
     );
   });
 
@@ -167,6 +171,8 @@ export default function LabourFund() {
               <th>Lwf Amount</th>
               <th>Employee Amount</th>
               <th>Employer Amount</th>
+              <th>Max Range</th>
+              <th>Percentage</th>
               <th>Action</th>
             </tr>
           </thead>
@@ -185,6 +191,8 @@ export default function LabourFund() {
                   <td>{item.LwfAmount}</td>
                   <td>{item.EmployeeAmount}</td>
                   <td>{item.EmployerAmount}</td>
+                  <td>{item.MaxRange}</td>
+                  <td>{item.Percentage}</td>
                   <td style={{ textAlign: "center", fontSize: 18, userSelect: "none" }}>
                     <button
                       className="btn btn-sm btn-info me-2"
@@ -315,6 +323,36 @@ export default function LabourFund() {
                     value={formData.EmployerAmount}
                     onChange={handleInputChange}
                     required
+                    style={{ width: "100%", padding: 6 }}
+                  />
+                )}
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <label>Max Range:</label>
+                {isView ? (
+                  <div>{formData.MaxRange}</div>
+                ) : (
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="MaxRange"
+                    value={formData.MaxRange}
+                    onChange={handleInputChange}
+                    style={{ width: "100%", padding: 6 }}
+                  />
+                )}
+              </div>
+              <div style={{ marginBottom: 10 }}>
+                <label>Percentage:</label>
+                {isView ? (
+                  <div>{formData.Percentage}</div>
+                ) : (
+                  <input
+                    type="number"
+                    step="0.01"
+                    name="Percentage"
+                    value={formData.Percentage}
+                    onChange={handleInputChange}
                     style={{ width: "100%", padding: 6 }}
                   />
                 )}

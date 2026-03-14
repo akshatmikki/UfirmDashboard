@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { getEmployeesByOffices } from "../../Services/PayrollService";
+import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
 import {
   getAllClients,
   getClientByPropertyId,
@@ -70,23 +70,100 @@ export default function ESIReport() {
 
   // Load Employees
   useEffect(() => {
-    const loadEmployees = async () => {
+    const loadESIData = async () => {
       try {
-        if (!selectedPropertyId) {
+        if (!selectedUnitId || !selectedPropertyId || !selectedMonth) {
           setEmployees([]);
           return;
         }
 
-        const data = await getEmployeesByOffices([selectedPropertyId]);
+        setLoading(true);
+
+        const [year, month] = selectedMonth.split("-");
+        const monthName = new Date(year, month - 1).toLocaleString(
+          "default",
+          { month: "long" }
+        );
+
+        const data =
+          await getFacilityMemberSalaryDetailsByClientBranch(
+            selectedUnitId,
+            selectedPropertyId,
+            monthName,
+            year
+          );
+
         setEmployees(data || []);
-      } catch (err) {
-        console.error("Employee load failed", err);
+      } catch (error) {
+        console.error("ESI report fetch failed", error);
         setEmployees([]);
+      } finally {
+        setLoading(false);
       }
     };
 
-    loadEmployees();
-  }, [selectedPropertyId]);
+    loadESIData();
+  }, [selectedUnitId, selectedPropertyId, selectedMonth]);
+
+  const handleExport = () => {
+    if (!selectedMonth || !selectedPropertyId) return;
+
+    const [year, month] = selectedMonth.split("-");
+    const monthName = new Date(year, month - 1).toLocaleString("default", {
+      month: "long",
+    });
+
+    let csvContent = "";
+
+    csvContent += `ESI Report - ${monthName} ${year}\n\n`;
+
+    const headers = [
+      "S.No",
+      "Employee Code",
+      "Employee Name",
+      "Working Days",
+      "Total Gross Earn",
+      "ESI Wage",
+      "0.75 %",
+      "3.25 %",
+      "Emp LWF",
+    ];
+
+    csvContent += headers.join(",") + "\n";
+
+    employees.forEach((emp, index) => {
+      const row = [
+        index + 1,
+        emp?.Profile?.EmployeeCode || "-",
+        emp?.Profile?.EmployeeName || "-",
+        "", // Working Days
+        "", // Gross
+        "", // ESI Wage
+        "", // 0.75%
+        "", // 3.25%
+        "", // LWF
+      ];
+
+      csvContent += row.join(",") + "\n";
+    });
+
+    const blob = new Blob([csvContent], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+
+    link.href = url;
+    link.setAttribute(
+      "download",
+      `ESI_Report_${monthName}_${year}.csv`
+    );
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   return (
     <div
@@ -163,16 +240,35 @@ export default function ESIReport() {
         </div>
       </div>
 
-      {/* Month Selector */}
-      <div style={{ marginBottom: 25 }}>
-        <label>Select Month:</label>
-        <input
-          type="month"
-          className="form-control"
-          style={{ width: 200 }}
-          value={selectedMonth}
-          onChange={(e) => setSelectedMonth(e.target.value)}
-        />
+      {/* Month Selector & Export Button */}
+      <div
+        style={{
+          marginBottom: 25,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+        }}
+      >
+        {/* Left Side - Month */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <label style={{ fontWeight: 600 }}>Select Month:</label>
+          <input
+            type="month"
+            className="form-control"
+            style={{ width: 200 }}
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
+          />
+        </div>
+
+        {/* Right Side - Export Button */}
+        <button
+          className="btn btn-success"
+          onClick={handleExport}
+          disabled={!selectedMonth || !selectedPropertyId}
+        >
+          Export ESI
+        </button>
       </div>
 
       {loading && <div>Loading ESI data...</div>}
@@ -197,11 +293,27 @@ export default function ESIReport() {
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td colSpan="9" style={{ textAlign: "center" }}>
-                Select month and unit to view ESI report
-              </td>
-            </tr>
+            {employees.length === 0 ? (
+              <tr>
+                <td colSpan="9" style={{ textAlign: "center" }}>
+                  Select month and unit to view ESI report
+                </td>
+              </tr>
+            ) : (
+              employees.map((emp, index) => (
+                <tr key={emp.FacilityMemberId}>
+                  <td>{index + 1}</td>
+                  <td>{emp.FacilityMemberId}</td>
+                  <td>{emp.FacilityMemberName}</td>
+                  <td>{emp.WorkingDays}</td>
+                  <td>{emp.ProratedTotalGross}</td>
+                  <td>{emp.ProratedTotalGross}</td>
+                  <td>{(emp.ProratedTotalGross * 0.0075).toFixed(2)}</td>
+                  <td>{(emp.ProratedTotalGross * 0.0325).toFixed(2)}</td>
+                  <td>{emp.LwfEmployeeAmount || 0}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>

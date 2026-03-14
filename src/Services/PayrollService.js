@@ -1104,3 +1104,36 @@ export const saveAttendanceBatch = async (monthyear, employees = []) => {
     throw error;
   }
 };
+
+// ==========================================
+// GET PF REPORT DATA BY CLIENT + PROPERTY
+// ==========================================
+export const getFacilityMemberSalaryDetailsByClientBranch = async (
+  clientId,
+  propertyId,
+  month,
+  year
+) => {
+  try {
+    const response = await axios.get(
+      "https://api.urest.in:8096/get-facilitymember-salary-details-byclient-branch",
+      {
+        params: {
+          clientId: clientId,
+          propertyId: propertyId,
+          Month: month,
+          Year: year
+        },
+        headers: {
+          Accept: "application/json"
+        },
+        withCredentials: false
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch PF report data", error);
+    throw error;
+  }
+};

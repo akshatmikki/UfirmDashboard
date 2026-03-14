@@ -1,0 +1,531 @@
+import React, { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+
+import {
+    getAllClients,
+    getClientByPropertyId,
+    getPropertiesByClientId,
+} from "../../Services/ClientService";
+
+import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
+
+export default function SalaryReport() {
+    const reduxPropertyId = useSelector(
+        (state) => state.Commonreducer.puidn
+    );
+
+    const [unitList, setUnitList] = useState([]);
+    const [selectedUnitId, setSelectedUnitId] = useState(null);
+
+    const [propertyList, setPropertyList] = useState([]);
+    const [selectedPropertyId, setSelectedPropertyId] = useState(null);
+
+    const [selectedMonth, setSelectedMonth] = useState("");
+
+    const [employees, setEmployees] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // ================================
+    // LOAD CLIENTS
+    // ================================
+    useEffect(() => {
+        const loadUnits = async () => {
+            try {
+                if (Number(reduxPropertyId) > 0) {
+                    const res = await getClientByPropertyId(reduxPropertyId);
+                    setUnitList(res ? [res] : []);
+                    setSelectedUnitId(res?.ClientID || null);
+                } else {
+                    const res = await getAllClients();
+                    setUnitList(res || []);
+                }
+            } catch (err) {
+                console.log("Client load failed", err);
+            }
+        };
+
+        loadUnits();
+    }, [reduxPropertyId]);
+
+    // ================================
+    // LOAD PROPERTIES / UNITS
+    // ================================
+    useEffect(() => {
+        const loadProperties = async () => {
+            try {
+                if (!selectedUnitId) {
+                    setPropertyList([]);
+                    setSelectedPropertyId(null);
+                    return;
+                }
+
+                const res = await getPropertiesByClientId(selectedUnitId);
+
+                setPropertyList(res || []);
+
+                if (reduxPropertyId) {
+                    setSelectedPropertyId(reduxPropertyId);
+                } else {
+                    setSelectedPropertyId(null);
+                }
+            } catch (err) {
+                console.log("Property load failed", err);
+            }
+        };
+
+        loadProperties();
+    }, [selectedUnitId]);
+
+    // ================================
+    // FETCH SALARY REPORT DATA
+    // ================================
+    useEffect(() => {
+        const loadSalaryReport = async () => {
+            try {
+                if (!selectedUnitId || !selectedPropertyId || !selectedMonth) {
+                    setEmployees([]);
+                    return;
+                }
+
+                setLoading(true);
+
+                const [year, month] = selectedMonth.split("-");
+
+                const monthName = new Date(year, month - 1).toLocaleString(
+                    "default",
+                    { month: "long" }
+                );
+
+                const data =
+                    await getFacilityMemberSalaryDetailsByClientBranch(
+                        selectedUnitId,
+                        selectedPropertyId,
+                        monthName,
+                        year
+                    );
+
+                setEmployees(data || []);
+            } catch (err) {
+                console.log("Salary report fetch failed", err);
+                setEmployees([]);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        loadSalaryReport();
+    }, [selectedUnitId, selectedPropertyId, selectedMonth]);
+
+    const formatCurrency = (value) => {
+        const num = Number(value) || 0;
+        return `₹${num.toLocaleString("en-IN")}`;
+    };
+
+    const totals = employees.reduce(
+        (acc, emp) => {
+            acc.basic += emp.Basic || 0;
+            acc.hra += emp.HRA || 0;
+            acc.conv += emp.CONV || 0;
+            acc.ot += emp.OTAmount || 0;
+            acc.allowance += emp.TotalAllowance || 0;
+            acc.pf += emp.PF || 0;
+            acc.esi += emp.ESI || 0;
+            acc.lwf += emp.LwfEmployeeAmount || 0;
+            acc.deduction += emp.TotalDeduction || 0;
+            acc.net += emp.NetSalary || 0;
+            return acc;
+        },
+        {
+            basic: 0,
+            hra: 0,
+            conv: 0,
+            ot: 0,
+            allowance: 0,
+            pf: 0,
+            esi: 0,
+            lwf: 0,
+            deduction: 0,
+            net: 0,
+        }
+    );
+
+    const exportExcel = () => {
+
+        const data = employees.map((emp, index) => ({
+            "S.No": index + 1,
+            Employee: emp.FacilityMemberName || "-",
+            Designation: emp.Designation || "-",
+            "Working Days": emp.WorkingDays || 0,
+
+            Basic: formatCurrency(emp.Basic),
+            HRA: formatCurrency(emp.HRA),
+            Conveyance: formatCurrency(emp.CONV),
+            OT: formatCurrency(emp.OTAmount),
+
+            "Total Allowance": formatCurrency(emp.TotalAllowance),
+
+            PF: formatCurrency(emp.PF),
+            ESI: formatCurrency(emp.ESI),
+            LWF: formatCurrency(emp.LwfEmployeeAmount),
+
+            "Total Deduction": formatCurrency(emp.TotalDeduction),
+            "Net Salary": formatCurrency(emp.NetSalary),
+        }));
+
+        data.push({
+            "S.No": "",
+            Employee: "TOTAL",
+            Designation: "",
+            "Working Days": "",
+
+            Basic: formatCurrency(totals.basic),
+            HRA: formatCurrency(totals.hra),
+            Conveyance: formatCurrency(totals.conv),
+            OT: formatCurrency(totals.ot),
+
+            "Total Allowance": formatCurrency(totals.allowance),
+
+            PF: formatCurrency(totals.pf),
+            ESI: formatCurrency(totals.esi),
+            LWF: formatCurrency(totals.lwf),
+
+            "Total Deduction": formatCurrency(totals.deduction),
+            "Net Salary": formatCurrency(totals.net),
+        });
+
+        const worksheet = XLSX.utils.json_to_sheet(data);
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, "Salary Report");
+
+        const excelBuffer = XLSX.write(workbook, {
+            bookType: "xlsx",
+            type: "array",
+        });
+
+        const blob = new Blob([excelBuffer], {
+            type:
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        });
+
+        saveAs(blob, "SalaryReport.xlsx");
+    };
+
+    const exportPDF = () => {
+
+        const doc = new jsPDF();
+
+        const tableColumn = [
+            "S.No",
+            "Employee",
+            "Designation",
+            "Working Days",
+            "Basic",
+            "HRA",
+            "Conveyance",
+            "OT",
+            "Total Allowance",
+            "PF",
+            "ESI",
+            "LWF",
+            "Total Deduction",
+            "Net Salary"
+        ];
+
+        const tableRows = [];
+
+        employees.forEach((emp, index) => {
+            tableRows.push([
+                index + 1,
+                emp.FacilityMemberName || "-",
+                emp.Designation || "-",
+                emp.WorkingDays || 0,
+
+                Number(emp.Basic || 0).toLocaleString("en-IN"),
+                Number(emp.HRA || 0).toLocaleString("en-IN"),
+                Number(emp.CONV || 0).toLocaleString("en-IN"),
+                Number(emp.OTAmount || 0).toLocaleString("en-IN"),
+
+                Number(emp.TotalAllowance || 0).toLocaleString("en-IN"),
+
+                Number(emp.PF || 0).toLocaleString("en-IN"),
+                Number(emp.ESI || 0).toLocaleString("en-IN"),
+                Number(emp.LwfEmployeeAmount || 0).toLocaleString("en-IN"),
+
+                Number(emp.TotalDeduction || 0).toLocaleString("en-IN"),
+                Number(emp.NetSalary || 0).toLocaleString("en-IN")
+            ]);
+        });
+
+        tableRows.push([
+            "",
+            "TOTAL",
+            "",
+            "",
+            totals.basic.toLocaleString("en-IN"),
+            totals.hra.toLocaleString("en-IN"),
+            totals.conv.toLocaleString("en-IN"),
+            totals.ot.toLocaleString("en-IN"),
+            totals.allowance.toLocaleString("en-IN"),
+            totals.pf.toLocaleString("en-IN"),
+            totals.esi.toLocaleString("en-IN"),
+            totals.lwf.toLocaleString("en-IN"),
+            totals.deduction.toLocaleString("en-IN"),
+            totals.net.toLocaleString("en-IN")
+        ]);
+
+        doc.text("Salary Report", 14, 15);
+
+        autoTable(doc, {
+            head: [tableColumn],
+            body: tableRows,
+            startY: 20,
+        });
+
+        doc.save("SalaryReport.pdf");
+    };
+
+    return (
+        <div
+            className="card"
+            style={{
+                maxWidth: 1600,
+                margin: "20px auto",
+                borderRadius: 10,
+                padding: "20px 30px",
+                background: "#f7fafc",
+                boxShadow: "0 2px 10px rgba(0,0,0,0.08)",
+            }}
+        >
+            <h3 style={{ fontWeight: "bold", color: "#2a4365" }}>
+                Salary Report
+            </h3>
+
+            {/* ================= CLIENT + UNIT ================= */}
+
+            <div
+                style={{
+                    display: "flex",
+                    gap: 24,
+                    alignItems: "center",
+                    padding: "10px 14px",
+                    marginBottom: 20,
+                    background: "#f9fafb",
+                    borderRadius: 8,
+                    border: "1px solid #e5e7eb",
+                }}
+            >
+                {/* Client */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <label style={{ fontWeight: 600 }}>Select Client :</label>
+
+                    <select
+                        value={selectedUnitId || ""}
+                        onChange={(e) => {
+                            const clientId = Number(e.target.value) || null;
+
+                            setSelectedUnitId(clientId);
+                            setSelectedPropertyId(null);
+
+                            setEmployees([]);
+                        }}
+                        style={{ width: 240 }}
+                    >
+                        <option value="">-- Select Client --</option>
+
+                        {unitList.map((u) => (
+                            <option key={u.ClientID} value={u.ClientID}>
+                                {u.ClientName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                {/* Unit */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <label style={{ fontWeight: 600 }}>Select Unit :</label>
+
+                    <select
+                        value={selectedPropertyId || ""}
+                        onChange={(e) => {
+                            const value = Number(e.target.value) || null;
+
+                            setSelectedPropertyId(value);
+
+                            setEmployees([]);
+                        }}
+                        style={{ width: 240 }}
+                    >
+                        <option value="">-- Select Unit --</option>
+
+                        {propertyList.map((p) => (
+                            <option key={p.PropertyId} value={p.PropertyId}>
+                                {p.PropertyName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+            </div>
+
+            {/* ================= MONTH SELECTOR ================= */}
+
+            <div
+                style={{
+                    display: "flex",
+                    gap: 12,
+                    alignItems: "center",
+                    marginBottom: 20,
+                }}
+            >
+                <label style={{ fontWeight: 600 }}>Select Month :</label>
+
+                <input
+                    type="month"
+                    className="form-control"
+                    style={{ width: 200 }}
+                    value={selectedMonth}
+                    onChange={(e) => setSelectedMonth(e.target.value)}
+                />
+            </div>
+
+            <div style={{ marginBottom: 20, display: "flex", gap: 10 }}>
+
+                <button
+                    className="btn btn-success"
+                    onClick={exportExcel}
+                    disabled={!employees.length}
+                >
+                    Download Excel
+                </button>
+
+                <button
+                    className="btn btn-danger"
+                    onClick={exportPDF}
+                    disabled={!employees.length}
+                >
+                    Download PDF
+                </button>
+
+            </div>
+
+            {loading && <div>Loading Salary Data...</div>}
+
+            {/* ================= TABLE (TEMP PLACEHOLDER) ================= */}
+
+            <div style={{ overflow: "auto", maxHeight: 500 }}>
+                <style>
+                    {`
+.salary-table thead th {
+  position: sticky;
+  top: 0;
+  background: #edf2f7;
+  z-index: 2;
+}
+`}
+                </style>
+                <table className="table table-bordered salary-table">
+                    <thead style={{ background: "#edf2f7" }}>
+                        <tr>
+                            <th>S.No</th>
+                            <th>Employee</th>
+                            <th>Designation</th>
+                            <th>Working Days</th>
+
+                            <th>Basic</th>
+                            <th>HRA</th>
+                            <th>Conveyance</th>
+                            <th>OT</th>
+
+                            <th>Total Allowance</th>
+
+                            <th>PF</th>
+                            <th>ESI</th>
+                            <th>LWF</th>
+
+                            <th>Total Deduction</th>
+                            <th>Net Salary</th>
+                        </tr>
+                    </thead>
+
+                    <tbody>
+                        {employees.length === 0 ? (
+                            <tr>
+                                <td colSpan="14" style={{ textAlign: "center" }}>
+                                    Select client, unit and month
+                                </td>
+                            </tr>
+                        ) : (
+                            <>
+                                {employees.map((emp, index) => (
+                                    <tr key={emp.FacilityMemberId}>
+                                        <td>{index + 1}</td>
+
+                                        <td>{emp.FacilityMemberName || "-"}</td>
+
+                                        <td>{emp.Designation || "-"}</td>
+
+                                        <td>{emp.WorkingDays || 0}</td>
+
+                                        <td>{formatCurrency(emp.Basic)}</td>
+
+                                        <td>{formatCurrency(emp.HRA)}</td>
+
+                                        <td>{formatCurrency(emp.CONV)}</td>
+
+                                        <td>{formatCurrency(emp.OTAmount)}</td>
+
+                                        <td>{formatCurrency(emp.TotalAllowance)}</td>
+
+                                        <td>{formatCurrency(emp.PF)}</td>
+
+                                        <td>{formatCurrency(emp.ESI)}</td>
+
+                                        <td>{formatCurrency(emp.LwfEmployeeAmount)}</td>
+
+                                        <td>{formatCurrency(emp.TotalDeduction)}</td>
+
+                                        <td style={{ fontWeight: "bold" }}>
+                                            {formatCurrency(emp.NetSalary)}
+                                        </td>
+                                    </tr>
+                                ))}
+
+                                {/* TOTAL ROW */}
+
+                                <tr style={{ background: "#f1f5f9", fontWeight: "bold" }}>
+                                    <td colSpan="4" style={{ textAlign: "right" }}>
+                                        TOTAL
+                                    </td>
+
+                                    <td>{formatCurrency(totals.basic)}</td>
+
+                                    <td>{formatCurrency(totals.hra)}</td>
+
+                                    <td>{formatCurrency(totals.conv)}</td>
+
+                                    <td>{formatCurrency(totals.ot)}</td>
+
+                                    <td>{formatCurrency(totals.allowance)}</td>
+
+                                    <td>{formatCurrency(totals.pf)}</td>
+
+                                    <td>{formatCurrency(totals.esi)}</td>
+
+                                    <td>{formatCurrency(totals.lwf)}</td>
+
+                                    <td>{formatCurrency(totals.deduction)}</td>
+
+                                    <td>{formatCurrency(totals.net)}</td>
+                                </tr>
+                            </>
+                        )}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    );
+}

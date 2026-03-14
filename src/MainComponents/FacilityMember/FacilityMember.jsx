@@ -883,8 +883,18 @@ const StaffPage = () => {
           </>
         )}
 
-        <div className="p-input-left">
+        <Button
+          label="Import"
+          icon="pi pi-upload"
+          className="p-button-secondary"
+          tooltip="Import Staff"
+          disabled={!selectedPropertyId[0]}
+          onClick={() => {
+            console.log("Import clicked for unit:", selectedPropertyId[0]);
+          }}
+        />
 
+        <div className="p-input-left">
           <InputText
             value={globalFilterValue}
             onChange={(e) => setGlobalFilterValue(e.target.value)}
