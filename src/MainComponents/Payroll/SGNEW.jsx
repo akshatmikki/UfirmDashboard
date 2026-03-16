@@ -55,6 +55,7 @@ export default function SGNEW() {
   const [propertyList, setPropertyList] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+  const [otStandalone, setOtStandalone] = useState(false);
 
   const [form, setForm] = useState({
     salaryGroupName: "",
@@ -399,6 +400,29 @@ export default function SGNEW() {
       // 🔥 Special case: OTAmount must bypass zero amount filtering
       if (name === "OTAmount") {
 
+        // 🔥 NEW FEATURE — OT standalone mode
+        if (otStandalone) {
+          list.push({
+            AD_Id: item.ID,
+            Name: name,
+            Type: item.Type,
+            FixedAmount: 0,
+            CalculatedAmount: 0,
+            Formula: null,
+            FormulaId: null,
+
+            IsDouble: !!odDoubleFlags[name],
+            MultiplyValue: odDoubleFlags[name]
+              ? Number(multiplyValues[name]) || 0
+              : 0,
+
+            Isbasic: otBaseType === "Base",
+            Perday: false,
+          });
+
+          return;
+        }
+
         const isUsedInPF = !!deductionAllowanceMap.PF?.OTAmount;
         const isUsedInESI = !!deductionAllowanceMap.ESI?.OTAmount;
         const isSelected = !!allowanceSelected[name];
@@ -565,6 +589,7 @@ export default function SGNEW() {
     setMultiplyValues({});
     setPerDayOD({});
     setOtBaseType("Base");
+    setOtStandalone(false);
 
     // 🔥 Store SG-based exclusions & designations
     setExcludedEmployeeIds(sg.ExcludedEmployeeIds || []);
@@ -614,6 +639,17 @@ export default function SGNEW() {
         }));
 
         setOtBaseType(ad.Isbasic === false ? "Gross" : "Base");
+      }
+
+      // 🔥 Detect standalone OT from API
+      if (ad.Name === "OTAmount") {
+        const usedInPF = deductionAllowanceRestoreMap?.PF?.OTAmount;
+        const usedInESI = deductionAllowanceRestoreMap?.ESI?.OTAmount;
+
+        // if not used anywhere → standalone
+        if (!usedInPF && !usedInESI) {
+          setOtStandalone(true);
+        }
       }
 
       // 🔥 RESTORE allowance usage FROM DEDUCTION FORMULA
@@ -913,6 +949,7 @@ export default function SGNEW() {
       ESI: false,
     });
     setOtBaseType("Base");
+    setOtStandalone(false);
   };
 
   const resetAll = () => {
@@ -2189,6 +2226,10 @@ export default function SGNEW() {
                     type="checkbox"
                     checked={!!allowanceSelected[a.Name]}
                     onChange={(e) => {
+                      if (a.Name === "OTAmount" && otStandalone) {
+                        alert("OTAmount is standalone. It cannot be used in PF/ESI.");
+                        return;
+                      }
                       if (!activeDeduction) {
                         alert("Please select a deduction first!");
                         return;
@@ -2235,15 +2276,13 @@ export default function SGNEW() {
                           alignItems: "center",
                           gap: 6,
                           marginLeft: -20,
-                          opacity: allowanceSelected[a.Name] ? 1 : 0.4,
-                          cursor: allowanceSelected[a.Name]
-                            ? "pointer"
-                            : "not-allowed",
+                          opacity: (allowanceSelected[a.Name] || otStandalone) ? 1 : 0.4,
+                          cursor: (allowanceSelected[a.Name] || otStandalone) ? "pointer" : "not-allowed",
                         }}
                       >
                         <input
                           type="checkbox"
-                          disabled={!allowanceSelected[a.Name]} // disable until first checkbox selected
+                          disabled={!(allowanceSelected[a.Name] || otStandalone)} // disable until first checkbox selected
                           checked={odDoubleFlags[a.Name] || false}
                           onChange={(e) => {
                             const checked = e.target.checked;
@@ -2318,6 +2357,50 @@ export default function SGNEW() {
                         <option value="Base">Base</option>
                         <option value="Gross">Gross</option>
                       </select>
+                      {/* OT Standalone YES/NO */}
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          marginLeft: 15,
+                          border: "2px solid #2563eb",
+                          borderRadius: 25,
+                          overflow: "hidden",
+                          height: 26
+                        }}
+                      >
+                        <div
+                          onClick={() => setOtStandalone(true)}
+                          style={{
+                            padding: "2px 12px",
+                            background: otStandalone ? "#2563eb" : "#fff",
+                            color: otStandalone ? "#fff" : "#2563eb",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontSize: 12
+                          }}
+                        >
+                          Yes
+                        </div>
+
+                        <div
+                          onClick={() => {
+                            setOtStandalone(false);
+                            setOdDoubleFlags(prev => ({ ...prev, OTAmount: false }));
+                            setMultiplyValues(prev => ({ ...prev, OTAmount: null }));
+                          }}
+                          style={{
+                            padding: "2px 12px",
+                            background: !otStandalone ? "#2563eb" : "#fff",
+                            color: !otStandalone ? "#fff" : "#2563eb",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                            fontSize: 12
+                          }}
+                        >
+                          No
+                        </div>
+                      </div>
                     </div>
                   ) : (
                     /* OTHER Allowances */
@@ -2416,6 +2499,11 @@ export default function SGNEW() {
                     type="checkbox"
                     checked={!!deductionAllowanceMap.PF?.[a.Name]}
                     onChange={(e) => {
+                      // 🔒 Block PF usage when OT is standalone
+                      if (a.Name === "OTAmount" && otStandalone) {
+                        alert("Standalone OT cannot be used in PF.");
+                        return;
+                      }
                       const checked = e.target.checked;
 
                       setDeductionAllowanceMap((prev) => {
@@ -2497,6 +2585,11 @@ export default function SGNEW() {
                     type="checkbox"
                     checked={!!deductionAllowanceMap.ESI?.[a.Name]}
                     onChange={(e) => {
+                      // 🔒 Block ESI usage when OT is standalone
+                      if (a.Name === "OTAmount" && otStandalone) {
+                        alert("Standalone OT cannot be used in ESI.");
+                        return;
+                      }
                       const checked = e.target.checked;
 
                       setDeductionAllowanceMap((prev) => {

@@ -1146,7 +1146,7 @@ export const importEmployees = async (propertyId, file) => {
     formData.append("file", file);
 
     const response = await fetch(
-      `http://localhost:62929/api/employee/import?propertyId=${propertyId}`,
+      `http://api.urest.in:8096/api/employee/import?propertyId=${propertyId}`,
       {
         method: "POST",
         body: formData
