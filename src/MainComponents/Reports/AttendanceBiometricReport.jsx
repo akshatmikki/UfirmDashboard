@@ -14,6 +14,7 @@ import { fetchDevices, fetchDeviceLogs, fetchDeviceLogsinBetween } from "../../S
 
 const AttendanceBiometricReport = () => {
     const [devices, setDevices] = useState([]);
+    const [loading, setLoading] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [selectedDeviceName, setSelectedDeviceName] = useState("");
     const [fromDate, setFromDate] = useState(null);

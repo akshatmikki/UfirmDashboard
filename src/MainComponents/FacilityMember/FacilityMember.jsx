@@ -25,7 +25,7 @@ import {
   updateEmployee,
   deleteEmployee,
 } from "../../Services/FacilityService";
-import { getEmployeesByOffices, getSalaryGroupsByDesignation } from "../../Services/PayrollService";
+import { getEmployeesByOffices, getSalaryGroupsByDesignation, importEmployees } from "../../Services/PayrollService";
 
 import {
   getAllClients,
@@ -43,6 +43,7 @@ import LoanAdvanceDialog from "../../ReactComponents/DataGrid/LoanAdvances.jsx";
 
 const StaffPage = () => {
   const toast = useRef(null);
+  const fileInputRef = useRef(null);
   // const propertyId = useSelector((state) => state.Commonreducer.puidn);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
 
@@ -844,6 +845,46 @@ const StaffPage = () => {
     }
   };
 
+  const handleImportClick = () => {
+    fileInputRef.current.click();
+  };
+
+  const handleFileSelect = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Invalid File",
+        detail: "Please upload Excel file (.xlsx)"
+      });
+      return;
+    }
+
+    try {
+      const result = await importEmployees(propertyId, file);
+
+      toast.current.show({
+        severity: "success",
+        summary: "Import Complete",
+        detail: `Total: ${result.TotalRows} | Success: ${result.SuccessCount} | Failed: ${result.FailedCount}`
+      });
+
+      // reload staff
+      const data = await getEmployeesByOffices([propertyId]);
+      setStaff(data || []);
+
+    } catch (error) {
+      toast.current.show({
+        severity: "error",
+        summary: "Import Failed",
+        detail: "Employee import failed"
+      });
+    }
+  };
+
   const header = (
     <div className="d-flex justify-content-between align-items-center p-2">
       <h5 className="m-0">Facility Member</h5>
@@ -889,9 +930,14 @@ const StaffPage = () => {
           className="p-button-secondary"
           tooltip="Import Staff"
           disabled={!selectedPropertyId[0]}
-          onClick={() => {
-            console.log("Import clicked for unit:", selectedPropertyId[0]);
-          }}
+          onClick={handleImportClick}
+        />
+        <input
+          type="file"
+          accept=".xlsx,.xls"
+          ref={fileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFileSelect}
         />
 
         <div className="p-input-left">

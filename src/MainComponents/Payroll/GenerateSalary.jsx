@@ -638,8 +638,8 @@ export default function GenerateSalary() {
     <td>${row.BankAccountNumber || "-"}</td>
   </tr>
   <tr>
-    <td><b>Emp ID:</b></td>
-    <td>${row.FacilityMemberId || ""}</td>
+    <td><b>Emp Code:</b></td>
+    <td>${row.EmployeeCode || ""}</td>
     <td><b>IFSC Code:</b></td>
     <td>${row.BankIFSCCode || "-"}</td>
     <td><b>PF No.:</b></td>
@@ -996,7 +996,7 @@ export default function GenerateSalary() {
         const pdfWidth = pdf.internal.pageSize.getWidth();
         const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Payslip_${row.FacilityMemberId}_${row.Month || "All"}_${row.Year}.pdf`);
+        pdf.save(`Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`);
       } catch (error) {
         alert("Failed to generate PDF for employee " + (row.FacilityMemberName || ""));
       } finally {
