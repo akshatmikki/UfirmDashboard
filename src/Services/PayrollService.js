@@ -1137,3 +1137,29 @@ export const getFacilityMemberSalaryDetailsByClientBranch = async (
     throw error;
   }
 };
+
+// ================= IMPORT EMPLOYEES =================
+
+export const importEmployees = async (propertyId, file) => {
+  try {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(
+      `http://localhost:62929/api/employee/import?propertyId=${propertyId}`,
+      {
+        method: "POST",
+        body: formData
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Import failed: ${response.status}`);
+    }
+
+    return await response.json(); // { TotalRows, SuccessCount, FailedCount }
+  } catch (error) {
+    console.error("Employee import failed:", error);
+    throw error;
+  }
+};

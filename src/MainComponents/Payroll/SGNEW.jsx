@@ -2069,15 +2069,16 @@ export default function SGNEW() {
                       const checked = e.target.checked;
 
                       setDeductionAllowanceMap((prev) => {
+
+                        const newMap = { ...prev }; // preserve PF and any other deductions
+
                         const esiMap = {
                           ...(prev.ESI || {}),
                           BaseSalary: prev.ESI?.BaseSalary ?? false,
                           [a.Name]: checked,
                         };
 
-                        const hasAnyESI = Object.values(esiMap).some(
-                          (v) => v === true,
-                        );
+                        const hasAnyESI = Object.values(esiMap).some(v => v === true);
 
                         if (!hasAnyESI) {
                           setActiveStatutory((p) => ({ ...p, ESI: false }));
@@ -2106,7 +2107,6 @@ export default function SGNEW() {
                             return c;
                           });
 
-                          const newMap = { ...prev };
                           delete newMap.ESI;
                           return newMap;
                         }
@@ -2117,7 +2117,9 @@ export default function SGNEW() {
 
                         setActiveStatutory((p) => ({ ...p, ESI: true }));
 
-                        return { ...prev, ESI: esiMap };
+                        newMap.ESI = esiMap;
+
+                        return newMap;
                       });
 
                       setAllowanceSelected((prev) => ({
@@ -2498,16 +2500,18 @@ export default function SGNEW() {
                       const checked = e.target.checked;
 
                       setDeductionAllowanceMap((prev) => {
+
+                        const newMap = { ...prev }; // preserve PF and other deductions
+
                         const esiMap = {
                           ...(prev.ESI || {}),
                           BaseSalary: prev.ESI?.BaseSalary ?? false,
                           [a.Name]: checked,
                         };
 
-                        const hasAnyESI = Object.values(esiMap).some(
-                          (v) => v === true,
-                        );
+                        const hasAnyESI = Object.values(esiMap).some((v) => v === true);
 
+                        // ❌ if no ESI sources remain → remove ESI
                         if (!hasAnyESI) {
                           setActiveStatutory((p) => ({ ...p, ESI: false }));
 
@@ -2535,18 +2539,20 @@ export default function SGNEW() {
                             return c;
                           });
 
-                          const newMap = { ...prev };
                           delete newMap.ESI;
                           return newMap;
                         }
 
+                        // ✅ activate ESI if newly checked
                         if (checked && !prev.ESI) {
                           activateDeductionWithBase("ESI");
                         }
 
                         setActiveStatutory((p) => ({ ...p, ESI: true }));
 
-                        return { ...prev, ESI: esiMap };
+                        newMap.ESI = esiMap;
+
+                        return newMap;
                       });
 
                       setAllowanceSelected((prev) => ({
@@ -2690,32 +2696,29 @@ export default function SGNEW() {
                   {/* PF / ESI = STATUTORY RADIOS | Others = NORMAL RADIO GROUP */}
                   {d.Name === "PF" || d.Name === "ESI" ? (
                     <input
-                      type="radio"
-                      name="statutoryDeduction" // ✅ ADD THIS LINE
-                      checked={!!deductionAllowanceMap[d.Name]?.BaseSalary}
+                      type="checkbox"
+                      checked={
+                        Object.values(deductionAllowanceMap[d.Name] || {}).some(v => v === true)
+                      }
                       onChange={() => {
-                        // 🔥 PF / ESI are always ON once selected
-                        setActiveStatutory((prev) => ({
+
+                        setDeductionAllowanceMap(prev => ({
                           ...prev,
-                          [d.Name]: true,
+                          [d.Name]: {
+                            ...(prev[d.Name] || {}),
+                            BaseSalary: true
+                          }
                         }));
 
-                        // 🔥 DO NOT set activeDeduction here
+                        if (!activeStatutory[d.Name]) {
+                          setActiveStatutory(prev => ({
+                            ...prev,
+                            [d.Name]: true
+                          }));
+                        }
+
                         activateDeductionWithBase(d.Name);
-
-                        // 🔥 Ensure % exists (API or previous)
-                        const percentObj = getEffectivePercentage(d.Name);
-                        setEditablePercentages((prev) => ({
-                          ...prev,
-                          [d.Name]: prev[d.Name] ?? percentObj?.Percentage ?? 0,
-                        }));
-
-                        setAdValueType((prev) => ({
-                          ...prev,
-                          [d.Name]: "PERCENT",
-                        }));
                       }}
-                      style={{ transform: "scale(1.1)" }}
                     />
                   ) : (
                     <input
