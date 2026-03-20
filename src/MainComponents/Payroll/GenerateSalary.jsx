@@ -728,7 +728,7 @@ export default function GenerateSalary() {
           <td>OthDed</td>
           <td class="v-light">${row.OthDeduction || 0}</td>
           <td>Duty Days</td>
-          <td>${row.DutyDays || 0}</td>
+          <td>${row.AttendanceTotalWorkingDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>AdjAmt/Incentive</td>
