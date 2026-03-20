@@ -28,6 +28,8 @@ export default function SalaryReport() {
     const [employees, setEmployees] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    const [logoBase64, setLogoBase64] = useState("");
+
     // ================================
     // LOAD CLIENTS
     // ================================
@@ -118,6 +120,12 @@ export default function SalaryReport() {
 
         loadSalaryReport();
     }, [selectedUnitId, selectedPropertyId, selectedMonth]);
+
+    useEffect(() => {
+        loadImageAsBase64("/Urest-logo.png")
+            .then(setLogoBase64)
+            .catch(() => console.log("Logo load failed"));
+    }, []);
 
     const formatCurrency = (value) => {
         const num = Number(value) || 0;
@@ -214,17 +222,69 @@ export default function SalaryReport() {
         saveAs(blob, "SalaryReport.xlsx");
     };
 
-    const exportPDF = () => {
-        const selectedUnit = unitList.find(u => u.ClientID === selectedUnitId);
+    const exportPDF = async () => {
+        if (!logoBase64) return;
         const selectedProperty = propertyList.find(p => p.PropertyId === selectedPropertyId);
 
+        const [year, monthNum] = selectedMonth.split("-");
+        const monthName = new Date(year, monthNum - 1).toLocaleString("default", {
+            month: "long"
+        });
+
         const filters = {
-            clientName: selectedUnit?.ClientName || "",
             unitName: selectedProperty?.PropertyName || "",
-            month: selectedMonth
+            month: `${monthName} - ${year}`,
+            logo: logoBase64 // 👈 USE STATE (NOT loading again)
         };
 
-        generateWageSheetPDF(employees, filters);
+        generateWageSheetPDF(employees, filters, false);
+    };
+
+    const viewPDF = async () => {
+        try {
+            if (!logoBase64) return;
+            const selectedProperty = propertyList.find(
+                p => p.PropertyId === selectedPropertyId
+            );
+
+            const [year, monthNum] = selectedMonth.split("-");
+            const monthName = new Date(year, monthNum - 1).toLocaleString("default", {
+                month: "long"
+            });
+
+            const filters = {
+                unitName: selectedProperty?.PropertyName || "",
+                month: `${monthName} - ${year}`,
+                logo: logoBase64 // 👈 USE STATE
+            };
+
+            const url = generateWageSheetPDF(employees, filters, true);
+            window.open(url);
+
+        } catch (err) {
+            console.error("PDF error:", err);
+        }
+    };
+
+    const loadImageAsBase64 = (url) => {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.src = url;
+
+            img.onload = () => {
+                const canvas = document.createElement("canvas");
+                canvas.width = img.width;
+                canvas.height = img.height;
+
+                const ctx = canvas.getContext("2d");
+                ctx.drawImage(img, 0, 0);
+
+                resolve(canvas.toDataURL("image/png"));
+            };
+
+            img.onerror = reject;
+        });
     };
 
     return (
@@ -346,6 +406,14 @@ export default function SalaryReport() {
                     disabled={!employees.length}
                 >
                     Download PDF
+                </button>
+
+                <button
+                    className="btn btn-primary"
+                    onClick={viewPDF}
+                    disabled={!employees.length}
+                >
+                    View PDF
                 </button>
 
             </div>
