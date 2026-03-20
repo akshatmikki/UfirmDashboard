@@ -2,8 +2,6 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 
 import {
     getAllClients,
@@ -12,6 +10,7 @@ import {
 } from "../../Services/ClientService";
 
 import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
+import { generateWageSheetPDF } from "./WageSheetPDF";
 
 export default function SalaryReport() {
     const reduxPropertyId = useSelector(
@@ -216,77 +215,16 @@ export default function SalaryReport() {
     };
 
     const exportPDF = () => {
+        const selectedUnit = unitList.find(u => u.ClientID === selectedUnitId);
+        const selectedProperty = propertyList.find(p => p.PropertyId === selectedPropertyId);
 
-        const doc = new jsPDF();
+        const filters = {
+            clientName: selectedUnit?.ClientName || "",
+            unitName: selectedProperty?.PropertyName || "",
+            month: selectedMonth
+        };
 
-        const tableColumn = [
-            "S.No",
-            "Employee",
-            "Designation",
-            "Working Days",
-            "Basic",
-            "HRA",
-            "Conveyance",
-            "OT",
-            "Total Allowance",
-            "PF",
-            "ESI",
-            "LWF",
-            "Total Deduction",
-            "Net Salary"
-        ];
-
-        const tableRows = [];
-
-        employees.forEach((emp, index) => {
-            tableRows.push([
-                index + 1,
-                emp.FacilityMemberName || "-",
-                emp.Designation || "-",
-                emp.WorkingDays || 0,
-
-                Number(emp.Basic || 0).toLocaleString("en-IN"),
-                Number(emp.HRA || 0).toLocaleString("en-IN"),
-                Number(emp.CONV || 0).toLocaleString("en-IN"),
-                Number(emp.OTAmount || 0).toLocaleString("en-IN"),
-
-                Number(emp.TotalAllowance || 0).toLocaleString("en-IN"),
-
-                Number(emp.PF || 0).toLocaleString("en-IN"),
-                Number(emp.ESI || 0).toLocaleString("en-IN"),
-                Number(emp.LwfEmployeeAmount || 0).toLocaleString("en-IN"),
-
-                Number(emp.TotalDeduction || 0).toLocaleString("en-IN"),
-                Number(emp.NetSalary || 0).toLocaleString("en-IN")
-            ]);
-        });
-
-        tableRows.push([
-            "",
-            "TOTAL",
-            "",
-            "",
-            totals.basic.toLocaleString("en-IN"),
-            totals.hra.toLocaleString("en-IN"),
-            totals.conv.toLocaleString("en-IN"),
-            totals.ot.toLocaleString("en-IN"),
-            totals.allowance.toLocaleString("en-IN"),
-            totals.pf.toLocaleString("en-IN"),
-            totals.esi.toLocaleString("en-IN"),
-            totals.lwf.toLocaleString("en-IN"),
-            totals.deduction.toLocaleString("en-IN"),
-            totals.net.toLocaleString("en-IN")
-        ]);
-
-        doc.text("Salary Report", 14, 15);
-
-        autoTable(doc, {
-            head: [tableColumn],
-            body: tableRows,
-            startY: 20,
-        });
-
-        doc.save("SalaryReport.pdf");
+        generateWageSheetPDF(employees, filters);
     };
 
     return (

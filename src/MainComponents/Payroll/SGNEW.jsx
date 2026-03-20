@@ -64,8 +64,9 @@ export default function SGNEW() {
     shiftHours: "0",
     salaryCycleFrom: "0",
     salaryCycleTo: "0",
-    monthlySundays: "",
+    monthlySundays: "0",
     excludeSunday: false,
+    monthDays: "0"
   });
 
   useEffect(() => {
@@ -258,8 +259,9 @@ export default function SGNEW() {
       shiftHours: prev.shiftHours,
       salaryCycleFrom: prev.salaryCycleFrom,
       salaryCycleTo: prev.salaryCycleTo,
-      excludeSunday: prev.excludeSunday,
-      monthlySundays: prev.monthlySundays,
+      monthDays: "0",
+      monthlySundays: "0",
+      excludeSunday: false,
     }));
   }, [selectedUnitId]);
 
@@ -607,7 +609,8 @@ export default function SGNEW() {
       salaryCycleFrom: sg.Salarystartfrom ?? "",
       salaryCycleTo: sg.Salaryendto ?? "",
       excludeSunday: !!sg.ExcludeSunday,
-      monthlySundays: sg.MonthSundays ?? "",
+      monthlySundays: sg.MonthSundays ?? "0",
+      monthDays: sg.MonthDays ?? "0"
     });
 
     // 2. Prepare maps
@@ -639,17 +642,6 @@ export default function SGNEW() {
         }));
 
         setOtBaseType(ad.Isbasic === false ? "Gross" : "Base");
-      }
-
-      // 🔥 Detect standalone OT from API
-      if (ad.Name === "OTAmount") {
-        const usedInPF = deductionAllowanceRestoreMap?.PF?.OTAmount;
-        const usedInESI = deductionAllowanceRestoreMap?.ESI?.OTAmount;
-
-        // if not used anywhere → standalone
-        if (!usedInPF && !usedInESI) {
-          setOtStandalone(true);
-        }
       }
 
       // 🔥 RESTORE allowance usage FROM DEDUCTION FORMULA
@@ -727,15 +719,31 @@ export default function SGNEW() {
         }
       }
     });
-    // 🔥 COMMIT deduction → allowance dependency map FIRST
+
+    // COMMIT deduction → allowance dependency map FIRST
     setDeductionAllowanceMap(deductionAllowanceRestoreMap);
-    // 🔥 Mark PF / ESI as active statutory deductions
+
+    // Check if OT exists in API
+    const hasOT = sg.AllowancesDeductions.some(
+      (ad) => ad.Name === "OTAmount"
+    );
+
+    // Check usage in PF / ESI
+    const usedInPF = deductionAllowanceRestoreMap?.PF?.OTAmount;
+    const usedInESI = deductionAllowanceRestoreMap?.ESI?.OTAmount;
+
+    // Final correct decision
+    setOtStandalone(
+      hasOT && !usedInPF && !usedInESI
+    );
+
+    // Mark PF / ESI as active statutory deductions
     setActiveStatutory({
       PF: !!deductionAllowanceRestoreMap.PF,
       ESI: !!deductionAllowanceRestoreMap.ESI,
     });
 
-    // 🔥 RESTORE allowanceSelected for PF / ESI so formula works
+    // RESTORE allowanceSelected for PF / ESI so formula works
     let restoredSelected = {};
 
     ["PF", "ESI"].forEach((d) => {
@@ -766,7 +774,30 @@ export default function SGNEW() {
   };
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // 🔥 NEW LOGIC (ADD THIS HERE)
+    if (name === "salaryCycleFrom" || name === "salaryCycleTo") {
+      const from = name === "salaryCycleFrom" ? value : form.salaryCycleFrom;
+      const to = name === "salaryCycleTo" ? value : form.salaryCycleTo;
+
+      if (Number(from) > 0 || Number(to) > 0) {
+        setForm(prev => ({
+          ...prev,
+          [name]: value,
+          monthDays: "",
+          excludeSunday: false,
+          monthlySundays: ""
+        }));
+        return;
+      }
+    }
+
+    // DEFAULT UPDATE
+    setForm((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
   };
 
   const handleSave = async () => {
@@ -803,6 +834,8 @@ export default function SGNEW() {
           ExcludeSunday: form.excludeSunday,
           MonthSundays:
             form.monthlySundays !== "" ? Number(form.monthlySundays) : null,
+          MonthDays:
+            form.monthDays !== "" ? Number(form.monthDays) : null,
 
           Designations: designation ? [designation] : [],
           ExcludedEmployeeIds: excludedEmployeeIds || [],
@@ -827,6 +860,8 @@ export default function SGNEW() {
           ExcludeSunday: form.excludeSunday,
           MonthSundays:
             form.monthlySundays !== "" ? Number(form.monthlySundays) : null,
+          MonthDays:
+            form.monthDays !== "" ? Number(form.monthDays) : null,
 
           Designations: designation ? [designation] : [],
           ExcludedEmployeeIds: excludedEmployeeIds || [],
@@ -923,7 +958,8 @@ export default function SGNEW() {
       salaryCycleFrom: "0",
       salaryCycleTo: "0",
       excludeSunday: false,
-      monthlySundays: "",
+      monthlySundays: "0",
+      monthDays: "0"
     });
 
     setAdValueType({});
@@ -970,10 +1006,50 @@ export default function SGNEW() {
   };
 
   const allowOnlyNumbers = (e) => {
-    const value = e.target.value;
+    const { name, value } = e.target;
 
     if (value === "" || /^\d*\.?\d*$/.test(value)) {
-      setForm({ ...form, [e.target.name]: value });
+
+      // 🔥 ADD THIS LOGIC HERE
+      if (name === "salaryCycleFrom" || name === "salaryCycleTo") {
+        const from = name === "salaryCycleFrom" ? value : form.salaryCycleFrom;
+        const to = name === "salaryCycleTo" ? value : form.salaryCycleTo;
+
+        if (Number(from) > 0 || Number(to) > 0) {
+          setForm(prev => ({
+            ...prev,
+            [name]: value,
+            monthDays: "",
+            excludeSunday: false,
+            monthlySundays: ""
+          }));
+          return;
+        }
+      }
+
+      if (name === "monthDays") {
+        const is31 = Number(value) === 31;
+
+        setForm(prev => ({
+          ...prev,
+          monthDays: value,
+
+          // wipe salary cycle
+          salaryCycleFrom: "0",
+          salaryCycleTo: "0",
+
+          // only allow Sundays if 31
+          excludeSunday: is31 ? prev.excludeSunday : false,
+          monthlySundays: is31 ? prev.monthlySundays : ""
+        }));
+        return;
+      }
+
+      // normal update
+      setForm(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
   };
 
@@ -1013,6 +1089,12 @@ export default function SGNEW() {
       [deductionName]: prev[deductionName] ?? percentObj?.Percentage ?? 0,
     }));
   };
+
+  const isMonthDaysFilled = Number(form.monthDays) > 0;
+  const isMonthDaysEmptyOrZero = Number(form.monthDays) === 0;
+  const isMonthDays31 = Number(form.monthDays) === 31;
+  const isSalaryCycleStarted =
+    Number(form.salaryCycleFrom) > 0 || Number(form.salaryCycleTo) > 0;
 
   return (
     <div
@@ -1312,18 +1394,16 @@ export default function SGNEW() {
           style={{
             display: "grid",
             gridTemplateColumns:
-              "max-content max-content max-content max-content max-content 200px auto",
+              "max-content 90px max-content 90px max-content 180px auto",
             alignItems: "center",
-            columnGap: 12,
+            columnGap: 16,
             rowGap: 8,
-            marginBottom: 12,
+            marginBottom: 8,
             paddingLeft: 10,
           }}
         >
           {/* Total Working Days */}
-          <label
-            style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}
-          >
+          <label style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
             Total Working Days =
           </label>
           <input
@@ -1336,14 +1416,11 @@ export default function SGNEW() {
               height: 30,
               fontSize: 14,
               padding: "2px 6px",
-              marginLeft: -10, // 👈 extra gap
             }}
           />
 
           {/* Shift Hours */}
-          <label
-            style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}
-          >
+          <label style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
             Total Shift Hours =
           </label>
           <input
@@ -1356,7 +1433,6 @@ export default function SGNEW() {
               height: 30,
               fontSize: 14,
               padding: "2px 6px",
-              marginLeft: -10, // 👈 extra gap
             }}
           />
 
@@ -1366,11 +1442,11 @@ export default function SGNEW() {
               fontSize: 14,
               fontWeight: 600,
               whiteSpace: "nowrap",
-              marginLeft: 70,
             }}
           >
             Designation <span style={{ color: "red" }}>*</span>
           </label>
+
           <select
             className="form-control"
             value={designation}
@@ -1379,8 +1455,6 @@ export default function SGNEW() {
 
               setDesignation(newDesignation);
               setExcludeEmployees(false);
-
-              // reset interaction flag for new designation
               setDesignationTouched(false);
             }}
             style={{
@@ -1388,7 +1462,6 @@ export default function SGNEW() {
               height: 30,
               fontSize: 14,
               padding: "2px 8px",
-              marginLeft: -30,
             }}
           >
             <option value="">-- Select Designation --</option>
@@ -1402,11 +1475,10 @@ export default function SGNEW() {
           {/* Exclude checkbox + popup */}
           <div
             style={{
-              position: "relative", // 🔥 anchor
+              position: "relative",
               display: "flex",
               alignItems: "center",
               gap: 6,
-              marginLeft: 10, // 👈 THIS adds space from Designation
               whiteSpace: "nowrap",
             }}
           >
@@ -1427,7 +1499,7 @@ export default function SGNEW() {
               Exclude specific employees
             </span>
 
-            {/* POPUP — NOW CORRECTLY ANCHORED */}
+            {/* POPUP — EXACT SAME LOGIC */}
             {excludeEmployees && (
               <div
                 style={{
@@ -1478,27 +1550,25 @@ export default function SGNEW() {
                         <input
                           type="checkbox"
                           checked={excludedEmployeeIds.includes(
-                            emp.FacilityMember?.FacilityMemberId,
+                            emp.FacilityMember?.FacilityMemberId
                           )}
                           onChange={(e) => {
                             const empId = emp.FacilityMember?.FacilityMemberId;
 
-                            // 🔥 FIRST interaction in this designation clears old data
                             if (!designationTouched) {
                               setExcludedEmployeeIds([]);
                             }
 
-                            // 🔥 mark that this designation was interacted with
                             setDesignationTouched(true);
 
                             setExcludedEmployeeIds((prev) =>
                               e.target.checked
                                 ? [...prev, empId]
-                                : prev.filter((id) => id !== empId),
+                                : prev.filter((id) => id !== empId)
                             );
                           }}
                         />
-                        {/* EMPLOYEE NAME → TOGGLES CHECKBOX */}
+
                         <span
                           style={{ cursor: "pointer", fontWeight: 600 }}
                           onClick={() => {
@@ -1513,14 +1583,13 @@ export default function SGNEW() {
                             setExcludedEmployeeIds((prev) =>
                               prev.includes(empId)
                                 ? prev.filter((id) => id !== empId)
-                                : [...prev, empId],
+                                : [...prev, empId]
                             );
                           }}
                         >
                           {emp.Profile?.EmployeeName}
                         </span>
 
-                        {/* SG NAME → POPUP ONLY */}
                         <span
                           style={{
                             cursor: "pointer",
@@ -1535,7 +1604,9 @@ export default function SGNEW() {
                             const sg = salaryGroups.find(
                               (s) =>
                                 Array.isArray(s.SalaryGroup_IDs) &&
-                                s.SalaryGroup_IDs.some((id) => Number(id) === sgId)
+                                s.SalaryGroup_IDs.some(
+                                  (id) => Number(id) === sgId
+                                )
                             );
 
                             if (sg) setPreviewSG(sg);
@@ -1550,43 +1621,78 @@ export default function SGNEW() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* ROW 3: SALARY CYCLE + MONTH + SUNDAYS */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 24,
+            flexWrap: "wrap",
+            paddingLeft: 10,
+            marginBottom: 10,
+          }}
+        >
           {/* Salary Cycle Day From */}
-          <label
-            style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}
-          >
-            Salary Cycle Day From =
-          </label>
-          <input
-            name="salaryCycleFrom"
-            value={form.salaryCycleFrom}
-            onChange={allowOnlyNumbers}
-            className="form-control"
-            style={{
-              width: 70,
-              height: 30,
-              fontSize: 14,
-              padding: "2px 6px",
-            }}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
+              Salary Cycle Day From =
+            </label>
+            <input
+              name="salaryCycleFrom"
+              value={form.salaryCycleFrom}
+              onChange={allowOnlyNumbers}
+              disabled={isMonthDaysFilled}
+              className="form-control"
+              style={{
+                width: 70,
+                height: 30,
+                fontSize: 14,
+                padding: "2px 6px",
+              }}
+            />
+          </div>
 
           {/* Salary Cycle Day To */}
-          <label
-            style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}
-          >
-            Salary Cycle Day To =
-          </label>
-          <input
-            name="salaryCycleTo"
-            value={form.salaryCycleTo}
-            onChange={allowOnlyNumbers}
-            className="form-control"
-            style={{
-              width: 70,
-              height: 30,
-              fontSize: 14,
-              padding: "2px 6px",
-            }}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
+              Salary Cycle Day To =
+            </label>
+            <input
+              name="salaryCycleTo"
+              value={form.salaryCycleTo}
+              onChange={allowOnlyNumbers}
+              disabled={isMonthDaysFilled}
+              className="form-control"
+              style={{
+                width: 70,
+                height: 30,
+                fontSize: 14,
+                padding: "2px 6px",
+              }}
+            />
+          </div>
+
+          {/* Month Days */}
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
+              Month Days =
+            </label>
+            <input
+              name="monthDays"
+              value={form.monthDays}
+              onChange={allowOnlyNumbers}
+              disabled={isSalaryCycleStarted}
+              className="form-control"
+              style={{
+                width: 70,
+                height: 30,
+                fontSize: 14,
+                padding: "2px 6px",
+              }}
+            />
+          </div>
 
           {/* Exclude Sundays */}
           <div
@@ -1595,12 +1701,14 @@ export default function SGNEW() {
               alignItems: "center",
               gap: 6,
               whiteSpace: "nowrap",
-              marginLeft: 70,
             }}
           >
             <input
               type="checkbox"
               checked={form.excludeSunday}
+              disabled={
+                isSalaryCycleStarted || (!isMonthDaysEmptyOrZero && !isMonthDays31)
+              }
               onChange={(e) =>
                 setForm((prev) => ({
                   ...prev,
@@ -1614,29 +1722,24 @@ export default function SGNEW() {
           </div>
 
           {/* Monthly Sundays */}
-          <label
-            style={{
-              fontSize: 14,
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-              marginLeft: 70,
-              marginTop: 5,
-            }}
-          >
-            Monthly Sundays =
-          </label>
-          <input
-            name="monthlySundays"
-            value={form.monthlySundays}
-            onChange={allowOnlyNumbers}
-            className="form-control"
-            style={{
-              width: 70,
-              height: 30,
-              fontSize: 14,
-              padding: "2px 6px",
-            }}
-          />
+          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+            <label style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap" }}>
+              Monthly Sundays =
+            </label>
+            <input
+              name="monthlySundays"
+              value={form.monthlySundays}
+              onChange={allowOnlyNumbers}
+              disabled={!isMonthDaysEmptyOrZero && !isMonthDays31}
+              className="form-control"
+              style={{
+                width: 70,
+                height: 30,
+                fontSize: 14,
+                padding: "2px 6px",
+              }}
+            />
+          </div>
         </div>
         <hr
           style={{
