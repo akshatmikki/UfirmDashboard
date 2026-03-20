@@ -12,7 +12,9 @@ import {
 import { useSelector } from "react-redux";
 
 export default function DesignationLinking() {
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxPropertyIds = useSelector((state) => state.Commonreducer.puidnlist);
 
   const [unitList, setUnitList] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -70,8 +72,10 @@ export default function DesignationLinking() {
 
       if (selectedPropertyId.length > 0) {
         officeIds = selectedPropertyId;
-      } else if (reduxPropertyId) {
-        officeIds = [reduxPropertyId];
+      } else if (Number(reduxPropertyId) > 0) {
+        officeIds = [Number(reduxPropertyId)];
+      } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+        officeIds = reduxPropertyIds;
       }
 
       if (!officeIds.length) {
@@ -120,8 +124,10 @@ export default function DesignationLinking() {
       }
 
       // 2️⃣ Fallback to navbar property
-      else if (reduxPropertyId) {
-        propertyIds = [reduxPropertyId];
+      else if (Number(reduxPropertyId) > 0) {
+        propertyIds = [Number(reduxPropertyId)];
+      } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+        propertyIds = reduxPropertyIds;
       }
 
       if (!propertyIds.length) {
@@ -153,15 +159,19 @@ export default function DesignationLinking() {
     fetchEmployees();
     setSalaryGroup(null);
     setSelectedGroupData(null);
-  }, [selectedPropertyId, reduxPropertyId]);
+  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds]);
 
   useEffect(() => {
     fetchSalaryGroups();
-  }, [selectedPropertyId, reduxPropertyId]);
+  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds]);
 
   useEffect(() => {
     const loadUnits = async () => {
       try {
+        if (Number(reduxClientId) > 0) {
+          setSelectedUnitId(Number(reduxClientId));
+          return;
+        }
         if (Number(reduxPropertyId) > 0) {
           const res = await getClientByPropertyId(reduxPropertyId);
           setUnitList(res ? [res] : []);
@@ -176,7 +186,7 @@ export default function DesignationLinking() {
     };
 
     loadUnits();
-  }, [reduxPropertyId]);
+  }, [reduxClientId, reduxPropertyId]);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -192,16 +202,16 @@ export default function DesignationLinking() {
 
         setPropertyList(properties);
 
-        // default select all
         const allIds = properties.map((p) => p.PropertyId);
-        setSelectedPropertyId(allIds);
+        if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
+        else setSelectedPropertyId(allIds);
       } catch (err) {
         console.log("Failed to load properties", err);
       }
     };
 
     loadProperties();
-  }, [selectedUnitId]);
+  }, [selectedUnitId, reduxPropertyId]);
 
   /*------------------------------------------------------
     EMPLOYEE SELECT HANDLER
@@ -306,6 +316,7 @@ export default function DesignationLinking() {
                 setSelectedUnitId(Number(e.target.value));
                 setSelectedPropertyId([]);
               }}
+              disabled
             >
               <option value="">-- Select Client --</option>
               {unitList.map((u) => (
@@ -328,13 +339,14 @@ export default function DesignationLinking() {
             </label>
 
             <div
-              onClick={() => setShowPropertyDropdown(!showPropertyDropdown)}
+              onClick={() => { }}
               style={{
                 border: "1px solid #cbd5e0",
                 padding: "6px 12px",
                 borderRadius: 6,
                 background: "#fff",
-                cursor: "pointer",
+                cursor: "not-allowed",
+                opacity: 0.75,
                 minWidth: 180,
                 textAlign: "center"
               }}
@@ -344,7 +356,7 @@ export default function DesignationLinking() {
                 : `${selectedPropertyId.length} Unit${selectedPropertyId.length !== 1 ? "s" : ""} Selected`}
             </div>
 
-            {showPropertyDropdown && (
+            {false && showPropertyDropdown && (
               <div
                 style={{
                   position: "absolute",

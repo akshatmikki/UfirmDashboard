@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Dialog } from "primereact/dialog";
 import {
   getSalaryAllowancesByProperty,
+  getSalaryAllowancesByClient,
   deleteSalaryAllowance,
   updateSalaryAllowance,
   createSalaryAllowance,
@@ -17,6 +18,7 @@ import { getPropertyById } from "../../Services/PropertyService";
 
 export default function SalaryGroups() {
   const propertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
 
   const [searchText, setSearchText] = useState("");
   const [data, setData] = useState([]);
@@ -190,11 +192,16 @@ const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
   // ---------- Data loading (useEffect) ----------
   useEffect(() => {
     (async () => {
-      if (!propertyId) return;
+      const pid = Number(propertyId) || 0;
+      const cid = Number(reduxClientId) || 0;
+      if (!pid && !cid) return;
       setLoading(true);
       try {
         // 1. salary groups
-        const salaryData = await getSalaryAllowancesByProperty(propertyId);
+        const salaryData =
+          pid > 0
+            ? await getSalaryAllowancesByProperty(pid)
+            : await getSalaryAllowancesByClient(cid);
         setData(
           salaryData.map((group) => ({
             ...group,
@@ -209,7 +216,7 @@ const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
         );
 
         // 2. master list
-        const alDtData = await getAllowancesDeductions(propertyId);
+        const alDtData = await getAllowancesDeductions();
 
         // 2.a sort properly: allowances (A, OA) first then deductions (D, OD)
         const sorted = [...alDtData].sort((a, b) => {
@@ -249,13 +256,21 @@ const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
           global: globalPercentages,
         });
 
-        // 4. property meta
-        const propertyData = await getPropertyById(propertyId);
-        setFormData((prev) => ({
-          ...prev,
-          ShiftHours: propertyData.ShiftHours || 0,
-          TotalWorkingDays: propertyData.TotalWorkingDays || 0,
-        }));
+        // 4. property meta (only when a specific property is selected)
+        if (pid > 0) {
+          const propertyData = await getPropertyById(pid);
+          setFormData((prev) => ({
+            ...prev,
+            ShiftHours: propertyData.ShiftHours || 0,
+            TotalWorkingDays: propertyData.TotalWorkingDays || 0,
+          }));
+        } else {
+          setFormData((prev) => ({
+            ...prev,
+            ShiftHours: 0,
+            TotalWorkingDays: 0,
+          }));
+        }
       } catch (error) {
         console.error(error);
         alert("Failed to load salary groups.");
@@ -263,7 +278,7 @@ const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
         setLoading(false);
       }
     })();
-  }, [propertyId]);
+  }, [propertyId, reduxClientId]);
 
   // -------------------- SECTION 2 --------------------
   // helper: normalize names
@@ -605,7 +620,8 @@ const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
       alert("Saved successfully!");
       setDialogVisible(false);
 
-      await getSalaryAllowancesByProperty(propertyId).then(setData);
+      if (Number(propertyId) > 0) await getSalaryAllowancesByProperty(Number(propertyId)).then(setData);
+      else if (Number(reduxClientId) > 0) await getSalaryAllowancesByClient(Number(reduxClientId)).then(setData);
     } catch (err) {
       alert("Failed to save salary group");
     }
@@ -630,7 +646,8 @@ const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
       try {
         await deleteSalaryAllowance(salaryGroupId);
         alert("Deleted successfully!");
-        await getSalaryAllowancesByProperty(propertyId).then(setData);
+        if (Number(propertyId) > 0) await getSalaryAllowancesByProperty(Number(propertyId)).then(setData);
+        else if (Number(reduxClientId) > 0) await getSalaryAllowancesByClient(Number(reduxClientId)).then(setData);
       } catch {
         alert("Failed to delete salary group.");
       }

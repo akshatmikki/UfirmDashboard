@@ -35,7 +35,9 @@ function getDaysInMonth(month, year) {
 }
 
 export default function AttendanceSheet() {
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxPropertyIds = useSelector((state) => state.Commonreducer.puidnlist);
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
   const propertyId =
     selectedPropertyId.length === 1
@@ -251,6 +253,10 @@ export default function AttendanceSheet() {
   useEffect(() => {
     const loadUnits = async () => {
       try {
+        if (Number(reduxClientId) > 0) {
+          setSelectedUnitId(Number(reduxClientId));
+          return;
+        }
         if (Number(reduxPropertyId) > 0) {
           const res = await getClientByPropertyId(reduxPropertyId);
           setUnitList(res ? [res] : []);
@@ -265,7 +271,7 @@ export default function AttendanceSheet() {
     };
 
     loadUnits();
-  }, [reduxPropertyId]);
+  }, [reduxClientId, reduxPropertyId]);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -283,14 +289,15 @@ export default function AttendanceSheet() {
 
         // ✅ Select ALL properties by default
         const allIds = properties.map((p) => p.PropertyId);
-        setSelectedPropertyId(allIds);
+        if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
+        else setSelectedPropertyId(allIds);
       } catch (err) {
         console.log("Failed to load properties", err);
       }
     };
 
     loadProperties();
-  }, [selectedUnitId]);
+  }, [selectedUnitId, reduxPropertyId]);
 
   // ---------------------------------------------------------
   // Load Employees
@@ -302,9 +309,15 @@ export default function AttendanceSheet() {
 
         if (selectedPropertyId.length > 0) {
           officeIds = selectedPropertyId;
-        } else if (reduxPropertyId) {
-          officeIds = [reduxPropertyId];
+        } else if (Number(reduxPropertyId) > 0) {
+          officeIds = [Number(reduxPropertyId)];
+        } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+          officeIds = reduxPropertyIds;
         }
+
+        officeIds = officeIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0);
 
         if (!officeIds.length) {
           setEmployees([]);
@@ -320,7 +333,7 @@ export default function AttendanceSheet() {
     };
 
     loadEmployees();
-  }, [selectedPropertyId, reduxPropertyId]);
+  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds]);
 
   // ---------------------------------------------------------
   // Load Salary Group per employee
@@ -903,6 +916,7 @@ export default function AttendanceSheet() {
               setSelectedUnitId(Number(e.target.value));
               setSelectedPropertyId([]);
             }}
+            disabled
             style={{ width: 240 }}
           >
             <option value="">-- Select Client --</option>
@@ -930,13 +944,14 @@ export default function AttendanceSheet() {
 
           {/* Display Box */}
           <div
-            onClick={() => setShowPropertyDropdown(!showPropertyDropdown)}
+            onClick={() => { }}
             style={{
               border: "1px solid #cbd5e0",
               padding: "6px 10px",
               borderRadius: 6,
               background: "#fff",
-              cursor: "pointer",
+              cursor: "not-allowed",
+              opacity: 0.75,
             }}
           >
             {selectedPropertyId.length === propertyList.length
@@ -949,7 +964,7 @@ export default function AttendanceSheet() {
           </div>
 
           {/* Dropdown */}
-          {showPropertyDropdown && (
+          {false && showPropertyDropdown && (
             <div
               style={{
                 position: "absolute",

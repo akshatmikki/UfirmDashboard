@@ -44,17 +44,19 @@ import LoanAdvanceDialog from "../../ReactComponents/DataGrid/LoanAdvances.jsx";
 const StaffPage = () => {
   const toast = useRef(null);
   const fileInputRef = useRef(null);
-  // const propertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxPropertyIds = useSelector((state) => state.Commonreducer.puidnlist);
 
+  const propertyId = Number(reduxPropertyId) > 0 ? Number(reduxPropertyId) : null;
+  const [clientPropertyIds, setClientPropertyIds] = useState([]);
+  const [reloadEmployeesToken, setReloadEmployeesToken] = useState(0);
+
+  // Kept for backward-compat with existing page logic; selections are driven from the top navbar (redux).
   const [unitList, setUnitList] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
-
   const [propertyList, setPropertyList] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
-
-  const propertyId =
-    selectedPropertyId[0] || reduxPropertyId || null;
 
   const [branchName, setBranchName] = useState("");
   const [clientName, setClientName] = useState("");
@@ -146,6 +148,10 @@ const StaffPage = () => {
   useEffect(() => {
     const loadUnits = async () => {
       try {
+        if (Number(reduxClientId) > 0) {
+          setSelectedUnitId(Number(reduxClientId));
+          return;
+        }
         if (Number(reduxPropertyId) > 0) {
           const res = await getClientByPropertyId(reduxPropertyId);
 
@@ -165,7 +171,7 @@ const StaffPage = () => {
     };
 
     loadUnits();
-  }, [reduxPropertyId]);
+  }, [reduxClientId, reduxPropertyId]);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -183,12 +189,17 @@ const StaffPage = () => {
         setPropertyList(properties);
 
         // 🔥 FIX STARTS HERE
-        if (reduxPropertyId) {
-          setSelectedPropertyId([reduxPropertyId]);
-        } else if (properties.length === 1) {
-          setSelectedPropertyId([properties[0].PropertyId]);
+        if (Number(reduxPropertyId) > 0) {
+          setSelectedPropertyId([Number(reduxPropertyId)]);
         } else {
           setSelectedPropertyId([]);
+
+          if (!Array.isArray(reduxPropertyIds) || reduxPropertyIds.length === 0) {
+            const ids = properties
+              .map((p) => Number(p.PropertyId))
+              .filter((id) => Number.isFinite(id) && id > 0);
+            setClientPropertyIds(ids);
+          }
         }
         // 🔥 FIX ENDS HERE
 
@@ -268,9 +279,17 @@ const StaffPage = () => {
 
         if (selectedPropertyId.length > 0) {
           officeIds = selectedPropertyId;
-        } else if (reduxPropertyId) {
-          officeIds = [reduxPropertyId];
+        } else if (Number(reduxPropertyId) > 0) {
+          officeIds = [Number(reduxPropertyId)];
+        } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+          officeIds = reduxPropertyIds;
+        } else if (clientPropertyIds.length > 0) {
+          officeIds = clientPropertyIds;
         }
+
+        officeIds = officeIds
+          .map((id) => Number(id))
+          .filter((id) => Number.isFinite(id) && id > 0);
 
         if (!officeIds.length) {
           setStaff([]);
@@ -291,7 +310,7 @@ const StaffPage = () => {
     };
 
     loadEmployees();
-  }, [selectedPropertyId, reduxPropertyId]);
+  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, clientPropertyIds, reloadEmployeesToken]);
 
   useEffect(() => {
     const loadBranch = async () => {
@@ -324,12 +343,21 @@ const StaffPage = () => {
 
   useEffect(() => {
     const loadClient = async () => {
-      if (!propertyId) {
-        setClientName("");
-        return;
-      }
-
       try {
+        if (Number(reduxClientId) > 0) {
+          const clients = await getAllClients();
+          const match = (clients || []).find(
+            (c) => Number(c?.ClientID) === Number(reduxClientId)
+          );
+          setClientName(match?.ClientName || "");
+          return;
+        }
+
+        if (!propertyId) {
+          setClientName("");
+          return;
+        }
+
         const client = await getClientByPropertyId(propertyId);
         setClientName(client?.ClientName || "");
       } catch (err) {
@@ -339,7 +367,7 @@ const StaffPage = () => {
     };
 
     loadClient();
-  }, [propertyId]);
+  }, [reduxClientId, propertyId]);
 
   useEffect(() => {
     const managers = staff
@@ -706,6 +734,15 @@ const StaffPage = () => {
     if (designation === "H.K. SUPERVISOR") facilityMasterId = 19;
     else if (designation === "TECHNICAL SUPERVISOR") facilityMasterId = 34;
 
+    if (!propertyId) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Select Property",
+        detail: "Please select a property from the top navbar before adding or editing staff."
+      });
+      return;
+    }
+
     // Build Payload matching backend structure
     const dobValue = dateOfBirth
       ? toISTISOString(dateOfBirth)
@@ -796,8 +833,7 @@ const StaffPage = () => {
           detail: "Staff updated successfully"
         });
 
-        // trigger reload by resetting selectedPropertyId
-        setSelectedPropertyId([...selectedPropertyId]);
+        setReloadEmployeesToken((t) => t + 1);
       } else {
         const response = await createEmployee(employeeData);
         toast.current.show({
@@ -806,8 +842,7 @@ const StaffPage = () => {
           detail: "Staff member added successfully"
         });
 
-        // trigger reload by resetting selectedPropertyId
-        setSelectedPropertyId([...selectedPropertyId]);
+        setReloadEmployeesToken((t) => t + 1);
       }
 
       setDialogVisible(false);
@@ -853,6 +888,14 @@ const StaffPage = () => {
     const file = event.target.files[0];
 
     if (!file) return;
+    if (!propertyId) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Select Property",
+        detail: "Please select a property from the top navbar before importing."
+      });
+      return;
+    }
 
     if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
       toast.current.show({
@@ -929,7 +972,7 @@ const StaffPage = () => {
           icon="pi pi-upload"
           className="p-button-secondary"
           tooltip="Import Staff"
-          disabled={!selectedPropertyId[0]}
+          disabled={!propertyId}
           onClick={handleImportClick}
         />
         <input
@@ -953,6 +996,7 @@ const StaffPage = () => {
           icon="pi pi-plus"
           onClick={openDialog}
           className="p-button-success"
+          disabled={!propertyId}
         />
       </div>
     </div>
@@ -1061,45 +1105,23 @@ const StaffPage = () => {
 
             <div className="card">
               <div className="p-3">
-                <div className="d-flex gap-4 mb-3">
-
-                  {/* Select Client */}
+                <div
+                  className="d-flex align-items-center justify-content-between mb-3"
+                  style={{ gap: 16, flexWrap: "wrap" }}
+                >
                   <div>
-                    <label>Select Client:</label>
-                    <select
-                      value={selectedUnitId || ""}
-                      onChange={(e) => {
-                        setSelectedUnitId(Number(e.target.value));
-                        setSelectedPropertyId([]);
-                      }}
-                    >
-                      <option value="">-- Select Client --</option>
-                      {unitList.map((u) => (
-                        <option key={u.ClientID} value={u.ClientID}>
-                          {u.ClientName}
-                        </option>
-                      ))}
-                    </select>
+                    <strong>Client:</strong>{" "}
+                    {clientName || (reduxClientId ? `#${reduxClientId}` : "-")}
                   </div>
-
-                  {/* Select Unit */}
                   <div>
-                    <label>Select Unit:</label>
-                    <select
-                      value={selectedPropertyId[0] || ""}
-                      onChange={(e) => {
-                        setSelectedPropertyId([Number(e.target.value)]);
-                      }}
-                    >
-                      <option value="">-- Select Unit --</option>
-                      {propertyList.map((p) => (
-                        <option key={p.PropertyId} value={p.PropertyId}>
-                          {p.PropertyName}
-                        </option>
-                      ))}
-                    </select>
+                    <strong>Property:</strong>{" "}
+                    {propertyId ? `#${propertyId}` : "All Properties"}
                   </div>
-
+                  {!reduxClientId && !propertyId && (
+                    <div className="text-danger" style={{ fontWeight: 600 }}>
+                      Select a client from the top navbar to view staff.
+                    </div>
+                  )}
                 </div>
                 <DataTable
                   value={staff}

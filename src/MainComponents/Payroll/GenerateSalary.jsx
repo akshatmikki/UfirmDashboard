@@ -79,6 +79,7 @@ export default function GenerateSalary() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
 
   const [unitList, setUnitList] = useState([]);
@@ -183,6 +184,10 @@ export default function GenerateSalary() {
   useEffect(() => {
     const loadUnits = async () => {
       try {
+        if (Number(reduxClientId) > 0) {
+          setSelectedUnitId(Number(reduxClientId));
+          return;
+        }
         if (Number(reduxPropertyId) > 0) {
           const res = await getClientByPropertyId(reduxPropertyId);
           setUnitList(res ? [res] : []);
@@ -197,7 +202,7 @@ export default function GenerateSalary() {
     };
 
     loadUnits();
-  }, [reduxPropertyId]);
+  }, [reduxClientId, reduxPropertyId]);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -213,16 +218,18 @@ export default function GenerateSalary() {
 
         setPropertyList(properties);
 
-        // Select all by default
         const allIds = properties.map((p) => p.PropertyId);
-        setSelectedPropertyId(allIds);
+
+        // If a specific property is selected in navbar, use it; otherwise default to "All properties of selected client"
+        if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
+        else setSelectedPropertyId(allIds);
       } catch (err) {
         console.log("Failed to load properties", err);
       }
     };
 
     loadProperties();
-  }, [selectedUnitId]);
+  }, [selectedUnitId, reduxPropertyId]);
 
   // ----------------------------
   // Load master allowance/deduction list
@@ -1065,6 +1072,7 @@ export default function GenerateSalary() {
                 setSelectedUnitId(Number(e.target.value));
                 setSelectedPropertyId([]);
               }}
+              disabled
               style={{ width: 240 }}
             >
               <option value="">-- Select Client --</option>
@@ -1087,21 +1095,22 @@ export default function GenerateSalary() {
 
             <div style={{ position: "relative" }}>
               <div
-                onClick={() => setUnitDropdownOpen(!unitDropdownOpen)}
+                onClick={() => { }}
                 style={{
                   minWidth: 220,
                   padding: "6px 10px",
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
                   background: "#fff",
-                  cursor: "pointer",
+                  cursor: "not-allowed",
+                  opacity: 0.75,
                   fontSize: "0.9rem",
                 }}
               >
                 {getUnitSummaryText()}
               </div>
 
-              {unitDropdownOpen && (
+              {false && unitDropdownOpen && (
                 <div
                   style={{
                     position: "absolute",

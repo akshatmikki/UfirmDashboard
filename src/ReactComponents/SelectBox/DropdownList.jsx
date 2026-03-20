@@ -10,7 +10,11 @@ class DropdownList extends React.Component {
     render() {
         //Removed by RG 04/08/2021 tabIndex="-1"
         return (
-            <select onChange={this.onChange.bind(this)} id={this.props.Id} className={this.props.ClassName}
+            <select
+                onChange={this.onChange.bind(this)}
+                id={this.props.Id}
+                className={this.props.ClassName}
+                disabled={!!this.props.Disabled}
                 style={{ width: '100%' }} data-select2-id="1" aria-hidden="true">
                 <option value={0} >Select {this.props.Name}</option>
                 {this.props.Options.map((item, idx) => (
@@ -25,7 +29,8 @@ DropdownList.defaultProps = {
     Id: "",
     Name: "",
     Options: [{}],
-    ValuColumn: ''
+    ValuColumn: '',
+    Disabled: false
 }
 
 export default DropdownList;

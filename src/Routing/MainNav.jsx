@@ -6,7 +6,7 @@ import {
   Link,
   Redirect,
 } from "react-router-dom";
-import { getAllClients, getPropertiesByClientId } from "../Services/ClientService.js";
+import { getAllClients, getClientByPropertyId, getPropertiesByClientId } from "../Services/ClientService.js";
 import { getAllProperties } from "../Services/PropertyService";
 import TicketingDashboard from "../MainComponents/Ticket/TicketingDashboard";
 import Department from "../pages/Department";
@@ -89,6 +89,7 @@ import StockPage from "../MainComponents/Inventory/StockMaster";
 import StockItemsPage from "../pages/StockItemsPage";
 import AttendanceMaster from "../MainComponents/Attendance/attendance.jsx";
 import Leave from "../MainComponents/Attendance/Leaves.jsx";
+import Compoff from "../MainComponents/Attendance/Compoff.jsx";
 import Visitor from "../MainComponents/Visitor/Visitor.jsx";
 import FacilityLatlong from "../MainComponents/FacilityMember/FacilityLatlong.jsx";
 import LeaveMaster from "../MainComponents/Attendance/LeaveMaster.jsx";
@@ -246,6 +247,9 @@ class MainNav extends React.Component {
         Value: item.PropertyId || item.Value || item.id || 0,
         Name: item.Name || item.PropertyName || item.text || "",
       }));
+      const propertyIds = propertyList
+        .map((p) => Number(p.Value))
+        .filter((id) => Number.isFinite(id) && id > 0);
       const propertyMultiOptions = propertyList.map((item) => ({
         label: item.Name,
         value: item.Value,
@@ -255,7 +259,9 @@ class MainNav extends React.Component {
         PropertyMultiData: propertyMultiOptions,
         selectedPropertyOptions: [],
       });
-      this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: [] });
+      // No property selected by default for HR: keep client-scope via PropertyIds
+      this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: propertyIds });
+      currentpropertyid = 0;
     } catch (error) {
       this.setState({
         PropertyData: [],
@@ -263,6 +269,7 @@ class MainNav extends React.Component {
         selectedPropertyOptions: [],
       });
       this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: [] });
+      currentpropertyid = 0;
     }
   };
 
@@ -362,9 +369,8 @@ class MainNav extends React.Component {
     this.props.actions.updateclient({ CompanyId: clientId });
     currentclientid = clientId;
 
-    if (clientId > 0) {
-      await this.loadPropertyByClient(clientId);
-    }
+    if (clientId > 0) await this.loadPropertyByClient(clientId);
+    else this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: [] });
   };
 
   onPropertyMultiChanged = (options) => {
@@ -378,14 +384,45 @@ class MainNav extends React.Component {
       PropertyIds: propertyIds,
     });
     currentpropertyid = selectedPropertyId;
+    this.syncClientFromProperty(selectedPropertyId);
   };
 
   onPropertyChanged = (value) => {
+    const propertyId = Number(value) || 0;
+    if (propertyId > 0) {
+      this.props.actions.updateproperty({
+        CompanyId: propertyId,
+        PropertyIds: [propertyId],
+      });
+      currentpropertyid = propertyId;
+      this.syncClientFromProperty(propertyId);
+      return;
+    }
+
+    // "Select Property" => no property selected: keep client-scope properties in redux list
+    const clientPropertyIds = (this.state.PropertyData || [])
+      .map((p) => Number(p.Value))
+      .filter((id) => Number.isFinite(id) && id > 0);
     this.props.actions.updateproperty({
-      CompanyId: value,
-      PropertyIds: value ? [Number(value)] : [],
+      CompanyId: 0,
+      PropertyIds: this.state.selectedClientId > 0 ? clientPropertyIds : [],
     });
-    currentpropertyid = value;
+    currentpropertyid = 0;
+  };
+
+  syncClientFromProperty = async (propertyId) => {
+    const pid = Number(propertyId) || 0;
+    if (pid <= 0) return;
+    try {
+      const client = await getClientByPropertyId(pid);
+      const clientId = Number(client?.ClientID) || 0;
+      if (clientId > 0) {
+        this.props.actions.updateclient({ CompanyId: clientId });
+        currentclientid = clientId;
+      }
+    } catch (error) {
+      // no-op (property selection can still function without client sync)
+    }
   };
   onUpdateUserRole = (value) => {
     this.props.actions.updateuserrole({ UserRole: value });
@@ -410,6 +447,8 @@ class MainNav extends React.Component {
     const canAccessUploader = ROLE_RULES.canAccessUploader(roles);
     const hideAttendanceForPropertyManager =
       ROLE_RULES.shouldHideAttendanceForPropertyManager(roles);
+    const canAccessCompOff =
+      ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles);
     return (
       <Router>
         <div className="wrapper">
@@ -447,16 +486,16 @@ class MainNav extends React.Component {
                       }))}
                     />
                   </div>
-                  {this.state.selectedClientId > 0 && (
-                    <div className="input-group input-group-sm" style={{ minWidth: "260px" }}>
-                      <DropDownList
-                        Id="ddlProperty"
-                        Name="Property"
-                        onSelected={this.onPropertyChanged.bind(this)}
-                        Options={this.state.PropertyData}
-                      />
-                    </div>
-                  )}
+                  <div className="input-group input-group-sm" style={{ minWidth: "260px" }}>
+                    <DropDownList
+                      key={`hr-property-${this.state.selectedClientId}`}
+                      Id="ddlProperty"
+                      Name="Property"
+                      Disabled={this.state.selectedClientId <= 0}
+                      onSelected={this.onPropertyChanged.bind(this)}
+                      Options={this.state.PropertyData}
+                    />
+                  </div>
                 </Fragment>
               ) : (
                 <Fragment>
@@ -953,6 +992,18 @@ class MainNav extends React.Component {
                             >
                               <i className=" fas fa-caret-right nav-icon"></i>
                               <p>Attendance</p>
+                            </Link>
+                          </li>
+                        )}
+
+                        {!hideAttendanceForPropertyManager && canAccessCompOff && (
+                          <li className="nav-item">
+                            <Link
+                              to="/Account/App/CompOff"
+                              className="nav-link"
+                            >
+                              <i className=" fas fa-caret-right nav-icon"></i>
+                              <p>Comp Off</p>
                             </Link>
                           </li>
                         )}
@@ -1712,6 +1763,7 @@ class MainNav extends React.Component {
             <Route path="/Account/App/Attendance">
               <AttendanceMaster />
             </Route>
+            <Route path="/Account/App/CompOff" component={Compoff} />
             <Route path="/Account/App/Guard">
               <GuardMasterPage />
             </Route>
