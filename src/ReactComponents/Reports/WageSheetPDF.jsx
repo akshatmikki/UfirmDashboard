@@ -193,6 +193,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   if (preview) {
     return doc.output("bloburl");
   } else {
-    doc.save("WageSheet.pdf");
+    const fileName = `${unitName} Wages Sheet ${month.replace(" - ", " ")}`;
+    doc.save(`${fileName}.pdf`);
   }
 };

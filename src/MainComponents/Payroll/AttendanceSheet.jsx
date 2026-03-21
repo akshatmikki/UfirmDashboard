@@ -174,11 +174,41 @@ export default function AttendanceSheet() {
     try {
       const monthyear = getMonthYearString(month, year);
 
-      const res = await uploadAttendance(file, propertyId, monthyear);
+      // 🔥 Read Excel
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+
+      let jsonData = XLSX.utils.sheet_to_json(sheet);
+
+      // 🔥 REMOVE Designation column
+      const cleanedData = jsonData.map(row => {
+        const { Designation, ...rest } = row;
+        return rest;
+      });
+
+      // 🔥 Convert back to Excel
+      const newSheet = XLSX.utils.json_to_sheet(cleanedData);
+      const newWorkbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(newWorkbook, newSheet, "Attendance");
+
+      const excelBuffer = XLSX.write(newWorkbook, {
+        bookType: "xlsx",
+        type: "array"
+      });
+
+      const cleanedFile = new File(
+        [excelBuffer],
+        file.name,
+        { type: file.type }
+      );
+
+      // 🔥 Upload cleaned file
+      const res = await uploadAttendance(cleanedFile, propertyId, monthyear);
 
       alert(res?.Message || "Attendance uploaded successfully!");
 
-      // 🔥 Reload attendance (multi-property safe)
+      // 🔁 (keep your existing reload logic below SAME)
       let propertyIds = [];
 
       if (selectedPropertyId.length > 0) {
@@ -191,7 +221,7 @@ export default function AttendanceSheet() {
 
       // 🔥 Reload attendance (multi-property safe)
 
-      let flat = [];   // 👈 declare outside first
+      let flat = [];
 
       if (propertyIds.length) {
         const refreshed = await getAttendanceByProperties(
@@ -203,10 +233,9 @@ export default function AttendanceSheet() {
         setFilteredAttendance(flat);
       }
 
-      // 🔥 Rebuild dayInputs from uploaded data
+      // rebuild inputs (same as your code)
       const mappedInputs = {};
       flat.forEach((att) => {
-
         mappedInputs[att.EmpID] = {
           workingDays: att.WorkingDays,
           EL: att.EL ?? "",
@@ -239,6 +268,7 @@ export default function AttendanceSheet() {
 
       setDayInputs(mappedInputs);
       setSelectedEmpIds(new Set());
+
     } catch (err) {
       console.error("Upload failed:", err);
       alert("Upload failed.");
@@ -757,6 +787,11 @@ export default function AttendanceSheet() {
         "S.No.": idx + 1,
         EmpCode: empCode,
         EmployeeName: empName,
+
+        Designation:
+          emp?.EmployeeList?.Designation ||
+          emp?.Profile?.Designation ||
+          "",
 
         WeeklyOff: inp.weekDaysOff ?? saved.WeekDaysOff ?? 0,
         WorkingDays: inp.workingDays ?? saved.WorkingDays ?? 0,

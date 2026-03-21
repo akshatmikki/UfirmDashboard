@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
 import {
     getAllClients,
@@ -11,6 +9,7 @@ import {
 
 import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
 import { generateWageSheetPDF } from "./WageSheetPDF";
+import { generateWageSheetExcel } from "./WageSheetExcel";
 
 export default function SalaryReport() {
     const reduxPropertyId = useSelector(
@@ -160,66 +159,22 @@ export default function SalaryReport() {
         }
     );
 
-    const exportExcel = () => {
+    const exportExcelNew = () => {
+        const selectedProperty = propertyList.find(
+            p => p.PropertyId === selectedPropertyId
+        );
 
-        const data = employees.map((emp, index) => ({
-            "S.No": index + 1,
-            Employee: emp.FacilityMemberName || "-",
-            Designation: emp.Designation || "-",
-            "Working Days": emp.WorkingDays || 0,
-
-            Basic: formatCurrency(emp.Basic),
-            HRA: formatCurrency(emp.HRA),
-            Conveyance: formatCurrency(emp.CONV),
-            OT: formatCurrency(emp.OTAmount),
-
-            "Total Allowance": formatCurrency(emp.TotalAllowance),
-
-            PF: formatCurrency(emp.PF),
-            ESI: formatCurrency(emp.ESI),
-            LWF: formatCurrency(emp.LwfEmployeeAmount),
-
-            "Total Deduction": formatCurrency(emp.TotalDeduction),
-            "Net Salary": formatCurrency(emp.NetSalary),
-        }));
-
-        data.push({
-            "S.No": "",
-            Employee: "TOTAL",
-            Designation: "",
-            "Working Days": "",
-
-            Basic: formatCurrency(totals.basic),
-            HRA: formatCurrency(totals.hra),
-            Conveyance: formatCurrency(totals.conv),
-            OT: formatCurrency(totals.ot),
-
-            "Total Allowance": formatCurrency(totals.allowance),
-
-            PF: formatCurrency(totals.pf),
-            ESI: formatCurrency(totals.esi),
-            LWF: formatCurrency(totals.lwf),
-
-            "Total Deduction": formatCurrency(totals.deduction),
-            "Net Salary": formatCurrency(totals.net),
+        const [year, monthNum] = selectedMonth.split("-");
+        const monthName = new Date(year, monthNum - 1).toLocaleString("default", {
+            month: "long"
         });
 
-        const worksheet = XLSX.utils.json_to_sheet(data);
+        const filters = {
+            unitName: selectedProperty?.PropertyName || "",
+            month: `${monthName} - ${year}`,
+        };
 
-        const workbook = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(workbook, worksheet, "Salary Report");
-
-        const excelBuffer = XLSX.write(workbook, {
-            bookType: "xlsx",
-            type: "array",
-        });
-
-        const blob = new Blob([excelBuffer], {
-            type:
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        });
-
-        saveAs(blob, "SalaryReport.xlsx");
+        generateWageSheetExcel(employees, filters, false);
     };
 
     const exportPDF = async () => {
@@ -394,7 +349,7 @@ export default function SalaryReport() {
 
                 <button
                     className="btn btn-success"
-                    onClick={exportExcel}
+                    onClick={exportExcelNew}
                     disabled={!employees.length}
                 >
                     Download Excel
@@ -413,7 +368,7 @@ export default function SalaryReport() {
                     onClick={viewPDF}
                     disabled={!employees.length}
                 >
-                    View PDF
+                    Preview PDF
                 </button>
 
             </div>

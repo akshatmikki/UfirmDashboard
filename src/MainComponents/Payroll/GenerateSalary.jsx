@@ -509,6 +509,11 @@ export default function GenerateSalary() {
   // Payslip HTML generation (uses per-row computed lists)
   // ----------------------------
   function generatePayslipHTML(row) {
+    const safe = (val, fallback = "-") =>
+      val === null || val === undefined || String(val).trim() === "" ? fallback : val;
+
+    const safeDate = (val) =>
+      val && val.includes("T") ? val.split("T")[0] : "-";
     const allowanceKeysForRow = getRowAllowanceKeys(row);
     const deductionKeysForRow = getRowDeductionKeys(row);
     const totalAllowance = computeTotalAllowance(row, allowanceKeysForRow);
@@ -589,7 +594,7 @@ export default function GenerateSalary() {
               SALARY SLIP
             </div>
             <div style="font-size:14px; margin-top:6px; color:#444;">
-              For the Month of <b>${row.Month} ${row.Year}</b>
+              For the Month of <b>${safe(row.Month)} ${safe(row.Year)}</b>
             </div>
           </div>
 
@@ -601,11 +606,11 @@ export default function GenerateSalary() {
               Name and Address of Establishment in under which contract is carried on:
             </div>
             <div>
-              ${row.PropertyName || ""}
+              ${safe(row.PropertyName)}
             </div>
             <div>
-              ${row.AddressLine1 || ""}
-              ${row.Landmark ? ", " + row.Landmark : ""}
+              ${safe(row.AddressLine1)}
+              ${row.Landmark ? ", " + safe(row.Landmark) : ""}
             </div>
             <div>
               ${row.ContactNumber ? "Contact: " + row.ContactNumber : ""}
@@ -619,10 +624,10 @@ export default function GenerateSalary() {
               Name and Address of Principal Employer :
             </div>
             <div>
-              ${row.ClientName || ""}
+              ${safe(row.ClientName)}
             </div>
             <div>
-              ${row.ClientAddress || ""}
+              ${safe(row.ClientAddress)}
             </div>
 
           </div>
@@ -631,39 +636,39 @@ export default function GenerateSalary() {
       <table class="info-table">
   <tr>
     <td><b>Employee Name:</b></td>
-    <td>${row.FacilityMemberName || ""}</td>
+    <td>${safe(row.FacilityMemberName)}</td>
     <td><b>Bank Name:</b></td>
-    <td>${row.BankName || "-"}</td>
+    <td>${safe(row.BankName)}</td>
     <td><b>Acc/Card No.:</b></td>
-    <td>${row.BankAccountNumber || "-"}</td>
+    <td>${safe(row.BankAccountNumber)}</td>
   </tr>
   <tr>
     <td><b>Emp Code:</b></td>
-    <td>${row.EmployeeCode || ""}</td>
+    <td>${safe(row.EmployeeCode)}</td>
     <td><b>IFSC Code:</b></td>
-    <td>${row.BankIFSCCode || "-"}</td>
+    <td>${safe(row.BankIFSCCode)}</td>
     <td><b>PF No.:</b></td>
-    <td>${row.PF_number || ""}</td>
+    <td>${safe(row.PF_number)}</td>
   </tr>
   <tr>
     <td><b>Father's Name:</b></td>
-    <td>${row.FatherName || ""}</td>
+    <td>${safe(row.FatherName)}</td>
     <td><b>Pay Mode:</b></td>
     <td>${"Bank Transfer"}</td>
     <td><b>UAN No.:</b></td>
-    <td>${row.UANNumber || "-"}</td>
+    <td>${safe(row.UANNumber)}</td>
   </tr>
   <tr>
     <td><b>Designation:</b></td>
-    <td>${row.Designation || ""}</td>
+    <td>${safe(row.Designation)}</td>
     <td><b>ESI No.:</b></td>
-    <td>${row.ESINumber || ""}</td>
+    <td>${safe(row.ESINumber)}</td>
     <td><b>Mobile No.:</b></td>
-    <td>${row.MobileNumber || ""}</td>
+    <td>${safe(row.MobileNumber)}</td>
   </tr>
   <tr>
     <td><b>Joining Date:</b></td>
-    <td>${row.DateOfJoining.split("T")[0] || ""}</td>
+    <td>${safeDate(row.DateOfJoining)}</td>
   </tr>
 </table>
       <table class="pay-slip-table">
