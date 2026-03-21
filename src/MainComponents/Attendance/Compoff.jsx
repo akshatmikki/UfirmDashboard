@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
@@ -16,9 +17,16 @@ import {
   getCompOffCounts,
   processCompOff,
 } from "../../Services/CompOffService";
+import { ROLE_RULES } from "../../Common/roleAccess";
 
 const Compoff = () => {
   const toast = useRef(null);
+
+  const userRole = useSelector((state) => state.Commonreducer.entrolval);
+  const managedEmployeeIds = useSelector((state) => state.Commonreducer.managedEmployeeIds);
+  const managedEmployeesLoaded = useSelector((state) => state.Commonreducer.managedEmployeesLoaded);
+  const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId);
+  const managedEmployeesIsAdmin = useSelector((state) => state.Commonreducer.managedEmployeesIsAdmin);
 
   const [counts, setCounts] = useState([]);
   const [isLoadingCounts, setIsLoadingCounts] = useState(false);
@@ -33,6 +41,37 @@ const Compoff = () => {
   const [rejectRow, setRejectRow] = useState(null);
 
   const [processingIds, setProcessingIds] = useState(() => new Set());
+
+  const roleSource = useMemo(() => {
+    if (typeof document === "undefined") return userRole;
+    const appElement = document.getElementById("app");
+    return appElement?.getAttribute("userrole") || userRole;
+  }, [userRole]);
+
+  const isManagerRole = useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource]);
+  const isAdminRole = useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource]);
+  const isHrRole = useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource]);
+  const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole && !managedEmployeesIsAdmin;
+
+  const managedEmployeeIdSet = useMemo(() => {
+    const idSet = new Set();
+    if (!Array.isArray(managedEmployeeIds)) return idSet;
+    managedEmployeeIds.forEach((id) => {
+      const num = Number(id);
+      if (Number.isFinite(num)) idSet.add(num);
+    });
+    if (managerFacilityMemberId) {
+      idSet.delete(Number(managerFacilityMemberId));
+    }
+    return idSet;
+  }, [managedEmployeeIds, managerFacilityMemberId]);
+
+  const visibleCounts = useMemo(() => {
+    if (!applyManagerFilter) return counts;
+    if (!managedEmployeesLoaded) return [];
+    if (managedEmployeeIdSet.size === 0) return [];
+    return (counts || []).filter((row) => managedEmployeeIdSet.has(Number(row?.EmployeeId)));
+  }, [applyManagerFilter, counts, managedEmployeesLoaded, managedEmployeeIdSet]);
 
   const actionBy = useMemo(() => {
     if (typeof document === "undefined") return "";
@@ -193,7 +232,7 @@ const Compoff = () => {
                 </div>
 
                 <DataTable
-                  value={counts}
+                  value={visibleCounts}
                   dataKey="EmployeeId"
                   paginator
                   rows={10}

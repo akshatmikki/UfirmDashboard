@@ -37,6 +37,8 @@ const Leaves = () => {
     const userName = useSelector((state) => state.Commonreducer.userName);
     const userRole = useSelector((state) => state.Commonreducer.entrolval);
     const managedEmployees = useSelector((state) => state.Commonreducer.managedEmployees);
+    const managedEmployeeIds = useSelector((state) => state.Commonreducer.managedEmployeeIds);
+    const managedEmployeesIsAdmin = useSelector((state) => state.Commonreducer.managedEmployeesIsAdmin);
     const managedEmployeesLoaded = useSelector((state) => state.Commonreducer.managedEmployeesLoaded);
     const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId);
     const toast = useRef(null);
@@ -80,19 +82,26 @@ const Leaves = () => {
     const isManagerRole = React.useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource]);
     const isAdminRole = React.useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource]);
     const isHrRole = React.useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource]);
-    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole;
+    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole && !managedEmployeesIsAdmin;
 
     const managedEmployeeIdSet = React.useMemo(() => {
         const idSet = new Set();
-        (managedEmployees || []).forEach((emp) => {
-            const id = Number(emp.FacilityMemberId);
-            if (Number.isFinite(id)) idSet.add(id);
-        });
+        if (Array.isArray(managedEmployeeIds) && managedEmployeeIds.length > 0) {
+            managedEmployeeIds.forEach((id) => {
+                const num = Number(id);
+                if (Number.isFinite(num)) idSet.add(num);
+            });
+        } else {
+            (managedEmployees || []).forEach((emp) => {
+                const id = Number(emp.FacilityMemberId);
+                if (Number.isFinite(id)) idSet.add(id);
+            });
+        }
         if (managerFacilityMemberId) {
             idSet.delete(Number(managerFacilityMemberId));
         }
         return idSet;
-    }, [managedEmployees, managerFacilityMemberId]);
+    }, [managedEmployeeIds, managedEmployees, managerFacilityMemberId]);
 
     const managedMobileSet = React.useMemo(() => {
         const mobileSet = new Set();
@@ -104,14 +113,60 @@ const Leaves = () => {
         return mobileSet;
     }, [managedEmployees]);
 
+    const getRowEmployeeId = React.useCallback((row) => {
+        if (!row) return null;
+        const candidates = [
+            row.EmployeeId,
+            row.FacilityMemberId,
+            row.FacilityMemberID,
+            row.EmpId,
+            row.EmpID,
+        ];
+        for (const candidate of candidates) {
+            const num = Number(candidate);
+            if (Number.isFinite(num) && num > 0) return num;
+        }
+        return null;
+    }, []);
+
+    const getRowMobile = React.useCallback((row) => {
+        if (!row) return null;
+        const raw =
+            row.MobileNo ??
+            row.MobileNumber ??
+            row.mobileNo ??
+            row.mobileNumber ??
+            row.Mobile ??
+            row.mobile;
+        if (raw == null) return null;
+        const asString = String(raw).trim();
+        return asString ? asString : null;
+    }, []);
+
     const filteredGridData = React.useMemo(() => {
         if (!applyManagerFilter) return gridData;
         if (!managedEmployeesLoaded) return [];
-        if (managedMobileSet.size === 0) return [];
-        return (gridData || []).filter((row) =>
-            managedMobileSet.has(String(row.MobileNo || "").trim())
-        );
-    }, [gridData, applyManagerFilter, managedEmployeesLoaded, managedMobileSet]);
+        if (managedEmployeeIdSet.size === 0 && managedMobileSet.size === 0) return [];
+        return (gridData || []).filter((row) => {
+            const employeeId = getRowEmployeeId(row);
+            if (employeeId && managedEmployeeIdSet.size > 0) {
+                return managedEmployeeIdSet.has(employeeId);
+            }
+            const mobile = getRowMobile(row);
+            if (mobile && managedMobileSet.size > 0) {
+                return managedMobileSet.has(mobile);
+            }
+            return false;
+        });
+    }, [
+        gridData,
+        applyManagerFilter,
+        managedEmployeesLoaded,
+        managedEmployeeIdSet,
+        managedMobileSet,
+        getRowEmployeeId,
+        getRowMobile
+    ]);
 
     const filteredEmployees = React.useMemo(() => {
         if (!applyManagerFilter) return employees;

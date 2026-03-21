@@ -129,6 +129,12 @@ export default function GenerateSalary() {
   const [selectedDepartment, setSelectedDepartment] = useState("");
   const [departments, setDepartments] = useState([]);
 
+  useEffect(() => {
+    const close = () => setUnitDropdownOpen(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
+
   // years/months arrays
   const years = [];
   for (let y = 2021; y <= currentYear; y++) years.push(y);
@@ -1095,23 +1101,29 @@ export default function GenerateSalary() {
 
             <div style={{ position: "relative" }}>
               <div
-                onClick={() => { }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (propertyList.length > 0) {
+                    setUnitDropdownOpen((prev) => !prev);
+                  }
+                }}
                 style={{
                   minWidth: 220,
                   padding: "6px 10px",
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
-                  background: "#fff",
-                  cursor: "not-allowed",
-                  opacity: 0.75,
+                  background: propertyList.length ? "#fff" : "#f9fafb",
+                  cursor: propertyList.length ? "pointer" : "not-allowed",
+                  opacity: propertyList.length ? 1 : 0.75,
                   fontSize: "0.9rem",
                 }}
               >
                 {getUnitSummaryText()}
               </div>
 
-              {false && unitDropdownOpen && (
+              {unitDropdownOpen && (
                 <div
+                  onClick={(e) => e.stopPropagation()}
                   style={{
                     position: "absolute",
                     top: "105%",

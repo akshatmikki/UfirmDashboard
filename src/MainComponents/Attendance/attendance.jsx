@@ -31,6 +31,7 @@ export default function AttendanceMaster() {
     const managedEmployeeIds = useSelector((state) => state.Commonreducer.managedEmployeeIds);
     const managedEmployeesLoaded = useSelector((state) => state.Commonreducer.managedEmployeesLoaded);
     const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId);
+    const managedEmployeesIsAdmin = useSelector((state) => state.Commonreducer.managedEmployeesIsAdmin);
     const [submittedData, setSubmittedData] = useState([]);
 
     // ✅ New States for Pending and Approved/Rejected dialogs
@@ -114,7 +115,7 @@ export default function AttendanceMaster() {
     const isManagerRole = React.useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource]);
     const isAdminRole = React.useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource]);
     const isHrRole = React.useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource]);
-    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole;
+    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole && !managedEmployeesIsAdmin;
 
     const filterManualAttendanceByManager = React.useCallback(
         (records) => {

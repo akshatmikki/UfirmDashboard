@@ -1,5 +1,3 @@
-// ⭐⭐⭐⭐⭐ FINAL MERGED ATTENDANCE SHEET WITH SALARY GROUP + MANUAL EDIT SUPPORT ⭐⭐⭐⭐⭐
-
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import * as XLSX from "xlsx";
@@ -53,6 +51,12 @@ export default function AttendanceSheet() {
 
   const [propertyList, setPropertyList] = useState([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+
+  useEffect(() => {
+    const close = () => setShowPropertyDropdown(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
 
   // { empId: { totalDays, shiftHours } }
   const [employeeSGMap, setEmployeeSGMap] = useState({});
@@ -944,14 +948,19 @@ export default function AttendanceSheet() {
 
           {/* Display Box */}
           <div
-            onClick={() => { }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (propertyList.length > 0) {
+                setShowPropertyDropdown((prev) => !prev);
+              }
+            }}
             style={{
               border: "1px solid #cbd5e0",
               padding: "6px 10px",
               borderRadius: 6,
               background: "#fff",
-              cursor: "not-allowed",
-              opacity: 0.75,
+              cursor: propertyList.length ? "pointer" : "not-allowed",
+              opacity: propertyList.length ? 1 : 0.75,
             }}
           >
             {selectedPropertyId.length === propertyList.length
@@ -964,8 +973,9 @@ export default function AttendanceSheet() {
           </div>
 
           {/* Dropdown */}
-          {false && showPropertyDropdown && (
+          {showPropertyDropdown && (
             <div
+              onClick={(e) => e.stopPropagation()}
               style={{
                 position: "absolute",
                 top: "100%",

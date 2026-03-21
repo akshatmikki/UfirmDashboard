@@ -430,6 +430,11 @@ class MainNav extends React.Component {
   render() {
     const roles = this.state.userRoles;
     const isHrRole = this.isHrRole();
+    const pathname =
+      typeof window !== "undefined" ? window.location.pathname : "";
+    const disablePropertyDropdownForPayroll =
+      pathname.startsWith("/Account/App/GenerateSalary") ||
+      pathname.startsWith("/Account/App/AttendanceSheet");
     const canSeeAllPages = ROLE_RULES.canSeeAllPages(roles);
     const canAccessPlanner = ROLE_RULES.canAccessPlanner(roles);
     const canAccessAssetManagement = ROLE_RULES.canAccessAssetManagement(roles);
@@ -479,6 +484,7 @@ class MainNav extends React.Component {
                     <DropDownList
                       Id="ddlClient"
                       Name="Client"
+                      Disabled={disablePropertyDropdownForPayroll}
                       onSelected={this.onClientChanged}
                       Options={(this.state.clientData || []).map((item) => ({
                         Value: item.ClientID || item.Value || item.id || 0,
@@ -491,7 +497,7 @@ class MainNav extends React.Component {
                       key={`hr-property-${this.state.selectedClientId}`}
                       Id="ddlProperty"
                       Name="Property"
-                      Disabled={this.state.selectedClientId <= 0}
+                      Disabled={disablePropertyDropdownForPayroll || this.state.selectedClientId <= 0}
                       onSelected={this.onPropertyChanged.bind(this)}
                       Options={this.state.PropertyData}
                     />
@@ -503,6 +509,7 @@ class MainNav extends React.Component {
                     <div className="input-group input-group-sm">
                       <DropDownList
                         Id="ddlProperty"
+                        Disabled={disablePropertyDropdownForPayroll}
                         onSelected={this.onPropertyChanged.bind(this)}
                         Options={this.state.PropertyData}
                       />
