@@ -18,6 +18,8 @@ import "primereact/resources/themes/lara-light-indigo/theme.css";
 import { useSelector } from "react-redux";
 import { getAllDesignations } from "../../Services/DesignationService";
 import { MultiSelect } from "primereact/multiselect";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 import {
   // getEmployeesByOffice,
@@ -607,6 +609,162 @@ const StaffPage = () => {
     setWorkHistories(updated);
   };
 
+  const downloadSampleTemplate = () => {
+    const sampleData = [
+      {
+        "EMPCODE": "EMP001",
+        "EMP NAME": "Rahul Sharma",
+        "F/H NAME": "Ramesh Sharma",
+        "DOB": "01-01-1995",
+        "DOJ": "01-01-2024",
+        "GENDER": "M",
+        "MOBILE": "9876543210",
+        "EMAIL": "rahul@example.com",
+        "JOB TYPE": "Permanent",
+        "BANK NAME": "HDFC",
+        "ACCOUNT NO": "1234567890",
+        "IFSC CODE": "HDFC0001234",
+        "AADHAAR NO": "123412341234",
+        "PF NUMBER": "PF12345",
+        "ESI NO": "ESI12345",
+        "PAN NO": "ABCDE1234F",
+        "UAN NO": "100200300400",
+        "DESIGNATION CODE": "1",
+        "DEPT CODE": "1",
+        "ADDRESS LINE 1": "Sector 62",
+        "ADDRESS LINE 2": "Near Metro",
+        "CITY": "Noida",
+        "STATE": "Uttar Pradesh",
+      },
+      {
+        "EMPCODE": "EMP002",
+        "EMP NAME": "Priya Singh",
+        "F/H NAME": "Amit Singh",
+        "DOB": "05-05-1998",
+        "DOJ": "10-02-2024",
+        "GENDER": "F",
+        "MOBILE": "9123456789",
+        "EMAIL": "priya@example.com",
+        "JOB TYPE": "Contractual",
+        "BANK NAME": "SBI",
+        "ACCOUNT NO": "9876543210",
+        "IFSC CODE": "SBIN0005678",
+        "AADHAAR NO": "567856785678",
+        "PF NUMBER": "PF67890",
+        "ESI NO": "ESI67890",
+        "PAN NO": "XYZAB1234K",
+        "UAN NO": "400300200100",
+        "DESIGNATION CODE": "2",
+        "DEPT CODE": "2",
+        "ADDRESS LINE 1": "Sector 18",
+        "ADDRESS LINE 2": "Market Area",
+        "CITY": "Noida",
+        "STATE": "Uttar Pradesh",
+      }
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+    });
+
+    saveAs(blob, "Employee_Sample_Template.xlsx");
+  };
+
+  const exportToExcel = () => {
+    if (!staff || staff.length === 0) {
+      toast.current.show({
+        severity: "warn",
+        summary: "No Data",
+        detail: "No staff available to export",
+      });
+      return;
+    }
+
+    const exportData = staff.map((row) => ({
+      "EMPCODE": row?.Profile?.EmployeeCode || "",
+      "EMP NAME": row?.Profile?.EmployeeName || "",
+      "F/H NAME": row?.EmployeeList?.FatherName || "",
+      "DOB": row?.Profile?.DateOfBirth?.slice(0, 10) || "",
+      "DOJ": "", // you don’t have DOJ in current data (classic)
+      "GENDER": row?.Profile?.Gender === "Male" ? "M" : "F",
+      "MOBILE": row?.Profile?.PhoneNumber || "",
+      "EMAIL": row?.Profile?.Email || "",
+      "JOB TYPE": row?.Profile?.EmploymentType || "",
+
+      "BANK NAME": row?.FinancialInfo?.BankName || "",
+      "ACCOUNT NO": row?.FinancialInfo?.BankAccountNumber || "",
+      "IFSC CODE": row?.FinancialInfo?.BankIFSCCode || "",
+
+      "AADHAAR NO": row?.Profile?.AadharCard || "",
+      "PF NUMBER": row?.FinancialInfo?.PFNumber || "",
+      "ESI NO": row?.FinancialInfo?.ESINumber || "",
+      "PAN NO": row?.Profile?.PanCard || "",
+      "UAN NO": row?.FinancialInfo?.UANNumber || "",
+
+      "DESIGNATION CODE": row?.Profile?.Designation || "",
+      "DEPT CODE": row?.Profile?.Department || "",
+
+      "ADDRESS LINE 1": row?.Profile?.AddressLine1 || "",
+      "ADDRESS LINE 2": row?.Profile?.AddressLine2 || "",
+      "CITY": row?.Profile?.City || "",
+      "STATE": row?.Profile?.State || "",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+    // 🔥 Styling (this is where we stop being boring)
+    const range = XLSX.utils.decode_range(worksheet["!ref"]);
+
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: C });
+      if (!worksheet[cellAddress]) continue;
+
+      worksheet[cellAddress].s = {
+        font: { bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1F4E78" } }, // dark blue
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+    }
+
+    // Auto column width (so it doesn’t look like garbage)
+    worksheet["!cols"] = Object.keys(exportData[0]).map((key) => ({
+      wch: Math.max(key.length + 5, 15),
+    }));
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Staff");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+      cellStyles: true,
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+    });
+
+    let fileName = "Export.xlsx";
+
+    if (selectedPropertyId?.length > 0) {
+      fileName = `${propertyList.find(p => p.PropertyId === selectedPropertyId[0])?.PropertyName || "Unit"} Export.xlsx`;
+    } else if (clientName) {
+      fileName = `${clientName} Export.xlsx`;
+    }
+
+    saveAs(blob, fileName);
+  };
+
   const saveStaff = async () => {
     // 🔒 Ensure unit/property selected
     if (!propertyId) {
@@ -617,24 +775,77 @@ const StaffPage = () => {
       });
       return;
     }
-    // Validation
-    if (!employeeName?.trim() || !employeeCode?.trim() || !mobile?.trim() || !gender) {
-      toast.current.show({
-        severity: "warn",
-        summary: "Validation",
-        detail: "Please fill all required fields (Name, Code, Mobile, Gender)"
-      });
-      return;
+    // ================= VALIDATIONS =================
+
+    // Required fields
+    if (!employeeName?.trim()) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Name is required" });
     }
 
-    // Validate mobile number format (basic check)
-    if (!/^\d{10}$/.test(mobile.trim())) {
-      toast.current.show({
+    if (!family?.trim()) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Father Name is required" });
+    }
+
+    if (!employeeCode?.trim()) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
+    }
+
+    if (!mobile?.trim()) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Mobile Number is required" });
+    }
+
+    // Employee Name (only letters and spaces)
+    if (!/^[A-Za-z\s]{2,50}$/.test(employeeName)) {
+      return toast.current.show({
         severity: "warn",
         summary: "Validation",
-        detail: "Please enter a valid 10-digit mobile number"
+        detail: "Employee Name should contain only letters"
       });
-      return;
+    }
+
+    // Mobile (10 digits, only numbers)
+    if (!/^\d{10}$/.test(mobile)) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Mobile must be exactly 10 digits" });
+    }
+
+    // DOB (cannot be future)
+    if (dateOfBirth && new Date(dateOfBirth) > new Date()) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "DOB cannot be future date" });
+    }
+
+    // PAN (ABCDE1234F)
+    if (panCard && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panCard.toUpperCase())) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid PAN format" });
+    }
+
+    // Aadhaar (12 digits)
+    if (aadharCard && !/^\d{12}$/.test(aadharCard)) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Aadhaar must be 12 digits" });
+    }
+
+    // Bank Account (9–18 digits)
+    if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber)) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid Bank Account Number" });
+    }
+
+    // IFSC (e.g. SBIN0001234)
+    if (bankIFSCCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIFSCCode.toUpperCase())) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid IFSC Code" });
+    }
+
+    // UAN (12 digits)
+    if (uanNumber && !/^\d{12}$/.test(uanNumber)) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "UAN must be 12 digits" });
+    }
+
+    // ESI (10–17 digits)
+    if (esiNumber && !/^\d{10,17}$/.test(esiNumber)) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid ESI Number" });
+    }
+
+    // PF (alphanumeric)
+    if (pfNumber && !/^[A-Z0-9\/]{5,20}$/i.test(pfNumber)) {
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid PF Number" });
     }
 
     let profileImageUrl = "";
@@ -932,6 +1143,38 @@ const StaffPage = () => {
     }
   };
 
+  const indianStates = [
+    { label: "Andhra Pradesh", value: "Andhra Pradesh" },
+    { label: "Arunachal Pradesh", value: "Arunachal Pradesh" },
+    { label: "Assam", value: "Assam" },
+    { label: "Bihar", value: "Bihar" },
+    { label: "Chhattisgarh", value: "Chhattisgarh" },
+    { label: "Goa", value: "Goa" },
+    { label: "Gujarat", value: "Gujarat" },
+    { label: "Haryana", value: "Haryana" },
+    { label: "Himachal Pradesh", value: "Himachal Pradesh" },
+    { label: "Jharkhand", value: "Jharkhand" },
+    { label: "Karnataka", value: "Karnataka" },
+    { label: "Kerala", value: "Kerala" },
+    { label: "Madhya Pradesh", value: "Madhya Pradesh" },
+    { label: "Maharashtra", value: "Maharashtra" },
+    { label: "Manipur", value: "Manipur" },
+    { label: "Meghalaya", value: "Meghalaya" },
+    { label: "Mizoram", value: "Mizoram" },
+    { label: "Nagaland", value: "Nagaland" },
+    { label: "Odisha", value: "Odisha" },
+    { label: "Punjab", value: "Punjab" },
+    { label: "Rajasthan", value: "Rajasthan" },
+    { label: "Sikkim", value: "Sikkim" },
+    { label: "Tamil Nadu", value: "Tamil Nadu" },
+    { label: "Telangana", value: "Telangana" },
+    { label: "Tripura", value: "Tripura" },
+    { label: "Uttar Pradesh", value: "Uttar Pradesh" },
+    { label: "Uttarakhand", value: "Uttarakhand" },
+    { label: "West Bengal", value: "West Bengal" },
+    { label: "Delhi", value: "Delhi" },
+  ];
+
   const header = (
     <div className="d-flex justify-content-between align-items-center p-2">
       <h5 className="m-0">Facility Member</h5>
@@ -1001,6 +1244,19 @@ const StaffPage = () => {
           onClick={openDialog}
           className="p-button-success"
           disabled={!propertyId}
+        />
+
+        <Button
+          label="Sample Template"
+          icon="pi pi-file-excel"
+          className="p-button-warning"
+          onClick={downloadSampleTemplate}
+        />
+        <Button
+          label="Export"
+          icon="pi pi-download"
+          className="p-button-primary"
+          onClick={exportToExcel}
         />
       </div>
     </div>
@@ -1143,7 +1399,11 @@ const StaffPage = () => {
                     "Profile.EmployeeName",
                     "Profile.Gender",
                     "Profile.PhoneNumber",
-                    "FacilityMember.AccessCode"
+                    "Profile.AadharCard",
+                    "FinancialInfo.UANNumber",
+                    "FinancialInfo.PFNumber",
+                    "FinancialInfo.ESINumber",
+                    "FinancialInfo.BankAccountNumber"
                   ]}
                 >
                   <Column selectionMode="single" headerStyle={{ width: '3em' }} />
@@ -1225,7 +1485,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Employee Code"
                   value={employeeCode}
-                  onChange={(e) => setEmployeeCode(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                    if (val.length <= 11) setEmployeeCode(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1233,7 +1496,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Employee Name"
                   value={employeeName}
-                  onChange={(e) => setEmployeeName(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^A-Za-z\s]/g, "");
+                    setEmployeeName(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1259,7 +1525,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Mobile"
                   value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (val.length <= 10) setMobile(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1359,6 +1628,7 @@ const StaffPage = () => {
                 <InputText
                   type="date"
                   value={dateOfBirth}
+                  max={new Date().toISOString().split("T")[0]}
                   onChange={(e) => setDateOfBirth(e.target.value)}
                   className="mb-3"
                 />
@@ -1367,7 +1637,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Father's Name"
                   value={family}
-                  onChange={(e) => setFamily(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^A-Za-z\s]/g, "");
+                    setFamily(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1375,7 +1648,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Pan Card"
                   value={panCard}
-                  onChange={(e) => setPanCard(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    if (val.length <= 10) setPanCard(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1383,7 +1659,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Aadhar Card"
                   value={aadharCard}
-                  onChange={(e) => setAadharCard(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (val.length <= 12) setAadharCard(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1412,10 +1691,11 @@ const StaffPage = () => {
                 />
 
                 <label>State</label>
-                <InputText
-                  placeholder="State"
+                <Dropdown
+                  placeholder="Select State"
                   value={stateName}
-                  onChange={(e) => setStateName(e.target.value)}
+                  options={indianStates}
+                  onChange={(e) => setStateName(e.value)}
                   className="mb-3"
                 />
               </div>
@@ -1428,7 +1708,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Bank Account Number"
                   value={bankAccountNumber}
-                  onChange={(e) => setBankAccountNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (val.length <= 18) setBankAccountNumber(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1436,7 +1719,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="Bank IFSC Code"
                   value={bankIFSCCode}
-                  onChange={(e) => setBankIFSCCode(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase();
+                    if (val.length <= 11) setBankIFSCCode(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1452,7 +1738,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="UAN Number"
                   value={uanNumber}
-                  onChange={(e) => setUanNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (val.length <= 12) setUanNumber(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1460,7 +1749,7 @@ const StaffPage = () => {
                 <InputText
                   placeholder="PAN Number"
                   value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value)}
+                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
                   className="mb-3"
                 />
 
@@ -1468,7 +1757,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="PF Number"
                   value={pfNumber}
-                  onChange={(e) => setPfNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^a-zA-Z0-9/]/g, "");
+                    setPfNumber(val);
+                  }}
                   className="mb-3"
                 />
 
@@ -1476,7 +1768,10 @@ const StaffPage = () => {
                 <InputText
                   placeholder="ESI Number"
                   value={esiNumber}
-                  onChange={(e) => setEsiNumber(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, "");
+                    if (val.length <= 17) setEsiNumber(val);
+                  }}
                   className="mb-3"
                 />
               </div>
