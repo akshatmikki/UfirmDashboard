@@ -523,8 +523,8 @@ class TaskList extends Component {
                     TaskPriority: element.TaskPriority,
                   });
                 });
-                this.countTasksByStatus(taskData);
-                this.setState({ data: taskData, dataLoading: false });
+                const counts = this.computeTaskCounts(taskData);
+                this.setState({ data: taskData, dataLoading: false, ...counts });
                 break;
               case "D":
                 if (rData === "Deleted !") {
@@ -940,18 +940,22 @@ class TaskList extends Component {
   //   });
   // }
 
-  countTasksByStatus = (data) => {
-    data.forEach((element) => {
-      if (element.TaskStatus === "Completed") {
-        this.setState({ completedTasks: this.state.completedTasks + 1 });
-      }
-      if (element.TaskStatus === "Pending") {
-        this.setState({ pendingTasks: this.state.pendingTasks + 1 });
-      }
-      if (element.TaskStatus === "Actionable") {
-        this.setState({ actionableTasks: this.state.actionableTasks + 1 });
-      }
+  computeTaskCounts = (tasks) => {
+    let completedTasks = 0;
+    let pendingTasks = 0;
+    let actionableTasks = 0;
+
+    (tasks || []).forEach((task) => {
+      const status = String(task?.TaskStatus || "")
+        .trim()
+        .toLowerCase();
+
+      if (status === "completed" || status === "complete") completedTasks += 1;
+      else if (status === "pending") pendingTasks += 1;
+      else if (status === "actionable") actionableTasks += 1;
     });
+
+    return { completedTasks, pendingTasks, actionableTasks };
   };
 
   getAllFrequency = async () => {

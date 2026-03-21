@@ -454,6 +454,54 @@ class MainNav extends React.Component {
       ROLE_RULES.shouldHideAttendanceForPropertyManager(roles);
     const canAccessCompOff =
       ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles);
+
+    const isHrRestricted = isHrRole && !canSeeAllPages;
+    const hrAllowedExactPaths = new Set([
+      "/Account/App/UserProfile",
+      "/Account/App/ChangePassword",
+    ]);
+    const hrAllowedPrefixes = [
+      // Property Settings
+      "/Account/App/BranchMaster",
+      "/Account/App/ClientMaster",
+      "/Account/App/PropertyMaster",
+      "/Account/App/PropertyTower",
+      "/Account/App/PropertyDetails",
+
+      // Facility Management
+      "/Account/App/FacilityMember",
+      "/Account/App/Facility",
+      "/Account/App/Attendance",
+      "/Account/App/leave",
+      "/Account/App/leavemaster",
+      "/Account/App/EmployeeLeaveRemaining",
+
+      // Payroll Management
+      "/Account/App/SGNEW",
+      "/Account/App/AttendanceSheet",
+      "/Account/App/GenerateSalary",
+      "/Account/App/AllowanceDeduction",
+      "/Account/App/Linking",
+      "/Account/App/Report",
+      "/Account/App/ProfessionalTax",
+      "/Account/App/LabourFund",
+      "/Account/App/AD_Percentage",
+    ];
+
+    const hrDefaultPath = canAccessFacilityManagement
+      ? "/Account/App/FacilityMember"
+      : canAccessPayrollManagement
+        ? "/Account/App/GenerateSalary"
+        : canAccessPropertySettings
+          ? "/Account/App/PropertyMaster"
+          : "/Account/App/UserProfile";
+
+    const isAllowedHrPath = (path) => {
+      if (!path) return false;
+      if (hrAllowedExactPaths.has(path)) return true;
+      return hrAllowedPrefixes.some((prefix) => path.startsWith(prefix));
+    };
+
     return (
       <Router>
         <div className="wrapper">
@@ -1647,6 +1695,18 @@ class MainNav extends React.Component {
               </nav>
             </div>
           </aside>
+          {isHrRestricted && (
+            <Route
+              path="/Account/App"
+              render={() => {
+                const path =
+                  typeof window !== "undefined" ? window.location.pathname : "";
+                if (!path) return null;
+                if (isAllowedHrPath(path)) return null;
+                return <Redirect to={hrDefaultPath} />;
+              }}
+            />
+          )}
           <Switch>
             <Route
               exact

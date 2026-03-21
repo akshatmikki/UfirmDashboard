@@ -60,6 +60,7 @@ const StaffPage = () => {
 
   const [branchName, setBranchName] = useState("");
   const [clientName, setClientName] = useState("");
+  const [propertyName, setPropertyName] = useState("");
   const [customDepartment, setCustomDepartment] = useState("");
   const [customDesignation, setCustomDesignation] = useState("");
   const [employmentType, setEmploymentType] = useState("");
@@ -316,12 +317,14 @@ const StaffPage = () => {
     const loadBranch = async () => {
       if (!propertyId) {
         setBranchName("");
+        setPropertyName("");
         return;
       }
 
       try {
         // 1️⃣ Get property
         const property = await getPropertyById(propertyId);
+        setPropertyName(property?.PropertyName || property?.Name || "");
 
         if (!property?.BranchCode) {
           setBranchName("");
@@ -335,6 +338,7 @@ const StaffPage = () => {
       } catch (err) {
         console.error("Branch load failed:", err);
         setBranchName("");
+        setPropertyName("");
       }
     };
 
@@ -1115,7 +1119,7 @@ const StaffPage = () => {
                   </div>
                   <div>
                     <strong>Property:</strong>{" "}
-                    {propertyId ? `#${propertyId}` : "All Properties"}
+                    {propertyId ? (propertyName || `#${propertyId}`) : "All Properties"}
                   </div>
                   {!reduxClientId && !propertyId && (
                     <div className="text-danger" style={{ fontWeight: 600 }}>

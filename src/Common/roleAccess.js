@@ -12,7 +12,7 @@ export const ROLES = Object.freeze({
   FACILITY_MANAGER: "Facility Manager",
 });
 
-const CORE_ACCESS = [ROLES.ADMIN, ROLES.HR, ROLES.MANAGER];
+const CORE_ACCESS = [ROLES.ADMIN, ROLES.MANAGER];
 const PROPERTY_ACCESS = [ROLES.PROPERTY_MANAGER, ROLES.PROPERTY_ADMIN];
 const PROPERTY_OR_INVENTORY = [
   ROLES.PROPERTY_MANAGER,
@@ -40,15 +40,15 @@ const canAccessInventoryManagement = (roles) =>
 const canAccessPropertyManagement = (roles) =>
   canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_ACCESS);
 const canAccessFacilityManagement = (roles) =>
-  canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_OR_FACILITY);
+  canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_OR_FACILITY) || isHrRole(roles);
 const canAccessPayrollManagement = (roles) =>
-  canSeeAllPages(roles) || hasRole(roles, ROLES.PROPERTY_ADMIN);
+  canSeeAllPages(roles) || hasRole(roles, ROLES.PROPERTY_ADMIN) || isHrRole(roles);
 const canAccessReports = (roles) =>
   canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_OR_INVENTORY);
 const canAccessParkingManagement = (roles) =>
   canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_ACCESS);
 const canAccessPropertySettings = (roles) =>
-  canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_ACCESS);
+  canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_ACCESS) || isHrRole(roles);
 const canAccessComplaintManagement = (roles) =>
   canSeeAllPages(roles) || hasAnyRole(roles, PROPERTY_ACCESS);
 const canAccessAmenities = (roles) =>
