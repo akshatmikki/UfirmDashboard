@@ -20,6 +20,7 @@ import { getAllDesignations } from "../../Services/DesignationService";
 import { MultiSelect } from "primereact/multiselect";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 import {
   // getEmployeesByOffice,
@@ -990,8 +991,9 @@ const StaffPage = () => {
 
       WorkHistories: formattedWorkHistories,
 
-      // Backend still expects WorkHistory single object for compatibility
-      WorkHistory: formattedWorkHistories[0] || {},
+      ...(formattedWorkHistories.length > 0 && {
+        WorkHistory: formattedWorkHistories[0]
+      }),
 
       FinancialInfo: {
         BankAccountNumber: bankAccountNumber || "",
@@ -1072,6 +1074,25 @@ const StaffPage = () => {
     }
   };
 
+  const confirmDelete = (row) => {
+    confirmDialog({
+      message: "Are you sure you want to delete this employee?",
+      header: "Confirm Delete",
+      icon: "pi pi-exclamation-triangle",
+      acceptClassName: "p-button-danger",
+
+      accept: () => deleteStaff(row),
+
+      reject: () => {
+        toast.current.show({
+          severity: "info",
+          summary: "Cancelled",
+          detail: "Delete action cancelled"
+        });
+      }
+    });
+  };
+
   const deleteStaff = async (selectedRow) => {
     if (!selectedRow) return;
 
@@ -1096,6 +1117,7 @@ const StaffPage = () => {
   };
 
   const handleImportClick = () => {
+    fileInputRef.current.value = null;
     fileInputRef.current.click();
   };
 
@@ -1118,11 +1140,23 @@ const StaffPage = () => {
         summary: "Invalid File",
         detail: "Please upload Excel file (.xlsx)"
       });
+      event.target.value = null;
       return;
     }
 
     try {
       const result = await importEmployees(propertyId, file);
+
+      if (result.FailedCount > 0 && result.FailedRecords?.length > 0) {
+        downloadFailedExcel(result.FailedRecords);
+      }
+      if (result.FailedCount > 0) {
+        toast.current.show({
+          severity: "warn",
+          summary: "Some Records Failed",
+          detail: `${result.FailedCount} employees failed. Excel downloaded.`,
+        });
+      }
 
       toast.current.show({
         severity: "success",
@@ -1141,6 +1175,27 @@ const StaffPage = () => {
         detail: "Employee import failed"
       });
     }
+    event.target.value = null;
+  };
+
+  const downloadFailedExcel = (failedRecords) => {
+    if (!failedRecords || failedRecords.length === 0) return;
+
+    const worksheet = XLSX.utils.json_to_sheet(failedRecords);
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Failed Records");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+    });
+
+    saveAs(blob, "Failed_Employees.xlsx");
   };
 
   const indianStates = [
@@ -1190,7 +1245,7 @@ const StaffPage = () => {
             <Button
               icon="pi pi-trash"
               className="p-button-text p-button-danger"
-              onClick={() => deleteStaff(selectedRow)}
+              onClick={() => confirmDelete(selectedRow)}
               tooltip="Delete Staff"
             />
             <Button
@@ -1362,6 +1417,7 @@ const StaffPage = () => {
         <section className="content">
           <div className="container-fluid">
             <Toast ref={toast} />
+            <ConfirmDialog />
 
             <div className="card">
               <div className="p-3">

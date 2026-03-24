@@ -15,6 +15,7 @@ export default function SalaryReport() {
     const reduxPropertyId = useSelector(
         (state) => state.Commonreducer.puidn
     );
+    const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
 
     const [unitList, setUnitList] = useState([]);
     const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -39,9 +40,14 @@ export default function SalaryReport() {
                     const res = await getClientByPropertyId(reduxPropertyId);
                     setUnitList(res ? [res] : []);
                     setSelectedUnitId(res?.ClientID || null);
-                } else {
-                    const res = await getAllClients();
-                    setUnitList(res || []);
+                    return;
+                }
+
+                const res = await getAllClients();
+                setUnitList(res || []);
+
+                if (Number(reduxClientId) > 0) {
+                    setSelectedUnitId(Number(reduxClientId));
                 }
             } catch (err) {
                 console.log("Client load failed", err);
@@ -49,7 +55,7 @@ export default function SalaryReport() {
         };
 
         loadUnits();
-    }, [reduxPropertyId]);
+    }, [reduxPropertyId, reduxClientId]);
 
     // ================================
     // LOAD PROPERTIES / UNITS
@@ -67,8 +73,8 @@ export default function SalaryReport() {
 
                 setPropertyList(res || []);
 
-                if (reduxPropertyId) {
-                    setSelectedPropertyId(reduxPropertyId);
+                if (Number(reduxPropertyId) > 0) {
+                    setSelectedPropertyId(Number(reduxPropertyId));
                 } else {
                     setSelectedPropertyId(null);
                 }
@@ -78,7 +84,7 @@ export default function SalaryReport() {
         };
 
         loadProperties();
-    }, [selectedUnitId]);
+    }, [selectedUnitId, reduxPropertyId]);
 
     // ================================
     // FETCH SALARY REPORT DATA
@@ -86,7 +92,14 @@ export default function SalaryReport() {
     useEffect(() => {
         const loadSalaryReport = async () => {
             try {
-                if (!selectedUnitId || !selectedPropertyId || !selectedMonth) {
+                const propertyIds =
+                    Number(selectedPropertyId) > 0
+                        ? [Number(selectedPropertyId)]
+                        : (propertyList || [])
+                            .map((p) => Number(p.PropertyId))
+                            .filter((id) => Number.isFinite(id) && id > 0);
+
+                if (!selectedUnitId || !selectedMonth || propertyIds.length === 0) {
                     setEmployees([]);
                     return;
                 }
@@ -100,15 +113,19 @@ export default function SalaryReport() {
                     { month: "long" }
                 );
 
-                const data =
-                    await getFacilityMemberSalaryDetailsByClientBranch(
-                        selectedUnitId,
-                        selectedPropertyId,
-                        monthName,
-                        year
-                    );
+                const results = await Promise.all(
+                    propertyIds.map((pid) =>
+                        getFacilityMemberSalaryDetailsByClientBranch(
+                            selectedUnitId,
+                            pid,
+                            monthName,
+                            year
+                        )
+                    )
+                );
 
-                setEmployees(data || []);
+                const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
+                setEmployees(flat);
             } catch (err) {
                 console.log("Salary report fetch failed", err);
                 setEmployees([]);
@@ -118,7 +135,7 @@ export default function SalaryReport() {
         };
 
         loadSalaryReport();
-    }, [selectedUnitId, selectedPropertyId, selectedMonth]);
+    }, [selectedUnitId, selectedPropertyId, selectedMonth, propertyList]);
 
     useEffect(() => {
         loadImageAsBase64("/Urest-logo.png")
@@ -286,6 +303,7 @@ export default function SalaryReport() {
 
                             setEmployees([]);
                         }}
+                        disabled={Number(reduxClientId) > 0 || Number(reduxPropertyId) > 0}
                         style={{ width: 240 }}
                     >
                         <option value="">-- Select Client --</option>
@@ -313,7 +331,7 @@ export default function SalaryReport() {
                         }}
                         style={{ width: 240 }}
                     >
-                        <option value="">-- Select Unit --</option>
+                        <option value="">All Units</option>
 
                         {propertyList.map((p) => (
                             <option key={p.PropertyId} value={p.PropertyId}>
@@ -416,7 +434,7 @@ export default function SalaryReport() {
                         {employees.length === 0 ? (
                             <tr>
                                 <td colSpan="14" style={{ textAlign: "center" }}>
-                                    Select client, unit and month
+                                    Select client and month
                                 </td>
                             </tr>
                         ) : (

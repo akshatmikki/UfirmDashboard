@@ -11,6 +11,7 @@ export default function PFReport() {
     const reduxPropertyId = useSelector(
         (state) => state.Commonreducer.puidn
     );
+    const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
 
     const [selectedMonth, setSelectedMonth] = useState("");
     const [unitList, setUnitList] = useState([]);
@@ -30,9 +31,13 @@ export default function PFReport() {
                     const res = await getClientByPropertyId(reduxPropertyId);
                     setUnitList(res ? [res] : []);
                     setSelectedUnitId(res?.ClientID || null);
-                } else {
-                    const res = await getAllClients();
-                    setUnitList(res || []);
+                    return;
+                }
+
+                const res = await getAllClients();
+                setUnitList(res || []);
+                if (Number(reduxClientId) > 0) {
+                    setSelectedUnitId(Number(reduxClientId));
                 }
             } catch (err) {
                 console.log("Failed to load clients", err);
@@ -40,7 +45,7 @@ export default function PFReport() {
         };
 
         loadUnits();
-    }, [reduxPropertyId]);
+    }, [reduxPropertyId, reduxClientId]);
 
     // Load Properties
     useEffect(() => {
@@ -55,8 +60,8 @@ export default function PFReport() {
                 const res = await getPropertiesByClientId(selectedUnitId);
                 setPropertyList(res || []);
 
-                if (reduxPropertyId) {
-                    setSelectedPropertyId(reduxPropertyId);
+                if (Number(reduxPropertyId) > 0) {
+                    setSelectedPropertyId(Number(reduxPropertyId));
                 } else {
                     setSelectedPropertyId(null);
                 }
@@ -66,7 +71,7 @@ export default function PFReport() {
         };
 
         loadProperties();
-    }, [selectedUnitId]);
+    }, [selectedUnitId, reduxPropertyId]);
 
     // Load Employees
     // useEffect(() => {
@@ -91,7 +96,14 @@ export default function PFReport() {
     useEffect(() => {
     const loadPFData = async () => {
         try {
-            if (!selectedUnitId || !selectedPropertyId || !selectedMonth) {
+            const propertyIds =
+                Number(selectedPropertyId) > 0
+                    ? [Number(selectedPropertyId)]
+                    : (propertyList || [])
+                        .map((p) => Number(p.PropertyId))
+                        .filter((id) => Number.isFinite(id) && id > 0);
+
+            if (!selectedUnitId || !selectedMonth || propertyIds.length === 0) {
                 setEmployees([]);
                 return;
             }
@@ -104,15 +116,19 @@ export default function PFReport() {
                 { month: "long" }
             );
 
-            const data =
-                await getFacilityMemberSalaryDetailsByClientBranch(
-                    selectedUnitId,
-                    selectedPropertyId,
-                    monthName,
-                    year
-                );
+            const results = await Promise.all(
+                propertyIds.map((pid) =>
+                    getFacilityMemberSalaryDetailsByClientBranch(
+                        selectedUnitId,
+                        pid,
+                        monthName,
+                        year
+                    )
+                )
+            );
 
-            setEmployees(data || []);
+            const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
+            setEmployees(flat);
         } catch (error) {
             console.error("PF report fetch failed", error);
             setEmployees([]);
@@ -122,10 +138,10 @@ export default function PFReport() {
     };
 
     loadPFData();
-}, [selectedUnitId, selectedPropertyId, selectedMonth]);
+}, [selectedUnitId, selectedPropertyId, selectedMonth, propertyList]);
 
     const handleExport = () => {
-        if (!selectedMonth || !selectedPropertyId) return;
+        if (!selectedMonth || !employees.length) return;
 
         const [year, month] = selectedMonth.split("-");
         const monthName = new Date(year, month - 1).toLocaleString("default", {
@@ -239,6 +255,7 @@ export default function PFReport() {
                             // Clear old data
                             setEmployees([]);
                         }}
+                        disabled={Number(reduxClientId) > 0 || Number(reduxPropertyId) > 0}
                         style={{ width: 240 }}
                     >
                         <option value="">-- Select Client --</option>
@@ -262,7 +279,7 @@ export default function PFReport() {
                         }}
                         style={{ width: 240 }}
                     >
-                        <option value="">-- Select Unit --</option>
+                        <option value="">All Units</option>
                         {propertyList.map((p) => (
                             <option key={p.PropertyId} value={p.PropertyId}>
                                 {p.PropertyName}
@@ -297,7 +314,7 @@ export default function PFReport() {
                 <button
                     className="btn btn-success"
                     onClick={handleExport}
-                    disabled={!selectedMonth || !selectedPropertyId}
+                    disabled={!selectedMonth || !employees.length}
                 >
                     Export PF
                 </button>

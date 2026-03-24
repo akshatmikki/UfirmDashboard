@@ -17,6 +17,7 @@ import {
 
 export default function SGNEW() {
   const propertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
 
   const [salaryGroups, setSalaryGroups] = useState([]);
   const [adList, setAdList] = useState([]);
@@ -77,17 +78,25 @@ export default function SGNEW() {
           const res = await getClientByPropertyId(propertyId);
           setUnitList(res ? [res] : []);
           setSelectedUnitId(res?.ClientID || null);
-        } else {
+          return;
+        }
+
+        if (Number(reduxClientId) > 0) {
           const res = await getAllClients();
           setUnitList(res || []);
+          setSelectedUnitId(Number(reduxClientId));
+          return;
         }
+
+        const res = await getAllClients();
+        setUnitList(res || []);
       } catch (err) {
         console.log("Failed to load units", err);
       }
     };
 
     loadUnits();
-  }, [propertyId]);
+  }, [propertyId, reduxClientId]);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -1147,7 +1156,7 @@ export default function SGNEW() {
               <select
                 className="form-control"
                 value={selectedUnitId || ""}
-                disabled={Number(propertyId) > 0}
+                disabled={Number(propertyId) > 0 || Number(reduxClientId) > 0}
                 onChange={(e) => {
                   setSelectedUnitId(Number(e.target.value));
                   setSelectedPropertyId([]);

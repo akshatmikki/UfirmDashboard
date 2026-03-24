@@ -319,8 +319,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzczMDMwNzc3LCJleHAiOjE4MDQ1NjY3NzcsImlhdCI6MTc3MzAzMDc3N30.AH41sQTCAUUqQch6W9VUGCj8FySIqsVDIpTzAixT8YY";
-    //var token = window.sessionStorage.getItem("userinfo_key")
+    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzczMDMwNzc3LCJleHAiOjE4MDQ1NjY3NzcsImlhdCI6MTc3MzAzMDc3N30.AH41sQTCAUUqQch6W9VUGCj8FySIqsVDIpTzAixT8YY";
+    var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -433,8 +433,9 @@ class MainNav extends React.Component {
     const pathname =
       typeof window !== "undefined" ? window.location.pathname : "";
     const disablePropertyDropdownForPayroll =
-      pathname.startsWith("/Account/App/GenerateSalary") ||
-      pathname.startsWith("/Account/App/AttendanceSheet");
+      !isHrRole &&
+      (pathname.startsWith("/Account/App/GenerateSalary") ||
+        pathname.startsWith("/Account/App/AttendanceSheet"));
     const canSeeAllPages = ROLE_RULES.canSeeAllPages(roles);
     const canAccessPlanner = ROLE_RULES.canAccessPlanner(roles);
     const canAccessAssetManagement = ROLE_RULES.canAccessAssetManagement(roles);
@@ -532,7 +533,7 @@ class MainNav extends React.Component {
                     <DropDownList
                       Id="ddlClient"
                       Name="Client"
-                      Disabled={disablePropertyDropdownForPayroll}
+                      Disabled={false}
                       onSelected={this.onClientChanged}
                       Options={(this.state.clientData || []).map((item) => ({
                         Value: item.ClientID || item.Value || item.id || 0,

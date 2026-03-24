@@ -9,6 +9,7 @@ import {
 export default function OTReport() {
   const [selectedMonth, setSelectedMonth] = useState("");
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
 
   const [unitList, setUnitList] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -252,9 +253,13 @@ export default function OTReport() {
           const res = await getClientByPropertyId(reduxPropertyId);
           setUnitList(res ? [res] : []);
           setSelectedUnitId(res?.ClientID || null);
-        } else {
-          const res = await getAllClients();
-          setUnitList(res || []);
+          return;
+        }
+
+        const res = await getAllClients();
+        setUnitList(res || []);
+        if (Number(reduxClientId) > 0) {
+          setSelectedUnitId(Number(reduxClientId));
         }
       } catch (err) {
         console.log("Failed to load clients", err);
@@ -262,7 +267,7 @@ export default function OTReport() {
     };
 
     loadUnits();
-  }, [reduxPropertyId]);
+  }, [reduxPropertyId, reduxClientId]);
 
   useEffect(() => {
     const loadProperties = async () => {
@@ -279,8 +284,10 @@ export default function OTReport() {
         setPropertyList(properties);
 
         // If navbar already selected property
-        if (reduxPropertyId) {
-          setSelectedPropertyId(reduxPropertyId);
+        if (Number(reduxPropertyId) > 0) {
+          setSelectedPropertyId(Number(reduxPropertyId));
+        } else if (properties.length > 0) {
+          setSelectedPropertyId(Number(properties[0].PropertyId) || null);
         } else {
           setSelectedPropertyId(null);
         }
@@ -290,7 +297,7 @@ export default function OTReport() {
     };
 
     loadProperties();
-  }, [selectedUnitId]);
+  }, [selectedUnitId, reduxPropertyId]);
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -442,6 +449,7 @@ export default function OTReport() {
               setSelectedEmployees([]);
               setOtEntries({});
             }}
+            disabled={Number(reduxClientId) > 0 || Number(reduxPropertyId) > 0}
             style={{ width: 240 }}
           >
             <option value="">-- Select Client --</option>
