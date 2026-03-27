@@ -576,7 +576,7 @@ export default function GenerateSalary() {
 
           <!-- LEFT: Company Registered Address -->
           <div style="flex:1; line-height:1.5;">
-            <img src="/Urest-logo.png" style="height:55px; margin-bottom:8px;" />
+            <img src="/Assets/Urest-logo.png" style="height:55px; margin-bottom:8px;" />
             <div style="font-size:17px; font-weight:800; letter-spacing:1px;">
               UFIRM TECHNOLOGIES PVT. LTD.
             </div>
