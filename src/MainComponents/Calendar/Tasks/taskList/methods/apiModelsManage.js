@@ -1,0 +1,273 @@
+﻿import moment from 'moment';
+import * as appCommon from '../../../../../Common/AppCommon.js';
+
+export default function attachApiModelsManage(TaskList) {
+    TaskList.prototype.loadProperty = function () {
+      this.comdbprovider.getUserAssignedproperty().then((resp) => {
+        if (resp && resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            this.setState({ propertyData: rData });
+          });
+        }
+      });
+    }
+  
+    TaskList.prototype.getModel = function (
+      type,
+      categoryId,
+      subCategoryId,
+      assignTo,
+      occurance,
+      startDate,
+      endDate,
+      taskStatus,
+      propertyId,
+      taskPriority,
+  ) {
+      var model = [];
+      switch (type) {
+        case "R":
+          model.push({
+            CmdType: type,
+            CategoryId: categoryId,
+            SubCategoryId: subCategoryId,
+            AssignedTo: assignTo,
+            Occurrence: occurance,
+            DteFr: startDate,
+            DteTo: endDate,
+            TaskStatus: taskStatus,
+            PropertyId: propertyId,
+            TaskPriority: taskPriority,
+          });
+          break;
+        default:
+      }
+      return model;
+    };
+  
+    TaskList.prototype.getDeleteTaskModel = function (type, taskId) {
+      var model = [];
+      switch (type) {
+        case "D":
+          model.push({
+            CmdType: type,
+            TaskId: taskId,
+          });
+          break;
+        default:
+      }
+      return model;
+    };
+  
+    TaskList.prototype.getAssignModel = function (type) {
+      var model = [];
+      switch (type) {
+        case "R":
+          model.push({
+            CmdType: type,
+            PropertyId: this.props.PropertyVal ? this.props.PropertyVal : 0,
+          });
+          break;
+        default:
+      }
+      return model;
+    };
+  
+    TaskList.prototype.getTaskPriorityModel = function (type) {
+      var model = [];
+      switch (type) {
+        case "R":
+          model.push({
+            CmdType: type,
+          });
+          break;
+        default:
+      }
+      return model;
+    };
+  
+    TaskList.prototype.manageCategory = function (model, type) {
+      this.ApiProvider.manageCategory(model, type).then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            let catData = [];
+            rData.forEach((element) => {
+              catData.push({
+                Id: element.catId,
+                Name: element.name,
+              });
+            });
+            switch (type) {
+              case "R":
+                this.setState({ CategoryData: catData });
+                break;
+              default:
+            }
+          });
+        }
+      });
+    };
+  
+    TaskList.prototype.manageTask = function (model, type) {
+      this.setState({ dataLoading: true });
+      this.ApiProvider.manageTask(model, type).then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            switch (type) {
+              case "R":
+                let taskData = [];
+                rData.forEach((element) => {
+                  taskData.push({
+                    Id: element.Id,
+                    TaskId: element.TaskId,
+                    TaskCategoryId: element.TaskCategoryId,
+                    TaskSubCategoryId: element.TaskSubCategoryId,
+                    Name: element.Name,
+                    Description: element.Description,
+                    DateFrom: element.DateFrom.split("T")[0],
+                    DateTo: element.DateTo.split("T")[0],
+                    TimeFrom: element.TimeFrom.split("T")[1],
+                    TimeTo: element.TimeTo.split("T")[1],
+                    Remarks: element.Remarks,
+                    TaskStatus: element.TaskStatus,
+                    Occurence: element.Occurence.split(" ")[0],
+                    OccurenceView: this.modifyOccurence(
+                      element.Occurence.split(" ")[0],
+                    ),
+                    CategoryName: element.CategoryName,
+                    SubCategoryName: element.SubCategoryName,
+                    Location: element.Location,
+                    EntryType: element.EntryType,
+                    AssignedTo: element.AssignedTo,
+                    AssignedToId: element.AssignedToId,
+                    QRcode: element.QRCode,
+                    UpdatedOn: element.UpdatedOn,
+                    PropertyId: element.PropertyId,
+                    AssetId: element.AssetId,
+                    TaskPriority: element.TaskPriority,
+                  });
+                });
+                const counts = this.computeTaskCounts(taskData);
+                this.setState({ data: taskData, dataLoading: false, ...counts });
+                break;
+              case "D":
+                if (rData === "Deleted !") {
+                  appCommon.showtextalert(
+                    "Task Deleted Successfully!",
+                    "",
+                    "success",
+                  );
+                } else {
+                  appCommon.showtextalert("Someting went wrong !", "", "error");
+                }
+                this.setState({ dataLoading: false }, () => this.getTasks());
+                break;
+              default:
+                this.setState({ dataLoading: false });
+            }
+          });
+        } else {
+          this.setState({ dataLoading: false });
+        }
+      }).catch(() => {
+        this.setState({ dataLoading: false });
+      });
+    };
+  
+    TaskList.prototype.modifyOccurence = function (Occurrence) {
+      const match = this.state.frequencyData.find(
+        (f) => f.Occurence === Occurrence
+      );
+  
+      return match ? match.Name : Occurrence;
+    };
+    TaskList.prototype.manageSubCategory = function (model, type, categoryId) {
+      this.ApiProvider.manageSubCategory(model, type, categoryId).then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            let subCatData = [];
+            rData.forEach((element) => {
+              subCatData.push({
+                SubCategoryId: element.SubCategoryId,
+                CategoryId: element.CategoryId,
+                SubCategoryName: element.SubCategoryName,
+              });
+            });
+            switch (type) {
+              case "R":
+                this.setState({ subCategory: subCatData });
+                break;
+              default:
+            }
+          });
+        }
+      });
+    };
+  
+    TaskList.prototype.manageAssign = function (model, type) {
+      this.ApiProvider.manageAssign(model, type).then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            let assignData = [];
+            rData.forEach((element) => {
+              assignData.push({
+                assignId: element.Id,
+                assignName: element.Name,
+              });
+            });
+            switch (type) {
+              case "R":
+                this.setState({ assign: assignData });
+                break;
+              default:
+            }
+          });
+        }
+      });
+    };
+  
+    TaskList.prototype.manageDashboardAssign = function (model, type) {
+      this.ApiProvider.manageDashboardAssign(model, type).then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            let assignData = [];
+            rData.forEach((element) => {
+              assignData.push({
+                assignId: element.Id,
+                assignName: element.Name,
+              });
+            });
+            switch (type) {
+              case "R":
+                this.setState({ dashboardAssign: assignData });
+                break;
+              default:
+            }
+          });
+        }
+      });
+    };
+  
+    TaskList.prototype.manageTaskPriority = function (model, type) {
+      this.ApiProvider.manageTaskPriority(model, type).then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            let taskPriorityList = [];
+            rData.forEach((element) => {
+              taskPriorityList.push({
+                Id: element.Id,
+                Name: element.Name,
+              });
+            });
+            switch (type) {
+              case "R":
+                this.setState({ taskPriorityList: taskPriorityList });
+                break;
+              default:
+            }
+          });
+        }
+      });
+    };
+  
+}

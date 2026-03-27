@@ -34,14 +34,19 @@
     margin-bottom: 10px; /* Add margin bottom to separate items */
   }
   
-  .notification-item-content {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
+.notification-item-content {
+    display: block;
+    width: 100%;
   }
   
   .notification-item-content span {
     font-size: 14px;
+    display: block;
+    width: 100%;
+    white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    line-height: 1.35;
   }
   
   .close-button {

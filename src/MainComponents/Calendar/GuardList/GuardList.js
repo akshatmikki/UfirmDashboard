@@ -8,7 +8,7 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import ApiProvider from "../DataProvider";
 import * as appCommon from "../../../Common/AppCommon.js";
-import AddTask from "../Tasks/AddTask";
+import TaskPage from "../Tasks/TaskPage";
 import {getFrequencyList} from "../../../Services/masterService";
 import {bindActionCreators} from "redux";
 import departmentAction from "../../../redux/department/action";
@@ -613,12 +613,13 @@ class GuardList extends Component {
               </div>
           )}
           {this.state.showAddModal && (
-              <AddTask
-                  showAddModal={this.state.showAddModal}
-                  closeModal={this.closeModal}
-                  categoryData={this.state.CategoryData}
-                  // getTask={this.getTasks}
-                  type={"SpotVisit"}
+              <TaskPage
+                mode="create"
+                visible={this.state.showAddModal}
+                closeModal={this.closeModal}
+                categoryData={this.state.CategoryData}
+                type={"SpotVisit"}
+                PropertyId={this.props.PropertyVal}
               />
           )}
         </div>

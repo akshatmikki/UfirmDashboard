@@ -23,6 +23,9 @@ const styles = {
     padding: "8px 12px",
     borderRadius: "12px",
     fontSize: "14px",
+    whiteSpace: "pre-wrap",
+    wordBreak: "break-word",
+    overflowWrap: "anywhere",
   },
   supBubble: {
     backgroundColor: "#e4e6eb",
@@ -148,6 +151,20 @@ const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
   };
 
   useEffect(() => {
+    if (status) {
+      setCurrentStatus(status);
+      return;
+    }
+    if (context === "task") {
+      setCurrentStatus("Actionable");
+      return;
+    }
+    if (context === "ticket") {
+      setCurrentStatus("IN PROGRESS");
+    }
+  }, [context, status]);
+
+  useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [remarks]);
 
@@ -267,7 +284,7 @@ const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
                           <>
                             <div style={{ fontWeight: 600, color: "#000" }}>
                               {label}:{" "}
-                              <span style={{ fontWeight: 400, color: "#000" }}>
+                              <span style={{ fontWeight: 400, color: "#000", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 {message}
                               </span>
                             </div>
@@ -302,10 +319,12 @@ const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
             <Form.Group className="mb-2">
               <Form.Label>FM Remark</Form.Label>
               <Form.Control
-                type="text"
+                as="textarea"
+                rows={3}
                 placeholder="Enter FM remark..."
                 value={inputValue}
                 onChange={(e) => setInputValue(e.target.value)}
+                style={{ resize: "vertical" }}
               />
             </Form.Group>
 
@@ -381,13 +400,15 @@ const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
             </Button>
           </div>
         ) : (
-          <div className="d-flex mt-2">
+          <div className="d-flex mt-2 align-items-end">
             <Form.Control
-              type="text"
+              as="textarea"
+              rows={2}
               placeholder="Type your message here..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
               className="me-2"
+              style={{ resize: "vertical" }}
             />
             <Button variant="primary" onClick={handleSend}>
               Send

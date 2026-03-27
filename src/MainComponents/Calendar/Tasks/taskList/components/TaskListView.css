@@ -1,0 +1,164 @@
+.task-list-filter-shell {
+  background: transparent;
+  border-radius: 10px;
+}
+
+.task-list-toolbar {
+  gap: 10px;
+  justify-content: flex-start !important;
+}
+
+.task-list-toolbar-seq {
+  gap: 10px;
+  width: 100%;
+}
+
+.task-list-toolbar-left,
+.task-list-toolbar-right {
+  gap: 10px;
+}
+
+.task-list-toolbar-left {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.task-list-toolbar-right {
+  margin-left: 8px;
+}
+
+.task-date-range-group {
+  min-width: 210px;
+  max-width: 260px;
+}
+
+.task-date-range-group .form-control,
+.task-date-range-group .input-group-text,
+.task-toolbar-btn,
+.task-filter-select {
+  min-height: 42px;
+}
+
+.task-date-range-icon .input-group-text {
+  border-right: 0;
+}
+
+.task-date-range-input {
+  border-left: 0;
+  font-weight: 500;
+}
+
+.task-toolbar-btn {
+  padding: 0.42rem 0.9rem;
+  font-size: 0.93rem;
+  white-space: nowrap;
+  border-radius: 10px;
+}
+
+.task-add-btn {
+  min-width: 132px;
+  justify-content: center;
+}
+
+.task-apply-reset-toggle {
+  display: inline-flex;
+  align-items: center;
+}
+
+.task-toggle-btn {
+  margin: 0;
+  border-radius: 0;
+}
+
+.task-toggle-single {
+  border-radius: 10px;
+}
+
+.task-filter-panel {
+  background: #fff;
+  border: 1px solid #dbe5ef;
+  border-radius: 10px;
+}
+
+.task-filter-select {
+  border-radius: 8px;
+  border-color: #d1d9e2;
+  font-weight: 500;
+}
+
+.task-filter-select:focus,
+.task-date-range-input:focus {
+  border-color: #2b74dd;
+  box-shadow: 0 0 0 0.2rem rgba(43, 116, 221, 0.12);
+}
+
+.daterangepicker {
+  border-radius: 12px;
+  border: 1px solid #dbe4ef;
+  box-shadow: 0 12px 30px rgba(15, 42, 74, 0.18);
+}
+
+.daterangepicker .calendar-table {
+  border: 0;
+}
+
+.daterangepicker .drp-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+}
+
+.daterangepicker .drp-selected {
+  margin-right: auto;
+  font-weight: 500;
+  color: #415468;
+}
+
+.daterangepicker .drp-buttons .btn {
+  float: none;
+  margin-left: 0;
+  min-width: 88px;
+  border-radius: 8px;
+  line-height: 1.2;
+  padding: 7px 14px;
+  font-weight: 600;
+}
+
+.daterangepicker .drp-buttons .btn-primary {
+  background-color: #1f6feb;
+  border-color: #1f6feb;
+}
+
+.daterangepicker .drp-buttons .btn-primary:hover,
+.daterangepicker .drp-buttons .btn-primary:focus {
+  background-color: #165fd0;
+  border-color: #165fd0;
+}
+
+@media (max-width: 767px) {
+  .task-date-range-group {
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  .task-list-toolbar-left,
+  .task-list-toolbar-right {
+    width: 100%;
+  }
+
+  .task-toolbar-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .task-apply-reset-toggle {
+    width: 100%;
+  }
+
+  .task-apply-reset-toggle .task-toolbar-btn {
+    flex: 1 1 50%;
+  }
+}
