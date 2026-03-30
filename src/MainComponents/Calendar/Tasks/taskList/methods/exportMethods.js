@@ -5,6 +5,8 @@ export default function attachExportMethods(TaskList) {
   TaskList.prototype.toggleDateGroup = function (date) {
     this.setState((prevState) => ({
       expandedDate: prevState.expandedDate === date ? null : date,
+      cardPage: 1,
+      tablePage: 1,
     }));
   };
 
@@ -103,4 +105,3 @@ export default function attachExportMethods(TaskList) {
     });
   };
 }
-

@@ -36,7 +36,7 @@ export default function TaskListView({ ctx }) {
                       <div className="d-flex align-items-center flex-wrap task-list-toolbar-seq">
                         <div
                           className="d-flex mr-3 bg-white border shadow-sm"
-                          style={{ borderRadius: "8px", padding: "2px" }}
+                          style={{ borderRadius: "8px", padding: "1px" }}
                         >
                           <button
                             className={`btn btn-sm ${
@@ -47,7 +47,7 @@ export default function TaskListView({ ctx }) {
                             onClick={() => ctx.setState({ viewMode: "card" })}
                             title="Card View"
                             style={{
-                              padding: "5px 12px",
+                              padding: "4px 10px",
                               borderRadius: "6px",
                               border: "none",
                               outline: "none",
@@ -64,7 +64,7 @@ export default function TaskListView({ ctx }) {
                             onClick={() => ctx.setState({ viewMode: "table" })}
                             title="Table View"
                             style={{
-                              padding: "5px 12px",
+                              padding: "4px 10px",
                               borderRadius: "6px",
                               border: "none",
                               outline: "none",
@@ -74,7 +74,7 @@ export default function TaskListView({ ctx }) {
                           </button>
                         </div>
 
-                        <div className="input-group" style={{ maxWidth: "250px" }}>
+                        <div className="input-group task-search-group">
                           <div className="input-group-prepend">
                             <span className="input-group-text bg-white border-right-0">
                               <i className="fa fa-search text-muted"></i>
@@ -86,7 +86,7 @@ export default function TaskListView({ ctx }) {
                             placeholder="Search tasks..."
                             value={ctx.state.searchTerm}
                             onChange={(e) =>
-                              ctx.setState({ searchTerm: e.target.value })
+                              ctx.setState({ searchTerm: e.target.value, cardPage: 1, tablePage: 1 })
                             }
                           />
                         </div>

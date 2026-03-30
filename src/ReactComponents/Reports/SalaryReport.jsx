@@ -138,7 +138,7 @@ export default function SalaryReport() {
     }, [selectedUnitId, selectedPropertyId, selectedMonth, propertyList]);
 
     useEffect(() => {
-        loadImageAsBase64("/Urest-logo.png")
+        loadImageAsBase64("/Assets/Urest-logo.png")
             .then(setLogoBase64)
             .catch(() => console.log("Logo load failed"));
     }, []);

@@ -118,7 +118,6 @@ export default function EditTaskPage(props) {
             loading={q.loadingQuestions}
             questions={q.questions}
             onAddQuestion={q.openAddQuestion}
-            onViewImage={q.openViewImage}
             onEditQuestion={q.openEditQuestion}
             onDeleteQuestion={ctrl.requestDeleteQuestion}
           />
@@ -147,6 +146,10 @@ export default function EditTaskPage(props) {
             questions={fmQuestions}
             selectedQuestionId={fm.selectedQuestionId}
             onSelectQuestion={fm.onSelectQuestion}
+            onViewImage={(questionId) => {
+              const selected = (q.questions || []).find((item) => Number(item.QuesId) === Number(questionId));
+              if (selected) q.openViewImage(selected);
+            }}
             fmSelectedDate={fm.fmSelectedDate}
             onDateChange={fm.onDateChange}
             loading={fm.loading}

@@ -4,15 +4,17 @@ import moment from 'moment';
 export default function attachRenderCards(TaskList) {
     TaskList.prototype.renderTaskCards = function () {
       const { data, searchTerm } = this.state;
-      const filteredData = data.filter((task) => {
-        const searchStr = searchTerm.toLowerCase();
-        return (
-          task.TaskId.toString().includes(searchStr) ||
-          task.Name.toLowerCase().includes(searchStr) ||
-          task.CategoryName.toLowerCase().includes(searchStr) ||
-          task.SubCategoryName.toLowerCase().includes(searchStr)
-        );
-      });
+      const searchStr = String(searchTerm || "").trim().toLowerCase();
+      const filteredData = searchStr
+        ? data.filter((task) =>
+            Object.values(task || {}).some((value) => {
+              if (value === null || value === undefined || typeof value === "object") {
+                return false;
+              }
+              return String(value).toLowerCase().includes(searchStr);
+            }),
+          )
+        : data;
   
       if (filteredData.length === 0) {
         return (
@@ -37,7 +39,7 @@ export default function attachRenderCards(TaskList) {
         return moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf();
       });
   
-      const activeDate = this.state.expandedDate || (sortedDates.length > 0 ? sortedDates[0] : null);
+      const activeDate = this.state.expandedDate;
   
       return (
         <div className="container-fluid p-0">
@@ -90,17 +92,27 @@ export default function attachRenderCards(TaskList) {
                   </div>
                 </div>
                 {isExpanded && (
-                  <div className="row animated fadeIn">
-                    {tasks.map((task, index) => {
+                  <div className="animated fadeIn">
+                    {(() => {
+                      const cardPageSize = this.state.cardPageSize || 9;
+                      const totalPages = Math.max(1, Math.ceil(tasks.length / cardPageSize));
+                      const currentPage = Math.min(this.state.cardPage || 1, totalPages);
+                      const startIndex = (currentPage - 1) * cardPageSize;
+                      const pagedTasks = tasks.slice(startIndex, startIndex + cardPageSize);
+
+                      return (
+                        <>
+                          <div className="row">
+                            {pagedTasks.map((task, index) => {
                       const formattedStartTime = task.TimeFrom
                         ? moment(task.TimeFrom, ["HH:mm:ss", "HH:mm"]).format("h:mm A")
                         : "-";
 
                       return (
-                      <div className="col-lg-4 col-md-6 mb-4" key={index}>
+                      <div className="col-lg-4 col-md-6 mb-2" key={`${task.TaskId}-${startIndex + index}`}>
                         <div className="card h-100 shadow-sm border"
                           style={{
-                            borderRadius: "16px",
+                            borderRadius: "12px",
                             overflow: "hidden",
                             transition: "all 0.3s ease",
                             borderColor: "#e0e0e0",
@@ -119,9 +131,9 @@ export default function attachRenderCards(TaskList) {
                             style={{
                               background: "#f8f9fa",
                               borderBottom: "1px solid #e0e0e0",
-                              padding: "8px 15px"
+                              padding: "5px 10px 5px 16px"
                             }}>
-                            <span style={{ fontSize: "13px", fontWeight: "bold", color: "#336B93" }}>
+                            <span style={{ fontSize: "12px", fontWeight: "bold", color: "#336B93" }}>
                               Task Detail
                             </span>
   
@@ -154,21 +166,54 @@ export default function attachRenderCards(TaskList) {
                               {task.TaskStatus}
                             </span>
                           </div>
-                          <div className="card-body p-3">
+                          <div className="card-body p-2" style={{ paddingLeft: "16px", paddingTop: "8px", paddingBottom: "8px" }}>
                             <div className="mb-1 d-flex justify-content-between align-items-start" style={{ minHeight: "35px" }}>
-                              <div style={{ flex: 1, paddingRight: "10px" }}>
+                              <div style={{ flex: 1, paddingRight: "8px", minHeight: "56px" }}>
                                 <h6 className="card-title mb-0 text-dark font-weight-bold"
-                                  style={{ fontSize: "14px", lineHeight: "1.3" }}>
-                                  {task.Name} <span style={{ color: "#666", fontWeight: "normal" }}>({task.TaskId})</span>
+                                  style={{
+                                    fontSize: "13px",
+                                    lineHeight: "1.3",
+                                    display: "-webkit-box",
+                                    WebkitLineClamp: 2,
+                                    WebkitBoxOrient: "vertical",
+                                    overflow: "hidden",
+                                    textOverflow: "ellipsis",
+                                  }}>
+                                  {task.Name}
                                 </h6>
+                                <div style={{ color: "#666", fontWeight: "normal", fontSize: "12px", marginTop: "1px" }}>({task.TaskId})</div>
                               </div>
-                              <div style={{ whiteSpace: "nowrap" }}>
-                                <span style={{ fontWeight: "600", fontSize: "11px", color: "#336B93", background: "#eef4f8", padding: "2px 8px", borderRadius: "10px" }}>
+                                <div
+                                  style={{
+                                    maxWidth: "46%",
+                                    minWidth: 0,
+                                    marginLeft: "8px",
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                  }}
+                                >
+                                  <span
+                                    style={{
+                                      display: "inline-block",
+                                      width: "fit-content",
+                                      maxWidth: "100%",
+                                      fontWeight: "600",
+                                      fontSize: "11px",
+                                      color: "#336B93",
+                                      background: "#eef4f8",
+                                    padding: "2px 9px",
+                                    borderRadius: "999px",
+                                    whiteSpace: "normal",
+                                    wordBreak: "break-word",
+                                    lineHeight: "1.25",
+                                    textAlign: "left",
+                                  }}
+                                >
                                   {task.Location}
                                 </span>
                               </div>
                             </div>
-                            <div className="task-details mt-0 py-1" style={{ fontSize: "12px", color: "#555", background: "#fcfcfc", borderRadius: "8px" }}>
+                            <div className="task-details mt-0 py-0" style={{ fontSize: "11px", color: "#555", background: "#fcfcfc", borderRadius: "8px", paddingLeft: "4px" }}>
                               <div className="row no-gutters text-left">
                                 <div className="col-6 px-2">
                                   <div className="mb-1 d-flex align-items-start justify-content-start" title={task.CategoryName + "/" + task.SubCategoryName} style={{ textAlign: "left" }}>
@@ -207,6 +252,32 @@ export default function attachRenderCards(TaskList) {
                       </div>
                       );
                     })}
+                          </div>
+
+                          {tasks.length > cardPageSize && (
+                            <div className="d-flex align-items-center justify-content-end mt-2 mb-3">
+                              <button
+                                className="btn btn-sm btn-outline-primary mr-2"
+                                disabled={currentPage <= 1}
+                                onClick={() => this.setState({ cardPage: currentPage - 1 })}
+                              >
+                                Prev
+                              </button>
+                              <span className="mx-1 text-muted" style={{ fontSize: "0.9rem" }}>
+                                Page {currentPage} of {totalPages}
+                              </span>
+                              <button
+                                className="btn btn-sm btn-outline-primary ml-2"
+                                disabled={currentPage >= totalPages}
+                                onClick={() => this.setState({ cardPage: currentPage + 1 })}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>

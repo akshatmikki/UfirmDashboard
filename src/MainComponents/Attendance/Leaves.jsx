@@ -23,6 +23,7 @@ import { ROLE_RULES } from "../../Common/roleAccess";
 
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
+import "./AttendanceTaskStyle.css";
 
 const Leaves = () => {
     const [gridData, setGridData] = useState([]);
@@ -322,20 +323,26 @@ const Leaves = () => {
     };
 
     const header = (
-        <div className="d-flex justify-content-between align-items-center p-2">
-            <h5 className="m-0">Leaves</h5>
-            <div className="d-flex gap-2 align-items-center">
-                <span className="p-input-icon-left">
+        <div className="attendance-task-toolbar">
+            <h5 className="attendance-task-title">Leaves</h5>
+            <div className="attendance-task-actions">
+                <div className="input-group attendance-task-search">
+                    <div className="input-group-prepend">
+                        <span className="input-group-text">
+                            <i className="fa fa-search text-muted"></i>
+                        </span>
+                    </div>
                     <InputText
                         value={globalFilterValue}
                         onChange={onGlobalFilterChange}
-                        placeholder="Search..."
+                        placeholder="Search leaves..."
+                        className="form-control"
                     />
-                </span>
+                </div>
                 <Button
                     label="Create Leave"
                     icon="fa fa-plus"
-                    className="p-button-success"
+                    className="p-button-success attendance-task-btn"
                     onClick={() => setCreateDialogVisible(true)}
                 />
             </div>
@@ -346,13 +353,13 @@ const Leaves = () => {
         <>
             <Button
                 icon="fa fa-check"
-                className="p-button-success p-button-sm mr-2 rounded"
+                className="p-button-success p-button-sm mr-2 attendance-task-btn"
                 onClick={() => approveLeave(rowData)}
                 disabled={rowData.IsRejected}
             />
             <Button
                 icon="fa fa-times"
-                className="p-button-danger p-button-sm rounded"
+                className="p-button-danger p-button-sm attendance-task-btn"
                 onClick={() => {
                     setSelectedLeave(rowData);
                     setRejectDialogVisible(true);
@@ -489,12 +496,12 @@ const Leaves = () => {
     };
 
     return (
-        <div className="content-wrapper">
-            <section className="content">
+        <div className="content-wrapper attendance-task-shell">
+            <section className="content mt-4">
                 <div className="container-fluid">
-                    <div className="card">
+                    <div className="card p-2 attendance-task-card">
                         <Toast ref={toast} />
-                        <div className="pr-6 pl-6">
+                        <div className="px-2">
                             {showTable && (
                                 <DataTable
                                     value={filteredGridData}
@@ -508,6 +515,7 @@ const Leaves = () => {
                                     emptyMessage="No leave requests found."
                                     dataKey="LeaveId"
                                     breakpoint="960px"
+                                    className="attendance-task-table"
                                 >
                                     <Column field="EmployeeName" header="Employee Name" />
                                     <Column
@@ -608,7 +616,7 @@ const Leaves = () => {
                         />
                     </div>
                 </div>
-                <div className="flex justify-content-end mt-3">
+                <div className="attendance-task-modal-footer mt-3">
                     <Button
                         label="Cancel"
                         className="p-button-text mr-2"
@@ -635,7 +643,7 @@ const Leaves = () => {
                         />
                     </div>
                 </div>
-                <div className="flex justify-content-end mt-3">
+                <div className="attendance-task-modal-footer mt-3">
                     <Button
                         label="Cancel"
                         className="p-button-text mr-2"

@@ -7,6 +7,7 @@ export default function TaskFmRemarksSection({
   questions,
   selectedQuestionId,
   onSelectQuestion,
+  onViewImage,
   fmSelectedDate,
   onDateChange,
   loading,
@@ -48,10 +49,26 @@ export default function TaskFmRemarksSection({
 
         <div className="col-md-3">
           <label>Task Date</label>
-          <input className="form-control" value={fmSelectedDate || ""} onChange={(e) => onDateChange?.(e.target.value)} placeholder="yyyy-mm-dd" />
+          <input
+            type="date"
+            className="form-control"
+            value={fmSelectedDate || ""}
+            onChange={(e) => onDateChange?.(e.target.value)}
+            onFocus={(e) => e.target.showPicker?.()}
+          />
         </div>
 
-        <div className="col-md-5" />
+        <div className="col-md-5 d-flex align-items-end">
+          <button
+            className="btn btn-info"
+            type="button"
+            disabled={!selectedQuestionId}
+            onClick={() => onViewImage?.(selectedQuestionId)}
+            title={selectedQuestionId ? "View question image" : "Select a question first"}
+          >
+            <i className="fa fa-eye mr-1" /> View Image
+          </button>
+        </div>
       </div>
 
       {loading ? <p className="text-muted">Loading remarks...</p> : null}

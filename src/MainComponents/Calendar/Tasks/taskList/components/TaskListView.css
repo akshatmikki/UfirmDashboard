@@ -4,18 +4,18 @@
 }
 
 .task-list-toolbar {
-  gap: 10px;
+  gap: 8px;
   justify-content: flex-start !important;
 }
 
 .task-list-toolbar-seq {
-  gap: 10px;
+  gap: 8px;
   width: 100%;
 }
 
 .task-list-toolbar-left,
 .task-list-toolbar-right {
-  gap: 10px;
+  gap: 8px;
 }
 
 .task-list-toolbar-left {
@@ -28,15 +28,33 @@
 }
 
 .task-date-range-group {
-  min-width: 210px;
-  max-width: 260px;
+  min-width: 190px;
+  max-width: 235px;
 }
 
+.task-search-group {
+  max-width: 230px !important;
+}
+
+.task-search-group .form-control,
+.task-search-group .input-group-text,
 .task-date-range-group .form-control,
 .task-date-range-group .input-group-text,
 .task-toolbar-btn,
 .task-filter-select {
-  min-height: 42px;
+  min-height: 36px;
+  font-size: 0.95rem;
+}
+
+.task-search-group .input-group-text,
+.task-date-range-group .input-group-text {
+  padding: 0.35rem 0.55rem;
+}
+
+.task-search-group .form-control,
+.task-date-range-input {
+  padding-top: 0.32rem;
+  padding-bottom: 0.32rem;
 }
 
 .task-date-range-icon .input-group-text {
@@ -49,14 +67,14 @@
 }
 
 .task-toolbar-btn {
-  padding: 0.42rem 0.9rem;
-  font-size: 0.93rem;
+  padding: 0.34rem 0.78rem;
+  font-size: 0.9rem;
   white-space: nowrap;
-  border-radius: 10px;
+  border-radius: 9px;
 }
 
 .task-add-btn {
-  min-width: 132px;
+  min-width: 118px;
   justify-content: center;
 }
 

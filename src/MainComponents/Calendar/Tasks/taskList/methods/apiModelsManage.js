@@ -148,7 +148,22 @@ export default function attachApiModelsManage(TaskList) {
                   });
                 });
                 const counts = this.computeTaskCounts(taskData);
-                this.setState({ data: taskData, dataLoading: false, ...counts });
+                const sortedDates = [...new Set(taskData.map((task) => task.UpdatedOn))]
+                  .sort((a, b) => moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf());
+
+                this.setState((prevState) => {
+                  const hasCurrentExpandedDate =
+                    prevState.expandedDate && sortedDates.includes(prevState.expandedDate);
+
+                  return {
+                    data: taskData,
+                    dataLoading: false,
+                    ...counts,
+                    expandedDate: hasCurrentExpandedDate ? prevState.expandedDate : (sortedDates[0] || null),
+                    cardPage: 1,
+                    tablePage: 1,
+                  };
+                });
                 break;
               case "D":
                 if (rData === "Deleted !") {

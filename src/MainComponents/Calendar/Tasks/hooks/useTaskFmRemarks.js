@@ -3,18 +3,26 @@ import swal from "sweetalert";
 import { fetchNotifications, getTaskRemarks } from "../../../../Services/notificationService";
 
 export default function useTaskFmRemarks({ taskId, taskName, propertyId, initialTaskDate }) {
+  const getTodayIsoDate = useCallback(() => {
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
   const [selectedQuestionId, setSelectedQuestionId] = useState(null);
-  const [fmSelectedDate, setFmSelectedDate] = useState(initialTaskDate || "");
-  const [resolvedTaskDate, setResolvedTaskDate] = useState(initialTaskDate || "");
+  const [fmSelectedDate, setFmSelectedDate] = useState(() => getTodayIsoDate());
+  const [resolvedTaskDate, setResolvedTaskDate] = useState(() => getTodayIsoDate());
   const [remarks, setRemarks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasAnyRemarksForQuestion, setHasAnyRemarksForQuestion] = useState(false);
 
   useEffect(() => {
-    if (!initialTaskDate) return;
-    setFmSelectedDate(initialTaskDate);
-    setResolvedTaskDate(initialTaskDate);
-  }, [initialTaskDate]);
+    const today = getTodayIsoDate();
+    setFmSelectedDate(today);
+    setResolvedTaskDate(today);
+  }, [getTodayIsoDate, initialTaskDate]);
 
   const loadRemarks = useCallback(
     async (questionId, taskDate) => {

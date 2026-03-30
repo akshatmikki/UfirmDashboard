@@ -5,13 +5,15 @@ import { useSelector } from "react-redux";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
+import { InputText } from "primereact/inputtext";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
-import { PrimeReactProvider } from "primereact/api";
+import { FilterMatchMode, PrimeReactProvider } from "primereact/api";
 import { InputTextarea } from "primereact/inputtextarea";
 import "primeicons/primeicons.css";
 import "primereact/resources/primereact.min.css";
 import "primereact/resources/themes/lara-light-indigo/theme.css";
+import "./AttendanceTaskStyle.css";
 import {
   getCompOffByEmployee,
   getCompOffCounts,
@@ -41,6 +43,10 @@ const Compoff = () => {
   const [rejectRow, setRejectRow] = useState(null);
 
   const [processingIds, setProcessingIds] = useState(() => new Set());
+  const [globalFilterValue, setGlobalFilterValue] = useState("");
+  const [filters, setFilters] = useState({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  });
 
   const roleSource = useMemo(() => {
     if (typeof document === "undefined") return userRole;
@@ -207,38 +213,68 @@ const Compoff = () => {
     return status === "pending";
   };
 
+  const onGlobalFilterChange = (e) => {
+    const value = e.target.value;
+    setGlobalFilterValue(value);
+    setFilters({
+      ...filters,
+      global: { value, matchMode: FilterMatchMode.CONTAINS },
+    });
+  };
+
+  const header = (
+    <div className="attendance-task-toolbar">
+      <h5 className="attendance-task-title">Comp Off</h5>
+      <div className="attendance-task-actions">
+        <div className="input-group attendance-task-search">
+          <div className="input-group-prepend">
+            <span className="input-group-text">
+              <i className="fa fa-search text-muted"></i>
+            </span>
+          </div>
+          <InputText
+            value={globalFilterValue}
+            onChange={onGlobalFilterChange}
+            placeholder="Search employee..."
+            className="form-control"
+          />
+        </div>
+        <Button
+          label="Refresh"
+          icon="pi pi-refresh"
+          className="p-button-outlined attendance-task-btn"
+          onClick={fetchCounts}
+          disabled={isLoadingCounts}
+        />
+      </div>
+    </div>
+  );
+
   useEffect(() => {
     fetchCounts();
   }, []);
 
   return (
     <PrimeReactProvider>
-      <div className="content-wrapper">
-        <section className="content">
+      <div className="content-wrapper attendance-task-shell">
+        <section className="content mt-4">
           <div className="container-fluid">
             <Toast ref={toast} />
 
-            <div className="card">
-              <div className="p-3">
-                <div className="d-flex justify-content-between align-items-center mb-2">
-                  <h5 className="m-0">Comp Off</h5>
-                  <Button
-                    label="Refresh"
-                    icon="pi pi-refresh"
-                    className="p-button-text"
-                    onClick={fetchCounts}
-                    disabled={isLoadingCounts}
-                  />
-                </div>
-
+            <div className="card p-2 attendance-task-card">
+              <div className="px-2">
                 <DataTable
                   value={visibleCounts}
                   dataKey="EmployeeId"
+                  header={header}
                   paginator
                   rows={10}
                   loading={isLoadingCounts}
+                  filters={filters}
+                  globalFilterFields={["EmployeeName", "EmployeeId"]}
                   responsiveLayout="scroll"
                   emptyMessage="No comp-off data found."
+                  className="attendance-task-table"
                 >
                   <Column header="Employee ID" field="EmployeeId" />
                   <Column header="Employee" field="EmployeeName" />
@@ -315,14 +351,14 @@ const Compoff = () => {
                             <Button
                               label="Approve"
                               icon="pi pi-check"
-                              className="p-button-success p-button-sm"
+                              className="p-button-success p-button-sm attendance-task-btn"
                               disabled={disabled}
                               onClick={() => approveRow(row)}
                             />
                             <Button
                               label="Reject"
                               icon="pi pi-times"
-                              className="p-button-danger p-button-sm"
+                              className="p-button-danger p-button-sm attendance-task-btn"
                               disabled={disabled}
                               onClick={() => openReject(row)}
                             />
@@ -364,10 +400,10 @@ const Compoff = () => {
                     </div>
                   }
                 >
-                  <div className="p-fluid">
-                    <label>Rejection Remark</label>
-                    <InputTextarea
-                      rows={4}
+                    <div className="p-fluid">
+                      <label>Rejection Remark</label>
+                      <InputTextarea
+                        rows={4}
                       value={rejectRemark}
                       onChange={(e) => setRejectRemark(e.target.value)}
                       placeholder="Enter reason for rejection..."

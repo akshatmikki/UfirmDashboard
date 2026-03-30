@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const taskPageCss = `
 .task-page-shell{position:fixed;inset:0;z-index:1050;background:#f4f6f9;padding:0;overflow:hidden;}
@@ -85,6 +85,9 @@ export function useMultiOpenSections(defaultKeys = []) {
 }
 
 export function TaskShell({ visible, title, onClose, footer, children, oneThird = false }) {
+  const modalBodyRef = useRef(null);
+  const wasVisibleRef = useRef(false);
+
   useEffect(() => {
     if (!visible) return undefined;
     const prevBodyOverflow = document.body.style.overflow;
@@ -95,6 +98,19 @@ export function TaskShell({ visible, title, onClose, footer, children, oneThird 
       document.body.style.overflow = prevBodyOverflow;
       document.documentElement.style.overflow = prevHtmlOverflow;
     };
+  }, [visible]);
+
+  useEffect(() => {
+    const justOpened = visible && !wasVisibleRef.current;
+    wasVisibleRef.current = visible;
+    if (!justOpened) return undefined;
+
+    const frame = window.requestAnimationFrame(() => {
+      if (modalBodyRef.current) {
+        modalBodyRef.current.scrollTop = 0;
+      }
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [visible]);
 
   if (!visible) return null;
@@ -114,7 +130,7 @@ export function TaskShell({ visible, title, onClose, footer, children, oneThird 
                 </button>
               </div>
             </div>
-            <div className="task-modal-body">{children}</div>
+            <div className="task-modal-body" ref={modalBodyRef}>{children}</div>
             {footer ? <div className="task-modal-footer">{footer}</div> : null}
           </div>
           </div>

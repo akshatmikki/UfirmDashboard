@@ -60,7 +60,6 @@ export function TaskQuestionsEditSection({
   loading,
   questions,
   onAddQuestion,
-  onViewImage,
   onEditQuestion,
   onDeleteQuestion,
 }) {
@@ -95,10 +94,6 @@ export function TaskQuestionsEditSection({
             </div>
 
             <div className="col-md-3 d-flex align-items-center gap-2 mt-4">
-              <button className="btn btn-info btn-icon" type="button" onClick={() => onViewImage?.(q)} title="View">
-                <i className="fa fa-eye" />
-              </button>
-
               <button className="btn btn-success btn-icon" type="button" onClick={() => onEditQuestion?.(q)} title="Edit">
                 <i className="fa fa-edit" />
               </button>
@@ -113,7 +108,7 @@ export function TaskQuestionsEditSection({
   );
 }
 
-export function TaskQuestionsViewSection({ taskName, location, questions, onViewImage }) {
+export function TaskQuestionsViewSection({ taskName, location, questions }) {
   return (
     <div className="add-task-form">
       <div className="row mb-3">
@@ -136,11 +131,7 @@ export function TaskQuestionsViewSection({ taskName, location, questions, onView
             <input className="form-control" value={q.QuesName} disabled />
           </div>
 
-          <div className="col-md-3 d-flex align-items-center mt-4">
-            <button className="btn btn-info btn-icon" type="button" title="View Image" onClick={() => onViewImage?.(q)}>
-              <i className="fa fa-eye" />
-            </button>
-          </div>
+          <div className="col-md-3 d-flex align-items-center mt-4" />
         </div>
       ))}
     </div>

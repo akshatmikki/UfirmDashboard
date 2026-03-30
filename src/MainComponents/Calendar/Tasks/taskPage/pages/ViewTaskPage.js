@@ -61,7 +61,6 @@ export default function ViewTaskPage(props) {
             taskName={rowData?.Name}
             location={rowData?.Location}
             questions={ctrl.questions}
-            onViewImage={ctrl.openViewImage}
           />
         </TaskSection>
 
@@ -87,6 +86,10 @@ export default function ViewTaskPage(props) {
             questions={fmQuestions}
             selectedQuestionId={fm.selectedQuestionId}
             onSelectQuestion={fm.onSelectQuestion}
+            onViewImage={(questionId) => {
+              const selected = (ctrl.questions || []).find((item) => Number(item.QuesId) === Number(questionId));
+              if (selected) ctrl.openViewImage(selected);
+            }}
             fmSelectedDate={fm.fmSelectedDate}
             onDateChange={fm.onDateChange}
             loading={fm.loading}

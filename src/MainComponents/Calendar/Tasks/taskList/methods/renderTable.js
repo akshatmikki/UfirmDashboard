@@ -4,15 +4,17 @@ import moment from 'moment';
 export default function attachRenderTable(TaskList) {
     TaskList.prototype.renderTaskTable = function () {
       const { data, searchTerm } = this.state;
-      const filteredData = data.filter((task) => {
-        const searchStr = searchTerm.toLowerCase();
-        return (
-          task.TaskId.toString().includes(searchStr) ||
-          task.Name.toLowerCase().includes(searchStr) ||
-          task.CategoryName.toLowerCase().includes(searchStr) ||
-          task.SubCategoryName.toLowerCase().includes(searchStr)
-        );
-      });
+      const searchStr = String(searchTerm || "").trim().toLowerCase();
+      const filteredData = searchStr
+        ? data.filter((task) =>
+            Object.values(task || {}).some((value) => {
+              if (value === null || value === undefined || typeof value === "object") {
+                return false;
+              }
+              return String(value).toLowerCase().includes(searchStr);
+            }),
+          )
+        : data;
   
       if (filteredData.length === 0) {
         return (
@@ -37,7 +39,7 @@ export default function attachRenderTable(TaskList) {
         return moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf();
       });
   
-      const activeDate = this.state.expandedDate || (sortedDates.length > 0 ? sortedDates[0] : null);
+      const activeDate = this.state.expandedDate;
   
       return (
         <div className="container-fluid p-0">
@@ -92,8 +94,17 @@ export default function attachRenderTable(TaskList) {
   
                 {isExpanded && (
                   <div className="animated fadeIn">
-                    {tasks.map((task, index) => (
-                      <div key={index} className="card mb-3 shadow-sm border" style={{ borderRadius: "12px", background: "#fff", overflow: "hidden" }}>
+                    {(() => {
+                      const tablePageSize = this.state.tablePageSize || 10;
+                      const totalPages = Math.max(1, Math.ceil(tasks.length / tablePageSize));
+                      const currentPage = Math.min(this.state.tablePage || 1, totalPages);
+                      const startIndex = (currentPage - 1) * tablePageSize;
+                      const pagedTasks = tasks.slice(startIndex, startIndex + tablePageSize);
+
+                      return (
+                        <>
+                          {pagedTasks.map((task, index) => (
+                      <div key={`${task.TaskId}-${startIndex + index}`} className="card mb-3 shadow-sm border" style={{ borderRadius: "12px", background: "#fff", overflow: "hidden" }}>
                         <div className="card-body p-1">
                           {/* Row 1: Headers */}
                           {/* <div className="row no-gutters text-muted text-uppercase" style={{ fontSize: "11px", fontWeight: "700", background: "#f8f9fa", borderBottom: "1px solid #eee", padding: "8px 15px" }}>
@@ -172,6 +183,31 @@ export default function attachRenderTable(TaskList) {
                         </div>
                       </div>
                     ))}
+
+                          {tasks.length > tablePageSize && (
+                            <div className="d-flex align-items-center justify-content-end mt-2 mb-3">
+                              <button
+                                className="btn btn-sm btn-outline-primary mr-2"
+                                disabled={currentPage <= 1}
+                                onClick={() => this.setState({ tablePage: currentPage - 1 })}
+                              >
+                                Prev
+                              </button>
+                              <span className="mx-1 text-muted" style={{ fontSize: "0.9rem" }}>
+                                Page {currentPage} of {totalPages}
+                              </span>
+                              <button
+                                className="btn btn-sm btn-outline-primary ml-2"
+                                disabled={currentPage >= totalPages}
+                                onClick={() => this.setState({ tablePage: currentPage + 1 })}
+                              >
+                                Next
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 )}
               </div>
