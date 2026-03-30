@@ -716,7 +716,7 @@ export default function GenerateSalary() {
           <td>OTDaysAmount</td>
           <td class="v-bold">${row.OTDaysAmount || 0}</td>
           <td>Adv.</td>
-          <td class="v-light">${row.AdvanceAmount || 0}</td>
+          <td class="v-light">${row.AdvanceDed || 0}</td>
           <td>OTHours</td>
           <td>${row.OTHours || 0}</td>
         </tr>
@@ -822,7 +822,7 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>Washing Allowance</td>
-          <td class="v-bold">${row.Wash || 0}</td>
+          <td class="v-bold">${row.WASH || 0}</td>
           <td></td>
           <td></td>
         </tr>
@@ -830,12 +830,12 @@ export default function GenerateSalary() {
           <td><b>Total Allowance</b></td>
           <td class="v-bold"><b>${totalAllowance}</b></td>
           <td ><b>Total Deduction</b></td>
-          <td><b>${totalDeduction}</b></td>
+          <td><b>${row.TotalDeduction ?? totalDeduction}</b></td>
           <td style="text-align:right; font-weight:800; font-size:20px;">
             Net Salary :
           </td>
           <td style="text-align:right; font-weight:800; font-size:22px;">
-            ₹ ${totalAllowance - totalDeduction}
+            ₹ ${row.NetSalary || (totalAllowance - totalDeduction)}
           </td>
         </tr>
         <tr>
@@ -1474,8 +1474,8 @@ export default function GenerateSalary() {
                         const allowanceKeys = getRowAllowanceKeys(row);
                         const deductionKeys = getRowDeductionKeys(row);
                         const totalAllowance = computeTotalAllowance(row, allowanceKeys);
-                        const totalDeduction = computeTotalDeduction(row, deductionKeys);
-                        const net = totalAllowance - totalDeduction;
+                        const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
+                        const net = row.NetSalary ?? (totalAllowance - totalDeduction);
 
                         return (
                           <tr key={row.FacilityMemberId} style={rowStyle}>
@@ -1512,7 +1512,7 @@ export default function GenerateSalary() {
                               <td key={key} style={cellCenter}>
                                 {key === "NoDeduction"
                                   ? "-"
-                                  : Number(row[key] || 0) > 0
+                                  : Number(row[key] ?? 0) > 0
                                     ? Number(row[key]).toLocaleString()
                                     : ""}
                               </td>

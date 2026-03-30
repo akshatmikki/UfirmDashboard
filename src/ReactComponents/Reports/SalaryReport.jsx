@@ -165,13 +165,17 @@ export default function SalaryReport() {
         );
 
         const [year, monthNum] = selectedMonth.split("-");
-        const monthName = new Date(year, monthNum - 1).toLocaleString("default", {
-            month: "long"
-        });
+
+        // go to previous month
+        const date = new Date(year, monthNum - 1);
+        date.setMonth(date.getMonth() - 1);
+
+        const monthName = date.toLocaleString("default", { month: "long" });
+        const displayYear = date.getFullYear();
 
         const filters = {
             unitName: selectedProperty?.PropertyName || "",
-            month: `${monthName} - ${year}`,
+            month: `${monthName} - ${displayYear}`,
         };
 
         generateWageSheetExcel(employees, filters, false);
@@ -182,13 +186,17 @@ export default function SalaryReport() {
         const selectedProperty = propertyList.find(p => p.PropertyId === selectedPropertyId);
 
         const [year, monthNum] = selectedMonth.split("-");
-        const monthName = new Date(year, monthNum - 1).toLocaleString("default", {
-            month: "long"
-        });
+
+        // go to previous month
+        const date = new Date(year, monthNum - 1);
+        date.setMonth(date.getMonth() - 1);
+
+        const monthName = date.toLocaleString("default", { month: "long" });
+        const displayYear = date.getFullYear();
 
         const filters = {
             unitName: selectedProperty?.PropertyName || "",
-            month: `${monthName} - ${year}`,
+            month: `${monthName} - ${displayYear}`,
             logo: logoBase64 // 👈 USE STATE (NOT loading again)
         };
 
@@ -203,13 +211,17 @@ export default function SalaryReport() {
             );
 
             const [year, monthNum] = selectedMonth.split("-");
-            const monthName = new Date(year, monthNum - 1).toLocaleString("default", {
-                month: "long"
-            });
+
+            // go to previous month
+            const date = new Date(year, monthNum - 1);
+            date.setMonth(date.getMonth() - 1);
+
+            const monthName = date.toLocaleString("default", { month: "long" });
+            const displayYear = date.getFullYear();
 
             const filters = {
                 unitName: selectedProperty?.PropertyName || "",
-                month: `${monthName} - ${year}`,
+                month: `${monthName} - ${displayYear}`,
                 logo: logoBase64 // 👈 USE STATE
             };
 
