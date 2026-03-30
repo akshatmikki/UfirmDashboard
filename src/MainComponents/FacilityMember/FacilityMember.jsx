@@ -126,6 +126,7 @@ const StaffPage = () => {
     others: []
   });
   const [family, setFamily] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [workHistories, setWorkHistories] = useState([
     {
@@ -696,7 +697,11 @@ const StaffPage = () => {
       "EMP NAME": row?.Profile?.EmployeeName || "",
       "F/H NAME": row?.EmployeeList?.FatherName || "",
       "DOB": row?.Profile?.DateOfBirth?.slice(0, 10) || "",
-      "DOJ": "", // you don’t have DOJ in current data (classic)
+      "DOJ": row?.WorkHistories?.[0]?.StartDate
+        ? new Date(row.WorkHistories[0].StartDate)
+          .toLocaleDateString("en-GB") // 🔥 gives DD/MM/YYYY
+          .replace(/\//g, "-")         // convert to DD-MM-YYYY
+        : "",
       "GENDER": row?.Profile?.Gender === "Male" ? "M" : "F",
       "MOBILE": row?.Profile?.PhoneNumber || "",
       "EMAIL": row?.Profile?.Email || "",
@@ -767,6 +772,7 @@ const StaffPage = () => {
   };
 
   const saveStaff = async () => {
+    setIsProcessing(true);
     // 🔒 Ensure unit/property selected
     if (!propertyId) {
       toast.current.show({
@@ -774,29 +780,30 @@ const StaffPage = () => {
         summary: "Warning",
         detail: "Please select a unit first",
       });
+      setIsProcessing(false);
       return;
     }
     // ================= VALIDATIONS =================
 
     // Required fields
     if (!employeeName?.trim()) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Name is required" });
     }
 
-    if (!family?.trim()) {
-      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Father Name is required" });
-    }
-
     if (!employeeCode?.trim()) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
     }
 
     if (!mobile?.trim()) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Mobile Number is required" });
     }
 
     // Employee Name (only letters and spaces)
     if (!/^[A-Za-z\s]{2,50}$/.test(employeeName)) {
+      setIsProcessing(false);
       return toast.current.show({
         severity: "warn",
         summary: "Validation",
@@ -806,46 +813,55 @@ const StaffPage = () => {
 
     // Mobile (10 digits, only numbers)
     if (!/^\d{10}$/.test(mobile)) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Mobile must be exactly 10 digits" });
     }
 
     // DOB (cannot be future)
     if (dateOfBirth && new Date(dateOfBirth) > new Date()) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "DOB cannot be future date" });
     }
 
     // PAN (ABCDE1234F)
     if (panCard && !/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/.test(panCard.toUpperCase())) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid PAN format" });
     }
 
     // Aadhaar (12 digits)
     if (aadharCard && !/^\d{12}$/.test(aadharCard)) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Aadhaar must be 12 digits" });
     }
 
     // Bank Account (9–18 digits)
     if (bankAccountNumber && !/^\d{9,18}$/.test(bankAccountNumber)) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid Bank Account Number" });
     }
 
     // IFSC (e.g. SBIN0001234)
     if (bankIFSCCode && !/^[A-Z]{4}0[A-Z0-9]{6}$/.test(bankIFSCCode.toUpperCase())) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid IFSC Code" });
     }
 
     // UAN (12 digits)
     if (uanNumber && !/^\d{12}$/.test(uanNumber)) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "UAN must be 12 digits" });
     }
 
     // ESI (10–17 digits)
     if (esiNumber && !/^\d{10,17}$/.test(esiNumber)) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid ESI Number" });
     }
 
     // PF (alphanumeric)
     if (pfNumber && !/^[A-Z0-9\/]{5,20}$/i.test(pfNumber)) {
+      setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid PF Number" });
     }
 
@@ -859,6 +875,7 @@ const StaffPage = () => {
           summary: "Validation",
           detail: "Only JPG or PNG images are allowed",
         });
+        setIsProcessing(false);
         return;
       }
 
@@ -881,6 +898,7 @@ const StaffPage = () => {
           summary: "Error",
           detail: "Failed to upload profile image",
         });
+        setIsProcessing(false);
         return;
       }
     }
@@ -918,6 +936,7 @@ const StaffPage = () => {
             summary: "Error",
             detail: "Failed to upload resume",
           });
+          setIsProcessing(false);
           return;
         }
       }
@@ -1033,7 +1052,7 @@ const StaffPage = () => {
       },
 
       EmployeeList: {
-        FatherName: family || "",
+        FatherName: family?.trim() || null,
         IsDeleted: false,
         Approved: true,
         Designation:
@@ -1050,18 +1069,30 @@ const StaffPage = () => {
           detail: "Staff updated successfully"
         });
 
-        setReloadEmployeesToken((t) => t + 1);
       } else {
-        const response = await createEmployee(employeeData);
+        await createEmployee(employeeData);
         toast.current.show({
           severity: "success",
           summary: "Added",
           detail: "Staff member added successfully"
         });
-
-        setReloadEmployeesToken((t) => t + 1);
       }
 
+      // 🔥 STEP 1: Refresh staff
+      const data = await getEmployeesByOffices([propertyId]);
+      setStaff(data || []);
+
+      // 🔥 STEP 2: Update view dialog (ONLY for edit)
+      if (isEditMode) {
+        const updatedRow = data.find(
+          emp => emp.FacilityMember?.FacilityMemberId === editEmployeeId
+        );
+
+        if (updatedRow) {
+          setViewData(updatedRow);
+        }
+      }
+      // 🔥 STEP 3: Then close dialog
       setDialogVisible(false);
       resetForm();
     } catch (error) {
@@ -1071,6 +1102,8 @@ const StaffPage = () => {
         summary: "Error",
         detail: isEditMode ? "Failed to update employee" : "Failed to create employee",
       });
+    } finally {
+      setIsProcessing(false); // 🔥 THIS LINE SAVES YOUR LIFE
     }
   };
 
@@ -1145,11 +1178,16 @@ const StaffPage = () => {
     }
 
     try {
+      setIsProcessing(true); // 🔥 START LOADING
+
       const result = await importEmployees(propertyId, file);
 
+      // Download failed records
       if (result.FailedCount > 0 && result.FailedRecords?.length > 0) {
         downloadFailedExcel(result.FailedRecords);
       }
+
+      // Warning toast
       if (result.FailedCount > 0) {
         toast.current.show({
           severity: "warn",
@@ -1158,13 +1196,14 @@ const StaffPage = () => {
         });
       }
 
+      // Success toast
       toast.current.show({
         severity: "success",
         summary: "Import Complete",
         detail: `Total: ${result.TotalRows} | Success: ${result.SuccessCount} | Failed: ${result.FailedCount}`
       });
 
-      // reload staff
+      // Reload staff
       const data = await getEmployeesByOffices([propertyId]);
       setStaff(data || []);
 
@@ -1174,8 +1213,10 @@ const StaffPage = () => {
         summary: "Import Failed",
         detail: "Employee import failed"
       });
+    } finally {
+      setIsProcessing(false); // 🔥 THIS IS WHAT YOU FORGOT
+      event.target.value = null; // reset file input
     }
-    event.target.value = null;
   };
 
   const downloadFailedExcel = (failedRecords) => {
@@ -1274,7 +1315,7 @@ const StaffPage = () => {
           icon="pi pi-upload"
           className="p-button-secondary"
           tooltip="Import Staff"
-          disabled={!propertyId}
+          disabled={!selectedPropertyId[0] || isProcessing}
           onClick={handleImportClick}
         />
         <input
@@ -1296,9 +1337,9 @@ const StaffPage = () => {
         <Button
           label="Add Staff"
           icon="pi pi-plus"
+          disabled={!selectedPropertyId[0] || isProcessing}
           onClick={openDialog}
           className="p-button-success"
-          disabled={!propertyId}
         />
 
         <Button
@@ -1311,6 +1352,7 @@ const StaffPage = () => {
           label="Export"
           icon="pi pi-download"
           className="p-button-primary"
+          disabled={!selectedPropertyId[0] || isProcessing}
           onClick={exportToExcel}
         />
       </div>
@@ -1411,11 +1453,41 @@ const StaffPage = () => {
     );
   };
 
+  const overlayStyle = {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    width: "100vw",
+    height: "100vh",
+    background: "rgba(255, 255, 255, 0.2)", // light glass effect
+    backdropFilter: "blur(6px)", // 🔥 THIS is the magic
+    WebkitBackdropFilter: "blur(6px)", // safari being annoying as usual
+    zIndex: 9999,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center"
+  };
+
+  const boxStyle = {
+    background: "rgba(255,255,255,0.8)",
+    padding: "30px",
+    borderRadius: "12px",
+    boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+    backdropFilter: "blur(10px)",
+  };
+
   return (
     <PrimeReactProvider>
       <div className="content-wrapper">
         <section className="content">
           <div className="container-fluid">
+            {isProcessing && (
+              <div style={overlayStyle}>
+                <div style={boxStyle}>
+                  <i className="pi pi-spin pi-spinner" style={{ fontSize: "3rem", color: "#333" }}></i>
+                </div>
+              </div>
+            )}
             <Toast ref={toast} />
             <ConfirmDialog />
 
@@ -1514,9 +1586,10 @@ const StaffPage = () => {
                 }}
               />
               <Button
-                label={isEditMode ? "Update" : "Save"}
-                icon="pi pi-check"
+                label={isProcessing ? "Processing..." : (isEditMode ? "Update" : "Save")}
+                icon={isProcessing ? "pi pi-spin pi-spinner" : "pi pi-check"}
                 onClick={saveStaff}
+                disabled={!selectedPropertyId[0] || isProcessing}
               />
             </div>
           }
@@ -1553,7 +1626,7 @@ const StaffPage = () => {
                   placeholder="Employee Name"
                   value={employeeName}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^A-Za-z\s]/g, "");
+                    const val = e.target.value.replace(/[^A-Za-z\s.'-]/g, "");
                     setEmployeeName(val);
                   }}
                   className="mb-3"
@@ -1694,7 +1767,7 @@ const StaffPage = () => {
                   placeholder="Father's Name"
                   value={family}
                   onChange={(e) => {
-                    const val = e.target.value.replace(/[^A-Za-z\s]/g, "");
+                    const val = e.target.value.replace(/[^A-Za-z\s.'-]/g, "");
                     setFamily(val);
                   }}
                   className="mb-3"
@@ -1706,7 +1779,10 @@ const StaffPage = () => {
                   value={panCard}
                   onChange={(e) => {
                     const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                    if (val.length <= 10) setPanCard(val);
+                    if (val.length <= 10) {
+                      setPanCard(val);
+                      setPanNumber(val); // 🔥 SYNC
+                    }
                   }}
                   className="mb-3"
                 />
@@ -1805,8 +1881,13 @@ const StaffPage = () => {
                 <InputText
                   placeholder="PAN Number"
                   value={panNumber}
-                  onChange={(e) => setPanNumber(e.target.value.toUpperCase())}
-                  className="mb-3"
+                  onChange={(e) => {
+                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+                    if (val.length <= 10) {
+                      setPanNumber(val);
+                      setPanCard(val); // 🔥 SYNC BACK
+                    }
+                  }}
                 />
 
                 <label>PF Number</label>

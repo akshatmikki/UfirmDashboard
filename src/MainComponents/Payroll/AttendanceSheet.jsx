@@ -408,6 +408,7 @@ export default function AttendanceSheet() {
     setCurrentPage(1);
 
     async function loadAttendance() {
+      if (!employees.length) return;
       try {
         // 🔹 Decide which properties to use
         const propertyIds =
@@ -523,6 +524,7 @@ export default function AttendanceSheet() {
     month,
     year,
     globalTotalDays,
+    employees,
   ]);
 
   // ---------------------------------------------------------
