@@ -13,9 +13,12 @@ import {
   updateScheduleCategory,
 } from "../../Services/masterService";
 import { masterConfigCss } from "./masterConfigTheme";
+import { set } from "date-fns";
+import { use } from "react";
 
 const initCat = { id: 0, name: "", description: "", subs: [], newSub: "" };
 const initFreq = { id: 0, name: "", value: "", unit: "Days" };
+const initShift = { ShiftId: 0, ShiftName: "", TimeFrom: "", TimeTo: "" };
 const units = ["Minutes", "Hours", "Days", "Weeks", "Months"];
 
 const qFilter = (rows, q, keys) => (!q.trim()
@@ -47,12 +50,14 @@ export default function MasterConfig() {
   const [cats, setCats] = useState([]);
   const [subs, setSubs] = useState([]);
   const [freqs, setFreqs] = useState([]);
+  const [shifts, setShifts] = useState([]);
   const [selected, setSelected] = useState(null);
   const [mode, setMode] = useState("view");
   const [showAdd, setShowAdd] = useState(null);
   const [showDelete, setShowDelete] = useState(null);
   const [catForm, setCatForm] = useState(initCat);
   const [freqForm, setFreqForm] = useState(initFreq);
+  const [shiftForm, setShiftForm] = useState(initShift);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -70,9 +75,28 @@ export default function MasterConfig() {
     }
   }, [api, selectedPropertyId]);
 
+  const loadShifts = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`https://api.urest.in:8096/api/ShiftMaster/getbypropertyid=${selectedPropertyId}`);
+      const data = await (res.ok ? res.json() : []);
+      setShifts(Array.isArray(data) ? data : []);
+      setShiftForm(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Unable to load shifts:", error);
+      setShifts([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [selectedPropertyId]);
+
   useEffect(() => {
     loadAll();
   }, [loadAll]);
+
+  useEffect(() => {
+    if (tab === "shiftmaster") loadShifts();
+    }, [tab, loadShifts]);
 
   const catRows = useMemo(
     () => qFilter(cats, query, ["catId", "name"]).map((c) => ({
@@ -82,6 +106,8 @@ export default function MasterConfig() {
     [cats, query, subs]
   );
   const freqRows = useMemo(() => qFilter(freqs, query, ["Id", "Name", "Fvalue", "Funit"]), [freqs, query]);
+  const shiftRows = useMemo(() => qFilter(shifts, query, ["ShiftId", "ShiftName"]), [shifts, query]);
+  
   const selectedSubs = useMemo(
     () => (selected?.type === "category"
       ? subs.filter((s) => Number(s.CategoryId) === Number(selected.id))
@@ -89,12 +115,26 @@ export default function MasterConfig() {
     [selected, subs]
   );
 
-  const selectRow = (row) => {
+const selectRow = (row) => {
+    if (tab === "shiftmaster") {
+      setSelected({ type: "shift", id: row.ShiftId });
+      setMode("view");
+      setShiftForm({
+        ShiftId: row.ShiftId,
+        ShiftName: row.ShiftName || "",
+        TimeFrom: row.TimeFrom || "",
+        TimeTo: row.TimeTo || "",
+      });
+      setCatForm(initCat);
+      setFreqForm(initFreq);
+      return;
+    }
+    
     const isCat = tab === "categories";
     const id = isCat ? row.catId : row.Id;
     setSelected({ type: isCat ? "category" : "frequency", id });
     setMode("view");
-
+    
     if (isCat) {
       setCatForm({
         id: row.catId,
@@ -224,18 +264,80 @@ export default function MasterConfig() {
     await loadAll();
   };
 
+  const saveShift = async (fromAdd = false) => {
+   if (!shiftForm.ShiftName || !shiftForm.ShiftName.trim()) {
+      return appCommon.showtextalert("Please enter shift name.", "", "warning");
+    }
+    if (!shiftForm.TimeFrom) {
+      return appCommon.showtextalert("Please enter shift start time.", "", "warning");
+    }
+    if (!shiftForm.TimeTo) {
+      return appCommon.showtextalert("Please enter shift end time.", "", "warning");
+    }
+
+    const isEdit = Number(shiftForm.ShiftId) > 0;
+    const payload = {
+      ShiftId: Number(shiftForm.ShiftId || 0),
+      ShiftName: shiftForm.ShiftName.trim(),
+      TimeFrom: shiftForm.TimeFrom,
+      TimeTo: shiftForm.TimeTo,
+      PropertyId: selectedPropertyId,
+      IsActive: true,
+      CreatedBy: selectedUserId,
+      ModifiedBy: selectedUserId,
+    };
+
+    try {
+      if (isEdit) {
+        const res = await fetch(`https://api.urest.in:8096/api/ShiftMaster/update`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error();
+      } else {
+        const res = await fetch(`https://api.urest.in:8096/api/ShiftMaster/create`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        if (!res.ok) throw new Error();
+      }
+    } catch (error) {
+      console.error("Unable to save shift", error);
+      return appCommon.showtextalert("Unable to save shift.", "", "error");
+    }
+
+    appCommon.showtextalert("Shift saved successfully!", "", "success");
+    if (fromAdd) {
+      setShowAdd(null);
+    } else {
+      setMode("view");
+    }
+    await loadShifts();
+  };
+
   const confirmDelete = async () => {
     if (!showDelete) return;
 
     const isCat = showDelete.type === "category";
+    const isShift = showDelete.type === "shift";
     let success = false;
 
-    if (isCat) {
+     if (isCat) {
       try {
         const resp = await deleteScheduleCategory(showDelete.id);
         success = !!resp?.ok;
       } catch (error) {
         console.error("Unable to delete category", error);
+        success = false;
+      }
+    } else if (isShift) {
+      try {
+        const resp = await fetch(`https://api.urest.in:8096/api/ShiftMaster/delete/${showDelete.id}`, { method: "DELETE" });
+        success = resp.ok;
+      } catch (error) {
+        console.error("Unable to delete shift", error);
         success = false;
       }
     } else {
@@ -253,7 +355,11 @@ export default function MasterConfig() {
     appCommon.showtextalert("Deleted successfully!", "", "success");
     setShowDelete(null);
     setSelected(null);
-    await loadAll();
+    if (isShift) {
+      await loadShifts();
+    } else {
+      await loadAll();
+    }
   };
 
   const addModal = showAdd === "category"
@@ -315,14 +421,48 @@ export default function MasterConfig() {
           </>
         ),
       }
-      : null;
+      : showAdd === "shift"
+        ? {
+          title: "Add Shift",
+          save: () => saveShift(true),
+          body: (
+            <>
+              <p className="mc-field-label">Shift Name</p>
+              <input
+                className="mc-input"
+                value={shiftForm.ShiftName}
+                onChange={(e) => setShiftForm((p) => ({ ...p, ShiftName: e.target.value }))}
+                placeholder="e.g. Morning Shift"
+              />
+              <p className="mc-field-label">Time From</p>
+              <input
+                className="mc-input"
+                type="time"
+                value={shiftForm.TimeFrom}
+                onChange={(e) => setShiftForm((p) => ({ ...p, TimeFrom: e.target.value }))}
+              />
+              <p className="mc-field-label">Time To</p>
+              <input
+                className="mc-input"
+                type="time"
+                value={shiftForm.TimeTo}
+                onChange={(e) => setShiftForm((p) => ({ ...p, TimeTo: e.target.value }))}
+              />
+            </>
+          ),
+        }
+        : null;
 
-  const deleteTitle = showDelete?.type === "category" ? "Delete Category" : "Delete Frequency";
+  const deleteTitle = showDelete?.type === "category" ? "Delete Category" : showDelete?.type === "shift"
+      ? "Delete Shift"
+      : "Delete Frequency";
   const selectedInfo = showDelete?.type === "category"
     ? catRows.find((r) => Number(r.catId) === Number(showDelete?.id))
+        : showDelete?.type === "shift"
+      ? shiftRows.find((r) => Number(r.ShiftId) === Number(showDelete?.id))
     : freqRows.find((r) => Number(r.Id) === Number(showDelete?.id));
 
-  return (
+   return (
     <div className="mc-wrap">
       <style>{masterConfigCss}</style>
       <h3 className="mc-head">
@@ -353,6 +493,17 @@ export default function MasterConfig() {
             >
               Frequencies
             </button>
+            <button
+              className={`mc-tab ${tab === "shiftmaster" ? "active" : ""}`}
+              type="button"
+              onClick={() => {
+                setTab("shiftmaster");
+                setQuery("");
+                setSelected(null);
+              }}
+            >
+              Shift
+            </button>
           </div>
           <div className="mc-tools">
             <div className="mc-search">
@@ -367,12 +518,14 @@ export default function MasterConfig() {
               className="mc-btn-add"
               type="button"
               onClick={() => {
-                setShowAdd(tab === "categories" ? "category" : "frequency");
+                setShowAdd(tab === "categories" ? "category" : tab === "frequencies" ? "frequency" : "shift");
                 setCatForm(initCat);
                 setFreqForm(initFreq);
+                setShiftForm(initShift);
               }}
             >
-              <i className="fa fa-plus" /> {tab === "categories" ? "Add Category" : "Add Frequency"}
+              <i className="fa fa-plus" />{" "}
+              {tab === "categories" ? "Add Category" : tab === "frequencies" ? "Add Frequency" : "Add Shift"}
             </button>
           </div>
           <div className="mc-table-wrap">
@@ -385,12 +538,20 @@ export default function MasterConfig() {
                     <th>Sub-category</th>
                     <th>Actions</th>
                   </tr>
-                ) : (
+                ) : tab === "frequencies" ? (
                   <tr>
                     <th>ID</th>
                     <th>Name</th>
                     <th>Value</th>
                     <th>Unit</th>
+                    <th>Actions</th>
+                  </tr>
+                ) : (
+                  <tr>
+                    <th>ID</th>
+                    <th>Shift Name</th>
+                    <th>Time From</th>
+                    <th>Time To</th>
                     <th>Actions</th>
                   </tr>
                 )}
@@ -400,7 +561,7 @@ export default function MasterConfig() {
                   <tr>
                     <td className="mc-empty" colSpan={tab === "categories" ? 4 : 5}>Loading...</td>
                   </tr>
-                ) : (tab === "categories" ? catRows : freqRows).length === 0 ? (
+                ) : (tab === "categories" ? catRows : tab === "frequencies" ? freqRows : shiftRows).length === 0 ? (
                   <tr>
                     <td className="mc-empty" colSpan={tab === "categories" ? 4 : 5}>No data found.</td>
                   </tr>
@@ -445,43 +606,81 @@ export default function MasterConfig() {
                       </td>
                     </tr>
                   ))
-                  : freqRows.map((r) => (
-                    <tr
-                      key={r.Id}
-                      className={selected?.type === "frequency" && Number(selected.id) === Number(r.Id) ? "mc-row-active" : ""}
-                      onClick={() => selectRow(r)}
-                    >
-                      <td>#{r.Id}</td>
-                      <td>{r.Name}</td>
-                      <td>{r.Fvalue}</td>
-                      <td>{r.Funit}</td>
-                      <td>
-                        <div className="mc-actions">
-                          <button
-                            className="mc-act"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              selectRow(r);
-                              setMode("edit");
-                            }}
-                          >
-                            <i className="far fa-edit" />
-                          </button>
-                          <button
-                            className="mc-act"
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setShowDelete({ type: "frequency", id: r.Id });
-                            }}
-                          >
-                            <i className="far fa-trash-alt" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  : tab === "frequencies"
+                    ? freqRows.map((r) => (
+                      <tr
+                        key={r.Id}
+                        className={selected?.type === "frequency" && Number(selected.id) === Number(r.Id) ? "mc-row-active" : ""}
+                        onClick={() => selectRow(r)}
+                      >
+                        <td>#{r.Id}</td>
+                        <td>{r.Name}</td>
+                        <td>{r.Fvalue}</td>
+                        <td>{r.Funit}</td>
+                        <td>
+                          <div className="mc-actions">
+                            <button
+                              className="mc-act"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectRow(r);
+                                setMode("edit");
+                              }}
+                            >
+                              <i className="far fa-edit" />
+                            </button>
+                            <button
+                              className="mc-act"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDelete({ type: "frequency", id: r.Id });
+                              }}
+                            >
+                              <i className="far fa-trash-alt" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                    : shiftRows.map((r) => (
+                      <tr
+                        key={r.ShiftId}
+                        className={selected?.type === "shift" && Number(selected.id) === Number(r.ShiftId) ? "mc-row-active" : ""}
+                        onClick={() => selectRow(r)}
+                      >
+                        <td>#{r.ShiftId}</td>
+                        <td>{r.ShiftName}</td>
+                        <td>{r.TimeFrom}</td>
+                        <td>{r.TimeTo}</td>
+                        <td>
+                          <div className="mc-actions">
+                            <button
+                              className="mc-act"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                selectRow(r);
+                                setMode("edit");
+                              }}
+                            >
+                              <i className="far fa-edit" />
+                            </button>
+                            <button
+                              className="mc-act"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowDelete({ type: "shift", id: r.ShiftId, name: r.ShiftName });
+                              }}
+                            >
+                              <i className="far fa-trash-alt" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
               </tbody>
             </table>
           </div>
@@ -495,7 +694,9 @@ export default function MasterConfig() {
               </span>
               {tab === "categories"
                 ? (mode === "edit" ? "Edit Category" : "Category Details")
-                : (mode === "edit" ? "Edit Frequency" : "Frequency Details")}
+                : tab === "frequencies"
+                  ? (mode === "edit" ? "Edit Frequency" : "Frequency Details")
+                  : (mode === "edit" ? "Edit Shift" : "Shift Details")}
             </div>
             <div className="mc-side-body">
               {tab === "categories" ? (
@@ -541,25 +742,45 @@ export default function MasterConfig() {
                     ))}
                   </>
                 )
+              ) : tab === "frequencies" ? (
+                mode === "view" ? (
+                  <>
+                    <div className="mc-kv"><span className="mc-kv-key">ID</span><span className="mc-kv-val">#{freqForm.id}</span></div>
+                    <div className="mc-kv"><span className="mc-kv-key">Name</span><span className="mc-kv-val">{freqForm.name || "-"}</span></div>
+                    <div className="mc-kv"><span className="mc-kv-key">Value</span><span className="mc-kv-val">{freqForm.value || "-"}</span></div>
+                    <div className="mc-kv"><span className="mc-kv-key">Unit</span><span className="mc-kv-val">{freqForm.unit || "-"}</span></div>
+                  </>
+                ) : (
+                  <>
+                    <p className="mc-field-label">ID</p>
+                    <p className="mc-field-val">#{freqForm.id}</p>
+                    <p className="mc-field-label">Name</p>
+                    <input className="mc-input" value={freqForm.name} onChange={(e) => setFreqForm((p) => ({ ...p, name: e.target.value }))} />
+                    <p className="mc-field-label">Value</p>
+                    <input className="mc-input" type="number" value={freqForm.value} onChange={(e) => setFreqForm((p) => ({ ...p, value: e.target.value }))} />
+                    <p className="mc-field-label">Unit</p>
+                    <select className="mc-select" value={freqForm.unit} onChange={(e) => setFreqForm((p) => ({ ...p, unit: e.target.value }))}>
+                      {units.map((u) => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                  </>
+                )
               ) : mode === "view" ? (
                 <>
-                  <div className="mc-kv"><span className="mc-kv-key">ID</span><span className="mc-kv-val">#{freqForm.id}</span></div>
-                  <div className="mc-kv"><span className="mc-kv-key">Name</span><span className="mc-kv-val">{freqForm.name || "-"}</span></div>
-                  <div className="mc-kv"><span className="mc-kv-key">Value</span><span className="mc-kv-val">{freqForm.value || "-"}</span></div>
-                  <div className="mc-kv"><span className="mc-kv-key">Unit</span><span className="mc-kv-val">{freqForm.unit || "-"}</span></div>
+                  <div className="mc-kv"><span className="mc-kv-key">ID</span><span className="mc-kv-val">#{shiftForm.ShiftId}</span></div>
+                  <div className="mc-kv"><span className="mc-kv-key">Shift Name</span><span className="mc-kv-val">{shiftForm.ShiftName || "-"}</span></div>
+                  <div className="mc-kv"><span className="mc-kv-key">Time From</span><span className="mc-kv-val">{shiftForm.TimeFrom || "-"}</span></div>
+                  <div className="mc-kv"><span className="mc-kv-key">Time To</span><span className="mc-kv-val">{shiftForm.TimeTo || "-"}</span></div>
                 </>
               ) : (
                 <>
                   <p className="mc-field-label">ID</p>
-                  <p className="mc-field-val">#{freqForm.id}</p>
-                  <p className="mc-field-label">Name</p>
-                  <input className="mc-input" value={freqForm.name} onChange={(e) => setFreqForm((p) => ({ ...p, name: e.target.value }))} />
-                  <p className="mc-field-label">Value</p>
-                  <input className="mc-input" type="number" value={freqForm.value} onChange={(e) => setFreqForm((p) => ({ ...p, value: e.target.value }))} />
-                  <p className="mc-field-label">Unit</p>
-                  <select className="mc-select" value={freqForm.unit} onChange={(e) => setFreqForm((p) => ({ ...p, unit: e.target.value }))}>
-                    {units.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  <p className="mc-field-val">#{shiftForm.ShiftId}</p>
+                  <p className="mc-field-label">Shift Name</p>
+                  <input className="mc-input" value={shiftForm.ShiftName} onChange={(e) => setShiftForm((p) => ({ ...p, ShiftName: e.target.value }))} />
+                  <p className="mc-field-label">Time From</p>
+                  <input className="mc-input" type="time" value={shiftForm.TimeFrom} onChange={(e) => setShiftForm((p) => ({ ...p, TimeFrom: e.target.value }))} />
+                  <p className="mc-field-label">Time To</p>
+                  <input className="mc-input" type="time" value={shiftForm.TimeTo} onChange={(e) => setShiftForm((p) => ({ ...p, TimeTo: e.target.value }))} />
                 </>
               )}
             </div>
@@ -571,7 +792,17 @@ export default function MasterConfig() {
                 </>
               ) : (
                 <>
-                  <button className="mc-btn primary" type="button" onClick={() => (tab === "categories" ? saveCategory(false) : saveFrequency(false))}>Save</button>
+                  <button
+                    className="mc-btn primary"
+                    type="button"
+                    onClick={() => (
+                      tab === "categories" ? saveCategory(false) :
+                      tab === "frequencies" ? saveFrequency(false) :
+                      saveShift(false)
+                    )}
+                  >
+                    Save
+                  </button>
                   <button className="mc-btn ghost" type="button" onClick={() => setMode("view")}>Cancel</button>
                 </>
               )}
@@ -621,7 +852,9 @@ export default function MasterConfig() {
               <p className="mc-field-val">
                 {showDelete.type === "category"
                   ? "Are you sure you want to delete this category? This action cannot be undone."
-                  : "Are you sure you want to delete this frequency? This action cannot be undone."}
+                  : showDelete.type === "shift"
+                    ? "Are you sure you want to delete this shift? This action cannot be undone."
+                    : "Are you sure you want to delete this frequency? This action cannot be undone."}
               </p>
               <div className="mc-info-box">
                 {showDelete.type === "category" ? (
@@ -629,6 +862,11 @@ export default function MasterConfig() {
                     <div><b>Category ID:</b> #{selectedInfo?.catId || showDelete.id}</div>
                     <div><b>Category Name:</b> {selectedInfo?.name || "-"}</div>
                     <div><b>Sub-categories:</b> {selectedInfo?.subCount ?? "-"}</div>
+                  </>
+                ) : showDelete.type === "shift" ? (
+                  <>
+                    <div><b>Shift ID:</b> #{selectedInfo?.ShiftId || showDelete.id}</div>
+                    <div><b>Shift Name:</b> {selectedInfo?.ShiftName || showDelete.name || "-"}</div>
                   </>
                 ) : (
                   <>
