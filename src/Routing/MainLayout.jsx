@@ -46,8 +46,6 @@ import EventCalendarPage from '../pages/EventCalendarPage'
 import PropertyOwnerPage from '../pages/PropertyOwnerPage.jsx';
 import PropertyTenatsPage from '../pages/PropertyTenatsPage.jsx';
 import RwaMemberPage from '../pages/RwaMemberPage';
-import CalendarCategoryPage from '../pages/CalendarCategoryPage';
-import CalendarSubCategoryPage from '../pages/CalendarSubCategoryPage';
 import EventApproval from '../pages/EventApproval.jsx';
 import PlannerTaskPage from '../pages/PlannerTaskPage.jsx';
 import PlannerTaskAuditPage from '../pages/PlannerTaskAuditPage';

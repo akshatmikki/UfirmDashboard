@@ -65,12 +65,12 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
 
   const loadFrequency = useCallback(async () => {
     try {
-      const data = await getFrequencyList();
+      const data = await getFrequencyList(PropertyId ? Number(PropertyId) : null);
       setFrequencyData(data || []);
     } catch (error) {
       console.error("Error fetching frequency:", error);
     }
-  }, []);
+  }, [PropertyId]);
 
   const loadAssets = useCallback(async (propertyId) => {
     if (!propertyId) return;
@@ -138,4 +138,3 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
 
   return { subCategory, assign, propertyData, assets, occurrenceOptions, onAssetChange };
 }
-

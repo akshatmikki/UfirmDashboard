@@ -6,6 +6,24 @@ import useAddTaskLookups from "./useAddTaskLookups";
 
 const emptyQuestion = { QuestionName: "" };
 
+function isValidDate(value) {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+function isEndDateAfterStartDate(startDate, endDate) {
+  if (!isValidDate(startDate) || !isValidDate(endDate)) return false;
+  const startOnlyDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const endOnlyDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  return endOnlyDate.getTime() > startOnlyDate.getTime();
+}
+
+function isEndTimeAfterStartTime(startTime, endTime) {
+  if (!isValidDate(startTime) || !isValidDate(endTime)) return false;
+  const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+  const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+  return endMinutes > startMinutes;
+}
+
 export default function useAddTaskController({ PropertyId, categoryData, type }) {
   const [form, setForm] = useState(() => ({
     taskName: "",
@@ -62,6 +80,14 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
     return (quesValues || []).some((q) => q.QuestionName?.trim());
   }, [quesValues]);
 
+  const isDateRangeValid = useMemo(() => {
+    return isEndDateAfterStartDate(form.startDate, form.endDate);
+  }, [form.endDate, form.startDate]);
+
+  const isTimeRangeValid = useMemo(() => {
+    return isEndTimeAfterStartTime(form.startTime, form.endTime);
+  }, [form.endTime, form.startTime]);
+
   const isTaskValid = useMemo(() => {
     return (
       form.taskName.trim() !== "" &&
@@ -69,14 +95,24 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
       form.selectedSubCategory &&
       form.assignTo &&
       form.occurence &&
-      form.location.trim() !== ""
+      form.location.trim() !== "" &&
+      isDateRangeValid &&
+      isTimeRangeValid
     );
-  }, [form]);
+  }, [form, isDateRangeValid, isTimeRangeValid]);
 
   const save = useCallback(async () => {
     if (isSaving) return { ok: false };
     if (!hasAtLeastOneQuestion) {
       appCommon.showtextalert("Please add at least one question before saving.", "", "warning");
+      return { ok: false };
+    }
+    if (!isDateRangeValid) {
+      appCommon.showtextalert("End date should be greater than start date.", "", "warning");
+      return { ok: false };
+    }
+    if (!isTimeRangeValid) {
+      appCommon.showtextalert("End time should be greater than start time.", "", "warning");
       return { ok: false };
     }
 
@@ -117,7 +153,7 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
       setIsSaving(false);
       return { ok: false };
     }
-  }, [form, hasAtLeastOneQuestion, isSaving, quesValues, type]);
+  }, [form, hasAtLeastOneQuestion, isDateRangeValid, isSaving, isTimeRangeValid, quesValues, type]);
 
   return {
     form,
@@ -139,4 +175,3 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
     save,
   };
 }
-

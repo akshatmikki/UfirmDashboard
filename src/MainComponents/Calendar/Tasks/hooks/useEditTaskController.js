@@ -6,6 +6,24 @@ import { createTaskWithQuestions } from "../../../../Services/notificationServic
 import useEditTaskLookups from "./useEditTaskLookups";
 import useEditTaskQuestions from "./useEditTaskQuestions";
 
+function isValidDate(value) {
+  return value instanceof Date && !Number.isNaN(value.getTime());
+}
+
+function isEndDateAfterStartDate(startDate, endDate) {
+  if (!isValidDate(startDate) || !isValidDate(endDate)) return false;
+  const startOnlyDate = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const endOnlyDate = new Date(endDate.getFullYear(), endDate.getMonth(), endDate.getDate());
+  return endOnlyDate.getTime() > startOnlyDate.getTime();
+}
+
+function isEndTimeAfterStartTime(startTime, endTime) {
+  if (!isValidDate(startTime) || !isValidDate(endTime)) return false;
+  const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+  const endMinutes = endTime.getHours() * 60 + endTime.getMinutes();
+  return endMinutes > startMinutes;
+}
+
 export default function useEditTaskController({ rowData, categoryData }) {
   const initialStartDate = rowData?.DateFrom ? new Date(rowData.DateFrom) : new Date();
   const initialEndDate = rowData?.DateTo ? new Date(rowData.DateTo) : initialStartDate;
@@ -57,7 +75,9 @@ export default function useEditTaskController({ rowData, categoryData }) {
       form.selectedSubCategory &&
       form.assignTo &&
       form.occurence &&
-      form.location?.trim() !== ""
+      form.location?.trim() !== "" &&
+      isEndDateAfterStartDate(form.startDate, form.endDate) &&
+      isEndTimeAfterStartTime(form.startTime, form.endTime)
     );
   }, [form]);
 
@@ -82,6 +102,14 @@ export default function useEditTaskController({ rowData, categoryData }) {
     if (saving) return { ok: false };
     if (!q.hasAtLeastOneQuestion) {
       appCommon.showtextalert("Please add at least one question before saving.", "", "warning");
+      return { ok: false };
+    }
+    if (!isEndDateAfterStartDate(form.startDate, form.endDate)) {
+      appCommon.showtextalert("End date should be greater than start date.", "", "warning");
+      return { ok: false };
+    }
+    if (!isEndTimeAfterStartTime(form.startTime, form.endTime)) {
+      appCommon.showtextalert("End time should be greater than start time.", "", "warning");
       return { ok: false };
     }
     setSaving(true);
@@ -134,4 +162,3 @@ export default function useEditTaskController({ rowData, categoryData }) {
     save,
   };
 }
-

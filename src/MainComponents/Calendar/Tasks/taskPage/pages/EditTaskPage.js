@@ -15,6 +15,24 @@ export default function EditTaskPage(props) {
   const ctrl = useEditTaskController({ rowData, categoryData });
   const q = ctrl.questionsCtrl;
   const autoOpenedRef = useRef(false);
+  const onStartDateChange = useCallback(
+    (d) => {
+      if (!(d instanceof Date) || Number.isNaN(d.getTime())) return;
+      const minEndDate = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      const startOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const currentEnd = ctrl.form.endDate;
+      const currentEndOnly = currentEnd instanceof Date
+        ? new Date(currentEnd.getFullYear(), currentEnd.getMonth(), currentEnd.getDate())
+        : null;
+
+      if (!currentEndOnly || currentEndOnly.getTime() <= startOnly.getTime()) {
+        ctrl.updateForm({ startDate: d, endDate: minEndDate });
+        return;
+      }
+      ctrl.updateForm({ startDate: d });
+    },
+    [ctrl],
+  );
 
   useEffect(() => {
     if (!visible) {
@@ -80,7 +98,7 @@ export default function EditTaskPage(props) {
             selectedSubCategory={ctrl.form.selectedSubCategory}
             onSubCategoryChange={(v) => ctrl.updateForm({ selectedSubCategory: v })}
             startDate={ctrl.form.startDate}
-            onStartDateChange={(d) => ctrl.updateForm({ startDate: d })}
+            onStartDateChange={onStartDateChange}
             endDate={ctrl.form.endDate}
             onEndDateChange={(d) => ctrl.updateForm({ endDate: d })}
             check={ctrl.form.check}

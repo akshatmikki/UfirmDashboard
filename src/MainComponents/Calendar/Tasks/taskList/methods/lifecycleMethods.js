@@ -4,7 +4,7 @@ import { getFrequencyList } from '../../../../../Services/masterService';
 export default function attachLifecycleMethods(TaskList) {
     TaskList.prototype.getAllFrequency = async function () {
       try {
-        const data = await getFrequencyList();
+        const data = await getFrequencyList(this.props.PropertyVal ? Number(this.props.PropertyVal) : null);
         this.setState({ frequencyData: data });
       } catch (error) {
         console.error("Error fetching frequency:", error);

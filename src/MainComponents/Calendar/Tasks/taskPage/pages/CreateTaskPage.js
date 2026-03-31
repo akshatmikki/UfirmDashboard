@@ -1,15 +1,33 @@
 import React, { useCallback } from "react";
 import moment from "moment";
 import { useAddTaskController } from "../../taskHooks";
-import { TaskShell, TaskSection, useSingleOpenSection } from "../TaskPageLayout";
+import { TaskShell, TaskSection, useMultiOpenSections } from "../TaskPageLayout";
 import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import { TaskQuestionsCreateSection } from "../TaskQuestionsSections";
 
 export default function CreateTaskPage(props) {
   const { visible, closeModal, categoryData, onTaskAdded, type, PropertyId } = props;
-  const { openSection, toggleSection } = useSingleOpenSection("details");
+  const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset"]);
   const ctrl = useAddTaskController({ PropertyId, categoryData, type });
+  const onStartDateChange = useCallback(
+    (d) => {
+      if (!(d instanceof Date) || Number.isNaN(d.getTime())) return;
+      const minEndDate = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      const startOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+      const currentEnd = ctrl.form.endDate;
+      const currentEndOnly = currentEnd instanceof Date
+        ? new Date(currentEnd.getFullYear(), currentEnd.getMonth(), currentEnd.getDate())
+        : null;
+
+      if (!currentEndOnly || currentEndOnly.getTime() <= startOnly.getTime()) {
+        ctrl.updateForm({ startDate: d, endDate: minEndDate });
+        return;
+      }
+      ctrl.updateForm({ startDate: d });
+    },
+    [ctrl],
+  );
 
   const onSave = useCallback(async () => {
     const res = await ctrl.save();
@@ -36,7 +54,7 @@ export default function CreateTaskPage(props) {
 
   return (
     <TaskShell visible={visible} title="Add Task" onClose={closeModal} footer={footer}>
-      <TaskSection title="Task Details" isOpen={openSection === "details"} onToggle={() => toggleSection("details")}>
+      <TaskSection title="Task Details" isOpen={isOpen("details")} onToggle={() => toggleSection("details")}>
         <TaskDetailsForm
           showTaskId={false}
           taskName={ctrl.form.taskName}
@@ -52,7 +70,7 @@ export default function CreateTaskPage(props) {
           selectedSubCategory={ctrl.form.selectedSubCategory}
           onSubCategoryChange={(v) => ctrl.updateForm({ selectedSubCategory: v })}
           startDate={ctrl.form.startDate}
-          onStartDateChange={(d) => ctrl.updateForm({ startDate: d })}
+          onStartDateChange={onStartDateChange}
           endDate={ctrl.form.endDate}
           onEndDateChange={(d) => ctrl.updateForm({ endDate: d })}
           check={ctrl.form.check}
@@ -78,7 +96,7 @@ export default function CreateTaskPage(props) {
         />
       </TaskSection>
 
-      <TaskSection title="Questionnaire (Checklist)" isOpen={openSection === "questions"} onToggle={() => toggleSection("questions")}>
+      <TaskSection title="Questionnaire (Checklist)" isOpen={isOpen("questions")} onToggle={() => toggleSection("questions")}>
         <TaskQuestionsCreateSection
           taskName={ctrl.form.taskName}
           location={ctrl.form.location}
@@ -89,7 +107,7 @@ export default function CreateTaskPage(props) {
         />
       </TaskSection>
 
-      <TaskSection title="Asset" isOpen={openSection === "asset"} onToggle={() => toggleSection("asset")}>
+      <TaskSection title="Asset" isOpen={isOpen("asset")} onToggle={() => toggleSection("asset")}>
         <TaskAssetSection
           taskName={ctrl.form.taskName}
           location={ctrl.form.location}

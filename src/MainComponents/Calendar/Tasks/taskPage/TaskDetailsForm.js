@@ -69,6 +69,19 @@ export default function TaskDetailsForm({
     )?.SubCategoryName ||
     selectedSubCategory ||
     "";
+  const minEndDate = startDateIsDate
+    ? new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + 1)
+    : undefined;
+  const defaultMinTime = setHours(setMinutes(new Date(), 0), 0);
+  const defaultMaxTime = setHours(setMinutes(new Date(), 45), 23);
+  const endTimeMin = startTimeIsDate
+    ? (() => {
+        const nextTime = new Date(startTime);
+        nextTime.setMinutes(nextTime.getMinutes() + 15);
+        if (nextTime.getHours() > 23) return defaultMaxTime;
+        return setHours(setMinutes(new Date(), nextTime.getMinutes()), nextTime.getHours());
+      })()
+    : defaultMinTime;
 
   return (
     <div className="add-task-form task-details-grid">
@@ -78,7 +91,7 @@ export default function TaskDetailsForm({
         </TaskField>
       ) : null}
 
-      <TaskField label="Task Name">
+      <TaskField label="Task Name*">
         {readOnly ? (
           <input className="form-control" value={taskName || ""} disabled />
         ) : (
@@ -91,15 +104,38 @@ export default function TaskDetailsForm({
         )}
       </TaskField>
 
-      <TaskField label="Property">
+      <TaskField label="Category*">
         {readOnly ? (
-          <input className="form-control" value={propertyLabel} disabled />
+          <input className="form-control" value={categoryLabel} disabled />
         ) : (
-          <select className="form-control" value={propertyId || ""} disabled>
-            <option value="">Select Property</option>
-            {(propertyOptions || []).map((p) => (
-              <option key={String(p.propertyId)} value={p.propertyId}>
-                {p.name}
+          <select
+            className={`form-control ${!selectedCategory ? "placeholder-select" : ""}`}
+            value={selectedCategory || ""}
+            onChange={(e) => onCategoryChange?.(e.target.value)}
+          >
+            <option value="">Select Category</option>
+            {(categoryOptions || []).map((c) => (
+              <option key={String(c.Id ?? c.catId)} value={c.Id ?? c.catId}>
+                {c.Name ?? c.name}
+              </option>
+            ))}
+          </select>
+        )}
+      </TaskField>
+
+      <TaskField label="Sub-category*">
+        {readOnly ? (
+          <input className="form-control" value={subCategoryLabel} disabled />
+        ) : (
+          <select
+            className={`form-control ${!selectedSubCategory ? "placeholder-select" : ""}`}
+            value={selectedSubCategory || ""}
+            onChange={(e) => onSubCategoryChange?.(e.target.value)}
+          >
+            <option value="">Select Sub Category</option>
+            {(subCategoryOptions || []).map((s) => (
+              <option key={String(s.SubCategoryId)} value={s.SubCategoryId}>
+                {s.SubCategoryName}
               </option>
             ))}
           </select>
@@ -119,38 +155,34 @@ export default function TaskDetailsForm({
         )}
       </TaskField>
 
-      <TaskField label="Category">
+      <TaskField label="Property*">
         {readOnly ? (
-          <input className="form-control" value={categoryLabel} disabled />
+          <input className="form-control" value={propertyLabel} disabled />
         ) : (
-          <select
-            className={`form-control ${!selectedCategory ? "placeholder-select" : ""}`}
-            value={selectedCategory || ""}
-            onChange={(e) => onCategoryChange?.(e.target.value)}
-          >
-            <option value="">Select Category</option>
-            {(categoryOptions || []).map((c) => (
-              <option key={String(c.Id ?? c.catId)} value={c.Id ?? c.catId}>
-                {c.Name ?? c.name}
+          <select className="form-control" value={propertyId || ""} disabled>
+            <option value="">Select Property</option>
+            {(propertyOptions || []).map((p) => (
+              <option key={String(p.propertyId)} value={p.propertyId}>
+                {p.name}
               </option>
             ))}
           </select>
         )}
       </TaskField>
 
-      <TaskField label="Sub Category">
+      <TaskField label="Assign to*">
         {readOnly ? (
-          <input className="form-control" value={subCategoryLabel} disabled />
+          <input className="form-control" value={assignToText || ""} disabled />
         ) : (
           <select
-            className={`form-control ${!selectedSubCategory ? "placeholder-select" : ""}`}
-            value={selectedSubCategory || ""}
-            onChange={(e) => onSubCategoryChange?.(e.target.value)}
+            className={`form-control ${!assignTo ? "placeholder-select" : ""}`}
+            value={assignTo || ""}
+            onChange={(e) => onAssignToChange?.(e.target.value)}
           >
-            <option value="">Select Sub Category</option>
-            {(subCategoryOptions || []).map((s) => (
-              <option key={String(s.SubCategoryId)} value={s.SubCategoryId}>
-                {s.SubCategoryName}
+            <option value="">Select Assign</option>
+            {(assignOptions || []).map((a) => (
+              <option key={String(a.assignId)} value={a.assignId}>
+                {a.assignName}
               </option>
             ))}
           </select>
@@ -169,12 +201,13 @@ export default function TaskDetailsForm({
             className="form-control"
             selected={startDateIsDate ? startDate : new Date()}
             dateFormat="dd/MM/yyyy"
+            placeholderText="dd/mm/yyyy"
             onChange={(d) => onStartDateChange?.(d)}
           />
         )}
       </TaskField>
 
-      <TaskField label="End Date">
+      <TaskField label="Due Date">
         {readOnly ? (
           <input
             className="form-control"
@@ -186,21 +219,11 @@ export default function TaskDetailsForm({
             className="form-control"
             selected={endDateIsDate ? endDate : new Date()}
             dateFormat="dd/MM/yyyy"
+            minDate={minEndDate}
+            placeholderText="dd/mm/yyyy"
             onChange={(d) => onEndDateChange?.(d)}
           />
         )}
-      </TaskField>
-
-      <TaskField label="All Day" className="task-field--switch">
-        <label className="switch">
-          <input
-            type="checkbox"
-            checked={!!check}
-            disabled={readOnly || allDayDisabled}
-            onChange={(e) => onAllDayChange?.(e.target.checked)}
-          />
-          <span className="slider round" />
-        </label>
       </TaskField>
 
       <TaskField label="Start Time">
@@ -220,8 +243,8 @@ export default function TaskDetailsForm({
             timeIntervals={15}
             timeCaption="Time"
             dateFormat="h:mm aa"
-            minTime={setHours(setMinutes(new Date(), 0), 0)}
-            maxTime={setHours(setMinutes(new Date(), 45), 23)}
+            minTime={defaultMinTime}
+            maxTime={defaultMaxTime}
           />
         )}
       </TaskField>
@@ -243,41 +266,9 @@ export default function TaskDetailsForm({
             timeIntervals={15}
             timeCaption="Time"
             dateFormat="h:mm aa"
-            minTime={setHours(setMinutes(new Date(), 0), 0)}
-            maxTime={setHours(setMinutes(new Date(), 45), 23)}
+            minTime={endTimeMin}
+            maxTime={defaultMaxTime}
           />
-        )}
-      </TaskField>
-
-      <TaskField label="Remind Me">
-        {readOnly ? (
-          <input className="form-control" value={remindme || ""} disabled />
-        ) : (
-          <input
-            className="form-control"
-            value={remindme || ""}
-            placeholder="Enter reminder"
-            onChange={(e) => onRemindMeChange?.(e.target.value)}
-          />
-        )}
-      </TaskField>
-
-      <TaskField label="Assign To">
-        {readOnly ? (
-          <input className="form-control" value={assignToText || ""} disabled />
-        ) : (
-          <select
-            className={`form-control ${!assignTo ? "placeholder-select" : ""}`}
-            value={assignTo || ""}
-            onChange={(e) => onAssignToChange?.(e.target.value)}
-          >
-            <option value="">Select Assign</option>
-            {(assignOptions || []).map((a) => (
-              <option key={String(a.assignId)} value={a.assignId}>
-                {a.assignName}
-              </option>
-            ))}
-          </select>
         )}
       </TaskField>
 
@@ -298,6 +289,30 @@ export default function TaskDetailsForm({
             ))}
           </select>
         )}
+      </TaskField>
+
+      <TaskField label="Reminder">
+        {readOnly ? (
+          <input className="form-control" value={remindme || ""} disabled />
+        ) : (
+          <input
+            className="form-control"
+            value={remindme || ""}
+            placeholder="No reminder"
+            onChange={(e) => onRemindMeChange?.(e.target.value)}
+          />
+        )}
+      </TaskField>
+
+      <TaskField label="All Day" className="task-field--all-day">
+        <label className="task-all-day-checkbox">
+          <input
+            type="checkbox"
+            checked={!!check}
+            disabled={readOnly || allDayDisabled}
+            onChange={(e) => onAllDayChange?.(e.target.checked)}
+          />
+        </label>
       </TaskField>
     </div>
   );

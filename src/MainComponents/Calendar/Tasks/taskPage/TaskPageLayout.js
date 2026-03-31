@@ -15,7 +15,7 @@ const taskPageCss = `
 .task-modal-body{flex:1;overflow-y:auto;padding:16px 18px;}
 .task-modal-footer{background:#fff;border-top:1px solid #e9ecef;padding:12px 18px;display:flex;justify-content:flex-end;gap:10px;}
 .task-section{border:1px solid #e9ecef;border-radius:10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px;}
-.task-section-title{padding:10px 12px;font-weight:600;border-bottom:1px solid #e9ecef;border-radius:10px 10px 0 0;width:33.333%;min-width:280px;text-align:left;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
+.task-section-title{padding:10px 12px;font-weight:600;border-bottom:1px solid #e9ecef;border-radius:10px 10px 0 0;width:100%;min-width:0;text-align:left;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
 .task-section-title--blue{background:#d9efff;border-bottom-color:#bddcf8;}
 .task-section-title--blue{padding:6px 10px;font-size:1rem;min-height:36px;}
 .task-section-title--green{background:#e3f6e3;border-bottom-color:#c7e9c7;}
@@ -31,6 +31,9 @@ const taskPageCss = `
 @media (max-width:575.98px){.task-details-grid{grid-template-columns:1fr;}}
 .task-field{min-width:0;}
 .task-field--switch .switch{margin-top:6px;}
+.task-field--all-day{display:flex;flex-direction:column;justify-content:flex-end;}
+.task-all-day-checkbox{display:inline-flex;align-items:center;gap:8px;margin-top:8px;font-weight:500;color:#334155;}
+.task-all-day-checkbox input{width:20px;height:20px;accent-color:#1f4f6d;}
 .add-task-form .form-control,.add-task-form .react-datepicker-wrapper,.add-task-form .react-datepicker__input-container input{height:38px;padding:6px 12px;font-size:14px;}
 .add-task-form .react-datepicker-wrapper{width:100%;}
 .add-task-form .form-control:disabled,

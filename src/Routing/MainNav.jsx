@@ -64,8 +64,6 @@ import TaskEventCalendarPage from "../pages/TaskEventCalendarPage.jsx";
 import PropertyOwnerPage from "../pages/PropertyOwnerPage.jsx";
 import PropertyTenatsPage from "../pages/PropertyTenatsPage.jsx";
 import RwaMemberPage from "../pages/RwaMemberPage";
-import CalendarCategoryPage from "../pages/CalendarCategoryPage";
-import CalendarSubCategoryPage from "../pages/CalendarSubCategoryPage";
 import EventApproval from "../pages/EventApproval.jsx";
 import PlannerTaskPage from "../pages/PlannerTaskPage.jsx";
 import PlannerTaskAuditPage from "../pages/PlannerTaskAuditPage.jsx";
@@ -82,7 +80,7 @@ import CreateNewUser from "../MainComponents/NewUser/CreateNewUser";
 import AddNewUser from "../MainComponents/NewUser/AddNewUser";
 import ServiceRecords from "../pages/ManageAssets";
 import PPMSpreadsheet from "../pages/PPMSpreadsheet";
-import FrequencyMasterPage from "../pages/FrequencyMasterPage";
+import MasterConfigPage from "../pages/MasterConfigPage.jsx";
 import ItemMasterPage from "../MainComponents/Inventory/itemPage";
 import PurchaseOrderPage from "../MainComponents/Inventory/PurchaseOrderMaster";
 import StockPage from "../MainComponents/Inventory/StockMaster";
@@ -319,8 +317,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzczMDMwNzc3LCJleHAiOjE4MDQ1NjY3NzcsImlhdCI6MTc3MzAzMDc3N30.AH41sQTCAUUqQch6W9VUGCj8FySIqsVDIpTzAixT8YY";
-    var token = window.sessionStorage.getItem("userinfo_key")
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzczMDMwNzc3LCJleHAiOjE4MDQ1NjY3NzcsImlhdCI6MTc3MzAzMDc3N30.AH41sQTCAUUqQch6W9VUGCj8FySIqsVDIpTzAixT8YY";
+    //var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -644,29 +642,11 @@ class MainNav extends React.Component {
                           <Fragment>
                             <li className="nav-item">
                               <Link
-                                to="/Account/App/CalendarCategory"
+                                to="/Account/App/MasterConfig"
                                 className="nav-link"
                               >
                                 <i className=" fas fa-caret-right nav-icon"></i>
-                                <p>Category </p>
-                              </Link>
-                            </li>
-                            <li className="nav-item">
-                              <Link
-                                to="/Account/App/CalendarSubCategory"
-                                className="nav-link"
-                              >
-                                <i className=" fas fa-caret-right nav-icon"></i>
-                                <p>Sub Category </p>
-                              </Link>
-                            </li>
-                            <li className="nav-item">
-                              <Link
-                                to="/Account/App/FrequencyMaster"
-                                className="nav-link"
-                              >
-                                <i className=" fas fa-caret-right nav-icon"></i>
-                                <p>Frequency Master </p>
+                                <p>Master Config</p>
                               </Link>
                             </li>
                             {/* <li className="nav-item">
@@ -1919,14 +1899,8 @@ class MainNav extends React.Component {
             <Route path="/Account/App/EventCalendar">
               <EventCalendarPage />
             </Route>
-            <Route path="/Account/App/CalendarCategory">
-              <CalendarCategoryPage />
-            </Route>
-            <Route path="/Account/App/FrequencyMaster">
-              <FrequencyMasterPage />
-            </Route>
-            <Route path="/Account/App/CalendarSubCategory">
-              <CalendarSubCategoryPage />
+            <Route path="/Account/App/MasterConfig">
+              <MasterConfigPage />
             </Route>
             <Route path="/Account/App/EventApproval">
               <EventApproval />

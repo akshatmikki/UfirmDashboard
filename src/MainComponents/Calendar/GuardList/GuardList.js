@@ -125,7 +125,7 @@ class GuardList extends Component {
   getAllFrenquency= async()=>{
     try {
       this.setState({ loading: true }); // Show loading before fetching data
-      const data = await getFrequencyList();
+      const data = await getFrequencyList(this.props.PropertyVal ? Number(this.props.PropertyVal) : null);
       this.setState({ frequencies: data, loading: false });
     } catch (error) {
       console.error('Error fetching frequency:', error);
