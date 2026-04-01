@@ -764,9 +764,23 @@ const StaffPage = () => {
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
     }
 
-    if (!mobile?.trim()) {
+    if (!designation?.trim()) {
       setIsProcessing(false);
-      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Mobile Number is required" });
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Designation is required"
+      });
+    }
+
+
+    if (designation === "OTHER" && !customDesignation?.trim()) {
+      setIsProcessing(false);
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Please enter custom designation"
+      });
     }
 
     // Employee Name (only letters and spaces)
@@ -779,16 +793,30 @@ const StaffPage = () => {
       });
     }
 
-    // Mobile (10 digits, only numbers)
-    if (!/^\d{10}$/.test(mobile)) {
+    // Mobile (optional, but if entered must be valid)
+    if (mobile && !/^\d{10}$/.test(mobile)) {
       setIsProcessing(false);
-      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Mobile must be exactly 10 digits" });
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Mobile must be exactly 10 digits"
+      });
     }
 
     // DOB (cannot be future)
     if (dateOfBirth && new Date(dateOfBirth) > new Date()) {
       setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "DOB cannot be future date" });
+    }
+
+    // At least one of PAN or Aadhaar required
+    if (!panCard?.trim() && !aadharCard?.trim()) {
+      setIsProcessing(false);
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Either PAN or Aadhaar is required"
+      });
     }
 
     // PAN (ABCDE1234F)
@@ -954,9 +982,14 @@ const StaffPage = () => {
         Email: email || "",
         PhoneNumber: mobile,
         Designation:
-          designation === "OTHER" ? customDesignation : designation,
+          designation === "OTHER"
+            ? (customDesignation || "").trim()
+            : (designation || "").trim(),
+
         Department:
-          department === "OTHER" ? customDepartment : department,
+          department === "OTHER"
+            ? (customDepartment || "").trim()
+            : (department || "").trim(),
         Gender: gender,
         DateOfBirth: dobValue,
         PanCard: panCard || "",
@@ -1054,6 +1087,7 @@ const StaffPage = () => {
       // 🔥 STEP 3: Then close dialog
       setDialogVisible(false);
       resetForm();
+      setSelectedRow(null);
     } catch (error) {
       console.error(error);
       toast.current.show({
@@ -1623,7 +1657,7 @@ const StaffPage = () => {
                   className="mb-3"
                 />
 
-                <label>Mobile *</label>
+                <label>Mobile</label>
                 <InputText
                   placeholder="Mobile"
                   value={mobile}
@@ -1654,7 +1688,7 @@ const StaffPage = () => {
                   />
                 )}
 
-                <label>Designation</label>
+                <label>Designation *</label>
                 <Dropdown
                   placeholder={isLoadingDesignations ? "Loading..." : "Select Designation"}
                   value={designation}
@@ -1924,7 +1958,7 @@ const StaffPage = () => {
                       className="mb-3"
                     />
 
-                    <label>Start Date</label>
+                    <label>Start Date *</label>
                     <Calendar
                       placeholder="Start Date"
                       value={history.StartDate}
