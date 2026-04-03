@@ -70,6 +70,126 @@ export const addFrequency = async (model) => {
     return response;
 };
 
+const buildShiftPayload = (model = {}) => ({
+    ShiftId: Number(model.ShiftId || 0),
+    ShiftName: String(model.ShiftName || '').trim(),
+    TimeFrom: String(model.TimeFrom || ''),
+    TimeTo: String(model.TimeTo || ''),
+    PropertyId: model.PropertyId ?? null,
+    IsActive: model.IsActive !== false,
+    CreatedBy: Number(model.CreatedBy || 1),
+    ModifiedBy: Number(model.ModifiedBy || 1)
+});
+
+export const getShiftList = async (propertyId = null) => {
+    try {
+        const hasPropertyId = propertyId !== null && propertyId !== undefined && Number(propertyId) > 0;
+        const url = hasPropertyId
+            ? `${API_URL}api/ShiftMaster/getbypropertyid=${encodeURIComponent(Number(propertyId))}`
+            : `${API_URL}api/ShiftMaster/getall`;
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+            throw new Error('Invalid response format: Expected an array');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error fetching shift list:', error.message);
+        return [];
+    }
+};
+
+export const getSubCategoryList = async (categoryId = 0) => {
+    try {
+        const response = await fetch(`${API_URL}GetCategory?categoryId=${encodeURIComponent(Number(categoryId) || 0)}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+            throw new Error('Invalid response format: Expected an array');
+        }
+
+        return data;
+    } catch (error) {
+        console.error('Error fetching sub category list:', error.message);
+        return [];
+    }
+};
+
+export const createShift = async (model) => {
+    const payload = buildShiftPayload(model);
+    const response = await fetch(`${API_URL}api/ShiftMaster/create`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
+    }
+
+    return response;
+};
+
+export const updateShift = async (model) => {
+    const payload = buildShiftPayload(model);
+    const response = await fetch(`${API_URL}api/ShiftMaster/update`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
+    }
+
+    return response;
+};
+
+export const deleteShift = async (id) => {
+    const response = await fetch(`${API_URL}api/ShiftMaster/delete/${id}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}, Message: ${response.statusText}`);
+    }
+
+    return response;
+};
+
 export const updateFrequency = async (id, model) => {
     const payload = buildFrequencyPayload({ ...model, Id: id });
     const response = await fetch(`${API_URL}api/master/updateFrequency/${id}`, {

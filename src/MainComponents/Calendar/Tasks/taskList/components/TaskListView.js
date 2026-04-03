@@ -1,319 +1,419 @@
 import React from "react";
+import moment from "moment";
 import LoadingOverlay from "react-loading-overlay";
 import { PropagateLoader } from "react-spinners";
+import ReactDatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Button from "../../../../../ReactComponents/Button/Button";
 import TaskListCounters from "./TaskListCounters";
 import TaskListModals from "./TaskListModals";
 import "./TaskListView.css";
 
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+const getYearOptions = () => {
+  const currentYear = new Date().getFullYear();
+  const start = currentYear - 10;
+  const end = currentYear + 10;
+  const years = [];
+  for (let year = start; year <= end; year += 1) years.push(year);
+  return years;
+};
+
 export default function TaskListView({ ctx }) {
   const showResetButton = !!ctx.state.filtered;
+  const selectedCategory = (ctx.state.CategoryData || []).find(
+    (item) => String(item.Id) === String(ctx.state.selectedCategoryId)
+  );
+  const selectedPriority = (ctx.state.taskPriorityList || []).find(
+    (item) => String(item.Id) === String(ctx.state.taskPriority)
+  );
+  const selectedSubCategory = (ctx.state.subCategory || []).find(
+    (item) => String(item.SubCategoryId) === String(ctx.state.selectedSubCategoryId)
+  );
+  const selectedFrequency = (ctx.state.frequencyData || []).find(
+    (item) => String(item.Occurence) === String(ctx.state.occurance)
+  );
+  const selectedAssignee = (ctx.state.dashboardAssign || []).find(
+    (item) => String(item.assignId) === String(ctx.state.assignTo)
+  );
+  const activeFilterCount = [
+    ctx.state.selectedCategoryId && Number(ctx.state.selectedCategoryId) > 0,
+    ctx.state.selectedSubCategoryId && Number(ctx.state.selectedSubCategoryId) > 0,
+    ctx.state.occurance && String(ctx.state.occurance).trim() !== "",
+    ctx.state.taskPriority && Number(ctx.state.taskPriority) > 0,
+    ctx.state.assignTo && Number(ctx.state.assignTo) > 0,
+  ].filter(Boolean).length;
+  const hasDateRange = !!ctx.state.filterFromDate && !!ctx.state.filterToDate;
+  const showSelectedFiltersBar = !ctx.state.showFilterPanel && (ctx.state.filtered || activeFilterCount > 0);
+
+  const fromDate = ctx.state.filterFromDate ? moment(ctx.state.filterFromDate, "YYYY-MM-DD").toDate() : null;
+  const toDate = ctx.state.filterToDate ? moment(ctx.state.filterToDate, "YYYY-MM-DD").toDate() : null;
+  const years = getYearOptions();
+  const formattedFromDate = fromDate ? moment(fromDate).format("DD/MM/YYYY") : "";
+  const formattedToDate = toDate ? moment(toDate).format("DD/MM/YYYY") : "";
+  const assigneeInitial = selectedAssignee?.assignName ? selectedAssignee.assignName.charAt(0).toUpperCase() : "S";
+
+  const renderCompactHeader = ({
+    date,
+    changeYear,
+    changeMonth,
+    decreaseMonth,
+    increaseMonth,
+    prevMonthButtonDisabled,
+    nextMonthButtonDisabled,
+  }) => (
+    <div className="task-cal-head">
+      <button type="button" onClick={decreaseMonth} disabled={prevMonthButtonDisabled} className="task-cal-nav">
+        <i className="fa fa-angle-left" />
+      </button>
+      <div className="task-cal-selects">
+        <select
+          value={MONTHS[date.getMonth()]}
+          onChange={({ target: { value } }) => changeMonth(MONTHS.indexOf(value))}
+        >
+          {MONTHS.map((month) => (
+            <option key={month} value={month}>
+              {month}
+            </option>
+          ))}
+        </select>
+        <select value={date.getFullYear()} onChange={({ target: { value } }) => changeYear(Number(value))}>
+          {years.map((year) => (
+            <option key={year} value={year}>
+              {year}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button type="button" onClick={increaseMonth} disabled={nextMonthButtonDisabled} className="task-cal-nav">
+        <i className="fa fa-angle-right" />
+      </button>
+    </div>
+  );
 
   return (
     <div>
       {ctx.state.PageMode === "Home" && (
         <div className="row">
-          <LoadingOverlay
-            active={ctx.state.loading}
-            spinner={<PropagateLoader color="#336B93" size={30} />}
-          >
+          <LoadingOverlay active={ctx.state.loading} spinner={<PropagateLoader color="#336B93" size={30} />}>
             <div className="col-12">
-              <div
-                className="card p-2"
-                style={{ borderRadius: "12px", border: "1px solid #dde4ec" }}
-              >
+              <div className="card p-2 task-planner-shell">
                 <TaskListCounters
+                  tasks={ctx.state.data}
                   completedTasks={ctx.state.completedTasks}
                   pendingTasks={ctx.state.pendingTasks}
                   actionableTasks={ctx.state.actionableTasks}
                 />
 
                 <div className="card-header p-2 task-list-filter-shell">
-                  <div className="d-flex w-100 flex-column">
-                    <div
-                      className="d-flex flex-wrap align-items-center justify-content-between mb-2 task-list-toolbar"
-                    >
-                      <div className="d-flex align-items-center flex-wrap task-list-toolbar-seq">
-                        <div
-                          className="d-flex mr-3 bg-white border shadow-sm"
-                          style={{ borderRadius: "8px", padding: "1px" }}
-                        >
-                          <button
-                            className={`btn btn-sm ${
-                              ctx.state.viewMode === "card"
-                                ? "btn-primary shadow-sm"
-                                : "bg-transparent text-muted text-hover-primary"
-                            }`}
-                            onClick={() => ctx.setState({ viewMode: "card" })}
-                            title="Card View"
-                            style={{
-                              padding: "4px 10px",
-                              borderRadius: "6px",
-                              border: "none",
-                              outline: "none",
-                            }}
-                          >
-                            <i className="fa fa-th-large"></i>
-                          </button>
-                          <button
-                            className={`btn btn-sm ${
-                              ctx.state.viewMode === "table"
-                                ? "btn-primary shadow-sm"
-                                : "bg-transparent text-muted text-hover-primary"
-                            }`}
-                            onClick={() => ctx.setState({ viewMode: "table" })}
-                            title="Table View"
-                            style={{
-                              padding: "4px 10px",
-                              borderRadius: "6px",
-                              border: "none",
-                              outline: "none",
-                            }}
-                          >
-                            <i className="fa fa-table"></i>
-                          </button>
-                        </div>
+                  <div className="task-planner-toolbar">
+                    <div className="input-group task-search-group">
+                      <div className="input-group-prepend">
+                        <span className="input-group-text">
+                          <i className="fa fa-search text-muted" />
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        className="form-control"
+                        placeholder="Search by name or ID"
+                        value={ctx.state.searchTerm}
+                        onChange={(e) => ctx.setState({ searchTerm: e.target.value, cardPage: 1, tablePage: 1 })}
+                      />
+                    </div>
 
-                        <div className="input-group task-search-group">
-                          <div className="input-group-prepend">
-                            <span className="input-group-text bg-white border-right-0">
-                              <i className="fa fa-search text-muted"></i>
-                            </span>
-                          </div>
-                          <input
-                            type="text"
-                            className="form-control border-left-0"
-                            placeholder="Search tasks..."
-                            value={ctx.state.searchTerm}
-                            onChange={(e) =>
-                              ctx.setState({ searchTerm: e.target.value, cardPage: 1, tablePage: 1 })
-                            }
-                          />
-                        </div>
-                        <div
-                          className="input-group task-date-range-group"
-                        >
-                          <div className="input-group-prepend task-date-range-icon">
-                            <span className="input-group-text bg-white">
-                              <i className="fa fa-calendar-alt"></i>
-                            </span>
-                          </div>
-                          <input
-                            type="text"
-                            className="form-control bg-white task-date-range-input"
-                            id="dataRange"
-                            placeholder="Select date range"
-                          />
-                        </div>
+                    <div className="task-toolbar-actions">
+                      <div className="task-view-switch">
                         <button
-                          className="btn btn-outline-primary rounded shadow-sm d-flex align-items-center task-toolbar-btn"
+                          className={`task-view-switch-btn ${ctx.state.viewMode === "table" ? "active" : ""}`}
+                          onClick={() => ctx.setState({ viewMode: "table" })}
+                          title="List view"
                           type="button"
-                          onClick={() =>
-                            ctx.setState({
-                              showFilterPanel: !ctx.state.showFilterPanel,
-                            })
-                          }
                         >
-                          <i className="fa fa-filter mr-1"></i>
-                          Filters
-                          <i
-                            className={`fa ml-2 ${
-                              ctx.state.showFilterPanel
-                                ? "fa-chevron-up"
-                                : "fa-chevron-down"
-                            }`}
-                          />
+                          <i className="fa fa-list-ul" />
                         </button>
+                        <button
+                          className={`task-view-switch-btn ${ctx.state.viewMode === "card" ? "active" : ""}`}
+                          onClick={() => ctx.setState({ viewMode: "card" })}
+                          title="Card view"
+                          type="button"
+                        >
+                          <i className="fa fa-th-large" />
+                        </button>
+                      </div>
 
-                        <div className="task-apply-reset-toggle">
-                          {showResetButton ? (
-                            <Button
-                              id="btnResetFilter"
-                              Action={ctx.Reset}
-                              ClassName="btn btn-danger d-flex align-items-center task-toolbar-btn task-toggle-btn task-toggle-single"
-                              Text={
-                                <>
-                                  <i className="fa fa-times mr-1"></i> Reset
-                                </>
-                              }
-                              title="Clear all filters"
-                            />
-                          ) : (
+                      <button
+                        className="btn btn-outline-secondary d-flex align-items-center task-toolbar-btn"
+                        type="button"
+                        onClick={() => ctx.setState({ showFilterPanel: !ctx.state.showFilterPanel })}
+                      >
+                        <i className="fa fa-sliders mr-1" />
+                        Filter
+                        {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
+                      </button>
+
+                      <button
+                        className="btn btn-outline-secondary d-flex align-items-center task-toolbar-btn"
+                        onClick={ctx.handleExportWithQuestions}
+                        disabled={ctx.state.exporting}
+                        type="button"
+                      >
+                        {ctx.state.exporting ? (
+                          <>
+                            <i className="fa fa-spinner fa-spin mr-1" />
+                            Exporting...
+                          </>
+                        ) : (
+                          <>
+                            <i className="fa fa-external-link mr-1" />
+                            Export
+                          </>
+                        )}
+                      </button>
+
+                      <Button
+                        id="btnNewTask"
+                        Action={ctx.AddNew}
+                        ClassName="btn btn-primary d-flex align-items-center px-3 task-toolbar-btn task-add-btn"
+                        Icon={<i className="fa fa-plus mr-1" />}
+                        Text={<span style={{ fontWeight: 600 }}>Add Task</span>}
+                        title="Add a new task"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: "none" }}>
+                    <input id="dataRange" type="text" />
+                  </div>
+
+                  {ctx.state.showFilterPanel ? (
+                    <div className="p-2 mb-2 mt-2 task-filter-panel task-filter-panel-advanced">
+                      <div className="task-filter-head">
+                        <h6>Filters</h6>
+                        <button className="btn btn-link p-0" type="button" onClick={ctx.Reset}>
+                          <i className="fa fa-times mr-1" />
+                          Reset All
+                        </button>
+                      </div>
+
+                      <div className="task-filter-grid">
+                        <div className="task-filter-col">
+                          <p className="task-filter-group-title">Date range</p>
+                          <div className="task-filter-date-row">
+                            <div className="task-filter-date-picker-wrap">
+                              <ReactDatePicker
+                                className="form-control task-filter-select task-filter-date-picker"
+                                selected={fromDate}
+                                dateFormat="dd-MM-yyyy"
+                                renderCustomHeader={renderCompactHeader}
+                                onChange={(d) =>
+                                  ctx.setState({
+                                    filterFromDate: d ? moment(d).format("YYYY-MM-DD") : "",
+                                    filtered: false,
+                                  })
+                                }
+                              />
+                              <i className="fa fa-calendar-o task-filter-date-icon" />
+                            </div>
+                            <span className="task-filter-to-text">to</span>
+                            <div className="task-filter-date-picker-wrap">
+                              <ReactDatePicker
+                                className="form-control task-filter-select task-filter-date-picker"
+                                selected={toDate}
+                                dateFormat="dd-MM-yyyy"
+                                minDate={fromDate || undefined}
+                                renderCustomHeader={renderCompactHeader}
+                                onChange={(d) =>
+                                  ctx.setState({
+                                    filterToDate: d ? moment(d).format("YYYY-MM-DD") : "",
+                                    filtered: false,
+                                  })
+                                }
+                              />
+                              <i className="fa fa-calendar-o task-filter-date-icon" />
+                            </div>
+                          </div>
+
+                          <p className="task-filter-group-title">Category</p>
+                          <div className="task-filter-chip-wrap">
+                            {(ctx.state.CategoryData || []).map((item) => (
+                              <button
+                                key={item.Id}
+                                type="button"
+                                className={`task-filter-chip ${String(ctx.state.selectedCategoryId) === String(item.Id) ? "active" : ""}`}
+                                onClick={() =>
+                                  ctx.setState({
+                                    selectedCategoryId: String(ctx.state.selectedCategoryId) === String(item.Id) ? 0 : item.Id,
+                                    selectedSubCategoryId: 0,
+                                    filtered: false,
+                                  })
+                                }
+                              >
+                                {item.Name}
+                              </button>
+                            ))}
+                          </div>
+
+                          <p className="task-filter-group-title">Subcategory</p>
+                          <div className="task-filter-chip-wrap">
+                            {(ctx.state.subCategory || []).length === 0 ? (
+                              <span className="task-filter-empty">Select a category to view subcategories</span>
+                            ) : (
+                              (ctx.state.subCategory || []).map((item) => (
+                                <button
+                                  key={item.SubCategoryId}
+                                  type="button"
+                                  className={`task-filter-chip ${String(ctx.state.selectedSubCategoryId) === String(item.SubCategoryId) ? "active" : ""}`}
+                                  onClick={() =>
+                                    ctx.setState({
+                                      selectedSubCategoryId:
+                                        String(ctx.state.selectedSubCategoryId) === String(item.SubCategoryId) ? 0 : item.SubCategoryId,
+                                      filtered: false,
+                                    })
+                                  }
+                                >
+                                  {item.SubCategoryName}
+                                </button>
+                              ))
+                            )}
+                          </div>
+
+                        </div>
+
+                        <div className="task-filter-col">
+                          <p className="task-filter-group-title">Assigned to</p>
+                          <select
+                            className="form-control task-filter-select"
+                            onChange={(e) => ctx.setState({ assignTo: e.target.value, filtered: false })}
+                            value={ctx.state.assignTo}
+                          >
+                            <option value={0}>Technician name</option>
+                            {(ctx.state.dashboardAssign || []).map((item) => (
+                              <option key={item.assignId} value={item.assignId}>
+                                {item.assignName}
+                              </option>
+                            ))}
+                          </select>
+
+                          <p className="task-filter-group-title">Frequency</p>
+                          <div className="task-filter-chip-wrap">
+                            {(ctx.state.frequencyData || []).length === 0 ? (
+                              <span className="task-filter-empty">No frequency data found</span>
+                            ) : (
+                              (ctx.state.frequencyData || []).map((item) => (
+                                <button
+                                  key={item.Occurence || item.Name}
+                                  type="button"
+                                  className={`task-filter-chip ${String(ctx.state.occurance) === String(item.Occurence) ? "active" : ""}`}
+                                  onClick={() =>
+                                    ctx.setState({
+                                      occurance: String(ctx.state.occurance) === String(item.Occurence) ? "" : item.Occurence,
+                                      filtered: false,
+                                    })
+                                  }
+                                >
+                                  {item.Name}
+                                </button>
+                              ))
+                            )}
+                          </div>
+
+                          <p className="task-filter-group-title">Priority</p>
+                          <div className="task-filter-chip-wrap">
+                            {(ctx.state.taskPriorityList || []).map((item) => (
+                              <button
+                                key={item.Id}
+                                type="button"
+                                className={`task-filter-chip ${String(ctx.state.taskPriority) === String(item.Id) ? "active" : ""}`}
+                                onClick={() =>
+                                  ctx.setState({
+                                    taskPriority: String(ctx.state.taskPriority) === String(item.Id) ? 0 : item.Id,
+                                    filtered: false,
+                                  })
+                                }
+                              >
+                                {item.Name}
+                              </button>
+                            ))}
+                          </div>
+
+                          <div className="task-filter-actions">
                             <Button
                               id="btnApplyFilter"
                               Action={ctx.Filter}
-                              ClassName="btn btn-primary d-flex align-items-center task-toolbar-btn task-toggle-btn task-toggle-single"
+                              ClassName="btn btn-primary d-flex align-items-center task-toolbar-btn"
                               Text={
                                 <>
-                                  <i className="fa fa-check mr-1"></i> Apply
+                                  <i className="fa fa-check mr-1" /> Apply Filter
                                 </>
                               }
                               title="Apply filters"
                             />
-                          )}
+                          </div>
                         </div>
-                        <button
-                          className="btn btn-outline-success rounded shadow-sm d-flex align-items-center task-toolbar-btn"
-                          onClick={ctx.handleExportWithQuestions}
-                          disabled={ctx.state.exporting}
-                        >
-                          {ctx.state.exporting ? (
-                            <>
-                              <i className="fa fa-spinner fa-spin mr-1"></i>
-                              Exporting...
-                            </>
-                          ) : (
-                            <>
-                              <i className="fa fa-file-excel-o mr-1"></i>
-                              Export
-                            </>
-                          )}
-                        </button>
-
-                        <Button
-                          id="btnNewTask"
-                          Action={ctx.AddNew}
-                          ClassName="btn btn-success rounded shadow-sm d-flex align-items-center px-3 task-toolbar-btn task-add-btn"
-                          Icon={<i className="fa fa-plus mr-1"></i>}
-                          Text={<span style={{ fontWeight: 600 }}>Add Task</span>}
-                          title="Add a new task"
-                        />
                       </div>
                     </div>
+                  ) : null}
 
-                    {ctx.state.showFilterPanel ? (
-                      <div
-                        className="p-2 mb-2 task-filter-panel"
-                      >
-                        <div className="row">
-                          <div className="col-xl-2 col-md-4 col-sm-6 mb-2">
-                            <select
-                              id="dllCategory"
-                              className="form-control task-filter-select"
-                              onChange={(e) =>
-                                ctx.setState({
-                                  selectedCategoryId: e.target.value,
-                                  filtered: false,
-                                })
-                              }
-                              value={ctx.state.selectedCategoryId}
-                            >
-                              <option value={0}>Select Category</option>
-                              {ctx.state.CategoryData
-                                ? ctx.state.CategoryData.map((e, key) => (
-                                    <option key={key} value={e.Id}>
-                                      {e.Name}
-                                    </option>
-                                  ))
-                                : null}
-                            </select>
-                          </div>
-
-                          <div className="col-xl-2 col-md-4 col-sm-6 mb-2">
-                            <select
-                              className="form-control task-filter-select"
-                              onChange={(e) =>
-                                ctx.setState({
-                                  selectedSubCategoryId: e.target.value,
-                                  filtered: false,
-                                })
-                              }
-                              value={ctx.state.selectedSubCategoryId}
-                            >
-                              <option value={0}>Sub Category</option>
-                              {ctx.state.subCategory &&
-                                ctx.state.subCategory.map((e, key) => (
-                                  <option key={key} value={e.SubCategoryId}>
-                                    {e.SubCategoryName}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
-
-                          <div className="col-xl-2 col-md-4 col-sm-6 mb-2">
-                            <select
-                              className="form-control task-filter-select"
-                              onChange={(e) =>
-                                ctx.setState({ occurance: e.target.value, filtered: false })
-                              }
-                              value={ctx.state.occurance}
-                            >
-                              <option value="">Repeat</option>
-                              {ctx.state.frequencyData.map((e, key) => (
-                                <option key={key} value={e.Occurence}>
-                                  {e.Name}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="col-xl-2 col-md-4 col-sm-6 mb-2">
-                            <select
-                              className="form-control task-filter-select"
-                              onChange={(e) =>
-                                ctx.setState({ taskStatus: e.target.value, filtered: false })
-                              }
-                              value={ctx.state.taskStatus}
-                            >
-                              <option value="None">Task Status</option>
-                              <option value="Pending">Pending</option>
-                              <option value="Complete">Complete</option>
-                              <option value="Actionable">Actionable</option>
-                            </select>
-                          </div>
-
-                          <div className="col-xl-2 col-md-4 col-sm-6 mb-2">
-                            <select
-                              className="form-control task-filter-select"
-                              onChange={(e) =>
-                                ctx.setState({ taskPriority: e.target.value, filtered: false })
-                              }
-                              value={ctx.state.taskPriority}
-                            >
-                              <option value={0}>Task Priority</option>
-                              {ctx.state.taskPriorityList &&
-                                ctx.state.taskPriorityList.map((e, key) => (
-                                  <option key={key} value={e.Id}>
-                                    {e.Name}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
-
-                          <div className="col-xl-2 col-md-4 col-sm-6 mb-2">
-                            <select
-                              className="form-control task-filter-select"
-                              onChange={(e) =>
-                                ctx.setState({ assignTo: e.target.value, filtered: false })
-                              }
-                              value={ctx.state.assignTo}
-                            >
-                              <option value={0}>Assigned To</option>
-                              {ctx.state.dashboardAssign &&
-                                ctx.state.dashboardAssign.map((e, key) => (
-                                  <option key={key} value={e.assignId}>
-                                    {e.assignName}
-                                  </option>
-                                ))}
-                            </select>
-                          </div>
+                  {showSelectedFiltersBar ? (
+                    <div className="task-selected-wrap">
+                      <div className="task-selected-top">
+                        <div className="task-selected-dates">
+                          {hasDateRange ? (
+                            <>
+                              <span className="task-selected-date-pill">
+                                <i className="fa fa-calendar-o mr-1" />
+                                {formattedFromDate}
+                              </span>
+                              <span className="task-selected-to">to</span>
+                              <span className="task-selected-date-pill">
+                                <i className="fa fa-calendar-o mr-1" />
+                                {formattedToDate}
+                              </span>
+                            </>
+                          ) : null}
                         </div>
-                      </div>
-                    ) : null}
 
-                  </div>
+                        {selectedAssignee ? (
+                          <div className="task-selected-assignee">
+                            <span className="task-selected-assignee-avatar">{assigneeInitial}</span>
+                            <span>{selectedAssignee.assignName}</span>
+                            <i className="fa fa-angle-up ml-auto" />
+                          </div>
+                        ) : null}
+                      </div>
+
+                      <div className="task-active-filters">
+                        {selectedCategory ? <span className="task-active-chip"><i className="fa fa-times mr-1" />{selectedCategory.Name}</span> : null}
+                        {selectedSubCategory ? <span className="task-active-chip"><i className="fa fa-times mr-1" />{selectedSubCategory.SubCategoryName}</span> : null}
+                        {selectedFrequency ? <span className="task-active-chip"><i className="fa fa-times mr-1" />{selectedFrequency.Name}</span> : null}
+                        {selectedPriority ? <span className="task-active-chip"><i className="fa fa-times mr-1" />{selectedPriority.Name}</span> : null}
+                        <button className="btn btn-link task-active-reset" type="button" onClick={ctx.Reset}>
+                          <i className="fa fa-times mr-1" />
+                          Reset all
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="card-body pt-2">
-                  <LoadingOverlay
-                    active={ctx.state.dataLoading}
-                    spinner={<PropagateLoader color="#336B93" size={30} />}
-                  >
-                    <div style={{ minHeight: "400px" }}>
-                      {ctx.state.viewMode === "card"
-                        ? ctx.renderTaskCards()
-                        : ctx.renderTaskTable()}
-                    </div>
+                  <LoadingOverlay active={ctx.state.dataLoading} spinner={<PropagateLoader color="#336B93" size={30} />}>
+                    <div style={{ minHeight: "400px" }}>{ctx.state.viewMode === "card" ? ctx.renderTaskCards() : ctx.renderTaskTable()}</div>
                   </LoadingOverlay>
                 </div>
               </div>
@@ -323,6 +423,38 @@ export default function TaskListView({ ctx }) {
       )}
 
       <TaskListModals ctx={ctx} />
+
+      {ctx.state.deleteConfirmTask ? (
+        <div className="task-delete-overlay" role="dialog" aria-modal="true">
+          <div className="task-delete-modal">
+            <div className="task-delete-head">
+              <div className="task-delete-title-wrap">
+                <span className="task-delete-icon">
+                  <i className="fa fa-exclamation-triangle" />
+                </span>
+                <h4>Delete Task</h4>
+              </div>
+              <button type="button" className="task-delete-close" onClick={ctx.cancelDeleteTask}>
+                <i className="fa fa-times" />
+              </button>
+            </div>
+
+            <div className="task-delete-body">
+              <p>Are you sure you want to delete this task? This action cannot be undone.</p>
+              <div className="task-delete-name">{ctx.state.deleteConfirmTask.Name || "Task"}</div>
+            </div>
+
+            <div className="task-delete-foot">
+              <button type="button" className="btn btn-outline-secondary" onClick={ctx.cancelDeleteTask}>
+                Cancel
+              </button>
+              <button type="button" className="btn btn-danger" onClick={ctx.confirmDeleteTask}>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

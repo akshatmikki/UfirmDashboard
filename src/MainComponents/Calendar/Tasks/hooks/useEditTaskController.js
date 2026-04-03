@@ -24,6 +24,16 @@ function isEndTimeAfterStartTime(startTime, endTime) {
   return endMinutes > startMinutes;
 }
 
+function getMissingRequiredField(form = {}) {
+  if (!String(form.taskName || "").trim()) return "taskName";
+  if (!String(form.selectedCategory || "").trim()) return "selectedCategory";
+  if (!String(form.selectedSubCategory || "").trim()) return "selectedSubCategory";
+  if (!String(form.location || "").trim()) return "location";
+  if (!String(form.assignTo || "").trim()) return "assignTo";
+  if (!String(form.occurence || "").trim()) return "occurence";
+  return "";
+}
+
 export default function useEditTaskController({ rowData, categoryData }) {
   const initialStartDate = rowData?.DateFrom ? new Date(rowData.DateFrom) : new Date();
   const initialEndDate = rowData?.DateTo ? new Date(rowData.DateTo) : initialStartDate;
@@ -100,17 +110,18 @@ export default function useEditTaskController({ rowData, categoryData }) {
   const [saving, setSaving] = useState(false);
   const save = useCallback(async () => {
     if (saving) return { ok: false };
+    const missingField = getMissingRequiredField(form);
+    if (missingField) {
+      return { ok: false, reason: "missing_required", field: missingField, message: "Please fill out this field" };
+    }
     if (!q.hasAtLeastOneQuestion) {
-      appCommon.showtextalert("Please add at least one question before saving.", "", "warning");
-      return { ok: false };
+      return { ok: false, reason: "missing_question", message: "Please add at least one question before saving." };
     }
     if (!isEndDateAfterStartDate(form.startDate, form.endDate)) {
-      appCommon.showtextalert("End date should be greater than start date.", "", "warning");
-      return { ok: false };
+      return { ok: false, reason: "date_range", message: "End date should be greater than start date." };
     }
     if (!isEndTimeAfterStartTime(form.startTime, form.endTime)) {
-      appCommon.showtextalert("End time should be greater than start time.", "", "warning");
-      return { ok: false };
+      return { ok: false, reason: "time_range", message: "End time should be greater than start time." };
     }
     setSaving(true);
     try {
@@ -139,13 +150,13 @@ export default function useEditTaskController({ rowData, categoryData }) {
       const questionsPayload = (q.questions || []).map((item) => ({ QuestionName: item.QuestionName }));
 
       await createTaskWithQuestions({ Task: taskPayload, Questions: questionsPayload });
-      appCommon.showtextalert("Task updated successfully!", "", "success");
-      return { ok: true };
+      return { ok: true, message: "Task updated successfully" };
     } catch (err) {
       console.error("Edit task failed:", err);
       appCommon.showtextalert("Error while updating task", err?.message || "Something went wrong", "error");
+      return { ok: false, reason: "server", message: err?.message || "Something went wrong" };
+    } finally {
       setSaving(false);
-      return { ok: false };
     }
   }, [form, q, rowData?.TaskId, saving]);
 

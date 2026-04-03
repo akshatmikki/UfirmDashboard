@@ -1,4 +1,4 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useState } from "react";
 import moment from "moment";
 import { useAddTaskController } from "../../taskHooks";
 import { TaskShell, TaskSection, useMultiOpenSections } from "../TaskPageLayout";
@@ -10,6 +10,9 @@ export default function CreateTaskPage(props) {
   const { visible, closeModal, categoryData, onTaskAdded, type, PropertyId } = props;
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset"]);
   const ctrl = useAddTaskController({ PropertyId, categoryData, type });
+  const [invalidField, setInvalidField] = useState("");
+  const [inlineError, setInlineError] = useState("");
+  const [successInfo, setSuccessInfo] = useState(null);
   const onStartDateChange = useCallback(
     (d) => {
       if (!(d instanceof Date) || Number.isNaN(d.getTime())) return;
@@ -31,17 +34,29 @@ export default function CreateTaskPage(props) {
 
   const onSave = useCallback(async () => {
     const res = await ctrl.save();
-    if (!res?.ok) return;
-    closeModal?.();
-    onTaskAdded?.();
-  }, [closeModal, ctrl, onTaskAdded]);
+    if (!res?.ok) {
+      if (res?.reason === "missing_required") {
+        setInvalidField(res.field || "");
+        setInlineError(res.message || "Please fill out this field");
+      } else {
+        setInlineError(res?.message || "Please check required fields");
+      }
+      return;
+    }
+    setInvalidField("");
+    setInlineError("");
+    setSuccessInfo({
+      title: "Task created successfully",
+      subtitle: "The task is ready. You can now monitor its progress.",
+    });
+  }, [ctrl]);
 
   const footer = (
     <>
       <button
         className="btn btn-primary"
         type="button"
-        disabled={!ctrl.isTaskValid || !ctrl.hasAtLeastOneQuestion || ctrl.isSaving}
+        disabled={ctrl.isSaving}
         onClick={onSave}
       >
         {ctrl.isSaving ? "Saving..." : "Save"}
@@ -58,17 +73,17 @@ export default function CreateTaskPage(props) {
         <TaskDetailsForm
           showTaskId={false}
           taskName={ctrl.form.taskName}
-          onTaskNameChange={(v) => ctrl.updateForm({ taskName: v })}
+          onTaskNameChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ taskName: v }); }}
           propertyId={PropertyId}
           propertyOptions={ctrl.propertyData}
           location={ctrl.form.location}
-          onLocationChange={(v) => ctrl.updateForm({ location: v })}
+          onLocationChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ location: v }); }}
           categoryOptions={categoryData}
           selectedCategory={ctrl.form.selectedCategory}
-          onCategoryChange={(v) => ctrl.updateForm({ selectedCategory: v })}
+          onCategoryChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ selectedCategory: v }); }}
           subCategoryOptions={ctrl.subCategory}
           selectedSubCategory={ctrl.form.selectedSubCategory}
-          onSubCategoryChange={(v) => ctrl.updateForm({ selectedSubCategory: v })}
+          onSubCategoryChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ selectedSubCategory: v }); }}
           startDate={ctrl.form.startDate}
           onStartDateChange={onStartDateChange}
           endDate={ctrl.form.endDate}
@@ -89,10 +104,11 @@ export default function CreateTaskPage(props) {
           onRemindMeChange={(v) => ctrl.updateForm({ remindme: v })}
           assignOptions={ctrl.assign}
           assignTo={ctrl.form.assignTo}
-          onAssignToChange={(v) => ctrl.updateForm({ assignTo: v })}
+          onAssignToChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ assignTo: v }); }}
           occurrenceOptions={ctrl.occurrenceOptions}
           occurence={ctrl.form.occurence}
-          onOccurenceChange={(v) => ctrl.updateForm({ occurence: v })}
+          onOccurenceChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ occurence: v }); }}
+          invalidField={invalidField}
         />
       </TaskSection>
 
@@ -122,6 +138,47 @@ export default function CreateTaskPage(props) {
           QRCode={ctrl.form.QRCode}
         />
       </TaskSection>
+
+      {inlineError ? (
+        <div className="task-inline-error-pop">
+          <i className="fa fa-exclamation-triangle mr-2" />
+          {inlineError}
+        </div>
+      ) : null}
+
+      {successInfo ? (
+        <div className="task-feedback-overlay" role="dialog" aria-modal="true">
+          <div className="task-feedback-modal">
+            <div className="task-feedback-head task-feedback-head--success">
+              <div className="task-feedback-title-wrap">
+                <span className="task-feedback-icon">
+                  <i className="fa fa-check-circle-o" />
+                </span>
+                <h4>{successInfo.title}</h4>
+              </div>
+              <button type="button" className="task-feedback-close" onClick={() => setSuccessInfo(null)}>
+                <i className="fa fa-times" />
+              </button>
+            </div>
+            <div className="task-feedback-body">
+              <p>{successInfo.subtitle}</p>
+            </div>
+            <div className="task-feedback-foot">
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setSuccessInfo(null);
+                  closeModal?.();
+                  onTaskAdded?.();
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </TaskShell>
   );
 }

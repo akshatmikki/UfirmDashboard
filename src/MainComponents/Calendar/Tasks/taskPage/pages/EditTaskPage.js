@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import moment from "moment";
 import { useEditTaskController, useTaskFmRemarks } from "../../taskHooks";
 import { TaskShell, TaskSection, useMultiOpenSections } from "../TaskPageLayout";
@@ -13,6 +13,9 @@ export default function EditTaskPage(props) {
   const { visible, closeModal, rowData, categoryData, openAddQuestion } = props;
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset", "fmRemarks"]);
   const ctrl = useEditTaskController({ rowData, categoryData });
+  const [invalidField, setInvalidField] = useState("");
+  const [inlineError, setInlineError] = useState("");
+  const [successInfo, setSuccessInfo] = useState(null);
   const q = ctrl.questionsCtrl;
   const autoOpenedRef = useRef(false);
   const onStartDateChange = useCallback(
@@ -58,16 +61,29 @@ export default function EditTaskPage(props) {
 
   const onSave = useCallback(async () => {
     const res = await ctrl.save();
-    if (!res?.ok) return;
-    closeModal?.();
-  }, [closeModal, ctrl]);
+    if (!res?.ok) {
+      if (res?.reason === "missing_required") {
+        setInvalidField(res.field || "");
+        setInlineError(res.message || "Please fill out this field");
+      } else {
+        setInlineError(res?.message || "Please check required fields");
+      }
+      return;
+    }
+    setInvalidField("");
+    setInlineError("");
+    setSuccessInfo({
+      title: "Task updated successfully",
+      subtitle: "The task changes are saved.",
+    });
+  }, [ctrl]);
 
   const footer = (
     <>
       <button
         className="btn btn-primary"
         type="button"
-        disabled={!ctrl.isEditTaskValid || !q.hasAtLeastOneQuestion || ctrl.saving}
+        disabled={ctrl.saving}
         onClick={onSave}
       >
         {ctrl.saving ? "Saving..." : "Save"}
@@ -86,17 +102,17 @@ export default function EditTaskPage(props) {
             showTaskId
             taskId={rowData?.TaskId}
             taskName={ctrl.form.taskName}
-            onTaskNameChange={(v) => ctrl.updateForm({ taskName: v })}
+            onTaskNameChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ taskName: v }); }}
             propertyId={ctrl.form.propertyId}
             propertyOptions={ctrl.lookups.propertyData}
             location={ctrl.form.location}
-            onLocationChange={(v) => ctrl.updateForm({ location: v })}
+            onLocationChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ location: v }); }}
             categoryOptions={categoryData}
             selectedCategory={ctrl.form.selectedCategory}
-            onCategoryChange={(v) => ctrl.updateForm({ selectedCategory: v })}
+            onCategoryChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ selectedCategory: v }); }}
             subCategoryOptions={ctrl.lookups.subCategory}
             selectedSubCategory={ctrl.form.selectedSubCategory}
-            onSubCategoryChange={(v) => ctrl.updateForm({ selectedSubCategory: v })}
+            onSubCategoryChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ selectedSubCategory: v }); }}
             startDate={ctrl.form.startDate}
             onStartDateChange={onStartDateChange}
             endDate={ctrl.form.endDate}
@@ -116,7 +132,7 @@ export default function EditTaskPage(props) {
             onRemindMeChange={(v) => ctrl.updateForm({ remindme: v })}
             assignOptions={ctrl.lookups.assign}
             assignTo={ctrl.form.assignTo}
-            onAssignToChange={(v) => ctrl.updateForm({ assignTo: v })}
+            onAssignToChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ assignTo: v }); }}
             occurrenceOptions={[
               { value: "N", label: "Do not repeat" },
               { value: "D", label: "Daily" },
@@ -125,7 +141,8 @@ export default function EditTaskPage(props) {
               { value: "Y", label: "Yearly" },
             ]}
             occurence={ctrl.form.occurence}
-            onOccurenceChange={(v) => ctrl.updateForm({ occurence: v })}
+            onOccurenceChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ occurence: v }); }}
+            invalidField={invalidField}
           />
         </TaskSection>
 
@@ -177,6 +194,46 @@ export default function EditTaskPage(props) {
             onSend={fm.sendFmRemark}
           />
         </TaskSection>
+
+        {inlineError ? (
+          <div className="task-inline-error-pop">
+            <i className="fa fa-exclamation-triangle mr-2" />
+            {inlineError}
+          </div>
+        ) : null}
+
+        {successInfo ? (
+          <div className="task-feedback-overlay" role="dialog" aria-modal="true">
+            <div className="task-feedback-modal">
+              <div className="task-feedback-head task-feedback-head--success">
+                <div className="task-feedback-title-wrap">
+                  <span className="task-feedback-icon">
+                    <i className="fa fa-check-circle-o" />
+                  </span>
+                  <h4>{successInfo.title}</h4>
+                </div>
+                <button type="button" className="task-feedback-close" onClick={() => setSuccessInfo(null)}>
+                  <i className="fa fa-times" />
+                </button>
+              </div>
+              <div className="task-feedback-body">
+                <p>{successInfo.subtitle}</p>
+              </div>
+              <div className="task-feedback-foot">
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setSuccessInfo(null);
+                    closeModal?.();
+                  }}
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </TaskShell>
 
       {q.showViewQuestionImgModal ? (

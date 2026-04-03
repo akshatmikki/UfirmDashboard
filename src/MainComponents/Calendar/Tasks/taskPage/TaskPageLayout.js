@@ -36,6 +36,7 @@ const taskPageCss = `
 .task-all-day-checkbox input{width:20px;height:20px;accent-color:#1f4f6d;}
 .add-task-form .form-control,.add-task-form .react-datepicker-wrapper,.add-task-form .react-datepicker__input-container input{height:38px;padding:6px 12px;font-size:14px;}
 .add-task-form .react-datepicker-wrapper{width:100%;}
+.task-input-error{border-color:#e37f7f !important;box-shadow:0 0 0 1px rgba(227,127,127,.18);}
 .add-task-form .form-control:disabled,
 .add-task-form .form-control[readonly],
 .add-task-form .react-datepicker__input-container input:disabled,
@@ -48,6 +49,33 @@ const taskPageCss = `
 .placeholder-select{color:#9aa0a6 !important;}
 .placeholder-select option{color:#000;}
 .btn-icon{height:38px;width:38px;display:flex;align-items:center;justify-content:center;padding:0;}
+.react-datepicker{border:1px solid #d8e2ed;border-radius:10px;box-shadow:0 10px 28px rgba(26,52,83,.16);font-size:13px;padding:6px 8px 10px;}
+.react-datepicker__triangle{display:none;}
+.react-datepicker__header{background:#fff;border-bottom:0;padding-top:10px;}
+.react-datepicker__current-month{color:#2d5f8f;font-weight:700;font-size:14px;}
+.react-datepicker__day-name{color:#7f8ea0;font-weight:600;font-size:11px;width:2rem;line-height:2rem;margin:.15rem;}
+.react-datepicker__day{width:2rem;line-height:2rem;margin:.15rem;color:#344e69;border-radius:6px;}
+.react-datepicker__day:hover{background:#e8f1fb;}
+.react-datepicker__day--selected,.react-datepicker__day--keyboard-selected{background:#2d6d9f !important;color:#fff !important;}
+.react-datepicker__navigation{top:10px;}
+.react-datepicker__navigation-icon::before{border-color:#2d6d9f;border-width:2px 2px 0 0;}
+.react-datepicker__time-container{border-left:1px solid #e6edf4;}
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item{height:30px;line-height:30px;}
+.react-datepicker-popper{z-index:1400;}
+.task-inline-error-pop{position:fixed;left:50%;top:98px;transform:translateX(-50%);z-index:1300;background:#3f4349;color:#fff;border-radius:6px;padding:10px 14px;font-size:14px;font-weight:600;box-shadow:0 12px 22px rgba(0,0,0,.28);display:inline-flex;align-items:center;}
+.task-inline-error-pop:after{content:"";position:absolute;left:50%;top:-6px;transform:translateX(-50%) rotate(45deg);width:12px;height:12px;background:#3f4349;}
+.task-feedback-overlay{position:fixed;inset:0;background:rgba(11,18,27,.45);z-index:1250;display:flex;align-items:center;justify-content:center;padding:16px;}
+.task-feedback-modal{width:min(460px,94vw);background:#fff;border:1px solid #dbe4ed;border-radius:8px;box-shadow:0 14px 36px rgba(17,31,47,.24);}
+.task-feedback-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid #e6edf4;}
+.task-feedback-head--success{background:#f7fbff;}
+.task-feedback-title-wrap{display:flex;align-items:center;gap:10px;}
+.task-feedback-title-wrap h4{margin:0;color:#293949;font-size:18px;font-weight:700;}
+.task-feedback-icon{width:24px;height:24px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:#d8ecff;color:#407db7;}
+.task-feedback-close{border:0;background:transparent;color:#7c8a99;font-size:16px;}
+.task-feedback-body{padding:14px 16px;color:#5f6d7c;font-size:15px;}
+.task-feedback-body p{margin:0;}
+.task-feedback-foot{display:flex;justify-content:flex-end;padding:0 16px 14px;}
+.task-feedback-foot .btn{min-width:90px;}
 @media (max-width:991.98px){
   .task-page-shell--one-third{justify-content:center;}
   .task-page-shell--one-third .task-page-content{width:min(96vw,900px);min-width:0;}

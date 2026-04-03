@@ -24,6 +24,16 @@ function isEndTimeAfterStartTime(startTime, endTime) {
   return endMinutes > startMinutes;
 }
 
+function getMissingRequiredField(form = {}) {
+  if (!String(form.taskName || "").trim()) return "taskName";
+  if (!String(form.selectedCategory || "").trim()) return "selectedCategory";
+  if (!String(form.selectedSubCategory || "").trim()) return "selectedSubCategory";
+  if (!String(form.location || "").trim()) return "location";
+  if (!String(form.assignTo || "").trim()) return "assignTo";
+  if (!String(form.occurence || "").trim()) return "occurence";
+  return "";
+}
+
 export default function useAddTaskController({ PropertyId, categoryData, type }) {
   const [form, setForm] = useState(() => ({
     taskName: "",
@@ -103,17 +113,18 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
 
   const save = useCallback(async () => {
     if (isSaving) return { ok: false };
+    const missingField = getMissingRequiredField(form);
+    if (missingField) {
+      return { ok: false, reason: "missing_required", field: missingField, message: "Please fill out this field" };
+    }
     if (!hasAtLeastOneQuestion) {
-      appCommon.showtextalert("Please add at least one question before saving.", "", "warning");
-      return { ok: false };
+      return { ok: false, reason: "missing_question", message: "Please add at least one question before saving." };
     }
     if (!isDateRangeValid) {
-      appCommon.showtextalert("End date should be greater than start date.", "", "warning");
-      return { ok: false };
+      return { ok: false, reason: "date_range", message: "End date should be greater than start date." };
     }
     if (!isTimeRangeValid) {
-      appCommon.showtextalert("End time should be greater than start time.", "", "warning");
-      return { ok: false };
+      return { ok: false, reason: "time_range", message: "End time should be greater than start time." };
     }
 
     setIsSaving(true);
@@ -145,13 +156,13 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
         .map((q) => ({ QuestionName: q.QuestionName.trim() }));
 
       await createTaskWithQuestions({ Task: taskPayload, Questions: questionsPayload });
-      appCommon.showtextalert("Task & Questions Saved Successfully!", "", "success");
-      return { ok: true };
+      return { ok: true, message: "Task created successfully" };
     } catch (err) {
       console.error(err);
       appCommon.showtextalert("Error while saving task", err?.message || "Something went wrong", "error");
+      return { ok: false, reason: "server", message: err?.message || "Something went wrong" };
+    } finally {
       setIsSaving(false);
-      return { ok: false };
     }
   }, [form, hasAtLeastOneQuestion, isDateRangeValid, isSaving, isTimeRangeValid, quesValues, type]);
 

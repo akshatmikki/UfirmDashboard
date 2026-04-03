@@ -45,7 +45,9 @@ export default function TaskDetailsForm({
   onOccurenceChange,
   assignToText,
   occurrenceText,
+  invalidField,
 }) {
+  const isInvalid = (key) => String(invalidField || "") === key;
   const startDateIsDate = isValidDate(startDate);
   const endDateIsDate = isValidDate(endDate);
   const startTimeIsDate = isValidDate(startTime);
@@ -96,9 +98,10 @@ export default function TaskDetailsForm({
           <input className="form-control" value={taskName || ""} disabled />
         ) : (
           <input
-            className="form-control"
+            className={`form-control ${isInvalid("taskName") ? "task-input-error" : ""}`}
             value={taskName || ""}
             placeholder="Enter Task Name"
+            required
             onChange={(e) => onTaskNameChange?.(e.target.value)}
           />
         )}
@@ -109,8 +112,9 @@ export default function TaskDetailsForm({
           <input className="form-control" value={categoryLabel} disabled />
         ) : (
           <select
-            className={`form-control ${!selectedCategory ? "placeholder-select" : ""}`}
+            className={`form-control ${!selectedCategory ? "placeholder-select" : ""} ${isInvalid("selectedCategory") ? "task-input-error" : ""}`}
             value={selectedCategory || ""}
+            required
             onChange={(e) => onCategoryChange?.(e.target.value)}
           >
             <option value="">Select Category</option>
@@ -128,8 +132,9 @@ export default function TaskDetailsForm({
           <input className="form-control" value={subCategoryLabel} disabled />
         ) : (
           <select
-            className={`form-control ${!selectedSubCategory ? "placeholder-select" : ""}`}
+            className={`form-control ${!selectedSubCategory ? "placeholder-select" : ""} ${isInvalid("selectedSubCategory") ? "task-input-error" : ""}`}
             value={selectedSubCategory || ""}
+            required
             onChange={(e) => onSubCategoryChange?.(e.target.value)}
           >
             <option value="">Select Sub Category</option>
@@ -147,9 +152,10 @@ export default function TaskDetailsForm({
           <input className="form-control" value={location || ""} disabled />
         ) : (
           <input
-            className="form-control"
+            className={`form-control ${isInvalid("location") ? "task-input-error" : ""}`}
             value={location || ""}
             placeholder="Enter Location"
+            required
             onChange={(e) => onLocationChange?.(e.target.value)}
           />
         )}
@@ -175,8 +181,9 @@ export default function TaskDetailsForm({
           <input className="form-control" value={assignToText || ""} disabled />
         ) : (
           <select
-            className={`form-control ${!assignTo ? "placeholder-select" : ""}`}
+            className={`form-control ${!assignTo ? "placeholder-select" : ""} ${isInvalid("assignTo") ? "task-input-error" : ""}`}
             value={assignTo || ""}
+            required
             onChange={(e) => onAssignToChange?.(e.target.value)}
           >
             <option value="">Select Assign</option>
@@ -277,8 +284,9 @@ export default function TaskDetailsForm({
           <input className="form-control" value={occurrenceText || ""} disabled />
         ) : (
           <select
-            className={`form-control ${!occurence ? "placeholder-select" : ""}`}
+            className={`form-control ${!occurence ? "placeholder-select" : ""} ${isInvalid("occurence") ? "task-input-error" : ""}`}
             value={occurence || ""}
+            required
             onChange={(e) => onOccurenceChange?.(e.target.value)}
           >
             <option value="">Select Occurrence</option>

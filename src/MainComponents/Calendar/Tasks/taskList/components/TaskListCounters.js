@@ -1,63 +1,36 @@
 import React from "react";
 
-export default function TaskListCounters({ completedTasks, pendingTasks, actionableTasks }) {
+const countByStatus = (rows = [], statusMatcher) =>
+  rows.filter((task) => statusMatcher(String(task.TaskStatus || "").toLowerCase())).length;
+
+export default function TaskListCounters({ tasks = [], completedTasks, pendingTasks, actionableTasks }) {
+  const total = Array.isArray(tasks) ? tasks.length : 0;
+  const completed = Number(completedTasks || 0);
+  const pending = Number(pendingTasks || 0);
+  const inProgress = Number(actionableTasks || 0);
+  const overdue = countByStatus(tasks, (status) => status.includes("overdue"));
+
   return (
-    <div style={{ display: "flex", gap: "10px", margin: "6px 0 8px 0", flexWrap: "wrap" }}>
-      <div
-        style={{
-          flex: 1,
-          minWidth: "200px",
-          background: "linear-gradient(135deg,#356f98,#4a86ad)",
-          color: "white",
-          borderRadius: "10px",
-          padding: "6px 0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontWeight: 500,
-          fontSize: "1rem",
-        }}
-      >
-        <span style={{ fontSize: "1rem", fontWeight: 500, marginLeft: 16 }}>Completed Tasks :</span>
-        <span style={{ fontSize: "1rem", fontWeight: 500, marginRight: 16 }}>{completedTasks}</span>
+    <div className="task-summary-grid">
+      <div className="task-summary-card task-summary-total">
+        <p className="task-summary-value">{total}</p>
+        <p className="task-summary-label">Total Tasks</p>
       </div>
-
-      <div
-        style={{
-          flex: 1,
-          minWidth: "200px",
-          background: "linear-gradient(135deg,#f35f53,#ff7165)",
-          color: "white",
-          borderRadius: "10px",
-          padding: "6px 0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontWeight: 500,
-          fontSize: "1rem",
-        }}
-      >
-        <span style={{ fontSize: "1rem", fontWeight: 500, marginLeft: 16 }}>Pending Tasks :</span>
-        <span style={{ fontSize: "1rem", fontWeight: 500, marginRight: 16 }}>{pendingTasks}</span>
+      <div className="task-summary-card task-summary-completed">
+        <p className="task-summary-value">{completed}</p>
+        <p className="task-summary-label">Completed</p>
       </div>
-
-      <div
-        style={{
-          flex: 1,
-          minWidth: "200px",
-          background: "linear-gradient(135deg,#16a7bd,#27bdd3)",
-          color: "white",
-          borderRadius: "10px",
-          padding: "6px 0",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          fontWeight: 500,
-          fontSize: "1rem",
-        }}
-      >
-        <span style={{ fontSize: "1rem", fontWeight: 500, marginLeft: 16 }}>Actionable Tasks :</span>
-        <span style={{ fontSize: "1rem", fontWeight: 500, marginRight: 16 }}>{actionableTasks}</span>
+      <div className="task-summary-card task-summary-progress">
+        <p className="task-summary-value">{inProgress}</p>
+        <p className="task-summary-label">In-progress</p>
+      </div>
+      <div className="task-summary-card task-summary-pending">
+        <p className="task-summary-value">{pending}</p>
+        <p className="task-summary-label">Pending</p>
+      </div>
+      <div className="task-summary-card task-summary-overdue">
+        <p className="task-summary-value">{overdue}</p>
+        <p className="task-summary-label">Overdue</p>
       </div>
     </div>
   );

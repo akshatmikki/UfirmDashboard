@@ -26,6 +26,8 @@ class TaskList extends Component {
       "ViewTask",
       "EditTask",
       "DeleteTask",
+      "confirmDeleteTask",
+      "cancelDeleteTask",
       "closeModal",
       "handleExportWithQuestions",
     ];

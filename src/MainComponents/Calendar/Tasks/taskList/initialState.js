@@ -149,8 +149,9 @@ export default function createInitialState(ctx) {
     viewMode: "card",
     showFilterPanel: false,
     cardPage: 1,
-    cardPageSize: 9,
+    cardPageSize: 12,
     tablePage: 1,
-    tablePageSize: 10,
+    tablePageSize: 12,
+    deleteConfirmTask: null,
   };
 }

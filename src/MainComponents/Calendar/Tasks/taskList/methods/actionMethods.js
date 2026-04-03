@@ -1,6 +1,4 @@
 import moment from 'moment';
-import swal from 'sweetalert';
-import { DELETE_CONFIRMATION_MSG } from '../../../../../Contants/Common';
 
 export default function attachActionMethods(TaskList) {
     TaskList.prototype.AddNew = function () {
@@ -65,30 +63,19 @@ export default function attachActionMethods(TaskList) {
   };
   
     TaskList.prototype.DeleteTask = function (data) {
-      let myhtml = document.createElement("div");
-      myhtml.innerHTML = DELETE_CONFIRMATION_MSG + "</hr>";
-      alert: swal({
-        buttons: {
-          ok: "Yes",
-          cancel: "No",
-        },
-        content: myhtml,
-        icon: "warning",
-        closeOnClickOutside: false,
-        dangerMode: true,
-      }).then((value) => {
-        switch (value) {
-          case "ok":
-            var type = "D";
-            var model = this.getDeleteTaskModel(type, data.TaskId);
-            this.manageTask(model, type);
-            break;
-          case "cancel":
-            break;
-          default:
-            break;
-        }
-      });
+      this.setState({ deleteConfirmTask: data });
+  };
+
+  TaskList.prototype.cancelDeleteTask = function () {
+    this.setState({ deleteConfirmTask: null });
+  };
+
+  TaskList.prototype.confirmDeleteTask = function () {
+    const target = this.state.deleteConfirmTask;
+    if (!target) return;
+    const type = "D";
+    const model = this.getDeleteTaskModel(type, target.TaskId);
+    this.setState({ deleteConfirmTask: null }, () => this.manageTask(model, type));
   };
   
     TaskList.prototype.closeModal = function () {
