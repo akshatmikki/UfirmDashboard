@@ -575,11 +575,12 @@ export const updateAttendance = async (empId, monthyear, model) => {
 };
 
 // Delete multiple attendance records
-export const deleteMultipleAttendance = async (empIds, monthyear) => {
+export const deleteMultipleAttendance = async (empIds, monthyear, propertyId) => {
   const response = await axios.delete(`${BASE_URL}/delete-multiple`, {
     params: {
       empIds: empIds.join(","),   // "277,278,300"
-      monthyear: monthyear        // "2025-11"
+      monthyear: monthyear,       // "2025-11"
+      propertyId: propertyId      // 🔥 REQUIRED NOW
     },
     headers: { "Content-Type": "application/json" },
     withCredentials: false,
@@ -600,15 +601,14 @@ export const uploadAttendance = async (file, propertyId, monthyear) => {
       `${BASE_URL}/UploadAttendance`,
       formData,
       {
-        withCredentials: false,   // keep this
-        // ❌ do NOT set Content-Type manually
+        responseType: "blob", // 🔥 THIS IS THE KEY
+        withCredentials: false,
       }
     );
 
-    return response.data;
+    return response; // 🔥 return full response (NOT response.data)
   } catch (error) {
     console.error("Upload attendance failed:", error);
-    console.error("Error details:", error.response ? error.response.data : error.message);
     throw error;
   }
 };

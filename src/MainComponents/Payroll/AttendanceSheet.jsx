@@ -60,6 +60,7 @@ export default function AttendanceSheet() {
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   const [year, setYear] = useState(new Date().getFullYear());
   const [searchTerm, setSearchTerm] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     const days = getDaysInMonth(month, year);
@@ -164,6 +165,12 @@ export default function AttendanceSheet() {
 
   const fileInputRef = React.useRef(null);
   async function handleImportClick() {
+
+    if (selectedPropertyId.length !== 1) {
+      alert("Please select exactly ONE unit before uploading attendance.");
+      return;
+    }
+
     fileInputRef.current.click();
   }
 
@@ -171,8 +178,14 @@ export default function AttendanceSheet() {
     const file = e.target.files[0];
     if (!file) return;
 
+    setImporting(true);
+
     try {
       const monthyear = getMonthYearString(month, year);
+      if (!propertyId) {
+        alert("Invalid property selection.");
+        return;
+      }
 
       // 🔥 Read Excel
       const data = await file.arrayBuffer();
@@ -206,77 +219,98 @@ export default function AttendanceSheet() {
       // 🔥 Upload cleaned file
       const res = await uploadAttendance(cleanedFile, propertyId, monthyear);
 
-      alert(res?.Message || "Attendance uploaded successfully!");
+      const contentType = res.headers["content-type"] || "";
 
-      // 🔁 (keep your existing reload logic below SAME)
-      let propertyIds = [];
+      // 🔴 IF ERROR EXCEL RETURNED
+      if (contentType.includes("application/vnd.openxmlformats")) {
+        const blob = new Blob([res.data]);
+        const url = window.URL.createObjectURL(blob);
 
-      if (selectedPropertyId.length > 0) {
-        propertyIds = selectedPropertyId;
-      } else if (reduxPropertyId) {
-        propertyIds = [reduxPropertyId];
-      } else if (propertyList.length > 0) {
-        propertyIds = propertyList.map(p => p.PropertyId);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "AttendanceErrors.xlsx";
+        link.click();
+
+        alert("Some employees were invalid. Error file downloaded.");
+      }
+      // 🟢 NORMAL SUCCESS (JSON COMES AS BLOB)
+      else {
+        const text = await res.data.text(); // convert blob → text
+        const data = JSON.parse(text);
+
+        alert(data?.message || "Attendance uploaded successfully!");
       }
 
-      // 🔥 Reload attendance (multi-property safe)
-
-      let flat = [];
-
-      if (propertyIds.length) {
-        const refreshed = await getAttendanceByProperties(
-          propertyIds,
-          monthyear
-        );
-
-        flat = refreshed?.flatMap((p) => p.Employees || []) || [];
-        setFilteredAttendance(flat);
-      }
-
-      // rebuild inputs (same as your code)
-      const mappedInputs = {};
-      flat.forEach((att) => {
-        mappedInputs[att.EmpID] = {
-          workingDays: att.WorkingDays,
-          EL: att.EL ?? "",
-          CL: att.CL ?? "",
-          SL: att.SL ?? "",
-          weekDaysOff: att.WeekDaysOff,
-          otDays: att.OtDays || "",
-          otHours: att.OtHours || "",
-          totalDays: att.PayableDays ?? "",
-          manualTotalDays: false,
-          nhDays: att.NHDays ?? "",
-          fhDays: att.FHDays ?? "",
-          holidays: att.Holidays ?? "",
-          divideByDays: att.DivideByDays ?? "",
-          otMonthDays: att.OtMonthDays ?? "",
-          pfArrear: att.PFArrear ?? "",
-          otherArrear: att.OtherArrear ?? "",
-          incentive: att.Incentive ?? "",
-          advanceDed: att.AdvanceDed ?? "",
-          uniformDed: att.UniformDed ?? "",
-          bgvDed: att.BGVDed ?? "",
-          roomDed: att.RoomDed ?? "",
-          fineDed: att.FineDed ?? "",
-          joiningKits: att.JoiningKits ?? "",
-          otherDed: att.OtherDed ?? "",
-          foodDed: att.FoodDed ?? "",
-          status: att.Status ?? "",
-        };
-      });
-
-      setDayInputs(mappedInputs);
-      setSelectedEmpIds(new Set());
+      await reloadAttendanceData();
 
     } catch (err) {
       console.error("Upload failed:", err);
       alert("Upload failed.");
+    } finally {
+      setImporting(false);
+      e.target.value = null;
     }
-
-    e.target.value = null;
   }
 
+  async function reloadAttendanceData() {
+    const currMonthYear = getMonthYearString(month, year);
+
+    let propertyIds =
+      selectedPropertyId.length > 0
+        ? selectedPropertyId
+        : reduxPropertyId
+          ? [reduxPropertyId]
+          : [];
+
+    if (!propertyIds.length) {
+      console.warn("No property selected for reload");
+      return;
+    }
+
+    const response = await getAttendanceByProperties(
+      propertyIds,
+      currMonthYear
+    );
+
+    const flat = response?.flatMap((p) => p.Employees || []) || [];
+
+    setFilteredAttendance(flat);
+
+    const mappedInputs = {};
+    flat.forEach((att) => {
+      mappedInputs[att.EmpID] = {
+        workingDays: att.WorkingDays,
+        EL: att.EL ?? "",
+        CL: att.CL ?? "",
+        SL: att.SL ?? "",
+        weekDaysOff: att.WeekDaysOff,
+        otDays: att.OtDays || "",
+        otHours: att.OtHours || "",
+        totalDays: att.PayableDays ?? "",
+        manualTotalDays: false,
+        nhDays: att.NHDays ?? "",
+        fhDays: att.FHDays ?? "",
+        holidays: att.Holidays ?? "",
+        divideByDays: att.DivideByDays ?? "",
+        otMonthDays: att.OtMonthDays ?? "",
+        pfArrear: att.PFArrear ?? "",
+        otherArrear: att.OtherArrear ?? "",
+        incentive: att.Incentive ?? "",
+        advanceDed: att.AdvanceDed ?? "",
+        uniformDed: att.UniformDed ?? "",
+        bgvDed: att.BGVDed ?? "",
+        roomDed: att.RoomDed ?? "",
+        fineDed: att.FineDed ?? "",
+        joiningKits: att.JoiningKits ?? "",
+        otherDed: att.OtherDed ?? "",
+        foodDed: att.FoodDed ?? "",
+        status: att.Status ?? "",
+      };
+    });
+
+    setDayInputs(mappedInputs);
+    setSelectedEmpIds(new Set());
+  }
 
   useEffect(() => {
     const loadUnits = async () => {
@@ -705,28 +739,8 @@ export default function AttendanceSheet() {
 
       alert("Attendance saved successfully!");
 
-      // 🔥 Reload using multi-property API
-      const propertyIds =
-        selectedPropertyId.length > 0
-          ? selectedPropertyId
-          : reduxPropertyId
-            ? [reduxPropertyId]
-            : [];
+      await reloadAttendanceData();
 
-      if (propertyIds.length) {
-        const refreshed = await getAttendanceByProperties(
-          propertyIds,
-          currMonthYear
-        );
-
-        const flat = refreshed?.flatMap(
-          (p) => p.Employees || []
-        ) || [];
-
-        setFilteredAttendance(flat);
-      }
-
-      setSelectedEmpIds(new Set());
     } catch (err) {
       console.error("Batch save failed:", err);
       alert("Failed to save attendance.");
@@ -739,6 +753,10 @@ export default function AttendanceSheet() {
   // Bulk Delete
   // ---------------------------------------------------------
   async function handleBulkDelete() {
+    if (selectedPropertyId.length !== 1) {
+      alert("Please select exactly ONE unit before deleting attendance.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete selected attendance?"))
       return;
 
@@ -747,16 +765,12 @@ export default function AttendanceSheet() {
     try {
       await deleteMultipleAttendance(
         Array.from(selectedEmpIds),
-        getMonthYearString(month, year)
+        getMonthYearString(month, year),
+        propertyId
       );
 
-      setDayInputs((prev) => {
-        const copy = { ...prev };
-        selectedEmpIds.forEach((id) => delete copy[id]);
-        return copy;
-      });
+      await reloadAttendanceData();
 
-      setSelectedEmpIds(new Set());
     } catch (err) {
       console.error("Delete failed", err);
       alert("Delete failed. Try again.");
@@ -779,11 +793,12 @@ export default function AttendanceSheet() {
 
       const inp = dayInputs[empId] || {};
       const saved =
-        filteredAttendance.find(a => a.EmpID === empId) || {};
+        filteredAttendance.find(a => a.EmpID === empId) || null;
 
-      const EL = Number(inp.EL ?? saved.EL ?? 0);
-      const CL = Number(inp.CL ?? saved.CL ?? 0);
-      const SL = Number(inp.SL ?? saved.SL ?? 0);
+      const getVal = (val, fallback = 0) => {
+        if (val === "" || val === null || val === undefined) return fallback;
+        return Number(val);
+      };
 
       return {
         "S.No.": idx + 1,
@@ -795,40 +810,42 @@ export default function AttendanceSheet() {
           emp?.Profile?.Designation ||
           "",
 
-        WeeklyOff: inp.weekDaysOff ?? saved.WeekDaysOff ?? 0,
-        WorkingDays: inp.workingDays ?? saved.WorkingDays ?? 0,
+        WeeklyOff: getVal(inp.weekDaysOff, getVal(saved?.WeekDaysOff)),
+        WorkingDays: getVal(inp.workingDays, getVal(saved?.WorkingDays)),
 
-        EL: EL,
-        CL: CL,
-        SL: SL,
+        EL: getVal(inp.EL, getVal(saved?.EL)),
+        CL: getVal(inp.CL, getVal(saved?.CL)),
+        SL: getVal(inp.SL, getVal(saved?.SL)),
 
-        PayableDays: inp.totalDays ?? saved.PayableDays ?? 0,
+        PayableDays: getVal(inp.totalDays, getVal(saved?.PayableDays)),
 
-        OTDays: inp.otDays ?? saved.OtDays ?? 0,
-        OTHrs: inp.otHours ?? saved.OtHours ?? 0,
+        OTDays: getVal(inp.otDays, getVal(saved?.OtDays)),
+        OTHrs: getVal(inp.otHours, getVal(saved?.OtHours)),
 
-        NHDays: inp.nhDays ?? saved.NHDays ?? 0,
-        FHDays: inp.fhDays ?? saved.FHDays ?? 0,
-        HoliDays: inp.holidays ?? saved.Holidays ?? 0,
+        NHDays: getVal(inp.nhDays, getVal(saved?.NHDays)),
+        FHDays: getVal(inp.fhDays, getVal(saved?.FHDays)),
+        HoliDays: getVal(inp.holidays, getVal(saved?.Holidays)),
 
-        "Divide by Days": inp.divideByDays ?? saved.DivideByDays ?? 0,
-        "Ot Month Days": inp.otMonthDays ?? saved.OtMonthDays ?? 0,
+        // 🔥 IMPORTANT FIX
+        "Divide by Days": saved ? getVal(saved?.DivideByDays) : 0,
 
-        "PF Arrear": inp.pfArrear ?? saved.PFArrear ?? 0,
-        "Other Arrear": inp.otherArrear ?? saved.OtherArrear ?? 0,
+        "Ot Month Days": getVal(inp.otMonthDays, getVal(saved?.OtMonthDays)),
 
-        Incentive: inp.incentive ?? saved.Incentive ?? 0,
+        "PF Arrear": getVal(inp.pfArrear, getVal(saved?.PFArrear)),
+        "Other Arrear": getVal(inp.otherArrear, getVal(saved?.OtherArrear)),
 
-        AdvanceDed: inp.advanceDed ?? saved.AdvanceDed ?? 0,
-        UniformDed: inp.uniformDed ?? saved.UniformDed ?? 0,
-        BGVDed: inp.bgvDed ?? saved.BGVDed ?? 0,
-        RoomDed: inp.roomDed ?? saved.RoomDed ?? 0,
-        FineDed: inp.fineDed ?? saved.FineDed ?? 0,
-        JoiningKits: inp.joiningKits ?? saved.JoiningKits ?? 0,
-        OtherDed: inp.otherDed ?? saved.OtherDed ?? 0,
-        FoodDed: inp.foodDed ?? saved.FoodDed ?? 0,
+        Incentive: getVal(inp.incentive, getVal(saved?.Incentive)),
 
-        Error: ""
+        AdvanceDed: getVal(inp.advanceDed, getVal(saved?.AdvanceDed)),
+        UniformDed: getVal(inp.uniformDed, getVal(saved?.UniformDed)),
+        BGVDed: getVal(inp.bgvDed, getVal(saved?.BGVDed)),
+        RoomDed: getVal(inp.roomDed, getVal(saved?.RoomDed)),
+        FineDed: getVal(inp.fineDed, getVal(saved?.FineDed)),
+        JoiningKits: getVal(inp.joiningKits, getVal(saved?.JoiningKits)),
+        OtherDed: getVal(inp.otherDed, getVal(saved?.OtherDed)),
+        FoodDed: getVal(inp.foodDed, getVal(saved?.FoodDed)),
+
+        Error: saved?.Status || ""
       };
     });
 
@@ -918,6 +935,30 @@ export default function AttendanceSheet() {
         boxSizing: "border-box",
       }}
     >
+      {importing && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          width: "100vw",
+          height: "100vh",
+          background: "rgba(255,255,255,0.2)",
+          backdropFilter: "blur(6px)",
+          zIndex: 9999,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <div style={{
+            background: "rgba(255,255,255,0.8)",
+            padding: "30px",
+            borderRadius: "12px",
+            boxShadow: "0 8px 25px rgba(0,0,0,0.15)"
+          }}>
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: "3rem" }}></i>
+          </div>
+        </div>
+      )}
       {/* ===== Attendance Scope Selection ===== */}
       <div
         style={{
@@ -1168,14 +1209,18 @@ export default function AttendanceSheet() {
 
           <button
             onClick={handleImportClick}
+            disabled={importing}
             style={{
-              background: "#2b6cb0",   // clean blue
+              background: importing ? "#9f7aea" : "#6b46c1",
               color: "#fff",
               padding: "8px 20px",
               borderRadius: 6,
+              border: "none",
+              cursor: importing ? "not-allowed" : "pointer",
+              transition: "all 0.2s ease",
             }}
           >
-            Import
+            {importing ? "Importing..." : "Import"}
           </button>
 
           <button
@@ -1195,7 +1240,11 @@ export default function AttendanceSheet() {
 
           <button
             onClick={handleBulkDelete}
-            disabled={selectedEmpIds.size === 0 || deleting}
+            disabled={
+              selectedEmpIds.size === 0 ||
+              deleting ||
+              selectedPropertyId.length !== 1
+            }
             style={{
               background:
                 selectedEmpIds.size === 0 || deleting ? "#ccc" : "#e53e3e",
