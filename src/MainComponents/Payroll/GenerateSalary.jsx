@@ -510,6 +510,23 @@ export default function GenerateSalary() {
     return Array.from(new Set(found));
   }
 
+  function isValidMobile(number) {
+    if (!number) return false;
+
+    const str = String(number).replace(/\D/g, "");
+
+    // must be exactly 10 digits
+    if (!/^\d{10}$/.test(str)) return false;
+
+    // ❌ all same digits (0000000000, 1111111111)
+    if (/^(\d)\1{9}$/.test(str)) return false;
+
+    // ❌ obvious fake patterns
+    if (str.startsWith("0000") || str.startsWith("1000")) return false;
+
+    return true;
+  }
+
   // compute total allowance & total deduction for display / payslip
   function computeTotalAllowance(row, allowanceKeysForRow) {
     return allowanceKeysForRow.reduce((s, k) => s + Number(row[k] || 0), 0);
@@ -677,7 +694,7 @@ export default function GenerateSalary() {
     <td><b>ESI No.:</b></td>
     <td>${safe(row.ESINumber)}</td>
     <td><b>Mobile No.:</b></td>
-    <td>${safe(row.MobileNumber)}</td>
+    <td>${isValidMobile(row.MobileNumber) ? row.MobileNumber : "-"}</td>
   </tr>
   <tr>
     <td><b>Joining Date:</b></td>
@@ -840,7 +857,7 @@ export default function GenerateSalary() {
           <td></td>
         </tr>
         <tr class="bold-top double-bottom">
-          <td><b>Total Allowance</b></td>
+          <td><b>Total Earning</b></td>
           <td class="v-bold"><b>${totalAllowance}</b></td>
           <td ><b>Total Deduction</b></td>
           <td><b>${row.TotalDeduction ?? totalDeduction}</b></td>
@@ -990,7 +1007,10 @@ export default function GenerateSalary() {
   // PDF generation
   // ----------------------------
   const handleCreatePDF = async () => {
-    const selectedRows = salaryData.filter((row) => selectedSalaryRows.includes(row.FacilityMemberId));
+    const selectedRows = salaryData.filter((row) =>
+      selectedSalaryRows.includes(row.FacilityMemberId)
+    );
+
     if (selectedRows.length === 0) {
       alert("Please select at least one employee to generate PDF.");
       return;
@@ -998,25 +1018,51 @@ export default function GenerateSalary() {
 
     for (const row of selectedRows) {
       const payslipHtml = generatePayslipHTML(row);
+
       const container = document.createElement("div");
       container.style.position = "fixed";
       container.style.left = "-9999px";
       container.style.top = "0";
       container.style.width = "210mm";
-      container.style.height = "297mm";
-      container.innerHTML = payslipHtml;
+      container.style.minHeight = "297mm"; // 🔥 important
+      container.style.padding = "10px";
+      container.style.background = "#fff";
+      container.style.boxSizing = "border-box";
+
+      // 🔥 inject compact CSS ONLY for PDF
+      container.innerHTML = `
+  <style>
+    body { font-size: 13px !important; }
+    .info-table td { padding: 2px 5px !important; font-size: 13px !important; }
+    .pay-slip-table td { padding: 5px 6px !important; font-size: 13px !important; }
+    .pay-slip-table th { padding: 6px !important; font-size: 13px !important; }
+  </style>
+  ${payslipHtml}
+`;
+
       document.body.appendChild(container);
 
       try {
-        const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+        const canvas = await html2canvas(container, {
+          scale: 3,
+          useCORS: true,
+          scrollY: 0,
+        });
+
         const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF({ unit: "mm", format: "a4" });
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        pdf.save(`Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`);
+
+        const pdf = new jsPDF("p", "mm", "a4");
+
+        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+
+        pdf.save(
+          `Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`
+        );
       } catch (error) {
-        alert("Failed to generate PDF for employee " + (row.FacilityMemberName || ""));
+        alert(
+          "Failed to generate PDF for employee " +
+          (row.FacilityMemberName || "")
+        );
       } finally {
         document.body.removeChild(container);
       }
