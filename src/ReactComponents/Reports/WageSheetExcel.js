@@ -17,7 +17,8 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "UAN": emp.UANNumber || "-",
     "ESI No": emp.ESINumber || "-",
 
-    "Days": emp.WorkingDays || 0,
+    "Working Days": emp.WorkingDays || 0,
+    "Divide by Days": emp.AttendanceTotalWorkingDays || 0,
     "OT Days": emp.OTDays || 0,
     "OT Hours": emp.OTHours || 0,
 

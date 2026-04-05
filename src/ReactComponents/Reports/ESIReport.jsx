@@ -81,8 +81,8 @@ export default function ESIReport() {
           Number(selectedPropertyId) > 0
             ? [Number(selectedPropertyId)]
             : (propertyList || [])
-                .map((p) => Number(p.PropertyId))
-                .filter((id) => Number.isFinite(id) && id > 0);
+              .map((p) => Number(p.PropertyId))
+              .filter((id) => Number.isFinite(id) && id > 0);
 
         if (!selectedUnitId || !selectedMonth || propertyIds.length === 0) {
           setEmployees([]);
@@ -325,8 +325,10 @@ export default function ESIReport() {
                   <td>{emp.WorkingDays}</td>
                   <td>{emp.ProratedTotalGross}</td>
                   <td>{emp.ProratedTotalGross}</td>
-                  <td>{(emp.ProratedTotalGross * 0.0075).toFixed(2)}</td>
-                  <td>{(emp.ProratedTotalGross * 0.0325).toFixed(2)}</td>
+                  <td>{Math.ceil(emp.ProratedTotalGross * 0.0075)}</td>
+                  <td>{Math.ceil(emp.ProratedTotalGross * 0.0325)}</td>
+                  {/* <td>{Math.round(emp.ProratedTotalGross * 0.0075)}</td>
+                  <td>{Math.round(emp.ProratedTotalGross * 0.0325)}</td> */}
                   <td>{emp.LwfEmployeeAmount || 0}</td>
                 </tr>
               ))

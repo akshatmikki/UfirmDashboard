@@ -76,9 +76,18 @@ const boxStyle = {
 };
 
 export default function GenerateSalary() {
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
+  const today = new Date();
 
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
+
+  let defaultMonth = today.getMonth(); // previous month
+  let defaultYear = today.getFullYear();
+
+  if (defaultMonth === 0) {
+    defaultMonth = 12;
+    defaultYear = defaultYear - 1;
+  }
   const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
 
@@ -96,8 +105,8 @@ export default function GenerateSalary() {
 
   // UI state
   const [selectedDesignation, setSelectedDesignation] = useState("");
-  const [selectedYear, setSelectedYear] = useState(currentYear);
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth);
+  const [selectedYear, setSelectedYear] = useState(defaultYear);
+  const [selectedMonth, setSelectedMonth] = useState(defaultMonth);
   const [searchText, setSearchText] = useState("");
   const [selectedEmployees, setSelectedEmployees] = useState([]);
   const [allEmployees, setAllEmployees] = useState([]);
@@ -139,7 +148,12 @@ export default function GenerateSalary() {
   const years = [];
   for (let y = 2021; y <= currentYear; y++) years.push(y);
   const months = [];
-  const maxMonth = selectedYear === currentYear ? currentMonth : 12;
+  const maxMonth =
+  selectedYear === currentYear
+    ? currentMonth === 1
+      ? 12
+      : currentMonth - 1
+    : 12;
   for (let m = 1; m <= maxMonth; m++) months.push(m);
 
   // ----------------------------
@@ -414,7 +428,18 @@ export default function GenerateSalary() {
     setLoadingSalaryData(true);
     try {
       const facilityMemberIds = specificIds && specificIds.length ? specificIds : generatedEmployees.map((emp) => emp.EmployeeId);
-      const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
+      let apiMonth = selectedMonth;
+      let apiYear = selectedYear;
+
+      // move to next month
+      if (apiMonth === 12) {
+        apiMonth = 1;
+        apiYear = apiYear + 1;
+      } else {
+        apiMonth = apiMonth + 1;
+      }
+
+      const monthName = apiMonth ? monthNames[apiMonth - 1] : null;
 
       if (!monthName) {
         setSalaryData([]);
@@ -422,7 +447,7 @@ export default function GenerateSalary() {
         return;
       }
 
-      const data = await getFacilityMemberSalaryDetails(facilityMemberIds, monthName.toLowerCase(), selectedYear);
+      const data = await getFacilityMemberSalaryDetails(facilityMemberIds, monthName.toLowerCase(), apiYear);
       setSalaryData(data || []);
       if ((data || []).length === 0) setShowGrid(false);
     } catch (error) {

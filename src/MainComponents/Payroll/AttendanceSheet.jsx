@@ -63,8 +63,12 @@ export default function AttendanceSheet() {
 
   const [dayInputs, setDayInputs] = useState({});
 
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const today = new Date();
+
+  const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+  const [month, setMonth] = useState(prevMonthDate.getMonth() + 1);
+  const [year, setYear] = useState(prevMonthDate.getFullYear());
   const [searchTerm, setSearchTerm] = useState("");
   const [importing, setImporting] = useState(false);
 
@@ -127,7 +131,7 @@ export default function AttendanceSheet() {
   const years = [];
   for (let y = 2021; y <= currentYear; y++) years.push(y);
 
-  const maxMonth = year === currentYear ? currentMonth : 12;
+  const maxMonth = year === currentYear ? currentMonth - 1 : 12;
   const months = [];
   for (let m = 1; m <= maxMonth; m++) months.push(m);
 
@@ -798,6 +802,11 @@ export default function AttendanceSheet() {
 
   function exportToExcel() {
 
+    if (selectedPropertyId.length !== 1) {
+      alert("Please select exactly ONE unit before exporting.");
+      return;
+    }
+
     const data = employees.map((emp, idx) => {
 
       const empId = emp?.FacilityMember?.FacilityMemberId ?? idx;
@@ -1141,10 +1150,12 @@ export default function AttendanceSheet() {
 
           <button
             onClick={exportToExcel}
+            disabled={selectedPropertyId.length !== 1}
             style={{
-              background: "#3182ce",
+              background: selectedPropertyId.length !== 1 ? "#ccc" : "#3182ce",
               color: "#fff",
               padding: "6px 14px",
+              cursor: selectedPropertyId.length !== 1 ? "not-allowed" : "pointer"
             }}
           >
             Export CSV
@@ -1402,7 +1413,9 @@ export default function AttendanceSheet() {
 
               return (
                 <tr key={empId}>
-                  <td style={tdStyle}>{idx + 1}</td>
+                  <td style={tdStyle}>
+                    {(currentPage - 1) * recordsPerPage + idx + 1}
+                  </td>
 
                   {/* Employee Code */}
                   <td style={{ ...tdStyle, fontWeight: 500 }}>
