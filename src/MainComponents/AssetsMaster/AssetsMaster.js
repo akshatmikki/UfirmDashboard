@@ -1,48 +1,50 @@
-import React, { Component, useState } from "react";
+
+import React, { Component } from "react";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
 import departmentActions from "../../redux/department/action.js";
 import DataGrid from "../../ReactComponents/DataGrid/DataGrid.jsx";
 import Button from "../../ReactComponents/Button/Button";
 import ApiProvider from "./DataProvider.js";
-import { ToastContainer, toast } from "react-toastify";
 import * as appCommon from "../../Common/AppCommon.js";
 import { DELETE_CONFIRMATION_MSG } from "../../Contants/Common";
 import swal from "sweetalert";
-import { CreateValidator, ValidateControls } from "./Validation.js"
-import CommonDataProvider from "../../Common/DataProvider/CommonDataProvider.js";
+import { CreateValidator, ValidateControls } from "./Validation.js";
 import DocumentUploader from "../../ReactComponents/FileUploader/DocumentUploader.jsx";
 import ExportToCSV from "../../ReactComponents/ExportToCSV/ExportToCSV.js";
+import "../Calendar/Tasks/taskList/components/TaskListView.css";
+import "./AssetsMaster.css";
 
-const $ = window.$;
-const toBase64 = file => new Promise((resolve, reject) => {
-  const reader = new FileReader();
-  reader.readAsDataURL(file);
-  reader.onload = () => resolve(reader.result.split(','));
-  reader.onerror = error => reject(error);
-});
-const RadioButtonGroup = ({ options, name, selectedValue, onChange }) => (
-    <div className="d-flex align-items-center justify-content-around">
-      {options.map((opt) => (
-          <label
-              key={opt.value}
-              className="form-check-label d-flex align-items-center gap-2"
-              style={{ cursor: "pointer" }}
-          >
-            <input
-                type="radio"
-                name={name}
-                value={opt.value}
-                checked={selectedValue === opt.value}
-                onChange={onChange}
-                className="form-check-input"
-            />
-            {opt.label}
-          </label>
-      ))}
-    </div>
+const toBase64 = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = () => resolve(reader.result.split(","));
+    reader.onerror = (error) => reject(error);
+  });
+
+const RadioButtonGroup = ({ options, name, selectedValue, onChange, disabled = false }) => (
+  <div className="d-flex align-items-center justify-content-around flex-wrap">
+    {options.map((opt) => (
+      <label
+        key={opt.value}
+        className="form-check-label d-flex align-items-center mr-3 mb-1"
+        style={{ cursor: disabled ? "not-allowed" : "pointer", gap: "8px" }}
+      >
+        <input
+          type="radio"
+          name={name}
+          value={opt.value}
+          checked={selectedValue === opt.value}
+          onChange={onChange}
+          className="form-check-input"
+          disabled={disabled}
+        />
+        {opt.label}
+      </label>
+    ))}
+  </div>
 );
-
 
 class AssetsMaster extends Component {
   constructor(props) {
@@ -50,9 +52,8 @@ class AssetsMaster extends Component {
     this.state = {
       isLoading: false,
       GridData: [],
-      DueGridData:[],
+      DueGridData: [],
       gridHeader: [
-        // { sTitle: "S No.", titleValue: "sNo", orderable: false },
         { sTitle: "Id", titleValue: "Id", orderable: true },
         { sTitle: "Assets Name", titleValue: "Name" },
         { sTitle: "Description", titleValue: "Description" },
@@ -78,28 +79,40 @@ class AssetsMaster extends Component {
       Name: "",
       Description: "",
       QRCode: "",
-      ImageData:[],
+      ImageData: null,
       AssetImage: "",
       ImageExt: "",
-      documentVal: '',
+      documentVal: "",
       currentSelectedFile: null,
-      showImagefilename: '',
+      showImagefilename: "",
       showImagefiletype: null,
       showImagefile: [],
-      extension: '',
-      LastServiceDate:null,
-      NextServiceDate:null,
+      extension: "",
+      LastServiceDate: null,
+      NextServiceDate: null,
       IsRentable: false,
-      AssetValue:0,
-      AMCdoc:[],
-      AMCimage:"",
-      status:false,
-      category:null,
-      location:null,
-      serviceReminderDay:"",
+      AssetValue: 0,
+      Capacity: "",
+      AMCdoc: null,
+      AMCimage: "",
+      status: false,
+      category: null,
+      location: null,
+      serviceReminderDay: "",
+
+      searchTerm: "",
+      showFilterPanel: false,
+      filterAssetType: "",
+      filterStatus: "",
+      filterMoveable: "",
+      filterRentable: "",
+      filterDueFrom: "",
+      filterDueTo: "",
+      filterCategory: "",
+      filterLocation: "",
+      filterCapacity: "",
     };
     this.ApiProviderr = new ApiProvider();
-    this.comdbprovider = new CommonDataProvider();
   }
 
   componentDidMount() {
@@ -108,937 +121,1016 @@ class AssetsMaster extends Component {
 
   componentDidUpdate(prevProps) {
     if (prevProps.PropertyId !== this.props.PropertyId) {
-        this.loadHomagePageData();
+      this.loadHomagePageData();
     }
-}
+  }
 
-  getModel = (type) => {
-    var model = [
+  normalizeDate = (value) => {
+    if (!value) return "";
+    const raw = String(value);
+    return raw.length >= 10 ? raw.substring(0, 10) : raw;
+  };
+
+  normalizeBoolean = (value) => {
+    if (value === true || value === "true" || value === 1 || value === "1") return true;
+    if (value === false || value === "false" || value === 0 || value === "0") return false;
+    return "";
+  };
+
+  getBoolLabel = (value) => {
+    const boolVal = this.normalizeBoolean(value);
+    if (boolVal === "") return "";
+    return boolVal ? "Yes" : "No";
+  };
+
+  getStatusLabel = (value) => {
+    const boolVal = this.normalizeBoolean(value);
+    if (boolVal === "") return "";
+    return boolVal ? "Functional" : "Non-Functional";
+  };
+
+  getModel = (type, overrides = {}) => {
+    return [
       {
         Id: this.state.Id,
         Name: this.state.Name,
         Description: this.state.Description,
         QRCode: this.state.QRCode,
         AssetType: this.state.AssetType,
-        Manufacturer : this.state.ManufacturerName,
-        AssetModel : this.state.AssetModel,
-        IsMoveable : this.state.IsMoveable,
+        Manufacturer: this.state.ManufacturerName,
+        AssetModel: this.state.AssetModel,
+        IsMoveable: this.state.IsMoveable,
         Flag: type,
         AssetImage: this.state.AssetImage,
         LastServiceDate: this.state.LastServiceDate,
         NextServiceDate: this.state.NextServiceDate,
         IsRentable: this.state.IsRentable,
         AssetValue: this.state.AssetValue,
+        Capacity: this.state.Capacity,
+        capacity: this.state.Capacity,
         AMCdoc: this.state.AMCimage,
-        status:this.state.status,
+        status: this.state.status,
         category: this.state.category,
         location: this.state.location,
-        serviceReminderDay:this.state.serviceReminderDay,
+        serviceReminderDay: this.state.serviceReminderDay,
         propertyId: this.props.PropertyId,
-
+        ...overrides,
       },
     ];
-    return model;
   };
 
   loadHomagePageData() {
-    let model = this.getModel();
+    const model = this.getModel();
     this.setState({ isLoading: true });
-    this.ApiProviderr.manageDocumentTypeMaster(model, "R").then((resp) => {
-      console.log(model);
-      if (resp.ok && resp.status === 200) {
-        return resp.json().then((rData) => {
-          const dueServiceAssets = rData.PassedServiceDates;
-          const upcomingServiceAssets = rData.UpcomingServiceDates;
-          this.setState({ 
-            GridData: [...dueServiceAssets, ...upcomingServiceAssets],
-            DueGridData: dueServiceAssets,
-            isLoading: false 
+    this.ApiProviderr.manageDocumentTypeMaster(model, "R")
+      .then((resp) => {
+        if (resp.ok && resp.status === 200) {
+          return resp.json().then((rData) => {
+            const dueServiceAssets = Array.isArray(rData?.PassedServiceDates)
+              ? rData.PassedServiceDates
+              : [];
+            const upcomingServiceAssets = Array.isArray(rData?.UpcomingServiceDates)
+              ? rData.UpcomingServiceDates
+              : [];
+            const merged = [...dueServiceAssets, ...upcomingServiceAssets].map((item) => ({
+              ...item,
+              NextServiceDate: this.normalizeDate(item?.NextServiceDate),
+              LastServiceDate: this.normalizeDate(item?.LastServiceDate),
+            }));
+
+            this.setState({
+              GridData: merged,
+              DueGridData: dueServiceAssets,
+              isLoading: false,
+            });
           });
-        });
-      } else {
-        console.error('Error:', resp.status);
+        }
         this.setState({ isLoading: false });
-      }
-    }).catch((error) => {
-      console.error('Error:', error);
-      this.setState({ isLoading: false });
-    });
+        return null;
+      })
+      .catch(() => {
+        this.setState({ isLoading: false });
+      });
   }
 
-  // loadHomagePageData() {
-  //   let model = this.getModel();
-  //   this.ApiProviderr.manageDocumentTypeMaster(model, "R").then((resp) => {
-  //     if (resp.ok && resp.status === 200) {
-  //       return resp.json().then((rData) => {
-  //         console.log(this.props.PropertyId)
-  //         console.log(rData);
-  //         const updatedData = rData.map(asset => {
-  //           return {
-  //               ...asset,
-  //               NextServiceDate: asset.NextServiceDate? asset.NextServiceDate.substr(0, 10):""
-  //           };
-  //       });
-  //       console.log(updatedData);
-  //         updatedData.sort((a, b) => (a.Id > b.Id ? 1 : -1))
-  //         updatedData.map((item,index)=>{
-  //           item['sNo']=index+1;
-  //       })
-  //         this.setState({ GridData: updatedData });
-  //       });
-        
-  //     }
-  //   });
-  // }
-  
-
-  onPagechange = (page) => {};
+  onPagechange = () => {};
 
   Addnew = () => {
     this.setState({ PageMode: "Add" }, () => {
       CreateValidator();
     });
   };
+
   findItem(id) {
-    const foundItem = this.state.GridData.find(item => item.Id === id);
-    return foundItem || null; // Return found item or null if not found
-  }
-  
-
-  findBySno(id) {
-    
-    return this.state.GridData.find((item) => {
-      if (item.sNo === id) {
-        return item;
-      }
-    });
+    return this.state.GridData.find((item) => Number(item.Id) === Number(id)) || null;
   }
 
-  ongridedit = (id) => {
-    this.setState({ PageMode: "Edit" }, () => {
-      CreateValidator(); // Ensure this function is defined and used correctly
-      // Find the item by id in GridData
-      const rowData = this.findItem(id);
-      console.log(rowData);
-      // Check if rowData exists before setting state
-      if (rowData) {
-        this.setState({
-          Id: rowData.Id,
-          Name: rowData.Name,
-          Description: rowData.Description,
-          QRCode: rowData.QRCode,
-          ManufacturerName:rowData.Manufacturer,
-          AssetModel : rowData.AssetModel,
-          IsMoveable : rowData.IsMoveable,
-          LastServiceDate:rowData.LastServiceDate,
-          NextServiceDate: rowData.NextServiceDate,
-          IsRentable: rowData.IsRentable,
-          AssetValue: rowData.AssetValue,
-          AssetType: rowData.AssetType,
-          AssetImage: rowData.AssetImage,
-          AMCimage:rowData.AMCdoc,
-          showImagefiletype: rowData.ImageExt,
-          showImagefile: rowData.Image,
-          extension: rowData.ImageExt,
-          status:rowData.Status,
-          category: rowData.Category,
-          location: rowData.Location,
-          serviceReminderDay:"",
-        });
-      } else {
-        console.error(`Item with id ${id} not found`); // Handle error if needed
-      }
+  setFormData = (rowData, mode) => {
+    if (!rowData) return;
+    this.setState({
+      PageMode: mode,
+      Id: rowData.Id,
+      Name: rowData.Name || "",
+      Description: rowData.Description || "",
+      QRCode: rowData.QRCode || "",
+      ManufacturerName: rowData.Manufacturer || "",
+      AssetModel: rowData.AssetModel || "",
+      IsMoveable: this.normalizeBoolean(rowData.IsMoveable),
+      LastServiceDate: this.normalizeDate(rowData.LastServiceDate),
+      NextServiceDate: this.normalizeDate(rowData.NextServiceDate),
+      IsRentable: this.normalizeBoolean(rowData.IsRentable),
+      AssetValue: rowData.AssetValue || 0,
+      Capacity: rowData.Capacity ?? rowData.capacity ?? "",
+      AssetType: rowData.AssetType || "",
+      AssetImage: rowData.AssetImage || "",
+      AMCimage: rowData.AMCdoc || "",
+      showImagefiletype: rowData.ImageExt,
+      showImagefile: rowData.Image,
+      extension: rowData.ImageExt,
+      status: this.normalizeBoolean(rowData.Status),
+      category: rowData.Category || "",
+      location: rowData.Location || "",
+      serviceReminderDay: rowData.serviceReminderDay || "",
     });
   };
-  
 
-  onGridDelete = (Id) => {
-    var rowData = this.findItem(Id);
-    console.log(rowData);
-    let myhtml = document.createElement("div");
-    myhtml.innerHTML = DELETE_CONFIRMATION_MSG + "</hr>";
-    alert: swal({
-      buttons: {
-        ok: "Yes",
-        cancel: "No",
-      },
+  ongridedit = (id) => {
+    CreateValidator();
+    const rowData = this.findItem(id);
+    this.setFormData(rowData, "Edit");
+  };
+
+  onGridDelete = (id) => {
+    const rowData = this.findItem(id);
+    if (!rowData) return;
+
+    const myhtml = document.createElement("div");
+    myhtml.innerHTML = `${DELETE_CONFIRMATION_MSG}</hr>`;
+
+    swal({
+      buttons: { ok: "Yes", cancel: "No" },
       content: myhtml,
       icon: "warning",
       closeOnClickOutside: false,
       dangerMode: true,
     }).then((value) => {
-      switch (value) {
-        case "ok":
-          this.setState({ Id: rowData.Id.toString() }, () => {
-            var type = "D";
-            var model = this.getModel(type);
-            this.mangaeSave(model, type);
-          });
-          break;
-        case "cancel":
-          break;
-        default:
-          break;
+      if (value === "ok") {
+        this.setState({ Id: String(rowData.Id) }, () => {
+          const type = "D";
+          const model = this.getModel(type);
+          this.mangaeSave(model, type);
+        });
       }
     });
   };
 
-  onGridView = (Id) => {
-    this.setState({ PageMode: "View" }, () => {
-    var rowData = this.findItem(Id);
-    console.log(rowData);
-    this.setState({
-
-        Id: rowData.Id,
-        Name: rowData.Name,
-        Description: rowData.Description,
-        QRCode: rowData.QRCode,
-        ManufacturerName:rowData.Manufacturer,
-        AssetModel : rowData.AssetModel,
-        IsMoveable : rowData.IsMoveable,
-        LastServiceDate:rowData.LastServiceDate,
-        NextServiceDate: rowData.NextServiceDate,
-        IsRentable: rowData.IsRentable,
-        AssetValue: rowData.AssetValue,
-        AssetType: rowData.AssetType,
-      AssetImage: rowData.AssetImage,
-      AMCimage:rowData.AMCdoc,
-      showImagefiletype: rowData.ImageExt,
-      showImagefile: rowData.Image,
-      extension: rowData.ImageExt,
-      status:rowData.Status,
-      category: rowData.Category,
-      location: rowData.Location,
-      serviceReminderDay:"",
-    })})
+  onGridView = (id) => {
+    const rowData = this.findItem(id);
+    this.setFormData(rowData, "View");
   };
 
-    // Document change
-    onFileChange(event) { 
-      console.log("gdfg"+event.target);
-      let _validFileExtensions = ["jpg", "jpeg", "png", "pdf"];
-      if (event.target.files[0]) {
-        let extension = event.target.files[0].name.substring(event.target.files[0].name.lastIndexOf('.') + 1);
-        let isvalidFiletype = _validFileExtensions.some(x => x === extension.toLowerCase());
-        if (isvalidFiletype) {
-          this.state.ImageData = event.target.files[0];
-        }
-        else {
-          this.setState({ documentVal: '', currentSelectedFile: null })
-          let temp_validFileExtensions = _validFileExtensions.join(',');
-          appCommon.showtextalert(`${event.target.files[0].name.filename} Invalid file type, Please Select only ${temp_validFileExtensions} `, "", "error");
-        }
-      }
-    };
+  onFileChange(event) {
+    const validFileExtensions = ["jpg", "jpeg", "png", "pdf"];
+    const selected = event?.target?.files?.[0];
+    if (!selected) return;
 
-    onAMCFileChange=(event)=>{
-      console.log("gdfg"+JSON.stringify(event.target.files));
-      let _validFileExtensions = ["jpg", "jpeg", "png", "pdf"];
-      if (event.target.files[0]) {
-        let extension = event.target.files[0].name.substring(event.target.files[0].name.lastIndexOf('.') + 1);
-        let isvalidFiletype = _validFileExtensions.some(x => x === extension.toLowerCase());
-        if (isvalidFiletype) {
-  
-          this.state.AMCdoc = event.target.files[0];
-  
-        }
-        else {
-          this.setState({ documentVal: '', currentSelectedFile: null })
-          let temp_validFileExtensions = _validFileExtensions.join(',');
-          appCommon.showtextalert(`${event.target.files[0].name.filename} Invalid file type, Please Select only ${temp_validFileExtensions} `, "", "error");
-        }
-      }
+    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1);
+    const isValidFiletype = validFileExtensions.some((x) => x === extension.toLowerCase());
+
+    if (isValidFiletype) {
+      this.setState({ ImageData: selected });
+      return;
     }
 
-  updatetextmodel = (ctrl, val) => {
-    if (ctrl == "Name") {
-      this.setState({ Name: val });
-    } else if (ctrl == "Desc") {
-      this.setState({ Description: val });
-    } else if (ctrl == "QRCode") {
-      this.setState({ QRCode: val });
+    this.setState({ documentVal: "", currentSelectedFile: null });
+    appCommon.showtextalert(
+      `${selected.name} Invalid file type, Please select only ${validFileExtensions.join(", ")}`,
+      "",
+      "error"
+    );
+  }
+
+  onAMCFileChange = (event) => {
+    const validFileExtensions = ["jpg", "jpeg", "png", "pdf"];
+    const selected = event?.target?.files?.[0];
+    if (!selected) return;
+
+    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1);
+    const isValidFiletype = validFileExtensions.some((x) => x === extension.toLowerCase());
+
+    if (isValidFiletype) {
+      this.setState({ AMCdoc: selected });
+      return;
     }
+
+    this.setState({ documentVal: "", currentSelectedFile: null });
+    appCommon.showtextalert(
+      `${selected.name} Invalid file type, Please select only ${validFileExtensions.join(", ")}`,
+      "",
+      "error"
+    );
   };
 
-//   handleSave = async () => {
-//     let UpFile = this.state.ImageData;
-//     let res = null
-//     if (UpFile) {
-//       if (UpFile!=""){
-//       let fileD = await toBase64(UpFile);
-//       var imgbytes = UpFile.size; // Size returned in bytes.        
-//       var imgkbytes = Math.round(parseInt(imgbytes) / 1024); // Size returned in KB.    
-//       let extension = UpFile.name.substring(UpFile.name.lastIndexOf('.') + 1);
-//       res = {
-//         filename: UpFile.name,
-//         filepath: fileD[1],
-//         sizeinKb: imgkbytes,
-//         fileType: fileD[0],
-//         extension: extension.toLowerCase()
-//       }
-//       this.state.Image = fileD[1];
-//       this.state.ImageExt = extension;
-//     };
-//   };
+  handleSave = async () => {
+    const upFile = this.state.ImageData;
+    const amcUpFile = this.state.AMCdoc;
 
-//   let AMCUpFile = this.state.AMCdoc;
-//   let AMCres = null
-//   if (AMCUpFile) {
-//     if (AMCUpFile!=""){
-//     let fileD = await toBase64(AMCUpFile);
-//     var imgbytes = AMCUpFile.size; // Size returned in bytes.        
-//     var imgkbytes = Math.round(parseInt(imgbytes) / 1024); // Size returned in KB.    
-//     let extension = AMCUpFile.name.substring(AMCUpFile.name.lastIndexOf('.') + 1);
-//     res = {
-//       filename: AMCUpFile.name,
-//       filepath: fileD[1],
-//       sizeinKb: imgkbytes,
-//       fileType: fileD[0],
-//       extension: extension.toLowerCase()
-//     }
-//     this.state.AMCimage = fileD[1];
-//     this.state.ImageExt = extension;
-//   };
-// };
+    let assetImage = this.state.AssetImage;
+    let imageExt = this.state.ImageExt;
+    let amcImage = this.state.AMCimage;
 
-//     if (ValidateControls()) {
-//       var type = "";
-//       if (this.state.PageMode == "Add") {
-//         type = "I";
-//       } else if (this.state.PageMode == "Edit") {
-//         type = "U";
-//       }
-//       var model = this.getModel(type);
-//       this.mangaeSave(model, type);
-//     }
-    
-//     this.state.ImageData="";
-//     this.state.Image="";
-//     this.state.ImageExt="";
-//   };
+    if (upFile && upFile.name && upFile.size) {
+      const fileD = await toBase64(upFile);
+      const extension = upFile.name.substring(upFile.name.lastIndexOf(".") + 1);
+      assetImage = fileD[1];
+      imageExt = extension;
+    }
 
-handleSave = async () => {
-  let UpFile = this.state.ImageData;
-  let AMCUpFile = this.state.AMCdoc;
-  
-  let res = null;
-  let AMCres = null;
-  if (UpFile && UpFile.name && UpFile.size) {
-    console.log(UpFile);
-      let fileD = await toBase64(UpFile);
-      let imgbytes = UpFile.size; // Size returned in bytes.
-      let imgkbytes = Math.round(parseInt(imgbytes) / 1024); // Size returned in KB.
-      let extension = UpFile.name.substring(UpFile.name.lastIndexOf('.') + 1);
-      
-      res = {
-          filename: UpFile.name,
-          filepath: fileD,
-          sizeinKb: imgkbytes,
-          fileType: UpFile.type,
-          extension: extension.toLowerCase()
-      };
-      
-      this.setState({
-          AssetImage: fileD[1],
-          ImageExt: extension
+    if (amcUpFile && amcUpFile.name && amcUpFile.size) {
+      const fileD = await toBase64(amcUpFile);
+      amcImage = fileD[1];
+    }
+
+    if (ValidateControls()) {
+      const type = this.state.PageMode === "Add" ? "I" : "U";
+      const model = this.getModel(type, {
+        AssetImage: assetImage,
+        ImageExt: imageExt,
+        AMCdoc: amcImage,
       });
-  }
-  // console.log(AMCUpFile);
-  if (AMCUpFile && AMCUpFile.name && AMCUpFile.size) {
-      let fileD = await toBase64(AMCUpFile);
-      let imgbytes = AMCUpFile.size; // Size returned in bytes.
-      let imgkbytes = Math.round(parseInt(imgbytes) / 1024); // Size returned in KB.
-      let extension = AMCUpFile.name.substring(AMCUpFile.name.lastIndexOf('.') + 1);
-      
-      AMCres = {
-          filename: AMCUpFile.name,
-          filepath: fileD,
-          sizeinKb: imgkbytes,
-          fileType: AMCUpFile.type,
-          extension: extension.toLowerCase()
-      };
-      
-      this.setState({
-          AMCimage: fileD[1],
-          AMCImageExt: extension
-      });
-  }
-
-  if (ValidateControls()) {
-      let type = this.state.PageMode === "Add" ? "I" : "U";
-      let model = this.getModel(type);
       this.mangaeSave(model, type);
-  }
+    }
 
-  this.setState({
+    this.setState({
       ImageData: null,
       AssetImage: "",
       ImageExt: "",
       AMCdoc: null,
       AMCimage: "",
-      AMCImageExt: ""
-  });
-};
+    });
+  };
 
   mangaeSave = (model, type) => {
-    console.log(model);
     this.ApiProviderr.manageDocumentTypeMaster(model, type).then((resp) => {
       if (resp.ok && resp.status === 200) {
         return resp.json().then((rData) => {
-
           if (rData === 0) {
-            const val = model[0].Id.trim();
             appCommon.showtextalert("Assets Name Existed !", "", "error");
           } else {
-            if (type != "D")
-              appCommon.showtextalert(
-                "Assets Saved Successfully!",
-                "",
-                "success"
-              );
-            else
-              appCommon.showtextalert(
-                "Assets Deleted Successfully!",
-                "",
-                "success"
-              );
+            if (type !== "D") {
+              appCommon.showtextalert("Assets Saved Successfully!", "", "success");
+            } else {
+              appCommon.showtextalert("Assets Deleted Successfully!", "", "success");
+            }
             this.handleCancel();
           }
         });
       }
+      return null;
     });
   };
+
   handleCancel = () => {
-    this.setState({ Id:0,
-      Name:"",
-      Description: "",
-      QRCode: "",
-      ManufacturerName:"",
-      AssetModel : "",
-      IsMoveable : false,
-      LastServiceDate:"",
-      NextServiceDate:"",
-      IsRentable:false,
-      AssetValue: 0,
-      AssetType: "",
-      AssetImage: null,
-      AMCimage:null,
-      showImagefiletype:null,
-      showImagefile: null,
-      extension: null,
-      status:false,
-      category:"",
-      location: "",
-      serviceReminderDay:""}, () => {
-      this.setState({ PageMode: "Home" });
-      this.loadHomagePageData();
+    this.setState(
+      {
+        Id: 0,
+        Name: "",
+        Description: "",
+        QRCode: "",
+        ManufacturerName: "",
+        AssetModel: "",
+        IsMoveable: false,
+        LastServiceDate: "",
+        NextServiceDate: "",
+        IsRentable: false,
+        AssetValue: 0,
+        Capacity: "",
+        AssetType: "",
+        AssetImage: "",
+        AMCimage: "",
+        showImagefiletype: null,
+        showImagefile: null,
+        extension: null,
+        status: false,
+        category: "",
+        location: "",
+        serviceReminderDay: "",
+        ImageData: null,
+        AMCdoc: null,
+      },
+      () => {
+        this.setState({ PageMode: "Home" });
+        this.loadHomagePageData();
+      }
+    );
+  };
+  resetFilters = () => {
+    this.setState({
+      searchTerm: "",
+      filterAssetType: "",
+      filterStatus: "",
+      filterMoveable: "",
+      filterRentable: "",
+      filterDueFrom: "",
+      filterDueTo: "",
+      filterCategory: "",
+      filterLocation: "",
+      filterCapacity: "",
     });
   };
 
-// Then use it directly in AssetModal
+  getFilteredGridData = () => {
+    const {
+      GridData,
+      searchTerm,
+      filterAssetType,
+      filterStatus,
+      filterMoveable,
+      filterRentable,
+      filterDueFrom,
+      filterDueTo,
+      filterCategory,
+      filterLocation,
+      filterCapacity,
+    } = this.state;
 
+    return (GridData || []).filter((item) => {
+      const rowId = String(item?.Id || "");
+      const rowName = String(item?.Name || "");
+      const rowDescription = String(item?.Description || "");
+      const rowQr = String(item?.QRCode || "");
+      const rowType = String(item?.AssetType || "");
+      const rowCategory = String(item?.Category || "");
+      const rowLocation = String(item?.Location || "");
+      const rowCapacity = String(item?.Capacity ?? item?.capacity ?? "");
+      const rowNextServiceDate = this.normalizeDate(item?.NextServiceDate);
 
-  render() {
-            return (
-              <div>
-                {this.state.PageMode === "Home" && (
-                  <div className="row">
-                    <div className="col-12">
-                      <div className="card">
-                        <div className="card-header d-flex p-0">
-                          <ul className="nav ml-auto tableFilterContainer">
-                            <li className="nav-item">
-                              <div className="input-group input-group-sm">
-                                <div className="input-group-prepend">
-                                  <ExportToCSV data={this.state.GridData} 
-                                  className="btn btn-success btn-sm rounded mr-2"/>
-                                  <Button
-                                    id="btnNewComplain"
-                                    Action={this.Addnew.bind(this)}
-                                    ClassName="btn btn-success btn-sm rounded"
-                                    Icon={
-                                      <i className="fa fa-plus" aria-hidden="true"></i>
-                                    }
-                                    Text=" Create New Asset"
-                                  />
-                                </div>
-                              </div>
-                            </li>
-                          </ul>
-                        </div>
-                        <div className="card-body pt-2">
-                          <DataGrid
-                            Id="grdAssetsMaster"
-                            IsPagination={false}
-                            ColumnCollection={this.state.gridHeader}
-                            Onpageindexchanged={this.onPagechange.bind(this)}
-                            onEditMethod={this.ongridedit.bind(this)}
-                            onGridDeleteMethod={this.onGridDelete.bind(this)}
-                            onGridViewMethod={this.onGridView.bind(this)}
-                            DefaultPagination={true}
-                            IsSarching="true"
-                            GridData={this.state.GridData}
-                            pageSize="2000"
-                          />
-                        </div>
-                      </div>
-                    </div>
+      const search = String(searchTerm || "").toLowerCase().trim();
+      const matchesSearch =
+        !search ||
+        rowId.toLowerCase().includes(search) ||
+        rowName.toLowerCase().includes(search) ||
+        rowDescription.toLowerCase().includes(search) ||
+        rowQr.toLowerCase().includes(search);
+
+      const matchesAssetType = !filterAssetType || rowType === filterAssetType;
+      const matchesStatus =
+        filterStatus === ""
+          ? true
+          : this.normalizeBoolean(item?.Status) === this.normalizeBoolean(filterStatus);
+      const matchesMovable =
+        filterMoveable === ""
+          ? true
+          : this.normalizeBoolean(item?.IsMoveable) === this.normalizeBoolean(filterMoveable);
+      const matchesRentable =
+        filterRentable === ""
+          ? true
+          : this.normalizeBoolean(item?.IsRentable) === this.normalizeBoolean(filterRentable);
+
+      const matchesCategory =
+        !filterCategory || rowCategory.toLowerCase().includes(String(filterCategory).toLowerCase().trim());
+      const matchesLocation =
+        !filterLocation || rowLocation.toLowerCase().includes(String(filterLocation).toLowerCase().trim());
+      const matchesCapacity =
+        !filterCapacity || rowCapacity.toLowerCase().includes(String(filterCapacity).toLowerCase().trim());
+
+      const matchesDueFrom = !filterDueFrom || !rowNextServiceDate || rowNextServiceDate >= filterDueFrom;
+      const matchesDueTo = !filterDueTo || !rowNextServiceDate || rowNextServiceDate <= filterDueTo;
+
+      return (
+        matchesSearch &&
+        matchesAssetType &&
+        matchesStatus &&
+        matchesMovable &&
+        matchesRentable &&
+        matchesCategory &&
+        matchesLocation &&
+        matchesCapacity &&
+        matchesDueFrom &&
+        matchesDueTo
+      );
+    });
+  };
+
+  getExportData = (rows) => {
+    return (rows || []).map((item) => ({
+      Id: item.Id,
+      Name: item.Name,
+      Description: item.Description,
+      QRCode: item.QRCode,
+      AssetType: item.AssetType,
+      Manufacturer: item.Manufacturer,
+      AssetModel: item.AssetModel,
+      IsMoveable: this.getBoolLabel(item.IsMoveable),
+      LastServiceDate: this.normalizeDate(item.LastServiceDate),
+      NextServiceDate: this.normalizeDate(item.NextServiceDate),
+      IsRentable: this.getBoolLabel(item.IsRentable),
+      AssetValue: item.AssetValue,
+      Capacity: item.Capacity ?? item.capacity,
+      Status: this.getStatusLabel(item.Status),
+      Category: item.Category,
+      Location: item.Location,
+      ServiceReminderDay: item.serviceReminderDay,
+    }));
+  };
+
+  renderHomeView = () => {
+    const filteredGridData = this.getFilteredGridData();
+    const dueCount = this.state.DueGridData.length;
+    const functionalCount = filteredGridData.filter((item) => this.normalizeBoolean(item.Status) === true).length;
+    const nonFunctionalCount = filteredGridData.filter(
+      (item) => this.normalizeBoolean(item.Status) === false
+    ).length;
+
+    const activeFilterCount = [
+      this.state.filterAssetType,
+      this.state.filterStatus,
+      this.state.filterMoveable,
+      this.state.filterRentable,
+      this.state.filterDueFrom,
+      this.state.filterDueTo,
+      this.state.filterCategory,
+      this.state.filterLocation,
+      this.state.filterCapacity,
+    ].filter((item) => String(item || "") !== "").length;
+
+    return (
+      <div className="row">
+        <div className="col-12">
+          <div className="card p-2 task-planner-shell asset-master-shell">
+            <div className="task-summary-grid">
+              <div className="task-summary-card task-summary-total">
+                <p className="task-summary-value">{filteredGridData.length}</p>
+                <p className="task-summary-label">Total Assets</p>
+              </div>
+              <div className="task-summary-card task-summary-overdue">
+                <p className="task-summary-value">{dueCount}</p>
+                <p className="task-summary-label">Service Overdue</p>
+              </div>
+              <div className="task-summary-card task-summary-completed">
+                <p className="task-summary-value">{functionalCount}</p>
+                <p className="task-summary-label">Functional</p>
+              </div>
+              <div className="task-summary-card task-summary-pending">
+                <p className="task-summary-value">{nonFunctionalCount}</p>
+                <p className="task-summary-label">Non-Functional</p>
+              </div>
+            </div>
+
+            <div className="card-header p-2 task-list-filter-shell">
+              <div className="task-planner-toolbar">
+                <div className="input-group task-search-group">
+                  <div className="input-group-prepend">
+                    <span className="input-group-text">
+                      <i className="fa fa-search text-muted" />
+                    </span>
                   </div>
-                )}
-              {(this.state.PageMode === "Add" || this.state.PageMode === "Edit") && (
-              <div>
-                <div className="modal-content p-2 rounded">
-                  <div className="modal-body">
-                    <div className="container-fluid">
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Search by asset name, ID, QR code"
+                    value={this.state.searchTerm}
+                    onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                  />
+                </div>
 
-                      <div className="row bg-blue rounded p-2 mb-2 d-flex align-items-center justify-content-between">
-                        <div className="col-auto">
-                          <label className="mb-0 fw-bold">Choose Asset Type:</label>
-                        </div>
-                        <div className="col">
-                          <RadioButtonGroup
-                              options={[
-                                {label: "Machine/Equipment", value: "Machine/Equipment"},
-                                {label: "Measuring Equipment", value: "MeasuringEnquipment"},
-                                {label: "Facility", value: "Facility"},
-                              ]}
-                              name="AssetType"
-                              selectedValue={this.state.AssetType}
-                              onChange={(e) => this.setState({AssetType: e.target.value})}
-                          />
-                        </div>
-                      </div>
+                <div className="task-toolbar-actions">
+                  <button
+                    className="btn btn-outline-secondary d-flex align-items-center task-toolbar-btn"
+                    type="button"
+                    onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}
+                  >
+                    <i className="fa fa-sliders mr-1" />
+                    Filter
+                    {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
+                  </button>
 
-                    <div className="row">
-                      <div className="col-sm-6">
-                        <div className="form-group">
-                          <label htmlFor="manufacturer">Manufacturer</label>
+                  <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
+
+                  <Button
+                    id="btnNewAsset"
+                    Action={this.Addnew}
+                    ClassName="btn btn-primary d-flex align-items-center px-3 task-toolbar-btn task-add-btn"
+                    Icon={<i className="fa fa-plus mr-1" aria-hidden="true" />}
+                    Text="Create New Asset"
+                  />
+                </div>
+              </div>
+
+              {this.state.showFilterPanel ? (
+                <div className="p-2 mb-2 mt-2 task-filter-panel task-filter-panel-advanced">
+                  <div className="task-filter-head">
+                    <h6>Filters</h6>
+                    <button className="btn btn-link p-0" type="button" onClick={this.resetFilters}>
+                      <i className="fa fa-times mr-1" />
+                      Reset All
+                    </button>
+                  </div>
+
+                  <div className="task-filter-grid asset-filter-grid">
+                    <div className="task-filter-col">
+                      <p className="task-filter-group-title">Asset Type</p>
+                      <select
+                        className="form-control task-filter-select"
+                        value={this.state.filterAssetType}
+                        onChange={(e) => this.setState({ filterAssetType: e.target.value })}
+                      >
+                        <option value="">All Asset Types</option>
+                        <option value="Machine/Equipment">Machine/Equipment</option>
+                        <option value="MeasuringEnquipment">Measuring Equipment</option>
+                        <option value="Facility">Facility</option>
+                      </select>
+
+                      <p className="task-filter-group-title">Status</p>
+                      <select
+                        className="form-control task-filter-select"
+                        value={this.state.filterStatus}
+                        onChange={(e) => this.setState({ filterStatus: e.target.value })}
+                      >
+                        <option value="">All Status</option>
+                        <option value="true">Functional</option>
+                        <option value="false">Non-Functional</option>
+                      </select>
+
+                      <p className="task-filter-group-title">Service Due Date</p>
+                      <div className="row">
+                        <div className="col-md-6 mb-2">
                           <input
-                              type="text"
-                              id="manufacturer"
-                              placeholder="Manufacturer"
-                              value={this.state.ManufacturerName}
-                              className="form-control"
-                              onChange={(e) =>
-                                    this.setState({ManufacturerName: e.target.value})
-                                }
-                            />
-                          </div>
-                        </div>
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="assetName">Enter Asset Name</label>
-                            <input
-                                type="text"
-                                id="assetName"
-                                placeholder="Asset Name"
-                                className="form-control"
-                                value={this.state.Name}
-                                onChange={(e) =>
-                                    this.setState({Name: e.target.value})
-                                }
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="row">
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="assetModel">Asset Model</label>
-                            <input
-                                type="text"
-                                id="assetModel"
-                                placeholder="Asset Model"
-                                value={this.state.AssetModel}
-                                className="form-control"
-                                onChange={(e) =>
-                                    this.setState({AssetModel: e.target.value})
-                                }
-                            />
-                          </div>
-                        </div>
-                        <div className="form-group col-sm-6">
-                          <label htmlFor="isMovable">Is Movable</label>
-                          <select
-                              id="isMovable"
-                              className="form-control"
-                              value={this.state.IsMoveable}
-                              onChange={(e) =>
-                                  this.setState({IsMoveable: e.target.value})
-                              }
-                          >
-                            <option value="" disabled>
-                              Select an option
-                            </option>
-                            <option value="true">Yes</option>
-                            <option value="false">No</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="row">
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="lastServiceDate">Last Service Date</label>
-                            <input
-                                type="date"
-                                id="lastServiceDate"
-                                className="form-control"
-                                value={this.state.LastServiceDate}
-                                onChange={(e) =>
-                                    this.setState({LastServiceDate: e.target.value})
-                                }
-                            />
-                          </div>
-                        </div>
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="nextServiceDate">Next Service Date</label>
-                            <input
-                                type="date"
-                                id="nextServiceDate"
-                                className="form-control"
-                                value={this.state.NextServiceDate}
-                                onChange={(e) =>
-                                    this.setState({NextServiceDate: e.target.value})
-                                }
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="row">
-                        <div className="col-sm-6">
-                          <div className="form-group ">
-                            <label>Is Rentable?</label>
-                            <select
-                                id="IsRentable"
-                                className="form-control"
-                                value={this.state.IsRentable}
-                                onChange={(e) =>
-                                    this.setState({IsRentable: e.target.value})
-                                }
-                            >
-                              <option value="" disabled>
-                                Select an option
-                              </option>
-                              <option value="true">Yes</option>
-                              <option value="false">No</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="assetValue">Asset Value</label>
-                            <div className="input-group">
-                              <div className="input-group-prepend">
-                                <span className="input-group-text">₹</span>
-                              </div>
-                              <input
-                                  type="number"
-                                  id="assetValue"
-                                  className="form-control currency"
-                                  value={this.state.AssetValue}
-                                  onChange={(e) =>
-                                      this.setState({AssetValue: parseFloat(e.target.value)||0})
-                                  }
-                                  onKeyDown={(e) => e.key === 'e' && e.preventDefault()} // Prevents input of 'e'
-                              />
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="row">
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="description">Description</label>
-                            <textarea
-                                id="description"
-                                onChange={(e) =>
-                                    this.setState({Description: e.target.value})
-                                }
-                                placeholder="Description"
-                                value={this.state.Description}
-                                className="form-control form-control-sm"
-                                rows="2"
-                            />
-                          </div>
-                        </div>
-                        <div className="col-sm-6">
-                          <div className="form-group">
-                            <label htmlFor="QRCode">QRCode</label>
-                            <input
-                                type="text"
-                                id="QRCode"
-                                placeholder="QR Code"
-                                value={this.state.QRCode}
-                                className="form-control"
-                                onChange={(e) => this.setState({QRCode: e.target.value})}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="row">
-                        <div className="form-group col-sm-6">
-                          <label>Asset Status</label>
-                          <select
-                              id="status"
-                              className="form-control"
-                              value={this.state.status}
-                              onChange={(e) =>
-                                  this.setState({status: e.target.value})
-                              }
-                          >
-                            <option value="" disabled>
-                              Select an option
-                            </option>
-                            <option value="true">Functional</option>
-                            <option value="false">Non-Functional</option>
-                          </select>
-                        </div>
-
-                        <div className="form-group col-sm-6">
-                          <label htmlFor="category">Asset Category:</label>
-                          <input type="text" className="form-control" id="category" value={this.state.category}
-                          onChange={(e) => this.setState({category: e.target.value})}/>
-                        </div>
-                      </div>
-                      <div className="row">
-                        <div className="form-group col-sm-6">
-                          <label htmlFor="location">Asset Location:</label>
-                          <input type="location" className="form-control" id="status"
-                                 value={this.state.location}
-                                 onChange={(e) => this.setState({location: e.target.value})}/>
-                        </div>
-                        <div className="form-group col-sm-6">
-                          <label>Asset Service Reminder</label>
-                          <select
-                              id="serviceReminderDay"
-                              className="form-control"
-                              value={this.state.serviceReminderDay}
-                              onChange={(e) =>
-                                  this.setState({serviceReminderDay: e.target.value})
-                              }
-                          >
-                            <option value="" disabled>
-                              No Reminder
-                            </option>
-                            <option value="1">One Day Prior</option>
-                            <option value="7">One Week Prior</option>
-                            <option value="15">15 Days Prior</option>
-                            <option value="30">One Month Prior</option>
-                          </select>
-                        </div>
-                      </div>
-
-                      <div className="row">
-                        <div className="col-sm-6">
-                          <label>Asset Image</label>
-                          <DocumentUploader
-                              Class={"form-control"}
-                              id={"kycfileUploader"}
-                              type={"file"}
-                              // value={this.state.ImageData.name}
-                              onChange={this.onFileChange.bind(this)}
+                            type="date"
+                            className="form-control task-filter-select"
+                            value={this.state.filterDueFrom}
+                            onChange={(e) => this.setState({ filterDueFrom: e.target.value })}
                           />
                         </div>
-                        <div className="col-sm-6">
-                          <label>AMC Upload</label>
-                          <DocumentUploader
-                              Class={"form-control"}
-                              id={"AMCfileUploader"}
-                              type={"file"}
-                              // value={this.state.AMCdoc.name}
-                              onChange={(this.onAMCFileChange.bind(this))}
+                        <div className="col-md-6 mb-2">
+                          <input
+                            type="date"
+                            className="form-control task-filter-select"
+                            value={this.state.filterDueTo}
+                            onChange={(e) => this.setState({ filterDueTo: e.target.value })}
                           />
                         </div>
                       </div>
                     </div>
+
+                    <div className="task-filter-col">
+                      <p className="task-filter-group-title">Movable</p>
+                      <select
+                        className="form-control task-filter-select"
+                        value={this.state.filterMoveable}
+                        onChange={(e) => this.setState({ filterMoveable: e.target.value })}
+                      >
+                        <option value="">All</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+
+                      <p className="task-filter-group-title">Rentable</p>
+                      <select
+                        className="form-control task-filter-select"
+                        value={this.state.filterRentable}
+                        onChange={(e) => this.setState({ filterRentable: e.target.value })}
+                      >
+                        <option value="">All</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+
+                      <p className="task-filter-group-title">Category</p>
+                      <input
+                        type="text"
+                        className="form-control task-filter-select"
+                        placeholder="Category"
+                        value={this.state.filterCategory}
+                        onChange={(e) => this.setState({ filterCategory: e.target.value })}
+                      />
+
+                      <p className="task-filter-group-title">Location</p>
+                      <input
+                        type="text"
+                        className="form-control task-filter-select"
+                        placeholder="Location"
+                        value={this.state.filterLocation}
+                        onChange={(e) => this.setState({ filterLocation: e.target.value })}
+                      />
+
+                      <p className="task-filter-group-title">Capacity</p>
+                      <input
+                        type="text"
+                        className="form-control task-filter-select"
+                        placeholder="e.g. 2 Ton, 500 L"
+                        value={this.state.filterCapacity}
+                        onChange={(e) => this.setState({ filterCapacity: e.target.value })}
+                      />
+                    </div>
                   </div>
-
-                  <div className="modal-footer m-2">
-
-                    <Button
-                        id="btnSave"
-                        Text="Save"
-                        Action={this.handleSave}
-                        ClassName="btn btn-primary "
-                    />
-
-                    <Button
-                        id="btnCancel"
-                        Text="Cancel"
-                        Action={this.handleCancel}
-                        ClassName="btn btn-secondary"
-                    />
-                  </div>
                 </div>
-                <ToastContainer
-                    position="top-right"
-                    autoClose={5000}
-                    hideProgressBar={false}
-                    newestOnTop={false}
-                    closeOnClick
-                    rtl={false}
-                    pauseOnFocusLoss
-                    draggable
-                    pauseOnHover
-                />
-                <ToastContainer/>
-              </div>
-        )}
-                {(this.state.PageMode === "View") && (
-    <div className="modal-dialog rounded" role="document">
-      <div className="modal-content rounded ">
-        <div className="modal-header bg-blue rounded-top p-1">
-        <h5 class="modal-title p-1">Viewing Asset Details</h5>
-        <button type="button" className="close " data-dismiss="modal" aria-label="Close" onClick={this.handleCancel}>
-          <span aria-hidden="true">&times;</span>
-        </button>
-        </div>
-
-        <div className="modal-body p-2">
-          <form>
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="id">ID:</label>
-                <input type="text" className="form-control" id="id" value={this.state.Id} readOnly/>
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="name">Asset Type:</label>
-                <input type="text" className="form-control" id="name" value={this.state.AssetType} readOnly/>
-              </div>
+              ) : null}
             </div>
 
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="name">Name:</label>
-                <input type="text" className="form-control" id="name" value={this.state.Name} readOnly/>
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="name">Asset Model:</label>
-                <input type="text" className="form-control" id="name" value={this.state.AssetModel} readOnly/>
-              </div>
+            <div className="card-body pt-2 asset-master-table-wrap">
+              <DataGrid
+                Id="grdAssetsMaster"
+                IsPagination={false}
+                ColumnCollection={this.state.gridHeader}
+                Onpageindexchanged={this.onPagechange}
+                onEditMethod={this.ongridedit}
+                onGridDeleteMethod={this.onGridDelete}
+                onGridViewMethod={this.onGridView}
+                DefaultPagination={true}
+                IsSarching="true"
+                GridData={filteredGridData}
+                pageSize="2000"
+              />
             </div>
-
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="isMovable">Is Moveable:</label>
-                <input type="text" className="form-control" id="isMovable"
-                       value={this.state.IsMoveable === true ? "Yes" : "No"} readOnly/>
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="isRentable">Is Rentable:</label>
-                <input type="text" className="form-control" id="isRentable"
-                       value={this.state.IsRentable === true ? "Yes" : "No"} readOnly/>
-              </div>
-            </div>
-
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="description">Description:</label>
-                <textarea className="form-control" id="description" value={this.state.Description} readOnly/>
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="qrCode">QR Code:</label>
-                <input type="text" className="form-control" id="qrCode" value={this.state.QRCode} readOnly/>
-              </div>
-
-            </div>
-
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="lastServiceDate">Last Service Date:</label>
-                <input type="text" className="form-control" id="lastServiceDate" value={this.state.LastServiceDate}
-                       readOnly/>
-              </div>
-              <div className="form-group  col-sm-6">
-                <label htmlFor="nextServiceDate">Next Service Date:</label>
-                <input type="text" className="form-control" id="nextServiceDate" value={this.state.NextServiceDate}
-                       readOnly/>
-              </div>
-
-            </div>
-
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="assetValue">Manufacturer:</label>
-                <input type="text" className="form-control" id="assetValue" value={this.state.ManufacturerName}
-                       readOnly/>
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="assetValue">Asset Value:</label>
-                <input type="text" className="form-control" id="assetValue" value={`₹${this.state.AssetValue}`}
-                       readOnly/>
-              </div>
-            </div>
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="status">Status:</label>
-                <input type="text" className="form-control" id="status"
-                       value={this.state.status === true ? "Functional" : "Non-Functional"} readOnly/>
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="category">Asset Category:</label>
-                <input type="text" className="form-control" id="category" value={this.state.category} readOnly/>
-              </div>
-            </div>
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="location">Asset Location:</label>
-                <input type="location" className="form-control" id="status"
-                       value={this.state.location} readOnly/>
-              </div>
-            </div>
-
-            <div className="row">
-              <div className="form-group col-sm-6">
-                <label htmlFor="assetImage">Asset Image:</label>
-                <div>
-                  <img
-                      src={`data:image/png;base64,${this.state.AssetImage}`}
-                      alt="Asset"
-                      className="img-fluid"
-                      style={{height: "400px", width: "500px"}}
-                  />
-                </div>
-
-              </div>
-              <div className="form-group col-sm-6">
-                <label htmlFor="assetImage">AMC Contract:</label>
-                <div>
-                  <img
-                      src={`data:image/png;base64,${this.state.AMCimage}`}
-                      alt="AMC Document"
-                      className="img-fluid"
-                      style={{height: "400px", width: "500px"}}
-                  />
-                </div>
-              </div>
-
-            </div>
-          </form>
+          </div>
         </div>
       </div>
-    </div>
+    );
+  };
+  renderFormView = (readOnly = false) => {
+    const isEditMode = this.state.PageMode === "Edit";
+
+    return (
+      <div className="row">
+        <div className="col-12">
+          <div className="card p-2 task-planner-shell asset-master-shell">
+            <div className="asset-master-form-header">
+              <h4 className="asset-master-form-title mb-0">
+                {readOnly ? "View Asset" : isEditMode ? "Edit Asset" : "Create Asset"}
+              </h4>
+              <button className="btn btn-outline-secondary task-toolbar-btn" onClick={this.handleCancel} type="button">
+                <i className="fa fa-arrow-left mr-1" />
+                Back to List
+              </button>
+            </div>
+
+            <div className="card-body p-3">
+              <div className="asset-form-section">
+                <h6 className="asset-form-section-title">Asset Type</h6>
+                <div className="asset-type-wrap">
+                  <RadioButtonGroup
+                    options={[
+                      { label: "Machine/Equipment", value: "Machine/Equipment" },
+                      { label: "Measuring Equipment", value: "MeasuringEnquipment" },
+                      { label: "Facility", value: "Facility" },
+                    ]}
+                    name="AssetType"
+                    selectedValue={this.state.AssetType}
+                    onChange={(e) => this.setState({ AssetType: e.target.value })}
+                    disabled={readOnly}
+                  />
+                </div>
+              </div>
+
+              <div className="asset-form-section">
+                <h6 className="asset-form-section-title">Basic Details</h6>
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="manufacturer">Manufacturer</label>
+                      <input
+                        type="text"
+                        id="manufacturer"
+                        placeholder="Manufacturer"
+                        value={this.state.ManufacturerName}
+                        className="form-control"
+                        onChange={(e) => this.setState({ ManufacturerName: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="txtDocumentType">Asset Name</label>
+                      <input
+                        type="text"
+                        id="txtDocumentType"
+                        placeholder="Asset Name"
+                        className="form-control"
+                        value={this.state.Name}
+                        onChange={(e) => this.setState({ Name: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="assetModel">Asset Model</label>
+                      <input
+                        type="text"
+                        id="assetModel"
+                        placeholder="Asset Model"
+                        value={this.state.AssetModel}
+                        className="form-control"
+                        onChange={(e) => this.setState({ AssetModel: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="isMovable">Is Movable</label>
+                      <select
+                        id="isMovable"
+                        className="form-control"
+                        value={this.state.IsMoveable}
+                        onChange={(e) => this.setState({ IsMoveable: e.target.value })}
+                        disabled={readOnly}
+                      >
+                        <option value="">Select an option</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="asset-form-section">
+                <h6 className="asset-form-section-title">Service Details</h6>
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="lastServiceDate">Last Service Date</label>
+                      <input
+                        type="date"
+                        id="lastServiceDate"
+                        className="form-control"
+                        value={this.state.LastServiceDate || ""}
+                        onChange={(e) => this.setState({ LastServiceDate: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="nextServiceDate">Next Service Date</label>
+                      <input
+                        type="date"
+                        id="nextServiceDate"
+                        className="form-control"
+                        value={this.state.NextServiceDate || ""}
+                        onChange={(e) => this.setState({ NextServiceDate: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="IsRentable">Is Rentable?</label>
+                      <select
+                        id="IsRentable"
+                        className="form-control"
+                        value={this.state.IsRentable}
+                        onChange={(e) => this.setState({ IsRentable: e.target.value })}
+                        disabled={readOnly}
+                      >
+                        <option value="">Select an option</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="serviceReminderDay">Asset Service Reminder</label>
+                      <select
+                        id="serviceReminderDay"
+                        className="form-control"
+                        value={this.state.serviceReminderDay}
+                        onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
+                        disabled={readOnly}
+                      >
+                        <option value="">No Reminder</option>
+                        <option value="1">One Day Prior</option>
+                        <option value="7">One Week Prior</option>
+                        <option value="15">15 Days Prior</option>
+                        <option value="30">One Month Prior</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="asset-form-section">
+                <h6 className="asset-form-section-title">Financial & Asset Info</h6>
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="assetValue">Asset Value</label>
+                      <div className="input-group">
+                        <div className="input-group-prepend">
+                          <span className="input-group-text">Rs.</span>
+                        </div>
+                        <input
+                          type="number"
+                          id="assetValue"
+                          className="form-control currency"
+                          value={this.state.AssetValue}
+                          onChange={(e) =>
+                            this.setState({ AssetValue: parseFloat(e.target.value) || 0 })
+                          }
+                          onKeyDown={(e) => e.key === "e" && e.preventDefault()}
+                          readOnly={readOnly}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="capacity">Capacity</label>
+                      <input
+                        type="text"
+                        id="capacity"
+                        placeholder="e.g. 500 L, 2 Ton"
+                        className="form-control"
+                        value={this.state.Capacity}
+                        onChange={(e) => this.setState({ Capacity: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="status">Asset Status</label>
+                      <select
+                        id="status"
+                        className="form-control"
+                        value={this.state.status}
+                        onChange={(e) => this.setState({ status: e.target.value })}
+                        disabled={readOnly}
+                      >
+                        <option value="">Select an option</option>
+                        <option value="true">Functional</option>
+                        <option value="false">Non-Functional</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="category">Asset Category</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        id="category"
+                        value={this.state.category || ""}
+                        onChange={(e) => this.setState({ category: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="location">Asset Location</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        id="location"
+                        value={this.state.location || ""}
+                        onChange={(e) => this.setState({ location: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="QRCode">QR Code</label>
+                      <input
+                        type="text"
+                        id="QRCode"
+                        placeholder="QR Code"
+                        value={this.state.QRCode}
+                        className="form-control"
+                        onChange={(e) => this.setState({ QRCode: e.target.value })}
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="row">
+                  <div className="col-md-6">
+                    <div className="form-group">
+                      <label htmlFor="description">Description</label>
+                      <textarea
+                        id="description"
+                        onChange={(e) => this.setState({ Description: e.target.value })}
+                        placeholder="Description"
+                        value={this.state.Description}
+                        className="form-control form-control-sm"
+                        rows="3"
+                        readOnly={readOnly}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="asset-form-section">
+                <h6 className="asset-form-section-title">Documents</h6>
+                {!readOnly ? (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <label>Asset Image</label>
+                      <DocumentUploader
+                        Class="form-control"
+                        id="kycfileUploader"
+                        type="file"
+                        onChange={this.onFileChange.bind(this)}
+                      />
+                    </div>
+                    <div className="col-md-6">
+                      <label>AMC Upload</label>
+                      <DocumentUploader
+                        Class="form-control"
+                        id="AMCfileUploader"
+                        type="file"
+                        onChange={this.onAMCFileChange}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="row">
+                    <div className="col-md-6">
+                      <label>Asset Image</label>
+                      <div className="asset-preview-box">
+                        {this.state.AssetImage ? (
+                          <img
+                            src={`data:image/png;base64,${this.state.AssetImage}`}
+                            alt="Asset"
+                            className="img-fluid"
+                          />
+                        ) : (
+                          <div className="text-muted">No image</div>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-md-6">
+                      <label>AMC Contract</label>
+                      <div className="asset-preview-box">
+                        {this.state.AMCimage ? (
+                          <img
+                            src={`data:image/png;base64,${this.state.AMCimage}`}
+                            alt="AMC Document"
+                            className="img-fluid"
+                          />
+                        ) : (
+                          <div className="text-muted">No AMC document</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
-            );
-          }
+            </div>
+
+            {!readOnly ? (
+              <div className="card-footer d-flex justify-content-end gap-2 asset-form-actions">
+                <Button id="btnSave" Text="Save" Action={this.handleSave} ClassName="btn btn-primary mr-2" />
+                <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-secondary" />
+              </div>
+            ) : null}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  render() {
+    return (
+      <div>
+        {this.state.PageMode === "Home" && this.renderHomeView()}
+        {(this.state.PageMode === "Add" || this.state.PageMode === "Edit") && this.renderFormView(false)}
+        {this.state.PageMode === "View" && this.renderFormView(true)}
+      </div>
+    );
+  }
 }
 
-function mapStoreToprops(state, props) {
+function mapStoreToprops(state) {
   return {
     PropertyId: state.Commonreducer.puidn,
-  }
+  };
 }
 
 function mapDispatchToProps(dispatch) {
   const actions = bindActionCreators(departmentActions, dispatch);
-  return {actions};
+  return { actions };
 }
 
 export default connect(mapStoreToprops, mapDispatchToProps)(AssetsMaster);
