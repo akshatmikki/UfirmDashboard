@@ -94,51 +94,51 @@ export default function PFReport() {
     // }, [selectedPropertyId]);
 
     useEffect(() => {
-    const loadPFData = async () => {
-        try {
-            const propertyIds =
-                Number(selectedPropertyId) > 0
-                    ? [Number(selectedPropertyId)]
-                    : (propertyList || [])
-                        .map((p) => Number(p.PropertyId))
-                        .filter((id) => Number.isFinite(id) && id > 0);
+        const loadPFData = async () => {
+            try {
+                const propertyIds =
+                    Number(selectedPropertyId) > 0
+                        ? [Number(selectedPropertyId)]
+                        : (propertyList || [])
+                            .map((p) => Number(p.PropertyId))
+                            .filter((id) => Number.isFinite(id) && id > 0);
 
-            if (!selectedUnitId || !selectedMonth || propertyIds.length === 0) {
-                setEmployees([]);
-                return;
-            }
+                if (!selectedUnitId || !selectedMonth || propertyIds.length === 0) {
+                    setEmployees([]);
+                    return;
+                }
 
-            setLoading(true);
+                setLoading(true);
 
-            const [year, month] = selectedMonth.split("-");
-            const monthName = new Date(year, month - 1).toLocaleString(
-                "default",
-                { month: "long" }
-            );
+                const [year, month] = selectedMonth.split("-");
+                const monthName = new Date(year, month - 1).toLocaleString(
+                    "default",
+                    { month: "long" }
+                );
 
-            const results = await Promise.all(
-                propertyIds.map((pid) =>
-                    getFacilityMemberSalaryDetailsByClientBranch(
-                        selectedUnitId,
-                        pid,
-                        monthName,
-                        year
+                const results = await Promise.all(
+                    propertyIds.map((pid) =>
+                        getFacilityMemberSalaryDetailsByClientBranch(
+                            selectedUnitId,
+                            pid,
+                            monthName,
+                            year
+                        )
                     )
-                )
-            );
+                );
 
-            const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
-            setEmployees(flat);
-        } catch (error) {
-            console.error("PF report fetch failed", error);
-            setEmployees([]);
-        } finally {
-            setLoading(false);
-        }
-    };
+                const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
+                setEmployees(flat);
+            } catch (error) {
+                console.error("PF report fetch failed", error);
+                setEmployees([]);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-    loadPFData();
-}, [selectedUnitId, selectedPropertyId, selectedMonth, propertyList]);
+        loadPFData();
+    }, [selectedUnitId, selectedPropertyId, selectedMonth, propertyList]);
 
     const handleExport = () => {
         if (!selectedMonth || !employees.length) return;
@@ -347,33 +347,33 @@ export default function PFReport() {
                         </tr>
                     </thead>
                     <tbody>
-{employees.length === 0 ? (
-    <tr>
-        <td colSpan="14" style={{ textAlign: "center" }}>
-            Select month and unit to view PF report
-        </td>
-    </tr>
-) : (
-    employees.map((emp, index) => (
-        <tr key={emp.FacilityMemberId}>
-            <td>{index + 1}</td>
-            <td>{emp.FacilityMemberId}</td>
-            <td>{emp.FacilityMemberName}</td>
-            <td>{emp.Designation || "-"}</td>
-            <td>{emp.WorkingDays}</td>
-            <td>{emp.ProratedTotalGross}</td>
-            <td>{emp.Basic}</td>
-            <td>{emp.Basic}</td>
-            <td>{emp.Basic}</td>
-            <td>{(emp.Basic * 0.12).toFixed(2)}</td>
-            <td>{(emp.Basic * 0.0367).toFixed(2)}</td>
-            <td>{(emp.Basic * 0.0833).toFixed(2)}</td>
-            <td>{(emp.Basic * 0.13).toFixed(2)}</td>
-            <td>{emp.LwfEmployeeAmount || 0}</td>
-        </tr>
-    ))
-)}
-</tbody>
+                        {employees.length === 0 ? (
+                            <tr>
+                                <td colSpan="14" style={{ textAlign: "center" }}>
+                                    Select month and unit to view PF report
+                                </td>
+                            </tr>
+                        ) : (
+                            employees.map((emp, index) => (
+                                <tr key={emp.FacilityMemberId}>
+                                    <td>{index + 1}</td>
+                                    <td>{emp.FacilityMemberId}</td>
+                                    <td>{emp.FacilityMemberName}</td>
+                                    <td>{emp.Designation || "-"}</td>
+                                    <td>{emp.WorkingDays}</td>
+                                    <td>{emp.ProratedTotalGross}</td>
+                                    <td>{emp.Basic}</td>
+                                    <td>{emp.Basic}</td>
+                                    <td>{emp.Basic}</td>
+                                    <td>{Math.round(emp.Basic * 0.12)}</td>
+                                    <td>{Math.round(emp.Basic * 0.0367)}</td>
+                                    <td>{Math.round(emp.Basic * 0.0833)}</td>
+                                    <td>{Math.round(emp.Basic * 0.13)}</td>
+                                    <td>{emp.LwfEmployeeAmount || 0}</td>
+                                </tr>
+                            ))
+                        )}
+                    </tbody>
                 </table>
             </div>
         </div>

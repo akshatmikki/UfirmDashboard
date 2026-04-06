@@ -73,14 +73,16 @@ export default function SGNEW() {
   useEffect(() => {
     const loadUnits = async () => {
       try {
-        // Property context → load single unit
+        // ✅ CASE 1: Property selected from navbar
         if (Number(propertyId) > 0) {
           const res = await getClientByPropertyId(propertyId);
           setUnitList(res ? [res] : []);
           setSelectedUnitId(res?.ClientID || null);
+          setSelectedPropertyId([Number(propertyId)]);
           return;
         }
 
+        // ✅ CASE 2: Client selected from navbar
         if (Number(reduxClientId) > 0) {
           const res = await getAllClients();
           setUnitList(res || []);
@@ -88,8 +90,16 @@ export default function SGNEW() {
           return;
         }
 
+        // ❌ CASE 3: NOTHING selected (THIS WAS YOUR BUG)
         const res = await getAllClients();
         setUnitList(res || []);
+
+        // 🔥 HARD RESET (MISSING PIECE)
+        setSelectedUnitId(null);
+        setSelectedPropertyId([]);
+        setPropertyList([]);
+        setSalaryGroups([]);
+
       } catch (err) {
         console.log("Failed to load units", err);
       }
@@ -107,12 +117,26 @@ export default function SGNEW() {
           return;
         }
 
+        setSelectedPropertyId([]);
+
         const res = await getPropertiesByClientId(selectedUnitId);
+        const list = res || [];
 
-        setPropertyList(res || []);
+        setPropertyList(list);
 
-        // 🔥 select ALL properties by default
-        setSelectedPropertyId((res || []).map((p) => p.PropertyId));
+        // 🔥 FIX: Preserve navbar-selected property
+        setSelectedPropertyId((prev) => {
+          // If already selected (from navbar), keep it
+          if (prev && prev.length > 0) return prev;
+
+          // Auto-select only if single property
+          if (list.length === 1) {
+            return [list[0].PropertyId];
+          }
+
+          return [];
+        });
+
       } catch (err) {
         console.log("Failed to load properties by unit", err);
       }
@@ -362,7 +386,7 @@ export default function SGNEW() {
         const uniqueDesignations = [
           ...new Set(
             mergedEmployees
-              .map((e) => e.EmployeeList?.Designation)
+              .map((e) => e.Designation || e.Profile?.Designation)
               .filter(Boolean),
           ),
         ];
@@ -815,6 +839,13 @@ export default function SGNEW() {
       alert("Please select at least one Property");
       return;
     }
+    if (
+      (!form.salaryGroupName || form.salaryGroupName.trim() === "") &&
+      (!selectedSG || selectedSG.trim() === "")
+    ) {
+      alert("Please enter Salary Group Name or select an existing SG");
+      return;
+    }
 
     try {
       const adModel = buildADModel();
@@ -998,21 +1029,26 @@ export default function SGNEW() {
   };
 
   const resetAll = () => {
-    // 🔥 Always reset salary group form & SG state
     resetSalaryGroupForm();
     setSelectedSG("");
     setPreviewSG(null);
 
-    // 🔥 ALWAYS reset page-level property selection
+    // Only reset PROPERTY, not client
     setSelectedPropertyId([]);
     setShowPropertyDropdown(false);
 
-    // 🔥 Reset unit ONLY when NOT coming from navbar
-    if (!Number(propertyId) || Number(propertyId) <= 0) {
-      setSelectedUnitId(null);
-      setPropertyList([]);
-    }
+    // ❌ REMOVE THIS LINE COMPLETELY
+    // setSelectedUnitId(null);
   };
+
+  const isPropertySelected =
+    selectedPropertyId && selectedPropertyId.length > 0;
+
+  const isSGValid =
+    (form.salaryGroupName && form.salaryGroupName.trim() !== "") ||
+    (selectedSG && selectedSG.trim() !== "");
+
+  const canSave = isPropertySelected && isSGValid;
 
   const allowOnlyNumbers = (e) => {
     const { name, value } = e.target;
@@ -1063,7 +1099,7 @@ export default function SGNEW() {
   };
 
   const filteredEmployees = designation
-    ? employees.filter((e) => e.EmployeeList?.Designation === designation)
+    ? employees.filter((e) => (e.Designation || e.Profile?.Designation) === designation)
     : [];
 
   const getEmployeeSalaryGroupName = (emp) => {
@@ -1156,7 +1192,7 @@ export default function SGNEW() {
               <select
                 className="form-control"
                 value={selectedUnitId || ""}
-                disabled={Number(propertyId) > 0 || Number(reduxClientId) > 0}
+                disabled={true}
                 onChange={(e) => {
                   setSelectedUnitId(Number(e.target.value));
                   setSelectedPropertyId([]);
@@ -1165,7 +1201,7 @@ export default function SGNEW() {
                 }}
                 style={{ width: 260 }}
               >
-                <option value="">-- Select Unit --</option>
+                <option value="">-- Select Client --</option>
                 {unitList.map((u) => (
                   <option key={u.ClientID} value={u.ClientID}>
                     {u.ClientName}
@@ -1198,6 +1234,8 @@ export default function SGNEW() {
                 }}
                 style={{
                   flex: 1,
+                  minWidth: 250,
+                  width: "100%",
                   padding: "6px 10px",
                   border: "1px solid #d1d5db",
                   borderRadius: 6,
@@ -1206,9 +1244,13 @@ export default function SGNEW() {
                   fontSize: 13,
                 }}
               >
-                {selectedPropertyId.length === 0
-                  ? "Select properties"
-                  : `${selectedPropertyId.length} property selected`}
+                {
+                  selectedPropertyId.length === 0
+                    ? "Select Property"
+                    : selectedPropertyId.length === 1
+                      ? propertyList.find(p => p.PropertyId === selectedPropertyId[0])?.PropertyName
+                      : `${selectedPropertyId.length} properties selected`
+                }
               </div>
 
               {/* Dropdown panel */}
@@ -1388,10 +1430,13 @@ export default function SGNEW() {
             <button
               className="btn btn-sm btn-primary"
               onClick={handleSave}
+              disabled={!canSave}
               style={{
                 padding: "6px 14px",
                 fontSize: 13,
                 fontWeight: 600,
+                opacity: canSave ? 1 : 0.5,
+                cursor: canSave ? "pointer" : "not-allowed"
               }}
             >
               Save
@@ -3364,8 +3409,14 @@ export default function SGNEW() {
         <div className="d-flex justify-content-center mt-4">
           <button
             className="btn btn-primary"
-            style={{ padding: "10px 150px", fontSize: 16 }}
             onClick={handleSave}
+            disabled={!canSave}
+            style={{
+              padding: "10px 150px",
+              fontSize: 16,
+              opacity: canSave ? 1 : 0.5,
+              cursor: canSave ? "pointer" : "not-allowed"
+            }}
           >
             Save
           </button>

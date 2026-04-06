@@ -612,60 +612,34 @@ const StaffPage = () => {
   };
 
   const downloadSampleTemplate = () => {
-    const sampleData = [
-      {
-        "EMPCODE": "EMP001",
-        "EMP NAME": "Rahul Sharma",
-        "F/H NAME": "Ramesh Sharma",
-        "DOB": "01-01-1995",
-        "DOJ": "01-01-2024",
-        "GENDER": "M",
-        "MOBILE": "9876543210",
-        "EMAIL": "rahul@example.com",
-        "JOB TYPE": "Permanent",
-        "BANK NAME": "HDFC",
-        "ACCOUNT NO": "1234567890",
-        "IFSC CODE": "HDFC0001234",
-        "AADHAAR NO": "123412341234",
-        "PF NUMBER": "PF12345",
-        "ESI NO": "ESI12345",
-        "PAN NO": "ABCDE1234F",
-        "UAN NO": "100200300400",
-        "DESIGNATION CODE": "1",
-        "DEPT CODE": "1",
-        "ADDRESS LINE 1": "Sector 62",
-        "ADDRESS LINE 2": "Near Metro",
-        "CITY": "Noida",
-        "STATE": "Uttar Pradesh",
-      },
-      {
-        "EMPCODE": "EMP002",
-        "EMP NAME": "Priya Singh",
-        "F/H NAME": "Amit Singh",
-        "DOB": "05-05-1998",
-        "DOJ": "10-02-2024",
-        "GENDER": "F",
-        "MOBILE": "9123456789",
-        "EMAIL": "priya@example.com",
-        "JOB TYPE": "Contractual",
-        "BANK NAME": "SBI",
-        "ACCOUNT NO": "9876543210",
-        "IFSC CODE": "SBIN0005678",
-        "AADHAAR NO": "567856785678",
-        "PF NUMBER": "PF67890",
-        "ESI NO": "ESI67890",
-        "PAN NO": "XYZAB1234K",
-        "UAN NO": "400300200100",
-        "DESIGNATION CODE": "2",
-        "DEPT CODE": "2",
-        "ADDRESS LINE 1": "Sector 18",
-        "ADDRESS LINE 2": "Market Area",
-        "CITY": "Noida",
-        "STATE": "Uttar Pradesh",
-      }
+    const headers = [
+      "EMPCODE",
+      "EMP NAME",
+      "F/H NAME",
+      "DOB",
+      "DOJ",
+      "GENDER",
+      "MOBILE",
+      "EMAIL",
+      "JOB TYPE",
+      "BANK NAME",
+      "ACCOUNT NO",
+      "IFSC CODE",
+      "AADHAAR NO",
+      "PF NUMBER",
+      "ESI NO",
+      "PAN NO",
+      "UAN NO",
+      "DESIGNATION CODE",
+      "DEPT CODE",
+      "ADDRESS LINE 1",
+      "ADDRESS LINE 2",
+      "CITY",
+      "STATE"
     ];
 
-    const worksheet = XLSX.utils.json_to_sheet(sampleData);
+    // 👇 create empty row just to generate headers
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
@@ -785,10 +759,15 @@ const StaffPage = () => {
     }
     // ================= VALIDATIONS =================
 
+    const cleanName = employeeName.trim().replace(/\s+/g, " ");
     // Required fields
-    if (!employeeName?.trim()) {
+    if (!cleanName) {
       setIsProcessing(false);
-      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Name is required" });
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Employee Name is required"
+      });
     }
 
     if (!employeeCode?.trim()) {
@@ -815,13 +794,12 @@ const StaffPage = () => {
       });
     }
 
-    // Employee Name (only letters and spaces)
-    if (!/^[A-Za-z\s]{2,50}$/.test(employeeName)) {
+    if (!/^(Mr\.?|Ms\.?|Mrs\.?)?\s?[A-Za-z]+(\s[A-Za-z]+)*$/.test(cleanName)) {
       setIsProcessing(false);
       return toast.current.show({
         severity: "warn",
         summary: "Validation",
-        detail: "Employee Name should contain only letters"
+        detail: "Enter valid name (e.g., Mr. Mudit Sharma)"
       });
     }
 
@@ -1015,7 +993,7 @@ const StaffPage = () => {
       Profile: {
         OfficeId: propertyId,
         EmployeeCode: employeeCode,
-        EmployeeName: employeeName,
+        EmployeeName: cleanName,
         EmploymentType: employmentType,
         CreatedOn: now,
         UpdatedOn: now,
@@ -1061,7 +1039,7 @@ const StaffPage = () => {
       },
 
       FacilityMember: {
-        Name: employeeName,
+        Name: cleanName,
         FacilityMemberId: selectedFacilityMemberId || 0,
         PropertyId: propertyId || 0,
         Address: (addressLine1 + " " + addressLine2).trim() || "",
@@ -1557,6 +1535,8 @@ const StaffPage = () => {
                   selection={selectedRow}
                   onSelectionChange={handleRowSelection}
                   globalFilter={globalFilterValue}
+                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+                  currentPageReportTemplate="{first}–{last} of {totalRecords}"
                   globalFilterFields={[
                     "Profile.EmployeeName",
                     "Profile.Gender",
