@@ -116,6 +116,7 @@ import AttendanceReportPage from "../MainComponents/Reports/AttendanceReport.jsx
 import Report from "../MainComponents/Payroll/Report.jsx";
 import BranchMaster from "../MainComponents/FacilityMember/BranchMaster.jsx";
 import AttendanceBiometricReport from "../MainComponents/Reports/AttendanceBiometricReport.jsx";
+import Designation from "../MainComponents/Payroll/Designation.jsx";
 
 var currentpropertyid;
 var currentclientid;
@@ -1147,6 +1148,7 @@ class MainNav extends React.Component {
                       </a>
                       <ul className="nav nav-treeview">
 
+                        
                         <li className="nav-item">
                           <Link
                             to="/Account/App/SGNEW"
@@ -1187,7 +1189,15 @@ class MainNav extends React.Component {
                             <p>Allowance Deduction</p>
                           </Link>
                         </li>
-
+                         <li className="nav-item">
+                          <Link
+                            to="/Account/App/Designation"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Designation</p>
+                          </Link>
+                        </li>
                         <li className="nav-item">
                           <Link to="/Account/App/Linking" className="nav-link">
                             <i className="fas fa-caret-right nav-icon"></i>
@@ -1842,6 +1852,9 @@ class MainNav extends React.Component {
             <Route path="/Account/App/CheckIn&CheckOut">
               <CheckInCheckOut />
             </Route>
+            <Route path="/Account/App/Designation">
+              <Designation />
+            </Route>
             <Route path="/Account/App/Vendors">
               <VendorPage />
             </Route>
@@ -2005,6 +2018,8 @@ class MainNav extends React.Component {
             <Route path="/Account/App/ItemAssigned">
               <ItemAssignedPage />
             </Route>
+            
+            
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
             </Route>
