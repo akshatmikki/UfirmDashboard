@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-
+import * as XLSX from "xlsx";
 import {
   getAttendanceByProperties,
   saveAttendanceBatch,
@@ -11,6 +10,7 @@ import {
   getEmployeeMonthlyTotalOT,
   getEmployeesByOffices,
   updateAttendance,
+  getFacilitySalaryConfig,
 } from "../../Services/PayrollService";
 
 import {
@@ -18,8 +18,6 @@ import {
   getClientByPropertyId,
   getPropertiesByClientId,
 } from "../../Services/ClientService";
-
-import { getSalaryAllowancesByFacilityMember } from "../../Services/PayrollService";
 
 // Helper: Format month-year as "YYYY-MM"
 function getMonthYearString(month, year) {
@@ -30,6 +28,43 @@ function getMonthYearString(month, year) {
 // Helper: Get days in a month
 function getDaysInMonth(month, year) {
   return new Date(year, month, 0).getDate();
+}
+
+function getSundaysInMonth(month, year) {
+  const monthDays = getDaysInMonth(month, year);
+  let sundays = 0;
+
+  for (let day = 1; day <= monthDays; day++) {
+    if (new Date(year, month - 1, day).getDay() === 0) {
+      sundays += 1;
+    }
+  }
+
+  return sundays;
+}
+
+function parsePositiveNumber(value) {
+  const num = Number(value);
+  return Number.isFinite(num) && num > 0 ? num : 0;
+}
+
+function getComputedDivideByDays(config, month, year) {
+  const monthDaysValue = parsePositiveNumber(config?.MonthDays);
+  if (monthDaysValue > 0) return monthDaysValue;
+
+  const totalWorkingDaysValue = parsePositiveNumber(config?.TotalWorkingDays);
+  if (totalWorkingDaysValue > 0) return totalWorkingDaysValue;
+
+  let divideByDays = getDaysInMonth(month, year);
+  const monthSundaysValue = parsePositiveNumber(config?.MonthSundays);
+
+  if (monthSundaysValue > 0) {
+    divideByDays -= monthSundaysValue;
+  } else if (config?.ExcludeSunday) {
+    divideByDays -= getSundaysInMonth(month, year);
+  }
+
+  return Math.max(1, divideByDays);
 }
 
 export default function AttendanceSheet() {
@@ -58,7 +93,7 @@ export default function AttendanceSheet() {
     return () => window.removeEventListener("click", close);
   }, []);
 
-  // { empId: { totalDays, shiftHours } }
+  // { empId: { divideByDays, monthDays, totalWorkingDays, excludeSunday, monthSundays } }
   const [employeeSGMap, setEmployeeSGMap] = useState({});
 
   const [dayInputs, setDayInputs] = useState({});
@@ -193,38 +228,8 @@ export default function AttendanceSheet() {
         return;
       }
 
-      // 🔥 Read Excel
-      const data = await file.arrayBuffer();
-      const workbook = XLSX.read(data, { type: "array" });
-      const sheet = workbook.Sheets[workbook.SheetNames[0]];
-
-      let jsonData = XLSX.utils.sheet_to_json(sheet);
-
-      // 🔥 REMOVE Designation column
-      const cleanedData = jsonData.map(row => {
-        const { Designation, ...rest } = row;
-        return rest;
-      });
-
-      // 🔥 Convert back to Excel
-      const newSheet = XLSX.utils.json_to_sheet(cleanedData);
-      const newWorkbook = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(newWorkbook, newSheet, "Attendance");
-
-      const excelBuffer = XLSX.write(newWorkbook, {
-        bookType: "xlsx",
-        type: "array"
-      });
-
-      const cleanedFile = new File(
-        [excelBuffer],
-        file.name,
-        { type: file.type }
-      );
-
-      // 🔥 Upload cleaned file
-      const res = await uploadAttendance(cleanedFile, propertyId, monthyear);
-
+      const res = await uploadAttendance(file, propertyId, monthyear);
+     
       const contentType = res.headers["content-type"] || "";
 
       // 🔴 IF ERROR EXCEL RETURNED
@@ -284,6 +289,9 @@ export default function AttendanceSheet() {
 
     const mappedInputs = {};
     flat.forEach((att) => {
+      const configDivideByDays =
+        employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
+
       mappedInputs[att.EmpID] = {
         workingDays: att.WorkingDays,
         EL: att.EL ?? "",
@@ -297,7 +305,7 @@ export default function AttendanceSheet() {
         nhDays: att.NHDays ?? "",
         fhDays: att.FHDays ?? "",
         holidays: att.Holidays ?? "",
-        divideByDays: att.DivideByDays ?? "",
+        divideByDays: att.DivideByDays ?? configDivideByDays,
         otMonthDays: att.OtMonthDays ?? "",
         pfArrear: att.PFArrear ?? "",
         otherArrear: att.OtherArrear ?? "",
@@ -404,36 +412,64 @@ export default function AttendanceSheet() {
   }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds]);
 
   // ---------------------------------------------------------
-  // Load Salary Group per employee
+  // Load facility salary config
   // ---------------------------------------------------------
   useEffect(() => {
-    async function loadSG() {
+    async function loadFacilityConfig() {
+      const propertyIds =
+        selectedPropertyId.length > 0
+          ? selectedPropertyId
+          : Number(reduxPropertyId) > 0
+            ? [Number(reduxPropertyId)]
+            : Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0
+              ? reduxPropertyIds
+              : [];
+
+      const cleanedPropertyIds = propertyIds
+        .map((id) => Number(id))
+        .filter((id) => Number.isFinite(id) && id > 0);
+
+      if (!cleanedPropertyIds.length || !employees.length) {
+        setEmployeeSGMap({});
+        return;
+      }
+
       const map = {};
 
-      for (const emp of employees) {
-        const fmId = emp?.FacilityMember?.FacilityMemberId;
-        if (!fmId) continue;
-
+      for (const officeId of cleanedPropertyIds) {
         try {
-          const res = await getSalaryAllowancesByFacilityMember(fmId);
-          const sg = res?.SalaryGroups?.[0];
+          const res = await getFacilitySalaryConfig(officeId);
+          const rows = Array.isArray(res) ? res : [];
 
-          if (sg) {
+          rows.forEach((cfg) => {
+            const fmId = cfg?.FacilityMemberId;
+            if (!fmId) return;
+
             map[fmId] = {
-              totalWorkingDays: sg.TotalWorkingDays ?? null,
-              shiftHours: sg.ShiftHours ?? null,
+              divideByDays: getComputedDivideByDays(cfg, month, year),
+              monthDays: cfg?.MonthDays ?? null,
+              totalWorkingDays: cfg?.TotalWorkingDays ?? null,
+              excludeSunday: !!cfg?.ExcludeSunday,
+              monthSundays: cfg?.MonthSundays ?? null,
             };
-          }
+          });
         } catch (err) {
-          console.error("SG load error:", err);
+          console.error("Facility salary config load error:", err);
         }
       }
 
       setEmployeeSGMap(map);
     }
 
-    if (employees.length > 0) loadSG();
-  }, [employees]);
+    loadFacilityConfig();
+  }, [
+    employees,
+    month,
+    year,
+    selectedPropertyId,
+    reduxPropertyId,
+    reduxPropertyIds,
+  ]);
 
   // ---------------------------------------------------------
   // Load attendance (ALL records), then filter current month
@@ -520,7 +556,7 @@ export default function AttendanceSheet() {
             holidays: saved?.Holidays ?? "",
             divideByDays:
               saved?.DivideByDays ??
-              employeeSGMap[empId]?.totalWorkingDays ??
+              employeeSGMap[empId]?.divideByDays ??
               globalTotalDays,
             otMonthDays: saved?.OtMonthDays ?? "",
             pfArrear: saved?.PFArrear ?? "",
@@ -557,8 +593,8 @@ export default function AttendanceSheet() {
     reduxPropertyId,
     month,
     year,
-    globalTotalDays,
     employees,
+    employeeSGMap,
   ]);
 
   // ---------------------------------------------------------
@@ -610,7 +646,7 @@ export default function AttendanceSheet() {
         weekDaysOff: "",
         otDays: "",
         otHours: "",
-        totalDays: employeeSGMap[empId]?.totalDays ?? globalTotalDays,
+        totalDays: globalTotalDays,
         manualTotalDays: false,
         ...baseExtraFields,
       };
@@ -625,7 +661,6 @@ export default function AttendanceSheet() {
         field === "totalDays"
           ? parseFloat(value) || 0
           : parseFloat(current.totalDays) ||
-          employeeSGMap[empId]?.totalDays ||
           globalTotalDays;
 
       const w = parseFloat(updated.workingDays) || 0;
@@ -1395,9 +1430,10 @@ export default function AttendanceSheet() {
                 weekDaysOff: "",
                 otDays: "",
                 otHours: "",
-                totalDays: employeeSGMap[empId]?.totalDays ?? "",
+                totalDays: "",
                 manualTotalDays: false,
-                divideByDays: globalTotalDays,  // override AFTER spread
+                divideByDays:
+                  employeeSGMap[empId]?.divideByDays ?? globalTotalDays, // override AFTER spread
               };
 
               return (

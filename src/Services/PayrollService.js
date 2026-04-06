@@ -187,6 +187,27 @@ export async function getSalaryAllowancesByFacilityMember(facilityMemberId) {
   }
 }
 
+export async function getFacilitySalaryConfig(propertyId) {
+  try {
+    const response = await fetch(
+      `${SALARY_API_BASE_URL}/getFacilitySalaryConfig/${propertyId}`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch facility salary config", error);
+    throw error;
+  }
+}
+
 export async function deleteSalaryGroupFromFacilityMember(
   facilityMemberId,
   salaryGroupId
@@ -598,7 +619,7 @@ export const uploadAttendance = async (file, propertyId, monthyear) => {
     formData.append("monthyear", monthyear);
 
     const response = await axios.post(
-      `${BASE_URL}/UploadAttendance`,
+      `http://localhost:62929/api/attendance-summary/UploadAttendance`,
       formData,
       {
         responseType: "blob", // 🔥 THIS IS THE KEY
