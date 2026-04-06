@@ -318,7 +318,7 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc1NDYxMjUyLCJleHAiOjE4MDY5OTcyNTIsImlhdCI6MTc3NTQ2MTI1Mn0.W-OnWUY_Sl3y0-aX4KoYbw2sYR71bhgD3Qdah7PH9D8";
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiSFIiLCJpbmZvX3QiOiJFSGRGSW9WWGNVd3FaKzdJcmJyRUlyTnZyUHhlOWtGTmRiYVNBU3R1UDdSdlpvRDh0U1UwbmhxLzgvZkQzOHFXUCtDWDlVcFhueUtMZ2VSaEVqRktXYUI3WFhMYWh3eHJ4TW1qYldOcEp3b28ydXZ4dkk5Qm1YeVhGWThTZ3I2YkJ2ZnVTSkZIdGRmOW1rTW45UjFEaUtzM1hPb1hJd3RwcWJyVG9XUFpXaXRFVW5SZjR5dnNyZEIybzU3c2tLUEF1OW8razdaaUI1ZXpianI1T3I3VlozZC8vZmIrWXV3b3FvZWNLRnl2YUVKODB0ZytPUW04Y0tzQWhrRktiakgwIiwibmJmIjoxNzc1NDk2MDk4LCJleHAiOjE4MDcwMzIwOTgsImlhdCI6MTc3NTQ5NjA5OH0.fmu7NcTq9GSt7cWmobslVuCnLO_EhPmkVByrI95STfw";
     //var token = window.sessionStorage.getItem("userinfo_key")
 
 
@@ -481,6 +481,7 @@ class MainNav extends React.Component {
       "/Account/App/AttendanceSheet",
       "/Account/App/GenerateSalary",
       "/Account/App/AllowanceDeduction",
+      "/Account/App/Designation",
       "/Account/App/Linking",
       "/Account/App/Report",
       "/Account/App/ProfessionalTax",
