@@ -1,6 +1,17 @@
 ﻿import moment from 'moment';
 import * as appCommon from '../../../../../Common/AppCommon.js';
 
+const toTaskDateMoment = (value) => {
+  if (!value) return null;
+  const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
+  return parsed.isValid() ? parsed : null;
+};
+
+const getTaskDateLabel = (value) => {
+  const parsed = toTaskDateMoment(value);
+  return parsed ? parsed.format("DD-MM-YYYY") : "No Date";
+};
+
 export default function attachApiModelsManage(TaskList) {
     TaskList.prototype.loadProperty = function () {
       this.comdbprovider.getUserAssignedproperty().then((resp) => {
@@ -148,8 +159,16 @@ export default function attachApiModelsManage(TaskList) {
                   });
                 });
                 const counts = this.computeTaskCounts(taskData);
-                const sortedDates = [...new Set(taskData.map((task) => task.UpdatedOn))]
-                  .sort((a, b) => moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf());
+                const sortedDates = [
+                  ...new Set(
+                    taskData
+                      .map((task) => getTaskDateLabel(task?.UpdatedOn))
+                  ),
+                ].sort((a, b) => {
+                  if (a === "No Date") return 1;
+                  if (b === "No Date") return -1;
+                  return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
+                });
 
                 this.setState((prevState) => {
                   const hasCurrentExpandedDate =

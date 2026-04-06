@@ -67,6 +67,13 @@ function getComputedDivideByDays(config, month, year) {
   return Math.max(1, divideByDays);
 }
 
+function clampWorkingDaysToMonth(value, month, year) {
+  if (value === "" || value === null || value === undefined) return "";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "";
+  return Math.min(num, getDaysInMonth(month, year));
+}
+
 export default function AttendanceSheet() {
   const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
@@ -297,7 +304,7 @@ export default function AttendanceSheet() {
         employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
 
       mappedInputs[att.EmpID] = {
-        workingDays: att.WorkingDays,
+        workingDays: clampWorkingDaysToMonth(att.WorkingDays, month, year),
         EL: att.EL ?? "",
         CL: att.CL ?? "",
         SL: att.SL ?? "",
@@ -540,7 +547,11 @@ export default function AttendanceSheet() {
           );
 
           mappedInputs[empId] = {
-            workingDays: saved?.WorkingDays ?? "",
+            workingDays: clampWorkingDaysToMonth(
+              saved?.WorkingDays ?? "",
+              month,
+              year
+            ),
             EL: saved?.EL ?? "",
             CL: saved?.CL ?? "",
             SL: saved?.SL ?? "",
@@ -666,6 +677,7 @@ export default function AttendanceSheet() {
           ? parseFloat(value) || 0
           : parseFloat(current.totalDays) ||
           globalTotalDays;
+      const monthDaysLimit = getDaysInMonth(month, year);
 
       const w = parseFloat(updated.workingDays) || 0;
       const el = parseFloat(updated.EL) || 0;
@@ -673,6 +685,10 @@ export default function AttendanceSheet() {
       const sl = parseFloat(updated.SL) || 0;
       const l = el + cl + sl;
       const wk = parseFloat(updated.weekDaysOff) || 0;
+
+      if (field === "workingDays" && parseFloat(value) > monthDaysLimit) {
+        return prev;
+      }
 
       if (["workingDays", "EL", "CL", "SL", "weekDaysOff"].includes(field)) {
         if (parseFloat(value) > totalDays) return prev;

@@ -175,7 +175,7 @@ export default function TaskListView({ ctx }) {
                         {ctx.state.exporting ? (
                           <>
                             <i className="fa fa-spinner fa-spin mr-1" />
-                            Exporting...
+                            Exporting {ctx.state.exportProcessed || 0}/{ctx.state.exportTotal || 0}
                           </>
                         ) : (
                           <>

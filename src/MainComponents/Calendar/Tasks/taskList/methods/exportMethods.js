@@ -1,7 +1,10 @@
 import { downloadExcel } from "react-export-table-to-excel";
+import moment from "moment";
 import * as appCommon from "../../../../../Common/AppCommon.js";
 
 export default function attachExportMethods(TaskList) {
+  const EXPORT_CONCURRENCY = 6;
+
   TaskList.prototype.toggleDateGroup = function (date) {
     this.setState((prevState) => ({
       expandedDate: prevState.expandedDate === date ? null : date,
@@ -34,8 +37,10 @@ export default function attachExportMethods(TaskList) {
   TaskList.prototype.fetchQuestionsForTask = async function (task) {
     try {
       const taskId = task.TaskId;
-      const date = task.UpdatedOn.split("-");
-      const updatedOn = `${date[2]}-${date[1]}-${date[0]}`;
+      const dateMoment = moment(task?.UpdatedOn, ["YYYY-MM-DD", "DD-MM-YYYY", moment.ISO_8601], true);
+      const updatedOn = dateMoment.isValid() ? dateMoment.format("DD-MM-YYYY") : "";
+
+      if (!taskId || !updatedOn) return [];
 
       const model = [{ CmdType: "R", Id: taskId, date: updatedOn }];
       const resp = await this.ApiProvider.manageQues(model, "R");
@@ -58,25 +63,54 @@ export default function attachExportMethods(TaskList) {
   TaskList.prototype.handleExportWithQuestions = async function () {
     if (this.state.exporting) return;
 
-    this.setState({ exporting: true });
+    const tasks = Array.isArray(this.state.data) ? this.state.data : [];
+    if (!tasks.length) {
+      appCommon.showtextalert("No tasks available to export", "", "warning");
+      return;
+    }
+
+    this.setState({ exporting: true, exportTotal: tasks.length, exportProcessed: 0 });
 
     try {
-      const exportRows = [];
+      const questionCache = new Map();
+      const exportRows = new Array(tasks.length);
+      let cursor = 0;
+      let processed = 0;
 
-      for (const task of this.state.data) {
-        const questions = await this.fetchQuestionsForTask(task);
+      const worker = async () => {
+        while (true) {
+          const currentIndex = cursor;
+          cursor += 1;
+          if (currentIndex >= tasks.length) return;
 
-        const questionnaireText = questions.length
-          ? questions.map((q, i) => `${i + 1}. ${q.QuesName}`).join("\n")
-          : "";
+          const task = tasks[currentIndex];
+          const cacheKey = `${task?.TaskId || ""}|${task?.UpdatedOn || ""}`;
 
-        const { AssignedToId, EntryType, Occurence, ...cleanTask } = task;
+          if (!questionCache.has(cacheKey)) {
+            const fetched = await this.fetchQuestionsForTask(task);
+            questionCache.set(cacheKey, fetched || []);
+          }
 
-        exportRows.push({
-          ...cleanTask,
-          Questionnaire: questionnaireText,
-        });
-      }
+          const questions = questionCache.get(cacheKey) || [];
+          const questionnaireText = questions.length
+            ? questions.map((q, i) => `${i + 1}. ${q.QuesName}`).join("\n")
+            : "";
+
+          const { AssignedToId, EntryType, Occurence, ...cleanTask } = task;
+          exportRows[currentIndex] = {
+            ...cleanTask,
+            Questionnaire: questionnaireText,
+          };
+
+          processed += 1;
+          if (processed % 3 === 0 || processed === tasks.length) {
+            this.setState({ exportProcessed: processed });
+          }
+        }
+      };
+
+      const workerCount = Math.min(EXPORT_CONCURRENCY, tasks.length);
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
       downloadExcel({
         fileName: "Tasklist",
@@ -90,7 +124,7 @@ export default function attachExportMethods(TaskList) {
       console.error("Export failed:", err);
       appCommon.showtextalert("Export failed", "Please try again", "error");
     } finally {
-      this.setState({ exporting: false });
+      this.setState({ exporting: false, exportProcessed: 0, exportTotal: 0 });
     }
   };
 

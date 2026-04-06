@@ -143,6 +143,8 @@ export default function createInitialState(ctx) {
     actionableTasks: 0,
     assignedProperty: [],
     exporting: false,
+    exportProcessed: 0,
+    exportTotal: 0,
     frequencyData: [],
     expandedDate: null,
     searchTerm: "",
