@@ -149,11 +149,11 @@ export default function GenerateSalary() {
   for (let y = 2021; y <= currentYear; y++) years.push(y);
   const months = [];
   const maxMonth =
-  selectedYear === currentYear
-    ? currentMonth === 1
-      ? 12
-      : currentMonth - 1
-    : 12;
+    selectedYear === currentYear
+      ? currentMonth === 1
+        ? 12
+        : currentMonth - 1
+      : 12;
   for (let m = 1; m <= maxMonth; m++) months.push(m);
 
   // ----------------------------
@@ -238,11 +238,17 @@ export default function GenerateSalary() {
 
         setPropertyList(properties);
 
-        const allIds = properties.map((p) => p.PropertyId);
+        if (Number(reduxPropertyId) > 0) {
+          // navbar specific property
+          setSelectedPropertyId([Number(reduxPropertyId)]);
+        } else if (properties.length === 1) {
+          // ✅ ONLY ONE → auto select
+          setSelectedPropertyId([properties[0].PropertyId]);
+        } else {
+          // ❌ MULTIPLE → select none
+          setSelectedPropertyId([]);
+        }
 
-        // If a specific property is selected in navbar, use it; otherwise default to "All properties of selected client"
-        if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
-        else setSelectedPropertyId(allIds);
       } catch (err) {
         console.log("Failed to load properties", err);
       }

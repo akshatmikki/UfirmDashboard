@@ -87,15 +87,19 @@ export default function DesignationLinking() {
 
       const employees = (data || [])
         .map((item) => ({
-          ...item.EmployeeList,
           FacilityMemberId: item.FacilityMember?.FacilityMemberId,
           SG_Link_ID: item.FacilityMember?.SG_Link_ID
             ? parseInt(item.FacilityMember.SG_Link_ID)
             : null,
-          Designation: item.EmployeeList?.Designation || "",
+
+          Designation: item.Profile?.Designation || "",
           EmployeeName: item.Profile?.EmployeeName || "",
+
+          // optional but useful later
+          Department: item.Profile?.Department || "",
+          OfficeId: item.Profile?.OfficeId || null,
         }))
-        .filter(Boolean);
+        .filter((emp) => emp.FacilityMemberId); // cleaner filter
 
       setEmployeeList(employees);
 
@@ -202,9 +206,12 @@ export default function DesignationLinking() {
 
         setPropertyList(properties);
 
-        const allIds = properties.map((p) => p.PropertyId);
         if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
-        else setSelectedPropertyId(allIds);
+        else if (properties.length === 1) {
+          setSelectedPropertyId([properties[0].PropertyId]);
+        } else {
+          setSelectedPropertyId([]);
+        }
       } catch (err) {
         console.log("Failed to load properties", err);
       }
@@ -339,14 +346,19 @@ export default function DesignationLinking() {
             </label>
 
             <div
-              onClick={() => { }}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (propertyList.length > 0) {
+                  setShowPropertyDropdown((prev) => !prev);
+                }
+              }}
               style={{
                 border: "1px solid #cbd5e0",
                 padding: "6px 12px",
                 borderRadius: 6,
                 background: "#fff",
-                cursor: "not-allowed",
-                opacity: 0.75,
+                cursor: propertyList.length ? "pointer" : "not-allowed",
+                opacity: propertyList.length ? 1 : 0.75,
                 minWidth: 180,
                 textAlign: "center"
               }}
@@ -356,7 +368,7 @@ export default function DesignationLinking() {
                 : `${selectedPropertyId.length} Unit${selectedPropertyId.length !== 1 ? "s" : ""} Selected`}
             </div>
 
-            {false && showPropertyDropdown && (
+            {showPropertyDropdown && (
               <div
                 style={{
                   position: "absolute",
