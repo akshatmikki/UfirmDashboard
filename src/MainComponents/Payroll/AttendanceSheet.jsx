@@ -93,6 +93,8 @@ export default function AttendanceSheet() {
 
   const [propertyList, setPropertyList] = useState([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+  const [departmentList, setDepartmentList] = useState([]);
+  const [selectedDepartment, setSelectedDepartment] = useState("");
 
   useEffect(() => {
     const close = () => setShowPropertyDropdown(false);
@@ -151,11 +153,19 @@ export default function AttendanceSheet() {
       emp?.Profile?.Designation?.toLowerCase() ||
       "";
 
-    return (
+    const department =
+      emp?.Profile?.Department?.toLowerCase() || "";
+
+    const matchesSearch =
       code.includes(searchTerm.toLowerCase()) ||
       name.includes(searchTerm.toLowerCase()) ||
-      designation.includes(searchTerm.toLowerCase())
-    );
+      designation.includes(searchTerm.toLowerCase());
+
+    const matchesDepartment =
+      !selectedDepartment ||
+      department === selectedDepartment.toLowerCase();
+
+    return matchesSearch && matchesDepartment;
   });
 
   const totalPages = Math.ceil(filteredEmployees.length / recordsPerPage);
@@ -240,7 +250,7 @@ export default function AttendanceSheet() {
       }
 
       const res = await uploadAttendance(file, propertyId, monthyear);
-     
+
       const contentType = res.headers["content-type"] || "";
 
       // 🔴 IF ERROR EXCEL RETURNED
@@ -408,11 +418,23 @@ export default function AttendanceSheet() {
 
         if (!officeIds.length) {
           setEmployees([]);
+          setDepartmentList([]);
+          setSelectedDepartment("");
           return;
         }
 
         const data = await getEmployeesByOffices(officeIds);
         setEmployees(data || []);
+        setSelectedDepartment("");
+        const departments = [
+          ...new Set(
+            (data || [])
+              .map((emp) => emp?.Profile?.Department)
+              .filter(Boolean)
+          ),
+        ];
+
+        setDepartmentList(departments);
       } catch (err) {
         console.error("Employee load failed", err);
         setEmployees([]);
@@ -858,7 +880,7 @@ export default function AttendanceSheet() {
       return;
     }
 
-    const data = employees.map((emp, idx) => {
+    const data = filteredEmployees.map((emp, idx) => {
 
       const empId = emp?.FacilityMember?.FacilityMemberId ?? idx;
 
@@ -1282,6 +1304,23 @@ export default function AttendanceSheet() {
             }}
           />
         </div>
+        <select
+          value={selectedDepartment}
+          onChange={(e) => setSelectedDepartment(e.target.value)}
+          style={{
+            padding: "6px 10px",
+            borderRadius: 6,
+            border: "1px solid #cbd5e0",
+            fontSize: 14,
+          }}
+        >
+          <option value="">All Departments</option>
+          {departmentList.map((dept, i) => (
+            <option key={i} value={dept}>
+              {dept}
+            </option>
+          ))}
+        </select>
 
         {/* Push actions to right */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 12 }}>

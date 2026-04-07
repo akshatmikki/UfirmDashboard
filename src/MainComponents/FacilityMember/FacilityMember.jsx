@@ -1538,6 +1538,7 @@ const StaffPage = () => {
                   paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
                   currentPageReportTemplate="{first}–{last} of {totalRecords}"
                   globalFilterFields={[
+                    "Profile.EmployeeCode",
                     "Profile.EmployeeName",
                     "Profile.Gender",
                     "Profile.PhoneNumber",
