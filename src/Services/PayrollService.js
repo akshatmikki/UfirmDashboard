@@ -619,7 +619,7 @@ export const uploadAttendance = async (file, propertyId, monthyear) => {
     formData.append("monthyear", monthyear);
 
     const response = await axios.post(
-      `http://localhost:62929/api/attendance-summary/UploadAttendance`,
+      `${BASE_URL}/UploadAttendance`,
       formData,
       {
         responseType: "blob", // 🔥 THIS IS THE KEY
