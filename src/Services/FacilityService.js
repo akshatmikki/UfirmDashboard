@@ -2,28 +2,30 @@
 import axios from "axios";
 
 // Reset Password Service
-const API_BASE_URL = "https://api.urest.in:8096/api/facilitymember";
+const API_BASE_URL = "http://localhost:62929/api/facilitymember";
+
+export const resetPassword = async (FacilityMemberId) => {
+  try {
+    const response = await axios.put(
+      `${API_BASE_URL}/reset-password`,
+      { FacilityMemberId },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+        },
+        withCredentials: false,
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error resetting password:", error);
+    throw error.response?.data || { Success: false, Message: "Server Error" };
+  }
+};
 
 const FacilityService = {
-  resetPassword: async (mobileNumber) => {
-    try {
-      const response = await axios.put(
-        `${API_BASE_URL}/reset-password`,
-        { MobileNumber: mobileNumber },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          withCredentials: false,
-        }
-      );
-      return response.data;
-    } catch (error) {
-      console.error("Error resetting password:", error);
-      throw error.response.data || { Success: false, Message: "Server Error" };
-    }
-  },
+  resetPassword,
 };
 
 // Facility Member Service

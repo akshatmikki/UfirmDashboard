@@ -27,6 +27,7 @@ import {
   createEmployee,
   updateEmployee,
   deleteEmployee,
+  resetPassword,
 } from "../../Services/FacilityService";
 import { getEmployeesByOffices, getSalaryGroupsByDesignation, importEmployees } from "../../Services/PayrollService";
 
@@ -1161,6 +1162,47 @@ const StaffPage = () => {
     }
   };
 
+  const handleResetPassword = async () => {
+    const facilityMemberId = selectedRow?.FacilityMember?.FacilityMemberId;
+
+    if (!facilityMemberId) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Warning",
+        detail: "Selected employee id not found"
+      });
+      return;
+    }
+
+    try {
+      const response = await resetPassword(facilityMemberId);
+
+      toast.current.show({
+        severity: response?.Success === false ? "warn" : "success",
+        summary: response?.Success === false ? "Warning" : "Success",
+        detail: response?.Message || "Password reset successfully"
+      });
+    } catch (error) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: error?.Message || "Failed to reset password"
+      });
+    }
+  };
+
+  const confirmResetPassword = () => {
+    if (!selectedRow) return;
+
+    confirmDialog({
+      message: `Are you sure you want to reset password for ${selectedRow?.Profile?.EmployeeName || "this employee"}?`,
+      header: "Confirm Reset Password",
+      icon: "pi pi-exclamation-triangle",
+      acceptClassName: "p-button-warning",
+      accept: handleResetPassword
+    });
+  };
+
   const handleImportClick = () => {
     fileInputRef.current.value = null;
     fileInputRef.current.click();
@@ -1306,6 +1348,12 @@ const StaffPage = () => {
               className="p-button-text p-button-help"
               onClick={() => viewStaff(selectedRow)}
               tooltip="View Staff"
+            />
+            <Button
+              icon="pi pi-key"
+              className="p-button-text p-button-warning"
+              onClick={confirmResetPassword}
+              tooltip="Reset Password"
             />
             <Button
               icon="pi pi-wallet"
@@ -1631,7 +1679,7 @@ const StaffPage = () => {
                   value={employeeCode}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                    if (val.length <= 11) setEmployeeCode(val);
+                    setEmployeeCode(val);
                   }}
                   className="mb-3"
                 />
