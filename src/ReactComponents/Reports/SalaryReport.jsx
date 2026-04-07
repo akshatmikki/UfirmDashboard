@@ -29,6 +29,14 @@ export default function SalaryReport() {
     const [loading, setLoading] = useState(false);
 
     const [logoBase64, setLogoBase64] = useState("");
+    const [departmentList, setDepartmentList] = useState([]);
+    const [selectedDepartment, setSelectedDepartment] = useState("");
+
+    const filteredEmployees = employees.filter((emp) =>
+        selectedDepartment
+            ? (emp.Department || "").toLowerCase() === selectedDepartment.toLowerCase()
+            : true
+    );
 
     // ================================
     // LOAD CLIENTS
@@ -101,6 +109,8 @@ export default function SalaryReport() {
 
                 if (!selectedUnitId || !selectedMonth || propertyIds.length === 0) {
                     setEmployees([]);
+                    setDepartmentList([]);
+                    setSelectedDepartment("");
                     return;
                 }
 
@@ -126,9 +136,22 @@ export default function SalaryReport() {
 
                 const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
                 setEmployees(flat);
+
+                // extract unique departments
+                const departments = [
+                    ...new Set(
+                        flat
+                            .map((e) => e.Department)
+                            .filter((d) => d && d.trim() !== "")
+                    ),
+                ];
+
+                setDepartmentList(departments);
             } catch (err) {
                 console.log("Salary report fetch failed", err);
                 setEmployees([]);
+                setDepartmentList([]);
+                setSelectedDepartment("");
             } finally {
                 setLoading(false);
             }
@@ -148,7 +171,7 @@ export default function SalaryReport() {
         return `₹${num.toLocaleString("en-IN")}`;
     };
 
-    const totals = employees.reduce(
+    const totals = filteredEmployees.reduce(
         (acc, emp) => {
             acc.basic += emp.Basic || 0;
             acc.hra += emp.HRA || 0;
@@ -195,7 +218,7 @@ export default function SalaryReport() {
             month: `${monthName} - ${displayYear}`,
         };
 
-        generateWageSheetExcel(employees, filters, false);
+        generateWageSheetExcel(filteredEmployees, filters, false);
     };
 
     const exportPDF = async () => {
@@ -217,7 +240,7 @@ export default function SalaryReport() {
             logo: logoBase64 // 👈 USE STATE (NOT loading again)
         };
 
-        generateWageSheetPDF(employees, filters, false);
+        generateWageSheetPDF(filteredEmployees, filters, false);
     };
 
     const viewPDF = async () => {
@@ -242,7 +265,7 @@ export default function SalaryReport() {
                 logo: logoBase64 // 👈 USE STATE
             };
 
-            const url = generateWageSheetPDF(employees, filters, true);
+            const url = generateWageSheetPDF(filteredEmployees, filters, true);
             window.open(url);
 
         } catch (err) {
@@ -314,6 +337,8 @@ export default function SalaryReport() {
                             setSelectedPropertyId(null);
 
                             setEmployees([]);
+                            setDepartmentList([]);
+                            setSelectedDepartment("");
                         }}
                         disabled={Number(reduxClientId) > 0 || Number(reduxPropertyId) > 0}
                         style={{ width: 240 }}
@@ -340,6 +365,8 @@ export default function SalaryReport() {
                             setSelectedPropertyId(value);
 
                             setEmployees([]);
+                            setDepartmentList([]);
+                            setSelectedDepartment("");
                         }}
                         style={{ width: 240 }}
                     >
@@ -348,6 +375,24 @@ export default function SalaryReport() {
                         {propertyList.map((p) => (
                             <option key={p.PropertyId} value={p.PropertyId}>
                                 {p.PropertyName}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+                {/* Department */}
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <label style={{ fontWeight: 600 }}>Department :</label>
+
+                    <select
+                        value={selectedDepartment}
+                        onChange={(e) => setSelectedDepartment(e.target.value)}
+                        style={{ width: 240 }}
+                    >
+                        <option value="">All Departments</option>
+
+                        {departmentList.map((dep, index) => (
+                            <option key={index} value={dep}>
+                                {dep}
                             </option>
                         ))}
                     </select>
@@ -443,7 +488,7 @@ export default function SalaryReport() {
                     </thead>
 
                     <tbody>
-                        {employees.length === 0 ? (
+                        {filteredEmployees.length === 0 ? (
                             <tr>
                                 <td colSpan="14" style={{ textAlign: "center" }}>
                                     Select client and month
@@ -451,7 +496,7 @@ export default function SalaryReport() {
                             </tr>
                         ) : (
                             <>
-                                {employees.map((emp, index) => (
+                                {filteredEmployees.map((emp, index) => (
                                     <tr key={emp.FacilityMemberId}>
                                         <td>{index + 1}</td>
 
