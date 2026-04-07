@@ -1196,7 +1196,7 @@ class MainNav extends React.Component {
                             className="nav-link"
                           >
                             <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Designation</p>
+                            <p>Designation/Department</p>
                           </Link>
                         </li>
                         <li className="nav-item">
