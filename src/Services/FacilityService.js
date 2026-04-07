@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // Reset Password Service
-const API_BASE_URL = "http://localhost:62929/api/facilitymember";
+const API_BASE_URL = "https://api.urest.in:8096/api/facilitymember";
 
 export const resetPassword = async (FacilityMemberId) => {
   try {
