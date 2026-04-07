@@ -8,6 +8,7 @@ import { InputText } from "primereact/inputtext";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { Link } from "react-router-dom";
+import swal from "sweetalert";
 
 import {
   getAllDepartments,
@@ -78,6 +79,20 @@ const DepartmentMaster = () => {
 
   const handleDelete = async (row) => {
     try {
+      const confirmed = await swal({
+        buttons: {
+          ok: "Yes",
+          cancel: "No",
+        },
+        text: "Are you sure you want to delete this department?",
+        icon: "warning",
+        closeOnClickOutside: false,
+        dangerMode: true,
+      });
+
+      if (confirmed !== "ok") {
+        return;
+      }
       await deleteDepartment(row.Id);
       toast.current.show({ severity: "success", summary: "Deleted" });
       fetchData();
@@ -93,9 +108,14 @@ const DepartmentMaster = () => {
         return;
       }
 
-      const payload = {
-        Name: formData.Name,
-      };
+      const payload = isEdit
+        ? {
+            Id: formData.Id,
+            Name: formData.Name,
+          }
+        : {
+            Name: formData.Name,
+          };
 
       if (isEdit) {
         await updateDepartment(formData.Id, payload);
@@ -179,7 +199,7 @@ const DepartmentMaster = () => {
         </span>
 
         <Button
-          label="Add Department"
+          label="Add New"
           icon="pi pi-plus"
           className="font-semibold px-4"
           style={{ ...primaryButtonStyle, marginLeft: "0.25rem" }}

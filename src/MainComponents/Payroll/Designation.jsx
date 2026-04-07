@@ -8,6 +8,7 @@ import { InputText } from "primereact/inputtext";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
 import { Link } from "react-router-dom";
+import swal from "sweetalert";
 
 import {
     getAllDesignations,
@@ -83,6 +84,20 @@ const DesignationMaster = () => {
 
     const handleDelete = async (row) => {
         try {
+            const confirmed = await swal({
+                buttons: {
+                    ok: "Yes",
+                    cancel: "No",
+                },
+                text: "Are you sure you want to delete this designation?",
+                icon: "warning",
+                closeOnClickOutside: false,
+                dangerMode: true,
+            });
+
+            if (confirmed !== "ok") {
+                return;
+            }
             await deleteDesignation(row.Designation_ID);
             toast.current.show({ severity: "success", summary: "Deleted" });
             fetchData();
