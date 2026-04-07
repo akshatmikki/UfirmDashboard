@@ -7,6 +7,7 @@ import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { Dialog } from "primereact/dialog";
 import { Toast } from "primereact/toast";
+import { Link } from "react-router-dom";
 
 import {
     getAllDesignations,
@@ -30,7 +31,6 @@ const DesignationMaster = () => {
         Designation_ID: null,
         DesignationName: "",
         IsActive: true,
-        UserId: "",
     });
 
     const tableHeaderButtonStyle = {
@@ -62,7 +62,6 @@ const DesignationMaster = () => {
             Designation_ID: null,
             DesignationName: "",
             IsActive: true,
-            UserId: "",
         });
         setIsEdit(false);
         setDialogVisible(true);
@@ -73,7 +72,6 @@ const DesignationMaster = () => {
             const res = await getDesignationById(row.Designation_ID);
             setFormData({
                 ...res,
-                UserId: res.UserId || row.Designation_ID || "",
                 IsActive: res.IsActive !== undefined ? res.IsActive : true,
             });
             setIsEdit(true);
@@ -103,7 +101,6 @@ const DesignationMaster = () => {
             const payload = {
                 DesignationName: formData.DesignationName,
                 IsActive: formData.IsActive,
-                UserId: formData.UserId || 1,
             };
 
             if (isEdit) {
@@ -215,6 +212,33 @@ const DesignationMaster = () => {
                         }}
                     >
                         <div className="p-3 p-md-4">
+                            <div className="flex align-items-center gap-2 mb-3">
+                                <Link
+                                    to="/Account/App/Designation"
+                                    className="text-decoration-none"
+                                >
+                                    <Button
+                                        label="Designation"
+                                        className="p-button-sm"
+                                        style={{
+                                            backgroundColor: "#0ea5e9",
+                                            border: "1px solid #0ea5e9",
+                                            color: "#ffffff",
+                                            boxShadow: "none",
+                                        }}
+                                    />
+                                </Link>
+                                <Link
+                                    to="/Account/App/department"
+                                    className="text-decoration-none"
+                                >
+                                    <Button
+                                        label="Department"
+                                        className="p-button-sm p-button-outlined"
+                                    />
+                                </Link>
+                            </div>
+
                             {header}
 
                             <DataTable
@@ -305,21 +329,6 @@ const DesignationMaster = () => {
                             }
                             autoFocus
                         />
-                    </div>
-
-                    <div className="field">
-                        <label htmlFor="designationId" className="font-bold mb-2 block">
-                            Designation ID (User ID)
-                        </label>
-                        <InputText
-                            id="designationId"
-                            value={formData.UserId}
-                            placeholder="Enter unique ID (e.g. i9 or 101)"
-                            onChange={(e) =>
-                                setFormData({ ...formData, UserId: e.target.value })
-                            }
-                        />
-                        
                     </div>
                 </div>
             </Dialog>
