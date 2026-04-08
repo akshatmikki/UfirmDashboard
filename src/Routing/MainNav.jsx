@@ -318,8 +318,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc1NTQzMTg0LCJleHAiOjE4MDcwNzkxODQsImlhdCI6MTc3NTU0MzE4NH0.YNQA02o286DQvl5N1SLgIvTneu9Oy-0UHi4_BKJworU";
-    //var token = window.sessionStorage.getItem("userinfo_key")
+    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiSFIiLCJpbmZvX3QiOiJFSGRGSW9WWGNVd3FaKzdJcmJyRUlyTnZyUHhlOWtGTmRiYVNBU3R1UDdSdlpvRDh0U1UwbmhxLzgvZkQzOHFXUCtDWDlVcFhueUtMZ2VSaEVqRktXYUI3WFhMYWh3eHJ4TW1qYldOcEp3b28ydXZ4dkk5Qm1YeVhGWThTZ3I2YkJ2ZnVTSkZIdGRmOW1rTW45UjFEaUtzM1hPb1hJd3RwcWJyVG9XUFpXaXRFVW5SZjR5dnNyZEIybzU3c2tLUEF1OW8razdaaUI1ZXpianI1T3I3VlozZC8vZmIrWXV3b3FvZWNLRnl2YUVKODB0ZytPUW04Y0tzQWhrRktiakgwIiwibmJmIjoxNzc1NjQ0NzQyLCJleHAiOjE4MDcxODA3NDIsImlhdCI6MTc3NTY0NDc0Mn0.5hQw1nI7fcft6hn0UP5-tul_BFPJyJi1cC24wPvXbKQ";
+    var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -487,6 +487,7 @@ class MainNav extends React.Component {
       "/Account/App/ProfessionalTax",
       "/Account/App/LabourFund",
       "/Account/App/AD_Percentage",
+      "/Account/App/Department",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -1466,7 +1467,7 @@ class MainNav extends React.Component {
                         </li>
                         <li className="nav-item">
                           <Link
-                            to="/Account/App/department"
+                            to="/Account/App/Department"
                             className="nav-link"
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
@@ -1710,7 +1711,7 @@ class MainNav extends React.Component {
             <Route exact path="/Account/App/ticket">
               <TicketingDashboard />
             </Route>
-            <Route path="/Account/App/department">
+            <Route path="/Account/App/Department">
               <Department />
             </Route>
             <Route path="/Account/App/ChangePassword">
