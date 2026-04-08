@@ -1679,7 +1679,9 @@ const StaffPage = () => {
                   value={employeeCode}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                      if (val.length <= 17) {
                     setEmployeeCode(val);
+           }
                   }}
                   className="mb-3"
                 />

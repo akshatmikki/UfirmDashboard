@@ -83,6 +83,16 @@ export default function AttendanceSheet() {
     selectedPropertyId.length === 1
       ? selectedPropertyId[0]
       : reduxPropertyId || null;
+  const effectivePropertyIds =
+    selectedPropertyId.length > 0
+      ? selectedPropertyId
+      : Number(reduxPropertyId) > 0
+      ? [Number(reduxPropertyId)]
+      : [];
+  const hasSingleEffectiveProperty = effectivePropertyIds.length === 1;
+  const effectiveSinglePropertyId = hasSingleEffectiveProperty
+    ? Number(effectivePropertyIds[0])
+    : null;
 
   const [employees, setEmployees] = useState([]);
   const [filteredAttendance, setFilteredAttendance] = useState([]);
@@ -227,8 +237,7 @@ export default function AttendanceSheet() {
 
   const fileInputRef = React.useRef(null);
   async function handleImportClick() {
-
-    if (selectedPropertyId.length !== 1) {
+    if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before uploading attendance.");
       return;
     }
@@ -244,12 +253,12 @@ export default function AttendanceSheet() {
 
     try {
       const monthyear = getMonthYearString(month, year);
-      if (!propertyId) {
+      if (!effectiveSinglePropertyId) {
         alert("Invalid property selection.");
         return;
       }
 
-      const res = await uploadAttendance(file, propertyId, monthyear);
+      const res = await uploadAttendance(file, effectiveSinglePropertyId, monthyear);
 
       const contentType = res.headers["content-type"] || "";
 
@@ -847,7 +856,7 @@ export default function AttendanceSheet() {
   // Bulk Delete
   // ---------------------------------------------------------
   async function handleBulkDelete() {
-    if (selectedPropertyId.length !== 1) {
+    if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before deleting attendance.");
       return;
     }
@@ -860,7 +869,7 @@ export default function AttendanceSheet() {
       await deleteMultipleAttendance(
         Array.from(selectedEmpIds),
         getMonthYearString(month, year),
-        propertyId
+        effectiveSinglePropertyId
       );
 
       await reloadAttendanceData();
@@ -875,7 +884,7 @@ export default function AttendanceSheet() {
 
   function exportToExcel() {
 
-    if (selectedPropertyId.length !== 1) {
+    if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before exporting.");
       return;
     }
@@ -1080,7 +1089,7 @@ export default function AttendanceSheet() {
               setSelectedUnitId(Number(e.target.value));
               setSelectedPropertyId([]);
             }}
-            disabled
+            disabled={Number(reduxClientId) > 0}
             style={{ width: 240 }}
           >
             <option value="">-- Select Client --</option>
@@ -1223,12 +1232,12 @@ export default function AttendanceSheet() {
 
           <button
             onClick={exportToExcel}
-            disabled={selectedPropertyId.length !== 1}
+            disabled={!hasSingleEffectiveProperty}
             style={{
-              background: selectedPropertyId.length !== 1 ? "#ccc" : "#3182ce",
+              background: !hasSingleEffectiveProperty ? "#ccc" : "#3182ce",
               color: "#fff",
               padding: "6px 14px",
-              cursor: selectedPropertyId.length !== 1 ? "not-allowed" : "pointer"
+              cursor: !hasSingleEffectiveProperty ? "not-allowed" : "pointer"
             }}
           >
             Export CSV
@@ -1369,7 +1378,7 @@ export default function AttendanceSheet() {
             disabled={
               selectedEmpIds.size === 0 ||
               deleting ||
-              selectedPropertyId.length !== 1
+              !hasSingleEffectiveProperty
             }
             style={{
               background:
