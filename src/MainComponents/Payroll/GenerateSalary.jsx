@@ -1049,13 +1049,16 @@ export default function GenerateSalary() {
 
     for (const row of selectedRows) {
       const payslipHtml = generatePayslipHTML(row);
+      const pdfWidthMm = 210;
+      const pdfHeightMm = 297;
+      const payslipHeightMm = pdfHeightMm * 0.75;
 
       const container = document.createElement("div");
       container.style.position = "fixed";
       container.style.left = "-9999px";
       container.style.top = "0";
-      container.style.width = "210mm";
-      container.style.minHeight = "297mm"; // 🔥 important
+      container.style.width = `${pdfWidthMm}mm`;
+      container.style.minHeight = `${payslipHeightMm}mm`;
       container.style.padding = "10px";
       container.style.background = "#fff";
       container.style.boxSizing = "border-box";
@@ -1081,10 +1084,27 @@ export default function GenerateSalary() {
         });
 
         const imgData = canvas.toDataURL("image/png");
+        const imageAspectRatio = canvas.width / canvas.height;
+        let renderWidthMm = pdfWidthMm;
+        let renderHeightMm = renderWidthMm / imageAspectRatio;
+
+        if (renderHeightMm > payslipHeightMm) {
+          renderHeightMm = payslipHeightMm;
+          renderWidthMm = renderHeightMm * imageAspectRatio;
+        }
 
         const pdf = new jsPDF("p", "mm", "a4");
+        const horizontalPaddingMm = 10;
+        const availableWidthMm = pdfWidthMm - horizontalPaddingMm * 2;
 
-        pdf.addImage(imgData, "PNG", 0, 0, 210, 297);
+        if (renderWidthMm > availableWidthMm) {
+          renderWidthMm = availableWidthMm;
+          renderHeightMm = renderWidthMm / imageAspectRatio;
+        }
+
+        const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
+
+        pdf.addImage(imgData, "PNG", xOffsetMm, 0, renderWidthMm, renderHeightMm);
 
         pdf.save(
           `Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`
