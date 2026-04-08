@@ -9,6 +9,7 @@ import {
   getFacilityMemberSalaryDetails,
   deleteGeneratedSalary,
   regenerateEmployeeSalary,
+  updateGeneratedSalary,
   getAllowancesDeductions,
   getUngeneratedSalaryByProperties,
   getGeneratedSalaryByProperties,
@@ -90,6 +91,7 @@ export default function GenerateSalary() {
   }
   const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
+  const reduxUserId = useSelector((state) => state.Commonreducer.userId);
 
   const [unitList, setUnitList] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -162,6 +164,17 @@ export default function GenerateSalary() {
   function normalizeKeyName(s) {
     if (!s && s !== 0) return "";
     return String(s).replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  }
+
+  function getEmployeeKey(entity) {
+    return Number(entity?.FacilityMemberId ?? entity?.EmployeeId ?? 0);
+  }
+
+  function isEmployeeFrozen(entity) {
+    const employeeId = getEmployeeKey(entity);
+    return generatedEmployees.some(
+      (emp) => Number(emp.EmployeeId) === employeeId && emp.IsFreezed
+    );
   }
 
   // Map master 'Name' to the actual key used in salary row
@@ -327,7 +340,12 @@ export default function GenerateSalary() {
 
   useEffect(() => {
     filterEmployees();
-  }, [selectedDepartment, selectedDesignation, allEmployees, searchText]);
+  }, [selectedDepartment, selectedDesignation, allEmployees, searchText, generatedEmployees]);
+
+  useEffect(() => {
+    setSelectedEmployees((prev) => prev.filter((emp) => !isEmployeeFrozen(emp)));
+    setSelectedRegenEmployees((prev) => prev.filter((emp) => !isEmployeeFrozen(emp)));
+  }, [generatedEmployees]);
 
   useEffect(() => {
     if (selectedPropertyId.length && selectedMonth && selectedYear) {
@@ -372,7 +390,7 @@ export default function GenerateSalary() {
   // };
 
   const filterEmployees = () => {
-    let filtered = [...allEmployees];
+    let filtered = allEmployees.filter((emp) => !isEmployeeFrozen(emp));
 
     // Filter by Department (if selected)
     if (selectedDepartment) {
@@ -994,6 +1012,13 @@ export default function GenerateSalary() {
       alert("No employees selected to regenerate.");
       return;
     }
+    const hasFrozenEmployee = selectedRegenEmployees.some((emp) =>
+      isEmployeeFrozen(emp)
+    );
+    if (hasFrozenEmployee) {
+      alert("Freeze salary cannot be regenerated.");
+      return;
+    }
     try {
       const monthValue = monthNames[selectedMonth - 1];
       const yearValue = selectedYear;
@@ -1023,6 +1048,10 @@ export default function GenerateSalary() {
   };
 
   const handleDelete = async (employeeId) => {
+    if (isEmployeeFrozen({ EmployeeId: employeeId })) {
+      alert("Frozen salary record cannot be deleted.");
+      return;
+    }
     if (!window.confirm("Are you sure you want to delete this salary record?")) return;
     try {
       await deleteGeneratedSalary(employeeId);
@@ -1118,6 +1147,76 @@ export default function GenerateSalary() {
         document.body.removeChild(container);
       }
     }
+  };
+
+  const handleFreezeSalary = () => {
+    const runFreeze = async () => {
+      const selectedIds = Array.from(
+        new Set(selectedSalaryRows.map(Number).filter(Boolean))
+      );
+
+      if (selectedIds.length === 0) {
+        alert("Please select at least one employee to freeze salary.");
+        return;
+      }
+
+      const selectedGeneratedRecords = generatedEmployees.filter((emp) =>
+        selectedIds.includes(Number(emp.EmployeeId))
+      );
+
+      const alreadyFrozenRecords = selectedGeneratedRecords.filter(
+        (emp) => emp.IsFreezed
+      );
+      const recordsToFreeze = selectedGeneratedRecords.filter(
+        (emp) => !emp.IsFreezed
+      );
+
+      if (recordsToFreeze.length === 0) {
+        alert("Selected employees are already frozen.");
+        return;
+      }
+
+      if (
+        !window.confirm(
+          `Are you sure you want to permanently freeze salary for ${recordsToFreeze.length} selected employee(s)?`
+        )
+      ) {
+        return;
+      }
+
+      try {
+        await Promise.all(
+          recordsToFreeze.map((emp) =>
+            updateGeneratedSalary(emp.EmployeeId, {
+              ...emp,
+              IsFreezed: true,
+              FreezedOn: new Date().toISOString(),
+              FreezedBy: Number(reduxUserId) || 0,
+            })
+          )
+        );
+
+        await fetchGeneratedEmployees();
+        setSelectedSalaryRows([]);
+        setSelectedRegenEmployees((prev) =>
+          prev.filter((emp) => !recordsToFreeze.some((row) => row.EmployeeId === emp.EmployeeId))
+        );
+
+        if (alreadyFrozenRecords.length > 0) {
+          alert(
+            `${recordsToFreeze.length} employee(s) frozen successfully. ${alreadyFrozenRecords.length} employee(s) were already frozen.`
+          );
+          return;
+        }
+
+        alert(`${recordsToFreeze.length} employee(s) frozen successfully.`);
+      } catch (error) {
+        console.error("Failed to freeze salary:", error);
+        alert("Failed to freeze salary.");
+      }
+    };
+
+    runFreeze();
   };
 
   // ----------------------------
@@ -1397,17 +1496,20 @@ export default function GenerateSalary() {
             <div style={{ flex: 1, overflowY: "auto", padding: "10px", maxHeight: "170px" }}>
               {loadingGenerated ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>Loading...</div> :
                 generatedEmployees.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>No generated salaries for {selectedMonth ? monthNames[selectedMonth - 1] : "Whole Year"} {selectedYear}</div> :
-                  filteredGeneratedEmployees.map((emp) => (
-                    <div key={emp.EmployeeId} onClick={() => {
-                      if (selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId)) {
-                        setSelectedRegenEmployees(selectedRegenEmployees.filter(e => e.EmployeeId !== emp.EmployeeId));
-                      } else {
-                        setSelectedRegenEmployees([...selectedRegenEmployees, emp]);
-                      }
-                    }} style={{ padding: "6px 10px", margin: "4px 0", borderRadius: 5, fontWeight: 500, fontSize: "0.92rem", cursor: "pointer", background: selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId) ? "#e0f2fe" : "transparent", border: selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId) ? "1px solid #1e90ff" : "1px solid transparent", transition: "all 0.2s" }}>
-                      {emp.EmployeeName}
-                    </div>
-                  ))
+                  filteredGeneratedEmployees.map((emp) => {
+                    const isFrozen = isEmployeeFrozen(emp);
+                    return (
+                      <div key={emp.EmployeeId} onClick={() => {
+                        if (selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId)) {
+                          setSelectedRegenEmployees(selectedRegenEmployees.filter(e => e.EmployeeId !== emp.EmployeeId));
+                        } else {
+                          setSelectedRegenEmployees([...selectedRegenEmployees, emp]);
+                        }
+                      }} style={{ padding: "6px 10px", margin: "4px 0", borderRadius: 5, fontWeight: 500, fontSize: "0.92rem", cursor: "pointer", background: selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId) ? "#e0f2fe" : isFrozen ? "#f8fafc" : "transparent", border: selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId) ? "1px solid #1e90ff" : isFrozen ? "1px solid #cbd5e1" : "1px solid transparent", transition: "all 0.2s", color: isFrozen ? "#94a3b8" : "#0f172a" }}>
+                        {emp.EmployeeName}{isFrozen ? " (Freeze)" : ""}
+                      </div>
+                    );
+                  })
               }
             </div>
           </div>
@@ -1512,7 +1614,25 @@ export default function GenerateSalary() {
 
           return (
             <div style={{ marginTop: 50, position: "relative" }}>
-              <div style={{ position: "absolute", top: -24, right: 0, zIndex: 2 }}>
+              <div style={{ position: "absolute", top: -24, right: 0, zIndex: 2, display: "flex", gap: 10 }}>
+                <button
+                  onClick={handleFreezeSalary}
+                  disabled={selectedSalaryRows.length === 0}
+                  style={{
+                    background: selectedSalaryRows.length === 0 ? "#fca5a5" : "#dc2626",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "10px 28px",
+                    fontWeight: 600,
+                    letterSpacing: 1,
+                    cursor: selectedSalaryRows.length === 0 ? "not-allowed" : "pointer",
+                    fontSize: "1rem",
+                    marginBottom: "8px",
+                  }}
+                >
+                  Freeze
+                </button>
                 <button
                   onClick={handleCreatePDF}
                   disabled={selectedSalaryRows.length === 0}
@@ -1641,7 +1761,7 @@ export default function GenerateSalary() {
                             <td style={actionCell}>
                               <button className="btn btn-sm btn-info" title="View" onClick={() => { setViewPayslipHtml(generatePayslipHTML(row)); setViewPayslipOpen(true); }} style={viewBtn}><i className="fa fa-eye" /></button>
                               <br />
-                              <button className="btn btn-sm btn-danger" title="Delete" onClick={() => handleDelete(row.FacilityMemberId)} style={deleteBtn}><i className="fa fa-trash" /></button>
+                              <button className="btn btn-sm btn-danger" title={isEmployeeFrozen(row) ? "Frozen salary cannot be deleted" : "Delete"} onClick={() => handleDelete(row.FacilityMemberId)} disabled={isEmployeeFrozen(row)} style={{ ...deleteBtn, opacity: isEmployeeFrozen(row) ? 0.5 : 1, cursor: isEmployeeFrozen(row) ? "not-allowed" : "pointer" }}><i className="fa fa-trash" /></button>
                             </td>
                           </tr>
                         );

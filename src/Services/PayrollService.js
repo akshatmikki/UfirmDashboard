@@ -481,7 +481,7 @@ export async function getEmployeeGeneratedSalaries(officeId) {
 // POST to create generated salary entry
 export async function createGeneratedSalary(employees) {
   const response = await fetch(
-    "https://api.urest.in:8096/api/employee/generatedSalary",
+       "https://api.urest.in:8096/api/employee/generatedSalary",
     {
       method: "POST",
       headers: {
@@ -503,6 +503,23 @@ export async function deleteGeneratedSalary(employeeId) {
   });
 
   if (!response.ok) throw new Error('Failed to delete generated salary');
+  return await response.json();
+}
+
+export async function updateGeneratedSalary(employeeId, employee) {
+  const response = await fetch(
+    `https://api.urest.in:8096/api/employee/generatedSalary/${employeeId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(employee),
+    }
+  );
+
+  if (!response.ok) throw new Error("Failed to update generated salary");
   return await response.json();
 }
 
