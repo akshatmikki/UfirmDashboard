@@ -1694,12 +1694,14 @@ const StaffPage = () => {
                   value={branchName}
                   readOnly
                   className="mb-3"
+                  style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
                 <label>Client Name</label>
                 <InputText
                   value={clientName}
                   readOnly
                   className="mb-3"
+                  style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
                 <label>Employee Code *</label>
                 <InputText
