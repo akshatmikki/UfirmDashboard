@@ -1080,14 +1080,15 @@ export default function GenerateSalary() {
       const payslipHtml = generatePayslipHTML(row);
       const pdfWidthMm = 210;
       const pdfHeightMm = 297;
-      const payslipHeightMm = pdfHeightMm * 0.75;
+      const payslipMaxWidthMm = pdfWidthMm * 0.88;
+      const payslipMaxHeightMm = pdfHeightMm * 0.88;
 
       const container = document.createElement("div");
       container.style.position = "fixed";
       container.style.left = "-9999px";
       container.style.top = "0";
-      container.style.width = `${pdfWidthMm}mm`;
-      container.style.minHeight = `${payslipHeightMm}mm`;
+      container.style.width = `${payslipMaxWidthMm}mm`;
+      container.style.minHeight = `${payslipMaxHeightMm}mm`;
       container.style.padding = "10px";
       container.style.background = "#fff";
       container.style.boxSizing = "border-box";
@@ -1114,26 +1115,19 @@ export default function GenerateSalary() {
 
         const imgData = canvas.toDataURL("image/png");
         const imageAspectRatio = canvas.width / canvas.height;
-        let renderWidthMm = pdfWidthMm;
+        let renderWidthMm = payslipMaxWidthMm;
         let renderHeightMm = renderWidthMm / imageAspectRatio;
 
-        if (renderHeightMm > payslipHeightMm) {
-          renderHeightMm = payslipHeightMm;
+        if (renderHeightMm > payslipMaxHeightMm) {
+          renderHeightMm = payslipMaxHeightMm;
           renderWidthMm = renderHeightMm * imageAspectRatio;
         }
 
         const pdf = new jsPDF("p", "mm", "a4");
-        const horizontalPaddingMm = 10;
-        const availableWidthMm = pdfWidthMm - horizontalPaddingMm * 2;
-
-        if (renderWidthMm > availableWidthMm) {
-          renderWidthMm = availableWidthMm;
-          renderHeightMm = renderWidthMm / imageAspectRatio;
-        }
-
         const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
+        const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
 
-        pdf.addImage(imgData, "PNG", xOffsetMm, 0, renderWidthMm, renderHeightMm);
+        pdf.addImage(imgData, "PNG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
 
         pdf.save(
           `Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`
