@@ -10,7 +10,7 @@ import ViewQuestionImg from "../../ViewQuestionImg";
 import EditQuestion from "../../EditQuestion";
 
 export default function EditTaskPage(props) {
-  const { visible, closeModal, rowData, categoryData, openAddQuestion } = props;
+  const { visible, closeModal, rowData, categoryData, openAddQuestion, onTaskUpdated } = props;
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset", "fmRemarks"]);
   const ctrl = useEditTaskController({ rowData, categoryData });
   const [invalidField, setInvalidField] = useState("");
@@ -53,6 +53,7 @@ export default function EditTaskPage(props) {
     taskName: rowData?.Name,
     propertyId: rowData?.PropertyId,
     initialTaskDate: ctrl.initialTaskDate,
+    onTaskUpdated,
   });
 
   const fmQuestions = useMemo(() => {
@@ -191,6 +192,8 @@ export default function EditTaskPage(props) {
             remarks={fm.remarks}
             hasAnyRemarksForQuestion={fm.hasAnyRemarksForQuestion}
             chatStatus={rowData?.CurrentStatus || rowData?.TaskStatus || "Actionable"}
+            questionStatusMap={fm.questionStatusMap}
+            questionIdsWithRemarks={fm.questionIdsWithRemarks}
             onSend={fm.sendFmRemark}
           />
         </TaskSection>

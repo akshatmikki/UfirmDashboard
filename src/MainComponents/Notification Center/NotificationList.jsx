@@ -1,13 +1,25 @@
 import React, { useState } from "react";
 import FMResponseModal from "./FMResponseModal";
 import "./Notification.css";
+import { emitTaskNotificationRefresh } from "../../Services/notificationService";
 
 const NotificationList = ({ nList = [], apiCall }) => {
   const [selectedNotification, setSelectedNotification] = useState(null);
 
   // Handle click for non-asset notifications (tasks/complaints)
-  const handleNotificationClick = (notification) => {
-    setSelectedNotification(notification);
+  const handleNotificationClick = async (notification) => {
+    let latestNotification = notification;
+    if (typeof apiCall === "function") {
+      const latestList = await apiCall();
+      if (Array.isArray(latestList) && latestList.length) {
+        latestNotification =
+          latestList.find((item) =>
+            Number(item.NotificationId || item.TaskId || item.TicketId || item.AssetId) ===
+            Number(notification.NotificationId || notification.TaskId || notification.TicketId || notification.AssetId),
+          ) || notification;
+      }
+    }
+    setSelectedNotification(latestNotification);
   };
 
   const handleCloseModal = () => {
@@ -75,8 +87,10 @@ const NotificationList = ({ nList = [], apiCall }) => {
         body: JSON.stringify(newResponse),
       });
 
-      if (res.ok) apiCall();
-      else throw new Error("Failed to send reply");
+      if (res.ok) {
+        if (typeof apiCall === "function") await apiCall();
+      } else throw new Error("Failed to send reply");
+      emitTaskNotificationRefresh();
     } catch (error) {
       console.error("Error sending reply:", error);
     }

@@ -2,7 +2,11 @@ import React, { useEffect, useState } from "react";
 import NotificationButton from "./NotificationButton";
 import NotificationList from "./NotificationList";
 import { connect } from "react-redux";
-import { fetchNotifications, fetchAssetServiceNotifications } from "../../Services/notificationService";
+import {
+  fetchNotifications,
+  fetchAssetServiceNotifications,
+  TASK_NOTIFICATION_REFRESH_EVENT,
+} from "../../Services/notificationService";
 
 const NOTIFICATION_TYPES = ["task", "asset", "complaint"];
 
@@ -17,7 +21,7 @@ const Notification = ({ propId }) => {
   const loadNotification = async (type) => {
     if (!propId || propId === 0) {
       console.warn(`Property ID is invalid: ${propId}. Skipping ${type} notification load.`);
-      return;
+      return [];
     }
 
     try {
@@ -34,9 +38,11 @@ const Notification = ({ propId }) => {
       }
 
       setDataMap((prev) => ({ ...prev, [type]: data }));
+      return data;
     } catch (error) {
       console.error(`Error loading ${type} notifications:`, error);
       setDataMap((prev) => ({ ...prev, [type]: [] }));
+      return [];
     }
   };
 
@@ -49,8 +55,17 @@ const Notification = ({ propId }) => {
     }
   }, [propId]);
 
-  const handleShowList = (type) => {
+  useEffect(() => {
+    const onTaskRefresh = () => {
+      NOTIFICATION_TYPES.forEach((type) => loadNotification(type));
+    };
+    window.addEventListener(TASK_NOTIFICATION_REFRESH_EVENT, onTaskRefresh);
+    return () => window.removeEventListener(TASK_NOTIFICATION_REFRESH_EVENT, onTaskRefresh);
+  }, [propId]);
+
+  const handleShowList = async (type) => {
     setShowType((prev) => (prev === type ? null : type));
+    await loadNotification(type);
   };
 
   return (

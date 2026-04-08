@@ -9,6 +9,13 @@ const endpoints = {
   complaint: "FMComplaintNotification",
 };
 
+export const TASK_NOTIFICATION_REFRESH_EVENT = "ufirm:task-notification-updated";
+
+export const emitTaskNotificationRefresh = () => {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(TASK_NOTIFICATION_REFRESH_EVENT));
+};
+
 export const fetchNotifications = async (type, propertyId) => {
   const endpoint = endpoints[type];
   if (!endpoint) throw new Error("Invalid notification type");

@@ -1,8 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import swal from "sweetalert";
-import { fetchNotifications, getTaskRemarks } from "../../../../Services/notificationService";
+import {
+  emitTaskNotificationRefresh,
+  fetchNotifications,
+  getTaskRemarks,
+} from "../../../../Services/notificationService";
 
-export default function useTaskFmRemarks({ taskId, taskName, propertyId, initialTaskDate }) {
+export default function useTaskFmRemarks({
+  taskId,
+  taskName,
+  propertyId,
+  initialTaskDate,
+  onTaskUpdated,
+}) {
   const getTodayIsoDate = useCallback(() => {
     const now = new Date();
     const yyyy = now.getFullYear();
@@ -11,18 +21,35 @@ export default function useTaskFmRemarks({ taskId, taskName, propertyId, initial
     return `${yyyy}-${mm}-${dd}`;
   }, []);
 
+  const normalizeDateOnly = useCallback((value) => {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }, []);
+
+  const getInitialIsoDate = useCallback(() => {
+    const normalized = normalizeDateOnly(initialTaskDate);
+    return normalized || getTodayIsoDate();
+  }, [getTodayIsoDate, initialTaskDate, normalizeDateOnly]);
+
   const [selectedQuestionId, setSelectedQuestionId] = useState(null);
-  const [fmSelectedDate, setFmSelectedDate] = useState(() => getTodayIsoDate());
-  const [resolvedTaskDate, setResolvedTaskDate] = useState(() => getTodayIsoDate());
+  const [fmSelectedDate, setFmSelectedDate] = useState(() => getInitialIsoDate());
+  const [resolvedTaskDate, setResolvedTaskDate] = useState(() => getInitialIsoDate());
   const [remarks, setRemarks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasAnyRemarksForQuestion, setHasAnyRemarksForQuestion] = useState(false);
+  const [questionStatusMap, setQuestionStatusMap] = useState({});
+  const [questionIdsWithRemarks, setQuestionIdsWithRemarks] = useState([]);
 
   useEffect(() => {
-    const today = getTodayIsoDate();
-    setFmSelectedDate(today);
-    setResolvedTaskDate(today);
-  }, [getTodayIsoDate, initialTaskDate]);
+    const initial = getInitialIsoDate();
+    setFmSelectedDate(initial);
+    setResolvedTaskDate(initial);
+  }, [getInitialIsoDate]);
 
   const loadRemarks = useCallback(
     async (questionId, taskDate) => {
@@ -40,28 +67,84 @@ export default function useTaskFmRemarks({ taskId, taskName, propertyId, initial
     [taskId],
   );
 
-  const resolveTaskDate = useCallback(
-    async (questionId) => {
-      if (!taskId || !propertyId || !questionId) return;
+  const loadQuestionStatuses = useCallback(
+    async (taskDate) => {
+      if (!taskId || !propertyId) {
+        setQuestionStatusMap({});
+        setQuestionIdsWithRemarks([]);
+        return;
+      }
+
       try {
         const list = await fetchNotifications("task", propertyId);
-        const hasAny = (list || []).some((n) => n.TaskId === taskId && n.QuestionId === questionId);
-        setHasAnyRemarksForQuestion(!!hasAny);
+        const selectedDate = normalizeDateOnly(taskDate || resolvedTaskDate);
+        const filtered = (list || []).filter((n) => {
+          if (Number(n.TaskId) !== Number(taskId)) return false;
+          if (!selectedDate) return true;
+          return normalizeDateOnly(n.TaskDate) === selectedDate;
+        });
+
+        const taskLevelStatusRow = filtered.find((item) => {
+          const qid = Number(item.QuestionId ?? item.QuestID ?? 0);
+          return qid === 0;
+        });
+        const taskLevelStatus =
+          taskLevelStatusRow?.CurrentTaskStatus ||
+          taskLevelStatusRow?.TaskStatus ||
+          taskLevelStatusRow?.CurrentStatus ||
+          "";
+
+        const latestByQuestion = {};
+        filtered.forEach((item) => {
+          const qid = Number(item.QuestionId ?? item.QuestID ?? 0);
+          if (!qid) return;
+
+          const prev = latestByQuestion[qid];
+          const prevTime = prev ? new Date(prev.SUPdateTime || prev.UpdatedOn || 0).getTime() : 0;
+          const currTime = new Date(item.SUPdateTime || item.UpdatedOn || 0).getTime();
+
+          if (!prev || currTime >= prevTime) {
+            latestByQuestion[qid] = item;
+          }
+        });
+
+        const next = {};
+        const withRemarks = new Set();
+        Object.keys(latestByQuestion).forEach((qid) => {
+          const row = latestByQuestion[qid] || {};
+          next[qid] =
+            row.CurrentTaskStatus ||
+            row.CurrentStatus ||
+            row.TaskStatus ||
+            taskLevelStatus ||
+            "Actionable";
+          if (String(row.SupRemark || "").trim() || String(row.FmRemark || "").trim()) {
+            withRemarks.add(Number(qid));
+          }
+        });
+
+        setQuestionStatusMap(next);
+        setQuestionIdsWithRemarks(Array.from(withRemarks));
       } catch {
-        setHasAnyRemarksForQuestion(false);
+        setQuestionStatusMap({});
+        setQuestionIdsWithRemarks([]);
       }
-      await loadRemarks(questionId, resolvedTaskDate);
     },
-    [loadRemarks, propertyId, resolvedTaskDate, taskId],
+    [normalizeDateOnly, propertyId, resolvedTaskDate, taskId],
   );
+
+  useEffect(() => {
+    loadQuestionStatuses(resolvedTaskDate);
+  }, [loadQuestionStatuses, resolvedTaskDate]);
 
   const onSelectQuestion = useCallback(
     async (questionId) => {
       setSelectedQuestionId(questionId);
       setRemarks([]);
-      await resolveTaskDate(questionId);
+      setHasAnyRemarksForQuestion(!!questionStatusMap[String(questionId)] || !!questionStatusMap[questionId]);
+      await loadRemarks(questionId, resolvedTaskDate);
     },
-    [resolveTaskDate],
+    [loadRemarks, questionStatusMap, resolvedTaskDate],
   );
 
   const onDateChange = useCallback(
@@ -69,11 +152,12 @@ export default function useTaskFmRemarks({ taskId, taskName, propertyId, initial
       setFmSelectedDate(dateStr);
       setResolvedTaskDate(dateStr);
       setRemarks([]);
+      await loadQuestionStatuses(dateStr);
       if (selectedQuestionId) {
         await loadRemarks(selectedQuestionId, dateStr);
       }
     },
-    [loadRemarks, selectedQuestionId],
+    [loadQuestionStatuses, loadRemarks, selectedQuestionId],
   );
 
   const lastSupRemarkDate = useMemo(() => {
@@ -82,16 +166,18 @@ export default function useTaskFmRemarks({ taskId, taskName, propertyId, initial
   }, [remarks]);
 
   const sendFmRemark = useCallback(
-    async (message, status) => {
+    async (message, status, questionIdOverride) => {
       if (!message?.trim()) {
         swal({ icon: "warning", title: "Message required", text: "Please type a message before sending." });
         return;
       }
-      if (!selectedQuestionId || !resolvedTaskDate) return;
+
+      const targetQuestionId = questionIdOverride || selectedQuestionId;
+      if (!targetQuestionId || !resolvedTaskDate) return;
 
       const payload = {
         TaskId: taskId,
-        QuestionId: selectedQuestionId,
+        QuestionId: targetQuestionId,
         TaskName: taskName,
         FmId: 0,
         FmRemark: message,
@@ -110,12 +196,24 @@ export default function useTaskFmRemarks({ taskId, taskName, propertyId, initial
 
         if (!res.ok) throw new Error("FM reply failed");
 
-        await loadRemarks(selectedQuestionId, resolvedTaskDate);
+        await loadRemarks(targetQuestionId, resolvedTaskDate);
+        await loadQuestionStatuses(resolvedTaskDate);
+        emitTaskNotificationRefresh();
+        if (typeof onTaskUpdated === "function") onTaskUpdated();
       } catch {
         swal({ icon: "error", title: "Error", text: "Unable to send remark" });
       }
     },
-    [lastSupRemarkDate, loadRemarks, resolvedTaskDate, selectedQuestionId, taskId, taskName],
+    [
+      lastSupRemarkDate,
+      loadQuestionStatuses,
+      loadRemarks,
+      onTaskUpdated,
+      resolvedTaskDate,
+      selectedQuestionId,
+      taskId,
+      taskName,
+    ],
   );
 
   return {
@@ -124,9 +222,10 @@ export default function useTaskFmRemarks({ taskId, taskName, propertyId, initial
     loading,
     remarks,
     hasAnyRemarksForQuestion,
+    questionStatusMap,
+    questionIdsWithRemarks,
     onSelectQuestion,
     onDateChange,
     sendFmRemark,
   };
 }
-
