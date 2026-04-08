@@ -59,6 +59,16 @@ export default function EditTaskPage(props) {
   const fmQuestions = useMemo(() => {
     return (q.questions || []).map((x) => ({ id: x.QuesId, name: x.QuestionName }));
   }, [q.questions]);
+  const fallbackOccurrenceOptions = useMemo(
+    () => [
+      { value: "N", label: "Do not repeat" },
+      { value: "D", label: "Daily" },
+      { value: "W", label: "Weekly" },
+      { value: "M", label: "Monthly" },
+      { value: "Y", label: "Yearly" },
+    ],
+    [],
+  );
 
   const onSave = useCallback(async () => {
     const res = await ctrl.save();
@@ -134,13 +144,11 @@ export default function EditTaskPage(props) {
             assignOptions={ctrl.lookups.assign}
             assignTo={ctrl.form.assignTo}
             onAssignToChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ assignTo: v }); }}
-            occurrenceOptions={[
-              { value: "N", label: "Do not repeat" },
-              { value: "D", label: "Daily" },
-              { value: "W", label: "Weekly" },
-              { value: "M", label: "Monthly" },
-              { value: "Y", label: "Yearly" },
-            ]}
+            occurrenceOptions={
+              (ctrl.lookups.occurrenceOptions || []).length
+                ? ctrl.lookups.occurrenceOptions
+                : fallbackOccurrenceOptions
+            }
             occurence={ctrl.form.occurence}
             onOccurenceChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ occurence: v }); }}
             invalidField={invalidField}
