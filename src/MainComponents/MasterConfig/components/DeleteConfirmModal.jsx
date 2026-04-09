@@ -80,7 +80,7 @@ export default function DeleteConfirmModal({
             Cancel
           </button>
           <button className="mc-btn delete" onClick={onConfirm} type="button">
-            Delete
+            Deletee
           </button>
         </div>
       </div>
