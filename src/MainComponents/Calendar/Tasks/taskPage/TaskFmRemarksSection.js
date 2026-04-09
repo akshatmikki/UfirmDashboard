@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import ChatBox from "../../../Notification Center/ChatBox";
 
 export default function TaskFmRemarksSection({
@@ -13,6 +13,8 @@ export default function TaskFmRemarksSection({
   loading,
   remarks,
   chatStatus,
+  questionStatusMap,
+  questionIdsWithRemarks,
   onSend,
 }) {
   const normalizedStatus = String(chatStatus || "")
@@ -20,6 +22,58 @@ export default function TaskFmRemarksSection({
     .includes("complete")
     ? "Completed"
     : (chatStatus || "Actionable");
+
+  const [openQuestionId, setOpenQuestionId] = useState(null);
+  const visibleQuestions = useMemo(() => {
+    const ids = new Set((questionIdsWithRemarks || []).map((id) => Number(id)));
+    if (!ids.size) return questions || [];
+    return (questions || []).filter((q) => ids.has(Number(q.id)));
+  }, [questionIdsWithRemarks, questions]);
+
+  useEffect(() => {
+    if (!visibleQuestions?.length) {
+      setOpenQuestionId(null);
+      return;
+    }
+
+    const actionableQuestion = visibleQuestions.find((q) => {
+      const status =
+        (questionStatusMap && (questionStatusMap[String(q.id)] || questionStatusMap[q.id])) ||
+        normalizedStatus;
+      return String(status || "").toLowerCase() === "actionable";
+    });
+
+    const defaultQuestionId = actionableQuestion?.id || visibleQuestions[0].id;
+    setOpenQuestionId((prev) => {
+      if (!prev) return defaultQuestionId;
+      const stillVisible = visibleQuestions.some((q) => Number(q.id) === Number(prev));
+      return stillVisible ? prev : defaultQuestionId;
+    });
+  }, [normalizedStatus, questionStatusMap, visibleQuestions]);
+
+  useEffect(() => {
+    if (!openQuestionId) return;
+    if (Number(selectedQuestionId) === Number(openQuestionId)) return;
+    onSelectQuestion?.(Number(openQuestionId));
+  }, [onSelectQuestion, openQuestionId, selectedQuestionId]);
+
+  const effectiveStatusMap = useMemo(() => questionStatusMap || {}, [questionStatusMap]);
+
+  const getQuestionStatus = (questionId) => {
+    const status =
+      effectiveStatusMap[String(questionId)] ||
+      effectiveStatusMap[questionId] ||
+      normalizedStatus;
+
+    return String(status || "Actionable");
+  };
+
+  const toggleQuestion = (questionId) => {
+    setOpenQuestionId((prev) => {
+      if (Number(prev) === Number(questionId)) return null;
+      return questionId;
+    });
+  };
 
   return (
     <div className="add-task-form">
@@ -36,18 +90,6 @@ export default function TaskFmRemarksSection({
 
       <div className="row mb-3">
         <div className="col-md-4">
-          <label>Question</label>
-          <select className="form-control" value={selectedQuestionId || ""} onChange={(e) => onSelectQuestion?.(Number(e.target.value))}>
-            <option value="">Select Question</option>
-            {(questions || []).map((q) => (
-              <option key={String(q.id)} value={q.id}>
-                {q.name}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="col-md-3">
           <label>Task Date</label>
           <input
             type="date"
@@ -57,23 +99,68 @@ export default function TaskFmRemarksSection({
             onFocus={(e) => e.target.showPicker?.()}
           />
         </div>
-
-        <div className="col-md-5 d-flex align-items-end">
-          <button
-            className="btn btn-info"
-            type="button"
-            disabled={!selectedQuestionId}
-            onClick={() => onViewImage?.(selectedQuestionId)}
-            title={selectedQuestionId ? "View question image" : "Select a question first"}
-          >
-            <i className="fa fa-eye mr-1" /> View Image
-          </button>
-        </div>
       </div>
 
-      {loading ? <p className="text-muted">Loading remarks...</p> : null}
+      {(visibleQuestions || []).map((q, index) => {
+        const isOpen = Number(openQuestionId) === Number(q.id);
+        const currentStatus = getQuestionStatus(q.id);
+        const isActionable = currentStatus.toLowerCase() === "actionable";
 
-      <ChatBox remarks={remarks} status={normalizedStatus} context="task" onSend={onSend} />
+        return (
+          <div
+            key={String(q.id)}
+            className="card mb-2"
+            style={{
+              border: isActionable ? "2px solid #198754" : "1px solid #d6d6d6",
+              boxShadow: isActionable ? "0 0 0 3px rgba(25,135,84,0.08)" : "none",
+            }}
+          >
+            <button
+              type="button"
+              className="btn btn-light w-100 text-start d-flex justify-content-between align-items-center"
+              onClick={() => toggleQuestion(q.id)}
+              aria-expanded={isOpen}
+            >
+              <span>
+                <strong>Q{index + 1}:</strong> {q.name}
+              </span>
+              <span>
+                <span className={`badge ${isActionable ? "bg-success" : "bg-secondary"} me-2`}>
+                  {currentStatus}
+                </span>
+                {isOpen ? "-" : "+"}
+              </span>
+            </button>
+
+            {isOpen ? (
+              <div className="card-body" style={{ background: "#f8f9fa" }}>
+                <div className="mb-3">
+                  <button
+                    className="btn btn-info"
+                    type="button"
+                    onClick={() => onViewImage?.(q.id)}
+                  >
+                    <i className="fa fa-eye mr-1" /> View Image
+                  </button>
+                </div>
+
+                {loading ? <p className="text-muted">Loading remarks...</p> : null}
+
+                <ChatBox
+                  remarks={remarks}
+                  status={currentStatus}
+                  context="task"
+                  onSend={(message, status) => onSend?.(message, status, Number(q.id))}
+                />
+              </div>
+            ) : null}
+          </div>
+        );
+      })}
+
+      {!visibleQuestions?.length ? (
+        <p className="text-muted">No questions found for this task/date.</p>
+      ) : null}
     </div>
   );
 }

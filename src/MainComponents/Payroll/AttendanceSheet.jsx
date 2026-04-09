@@ -8,9 +8,10 @@ import {
   deleteMultipleAttendance,
   uploadAttendance,
   getEmployeeMonthlyTotalOT,
-  getEmployeesByOffices,
+  getEmployeesByOfficesWithAttendance,
   updateAttendance,
   getFacilitySalaryConfig,
+  getSalaryAllowancesByProperty,
 } from "../../Services/PayrollService";
 
 import {
@@ -83,6 +84,16 @@ export default function AttendanceSheet() {
     selectedPropertyId.length === 1
       ? selectedPropertyId[0]
       : reduxPropertyId || null;
+  const effectivePropertyIds =
+    selectedPropertyId.length > 0
+      ? selectedPropertyId
+      : Number(reduxPropertyId) > 0
+      ? [Number(reduxPropertyId)]
+      : [];
+  const hasSingleEffectiveProperty = effectivePropertyIds.length === 1;
+  const effectiveSinglePropertyId = hasSingleEffectiveProperty
+    ? Number(effectivePropertyIds[0])
+    : null;
 
   const [employees, setEmployees] = useState([]);
   const [filteredAttendance, setFilteredAttendance] = useState([]);
@@ -115,6 +126,12 @@ export default function AttendanceSheet() {
   const [year, setYear] = useState(prevMonthDate.getFullYear());
   const [searchTerm, setSearchTerm] = useState("");
   const [importing, setImporting] = useState(false);
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictRecords, setConflictRecords] = useState([]);
+  const [salaryGroupOptions, setSalaryGroupOptions] = useState([]);
+  const [salaryGroupMap, setSalaryGroupMap] = useState({});
+  const [pendingUpload, setPendingUpload] = useState(null);
+  const [confirmingUpload, setConfirmingUpload] = useState(false);
 
   useEffect(() => {
     const days = getDaysInMonth(month, year);
@@ -226,9 +243,240 @@ export default function AttendanceSheet() {
   };
 
   const fileInputRef = React.useRef(null);
-  async function handleImportClick() {
 
-    if (selectedPropertyId.length !== 1) {
+  const getConflictKey = (record, idx = 0) => {
+    const keyPart =
+      record?.FacilityMemberId ||
+      record?.EmpID ||
+      record?.EmpCode ||
+      record?.EmployeeCode ||
+      idx;
+    return String(keyPart);
+  };
+
+  const normalizeSalaryGroupOptions = (rows = []) => {
+    const normalized = [];
+    (rows || []).forEach((row) => {
+      const fallbackIds = Array.isArray(row?.SalaryGroup_IDs)
+        ? row.SalaryGroup_IDs
+        : [];
+      const primaryId =
+        row?.SalaryGroup_ID ||
+        row?.SalaryGroupId ||
+        fallbackIds[0] ||
+        row?.Id ||
+        0;
+      const id = Number(primaryId);
+      if (!Number.isFinite(id) || id <= 0) return;
+
+      normalized.push({
+        id,
+        name:
+          row?.SalaryGroup ||
+          row?.SalaryGroupName ||
+          row?.Name ||
+          `Salary Group ${id}`,
+      });
+    });
+
+    const seen = new Set();
+    return normalized.filter((item) => {
+      if (seen.has(item.id)) return false;
+      seen.add(item.id);
+      return true;
+    });
+  };
+
+  const parseBlobJson = async (blob) => {
+    try {
+      const text = await blob.text();
+      if (!text) return null;
+      return JSON.parse(text);
+    } catch {
+      return null;
+    }
+  };
+
+  const openCrossPropertyConflictModal = async (
+    conflicts,
+    propertyId,
+    monthyear,
+    file
+  ) => {
+    const safeConflicts = Array.isArray(conflicts) ? conflicts : [];
+    if (!safeConflicts.length) return;
+
+    let options = [];
+    try {
+      const sgRows = await getSalaryAllowancesByProperty(propertyId);
+      options = normalizeSalaryGroupOptions(sgRows || []);
+    } catch (err) {
+      console.error("Failed to load salary groups for conflict resolution:", err);
+      options = [];
+    }
+
+    if (!options.length) {
+      alert(
+        "Cross-property employees found, but no salary group is available for this property. Please create salary group first."
+      );
+      return;
+    }
+
+    const defaultMap = {};
+    safeConflicts.forEach((record, idx) => {
+      defaultMap[getConflictKey(record, idx)] = String(options[0].id);
+    });
+
+    setSalaryGroupOptions(options);
+    setSalaryGroupMap(defaultMap);
+    setConflictRecords(safeConflicts);
+    setPendingUpload({ file, propertyId, monthyear });
+    setShowConflictModal(true);
+  };
+
+  const handleUploadResponse = async (res, file, propertyId, monthyear) => {
+    const contentType = res?.headers?.["content-type"] || "";
+    const responseBlob = res?.data;
+
+    if (contentType.includes("application/vnd.openxmlformats")) {
+      const blob = new Blob([responseBlob]);
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "AttendanceErrors.xlsx";
+      link.click();
+      alert("Some employees were invalid. Error file downloaded.");
+      return { handled: true };
+    }
+
+    const data = await parseBlobJson(responseBlob);
+    if (!data) {
+      alert("Unexpected upload response received.");
+      return { handled: true };
+    }
+
+    if (data.requiresConfirmation && Array.isArray(data.conflicts)) {
+      await openCrossPropertyConflictModal(
+        data.conflicts,
+        propertyId,
+        monthyear,
+        file
+      );
+      return { handled: true, confirmationNeeded: true };
+    }
+
+    alert(data?.message || "Attendance uploaded successfully!");
+    return { handled: true };
+  };
+
+  const handleUploadErrorResponse = async (err, file, propertyId, monthyear) => {
+    try {
+      const errorBlob = err?.response?.data;
+      if (!errorBlob || typeof errorBlob.text !== "function") return false;
+      const data = await parseBlobJson(errorBlob);
+      if (!data) return false;
+
+      if (data.requiresConfirmation && Array.isArray(data.conflicts)) {
+        await openCrossPropertyConflictModal(
+          data.conflicts,
+          propertyId,
+          monthyear,
+          file
+        );
+        return true;
+      }
+
+      if (data.message || data.error) {
+        alert(data.message || data.error);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    }
+  };
+
+  const closeConflictModal = () => {
+    if (confirmingUpload) return;
+    setShowConflictModal(false);
+    setConflictRecords([]);
+    setSalaryGroupOptions([]);
+    setSalaryGroupMap({});
+    setPendingUpload(null);
+  };
+
+  const confirmCrossPropertyUpload = async () => {
+    if (!pendingUpload || !conflictRecords.length) {
+      closeConflictModal();
+      return;
+    }
+
+    const missingSelection = conflictRecords.some((record, idx) => {
+      const key = getConflictKey(record, idx);
+      const selected = Number(salaryGroupMap[key]);
+      return !Number.isFinite(selected) || selected <= 0;
+    });
+
+    if (missingSelection) {
+      alert("Please select salary group for all cross-property employees.");
+      return;
+    }
+
+    const mappings = conflictRecords.map((record, idx) => {
+      const key = getConflictKey(record, idx);
+      const salaryGroupId = Number(salaryGroupMap[key]);
+      return {
+        EmpCode: record?.EmpCode || record?.EmployeeCode || "",
+        FacilityMemberId:
+          record?.FacilityMemberId ||
+          record?.EmpID ||
+          record?.FMId ||
+          null,
+        PropertyId: pendingUpload.propertyId,
+        SalaryGroupId: salaryGroupId,
+      };
+    });
+
+    setConfirmingUpload(true);
+    try {
+      const res = await uploadAttendance(
+        pendingUpload.file,
+        pendingUpload.propertyId,
+        pendingUpload.monthyear,
+        {
+          forceUpload: true,
+          crossPropertyMappings: mappings,
+        }
+      );
+
+      const handled = await handleUploadResponse(
+        res,
+        pendingUpload.file,
+        pendingUpload.propertyId,
+        pendingUpload.monthyear
+      );
+
+      if (!handled?.confirmationNeeded) {
+        closeConflictModal();
+        await reloadAttendanceData();
+      }
+    } catch (err) {
+      const handledError = await handleUploadErrorResponse(
+        err,
+        pendingUpload.file,
+        pendingUpload.propertyId,
+        pendingUpload.monthyear
+      );
+      if (handledError) return;
+      console.error("Confirmed upload failed:", err);
+      alert("Upload failed after confirmation.");
+    } finally {
+      setConfirmingUpload(false);
+    }
+  };
+
+  async function handleImportClick() {
+    if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before uploading attendance.");
       return;
     }
@@ -239,43 +487,34 @@ export default function AttendanceSheet() {
   async function handleFileChange(e) {
     const file = e.target.files[0];
     if (!file) return;
+    const monthyear = getMonthYearString(month, year);
 
     setImporting(true);
 
     try {
-      const monthyear = getMonthYearString(month, year);
-      if (!propertyId) {
+      if (!effectiveSinglePropertyId) {
         alert("Invalid property selection.");
         return;
       }
 
-      const res = await uploadAttendance(file, propertyId, monthyear);
-
-      const contentType = res.headers["content-type"] || "";
-
-      // 🔴 IF ERROR EXCEL RETURNED
-      if (contentType.includes("application/vnd.openxmlformats")) {
-        const blob = new Blob([res.data]);
-        const url = window.URL.createObjectURL(blob);
-
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "AttendanceErrors.xlsx";
-        link.click();
-
-        alert("Some employees were invalid. Error file downloaded.");
+      const res = await uploadAttendance(file, effectiveSinglePropertyId, monthyear);
+      const handled = await handleUploadResponse(
+        res,
+        file,
+        effectiveSinglePropertyId,
+        monthyear
+      );
+      if (!handled?.confirmationNeeded) {
+        await reloadAttendanceData();
       }
-      // 🟢 NORMAL SUCCESS (JSON COMES AS BLOB)
-      else {
-        const text = await res.data.text(); // convert blob → text
-        const data = JSON.parse(text);
-
-        alert(data?.message || "Attendance uploaded successfully!");
-      }
-
-      await reloadAttendanceData();
-
     } catch (err) {
+      const handledError = await handleUploadErrorResponse(
+        err,
+        file,
+        effectiveSinglePropertyId,
+        monthyear
+      );
+      if (handledError) return;
       console.error("Upload failed:", err);
       alert("Upload failed.");
     } finally {
@@ -283,7 +522,6 @@ export default function AttendanceSheet() {
       e.target.value = null;
     }
   }
-
   async function reloadAttendanceData() {
     const currMonthYear = getMonthYearString(month, year);
 
@@ -423,7 +661,11 @@ export default function AttendanceSheet() {
           return;
         }
 
-        const data = await getEmployeesByOffices(officeIds);
+        const monthYearForEmployees = getMonthYearString(month, year);
+        const data = await getEmployeesByOfficesWithAttendance(
+          officeIds,
+          monthYearForEmployees
+        );
         setEmployees(data || []);
         setSelectedDepartment("");
         const departments = [
@@ -442,7 +684,7 @@ export default function AttendanceSheet() {
     };
 
     loadEmployees();
-  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds]);
+  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, month, year]);
 
   // ---------------------------------------------------------
   // Load facility salary config
@@ -847,7 +1089,7 @@ export default function AttendanceSheet() {
   // Bulk Delete
   // ---------------------------------------------------------
   async function handleBulkDelete() {
-    if (selectedPropertyId.length !== 1) {
+    if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before deleting attendance.");
       return;
     }
@@ -860,7 +1102,7 @@ export default function AttendanceSheet() {
       await deleteMultipleAttendance(
         Array.from(selectedEmpIds),
         getMonthYearString(month, year),
-        propertyId
+        effectiveSinglePropertyId
       );
 
       await reloadAttendanceData();
@@ -875,7 +1117,7 @@ export default function AttendanceSheet() {
 
   function exportToExcel() {
 
-    if (selectedPropertyId.length !== 1) {
+    if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before exporting.");
       return;
     }
@@ -1080,7 +1322,7 @@ export default function AttendanceSheet() {
               setSelectedUnitId(Number(e.target.value));
               setSelectedPropertyId([]);
             }}
-            disabled
+            disabled={Number(reduxClientId) > 0}
             style={{ width: 240 }}
           >
             <option value="">-- Select Client --</option>
@@ -1223,12 +1465,12 @@ export default function AttendanceSheet() {
 
           <button
             onClick={exportToExcel}
-            disabled={selectedPropertyId.length !== 1}
+            disabled={!hasSingleEffectiveProperty}
             style={{
-              background: selectedPropertyId.length !== 1 ? "#ccc" : "#3182ce",
+              background: !hasSingleEffectiveProperty ? "#ccc" : "#3182ce",
               color: "#fff",
               padding: "6px 14px",
-              cursor: selectedPropertyId.length !== 1 ? "not-allowed" : "pointer"
+              cursor: !hasSingleEffectiveProperty ? "not-allowed" : "pointer"
             }}
           >
             Export CSV
@@ -1369,7 +1611,7 @@ export default function AttendanceSheet() {
             disabled={
               selectedEmpIds.size === 0 ||
               deleting ||
-              selectedPropertyId.length !== 1
+              !hasSingleEffectiveProperty
             }
             style={{
               background:
@@ -1879,6 +2121,108 @@ export default function AttendanceSheet() {
           Next
         </button>
       </div>
+
+      {showConflictModal ? (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            background: "rgba(0,0,0,0.45)",
+            zIndex: 10001,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            style={{
+              width: "min(980px, 96vw)",
+              maxHeight: "90vh",
+              overflowY: "auto",
+              background: "#fff",
+              borderRadius: 8,
+              boxShadow: "0 12px 32px rgba(0,0,0,0.2)",
+              padding: 18,
+            }}
+          >
+            <h4 style={{ marginTop: 0, marginBottom: 10 }}>
+              Cross-Property Employees Found
+            </h4>
+            <p style={{ marginTop: 0, color: "#444", fontSize: 14 }}>
+              These employees belong to another property. Confirm to continue and choose salary group for each employee.
+            </p>
+
+            <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 6 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
+                <thead>
+                  <tr>
+                    <th style={thStyle}>Emp Code</th>
+                    <th style={thStyle}>Employee Name</th>
+                    <th style={thStyle}>Designation</th>
+                    <th style={thStyle}>Error</th>
+                    <th style={thStyle}>Salary Group</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {conflictRecords.map((record, idx) => {
+                    const key = getConflictKey(record, idx);
+                    return (
+                      <tr key={key}>
+                        <td style={tdStyle}>{record?.EmpCode || record?.EmployeeCode || "-"}</td>
+                        <td style={tdStyle}>{record?.EmployeeName || "-"}</td>
+                        <td style={tdStyle}>{record?.Designation || "-"}</td>
+                        <td style={{ ...tdStyle, color: "#b91c1c", textAlign: "left" }}>
+                          {record?.Error || "Employee belongs to another property"}
+                        </td>
+                        <td style={tdStyle}>
+                          <select
+                            value={salaryGroupMap[key] || ""}
+                            onChange={(e) =>
+                              setSalaryGroupMap((prev) => ({
+                                ...prev,
+                                [key]: e.target.value,
+                              }))
+                            }
+                            style={{ minWidth: 220, padding: "5px 7px" }}
+                          >
+                            <option value="">Select Salary Group</option>
+                            {salaryGroupOptions.map((sg) => (
+                              <option key={sg.id} value={String(sg.id)}>
+                                {sg.name}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={closeConflictModal}
+                disabled={confirmingUpload}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={confirmCrossPropertyUpload}
+                disabled={confirmingUpload}
+              >
+                {confirmingUpload ? "Saving..." : "Confirm & Upload"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
+

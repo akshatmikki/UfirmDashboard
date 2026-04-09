@@ -4,20 +4,20 @@ import { bindActionCreators } from "redux";
 import DataProvider from "./DataProvider";
 import ChartNavigator from "../Charts/ChartNavigator";
 import departmentActions from "../../redux/department/action";
-import { fetchSubCatTaskCounts } from "../../Services/DashboardServices";
+import {
+  fetchSubCatTaskCounts,
+  fetchAssetServiceRecords,
+} from "../../Services/DashboardServices";
 import { getAttendance } from "../../Services/AttendanceService";
 import { getTaskPriorityCountDash } from "../../Services/TaskPriorityService";
 import { getTopDebitExpenses, getTopCreditExpenses, getTop5Expenses } from "../../Services/ExpenseReportService";
 import { Link, useHistory } from "react-router-dom";
-import DashboardLoader from "./Dashboardloader";
-
 import { Chart } from "primereact/chart";
 
 const Home = ({ PropertyId }) => {
   const [complains, setComplains] = useState([]);
   const [complainsCnt, setComplainsCnt] = useState(0);
   const history = useHistory();
-  const [isLoading, setIsLoading] = useState(false);
 
   const [totalFlats, setTotalFlats] = useState([]);
   const [totalFlatsCnt, setTotalFlatsCnt] = useState(0);
@@ -46,6 +46,19 @@ const Home = ({ PropertyId }) => {
   const [topDebit, setTopDebit] = useState([]);
   const [topCredit, setTopCredit] = useState([]);
   const [topExpenses, setTopExpenses] = useState([]);
+  const [dgServiceRecords, setDgServiceRecords] = useState([]);
+  const [liftServiceRecords, setLiftServiceRecords] = useState([]);
+  const [chartLoading, setChartLoading] = useState({
+    tasks: false,
+    priority: false,
+    assets: false,
+    attendance: false,
+    expenses: false,
+    subCategory: false,
+    complains: false,
+    dgServices: false,
+    liftServices: false,
+  });
 
   const apiProvider = new DataProvider();
   const propertyId = useSelector((state) => state.Commonreducer.puidn);
@@ -279,27 +292,75 @@ const Home = ({ PropertyId }) => {
     setSubCategoryTaskData(data);
   };
 
+  const loadServiceCategoryData = useCallback(
+    async (propertyId, category) => {
+      const data = await fetchAssetServiceRecords(
+        propertyId,
+        null,
+        null,
+        category
+      );
+
+      if (category === "DG") {
+        setDgServiceRecords(data);
+      } else if (category === "Lift") {
+        setLiftServiceRecords(data);
+      }
+    },
+    []
+  );
+
+  const withChartLoading = async (key, callback) => {
+    setChartLoading((prev) => ({ ...prev, [key]: true }));
+    try {
+      return await callback();
+    } finally {
+      setChartLoading((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
   const getDates = async (initialDate, finalDate) => {
     setInitialDate(initialDate);
     setFinalDate(finalDate);
 
     const model = getModel();
 
-    setIsLoading(true); // 🔥 START LOADER
-
     try {
       await Promise.all([
-        loadSubCatData(model[0].PropertyId, initialDate, finalDate),
-        taskStatusCount(model, initialDate, finalDate),
-        taskPriorityCount(model, initialDate, finalDate),
-        getAssetCount(model, initialDate, finalDate),
-        getAttendanceData(model, initialDate, finalDate),
-        getExpenseChartsData(model, initialDate, finalDate),
+        withChartLoading("subCategory", () =>
+          loadSubCatData(model[0].PropertyId, initialDate, finalDate)
+        ),
+        withChartLoading("tasks", () =>
+          taskStatusCount(model, initialDate, finalDate)
+        ),
+        withChartLoading("priority", () =>
+          taskPriorityCount(model, initialDate, finalDate)
+        ),
+        withChartLoading("assets", () =>
+          getAssetCount(model, initialDate, finalDate)
+        ),
+        withChartLoading("attendance", () =>
+          getAttendanceData(model, initialDate, finalDate)
+        ),
+        withChartLoading("expenses", () =>
+          getExpenseChartsData(model, initialDate, finalDate)
+        ),
+        withChartLoading("complains", () => manageDashboardCnt(model)),
+        withChartLoading("dgServices", () =>
+          loadServiceCategoryData(
+            model[0].PropertyId,
+            "DG"
+          )
+        ),
+        withChartLoading("liftServices", () =>
+          loadServiceCategoryData(
+            model[0].PropertyId,
+            "Lift"
+          )
+        ),
       ]);
     } catch (error) {
       console.error("Dashboard refresh error:", error);
-    } finally {
-      setIsLoading(false); // ✅ STOP LOADER
     }
   };
 
@@ -334,27 +395,48 @@ const Home = ({ PropertyId }) => {
 
     const loadOnPropertyChange = async () => {
       const model = getModel();
-      setIsLoading(true);
 
       try {
         await Promise.all([
-          manageDashboardCnt(model),
-          taskStatusCount(model, initialDate, finalDate),
-          taskPriorityCount(model, initialDate, finalDate),
-          getAssetCount(model, initialDate, finalDate),
-          getAttendanceData(model, initialDate, finalDate),
-          getExpenseChartsData(model, initialDate, finalDate),
-          loadSubCatData(model[0].PropertyId, initialDate, finalDate),
+          withChartLoading("complains", () => manageDashboardCnt(model)),
+          withChartLoading("tasks", () =>
+            taskStatusCount(model, initialDate, finalDate)
+          ),
+          withChartLoading("priority", () =>
+            taskPriorityCount(model, initialDate, finalDate)
+          ),
+          withChartLoading("assets", () =>
+            getAssetCount(model, initialDate, finalDate)
+          ),
+          withChartLoading("attendance", () =>
+            getAttendanceData(model, initialDate, finalDate)
+          ),
+          withChartLoading("expenses", () =>
+            getExpenseChartsData(model, initialDate, finalDate)
+          ),
+          withChartLoading("subCategory", () =>
+            loadSubCatData(model[0].PropertyId, initialDate, finalDate)
+          ),
+          withChartLoading("dgServices", () =>
+            loadServiceCategoryData(
+              model[0].PropertyId,
+              "DG"
+            )
+          ),
+          withChartLoading("liftServices", () =>
+            loadServiceCategoryData(
+              model[0].PropertyId,
+              "Lift"
+            )
+          ),
         ]);
       } catch (e) {
         console.error(e);
-      } finally {
-        setIsLoading(false);
       }
     };
 
     loadOnPropertyChange();
-  }, [PropertyId, initialDate, finalDate]);
+  }, [PropertyId]);
 
   useEffect(() => {
     if (!initialDate && !finalDate) {
@@ -385,10 +467,52 @@ const Home = ({ PropertyId }) => {
   const BAR_HEIGHT = 45;
 
   const getBarChartHeight = () => FIXED_BAR_COUNT * BAR_HEIGHT;
+  const buildServiceAnalysis = (records = []) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const metrics = {
+      Overdue: 0,
+      "Due in 0-30 days": 0,
+      "Due in 31-60 days": 0,
+      "Due in 61+ days": 0,
+    };
+
+    records.forEach((item) => {
+      const nextDate = new Date(item.NextServiceDate);
+      if (Number.isNaN(nextDate.getTime())) return;
+      nextDate.setHours(0, 0, 0, 0);
+
+      const diffDays = Math.floor(
+        (nextDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+      );
+
+      if (diffDays < 0) metrics.Overdue += 1;
+      else if (diffDays <= 30) metrics["Due in 0-30 days"] += 1;
+      else if (diffDays <= 60) metrics["Due in 31-60 days"] += 1;
+      else metrics["Due in 61+ days"] += 1;
+    });
+
+    return metrics;
+  };
+
+  const dgServiceAnalysis = buildServiceAnalysis(dgServiceRecords);
+  const liftServiceAnalysis = buildServiceAnalysis(liftServiceRecords);
+  const hasServiceAnalysisData = (analysis = {}) =>
+    Object.values(analysis).some((value) => value > 0);
+  const CardLoader = () => (
+    <div
+      className="d-flex align-items-center justify-content-center"
+      style={{ height: "220px" }}
+    >
+      <div className="spinner-border text-primary" role="status">
+        <span className="sr-only">Loading...</span>
+      </div>
+    </div>
+  );
 
   return (
     <>
-      {isLoading && <DashboardLoader />}
       <div className="content-wrapper mt-2">
         <section className="content px-2">
           <div className="container-fluid">
@@ -401,7 +525,9 @@ const Home = ({ PropertyId }) => {
                   style={{ minHeight: "300px" }}
                 >
                   <h5 className="text-center">Tasks</h5>
-                  {hasData(taskStatus) ? (
+                  {chartLoading.tasks ? (
+                    <CardLoader />
+                  ) : hasData(taskStatus) ? (
                     <Chart
                       type="pie"
                       data={{
@@ -452,7 +578,9 @@ const Home = ({ PropertyId }) => {
                     style={{ minHeight: "300px" }}
                   >
                     <h5 className="text-center">Priority Tasks</h5>
-                    {hasData(taskPriority) ? (
+                    {chartLoading.priority ? (
+                      <CardLoader />
+                    ) : hasData(taskPriority) ? (
                       <div style={{ overflowX: "auto", maxHeight: "220px" }}>
                         <table
                           className="table table-bordered table-striped"
@@ -495,7 +623,9 @@ const Home = ({ PropertyId }) => {
                     style={{ minHeight: "300px" }}
                   >
                     <h5 className="text-center">Total Assets</h5>
-                    {hasData(assetCount) ? (
+                    {chartLoading.assets ? (
+                      <CardLoader />
+                    ) : hasData(assetCount) ? (
                       <Chart
                         type="bar"
                         data={{
@@ -538,7 +668,9 @@ const Home = ({ PropertyId }) => {
                     style={{ minHeight: "300px" }}
                   >
                     <h5 className="text-center">Complains</h5>
-                    {hasData(complains) ? (
+                    {chartLoading.complains ? (
+                      <CardLoader />
+                    ) : hasData(complains) ? (
                       <Chart
                         type="doughnut"
                         data={{
@@ -596,7 +728,9 @@ const Home = ({ PropertyId }) => {
                     style={{ minHeight: "300px" }}
                   >
                     <h5 className="text-center">Attendance</h5>
-                    {hasData(attendance) ? (
+                    {chartLoading.attendance ? (
+                      <CardLoader />
+                    ) : hasData(attendance) ? (
                       <Chart
                         type="doughnut"
                         data={{
@@ -637,7 +771,9 @@ const Home = ({ PropertyId }) => {
                 <div className="card shadow-sm p-3" style={{ minHeight: "300px" }}>
                   <h5 className="text-center">Top 5 Expenses</h5>
 
-                  {topExpenses.length > 0 ? (
+                  {chartLoading.expenses ? (
+                    <CardLoader />
+                  ) : topExpenses.length > 0 ? (
                     <Chart
                       type="bar"
                       data={{
@@ -700,7 +836,9 @@ const Home = ({ PropertyId }) => {
                 <div className="card shadow-sm p-3" style={{ minHeight: "300px" }}>
                   <h5 className="text-center">Top 5 Debits</h5>
 
-                  {topDebit.length > 0 ? (
+                  {chartLoading.expenses ? (
+                    <CardLoader />
+                  ) : topDebit.length > 0 ? (
                     <Chart
                       type="bar"
                       data={{
@@ -761,7 +899,9 @@ const Home = ({ PropertyId }) => {
                 <div className="card shadow-sm p-3" style={{ minHeight: "300px" }}>
                   <h5 className="text-center">Top 5 Credits</h5>
 
-                  {topCredit.length > 0 ? (
+                  {chartLoading.expenses ? (
+                    <CardLoader />
+                  ) : topCredit.length > 0 ? (
                     <Chart
                       type="bar"
                       data={{
@@ -828,7 +968,9 @@ const Home = ({ PropertyId }) => {
                     to="/Account/App/PlannerTask"
                     style={{ textDecoration: "none" }}
                   >
-                    {hasSubCatData(4) ? (
+                    {chartLoading.subCategory ? (
+                      <CardLoader />
+                    ) : hasSubCatData(4) ? (
                       <Chart
                         type="line"
                         data={{
@@ -881,7 +1023,9 @@ const Home = ({ PropertyId }) => {
                     to="/Account/App/PlannerTask"
                     style={{ textDecoration: "none" }}
                   >
-                    {hasSubCatData(69) ? (
+                    {chartLoading.subCategory ? (
+                      <CardLoader />
+                    ) : hasSubCatData(69) ? (
                       <Chart
                         type="line"
                         data={{
@@ -922,6 +1066,94 @@ const Home = ({ PropertyId }) => {
                   </Link>
                 </div>
               </div>
+
+              {/* 7. DG Service Analysis */}
+              <div className="col-md-3">
+                <Link
+                  to="/Account/App/ServiceRecords"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <div className="card shadow-sm p-3" style={{ minHeight: "300px" }}>
+                    <h5 className="text-center">DG Service Analysis</h5>
+                    {chartLoading.dgServices ? (
+                      <CardLoader />
+                    ) : hasServiceAnalysisData(dgServiceAnalysis) ? (
+                      <Chart
+                        type="bar"
+                        data={{
+                          labels: Object.keys(dgServiceAnalysis),
+                          datasets: [
+                            {
+                              label: `DG Assets (${dgServiceRecords.length})`,
+                              data: Object.values(dgServiceAnalysis),
+                              backgroundColor: ["#E53935", "#FB8C00", "#FDD835", "#43A047"],
+                            },
+                          ],
+                        }}
+                        options={{
+                          indexAxis: "y",
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: { legend: { display: false } },
+                          scales: {
+                            x: {
+                              beginAtZero: true,
+                              ticks: { stepSize: 1 },
+                            },
+                          },
+                        }}
+                        style={{ width: "100%", height: "220px" }}
+                      />
+                    ) : (
+                      <NoData label="DG services" />
+                    )}
+                  </div>
+                </Link>
+              </div>
+
+              {/* 8. Lift Service Analysis */}
+              <div className="col-md-3">
+                <Link
+                  to="/Account/App/ServiceRecords"
+                  style={{ textDecoration: "none", color: "inherit" }}
+                >
+                  <div className="card shadow-sm p-3" style={{ minHeight: "300px" }}>
+                    <h5 className="text-center">Lift Service Analysis</h5>
+                    {chartLoading.liftServices ? (
+                      <CardLoader />
+                    ) : hasServiceAnalysisData(liftServiceAnalysis) ? (
+                      <Chart
+                        type="bar"
+                        data={{
+                          labels: Object.keys(liftServiceAnalysis),
+                          datasets: [
+                            {
+                              label: `Lift Assets (${liftServiceRecords.length})`,
+                              data: Object.values(liftServiceAnalysis),
+                              backgroundColor: ["#5E35B1", "#1E88E5", "#26A69A", "#7CB342"],
+                            },
+                          ],
+                        }}
+                        options={{
+                          indexAxis: "y",
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: { legend: { display: false } },
+                          scales: {
+                            x: {
+                              beginAtZero: true,
+                              ticks: { stepSize: 1 },
+                            },
+                          },
+                        }}
+                        style={{ width: "100%", height: "220px" }}
+                      />
+                    ) : (
+                      <NoData label="Lift services" />
+                    )}
+                  </div>
+                </Link>
+              </div>
             </div>
           </div>
         </section>
@@ -941,3 +1173,4 @@ const mapDispatchToProps = (dispatch) => ({
 });
 
 export default connect(mapStoreToProps, mapDispatchToProps)(Home);
+

@@ -17,7 +17,13 @@ export default function TaskListModals({ ctx }) {
       ) : null}
 
       {ctx.state.showTaskModal ? (
-        <TaskPage mode="view" visible={ctx.state.showTaskModal} closeModal={ctx.closeModal} rowData={ctx.state.rowData} />
+        <TaskPage
+          mode="view"
+          visible={ctx.state.showTaskModal}
+          closeModal={ctx.closeModal}
+          rowData={ctx.state.rowData}
+          onTaskUpdated={() => ctx.getTasks()}
+        />
       ) : null}
 
       {ctx.state.showEditModal ? (
@@ -28,9 +34,9 @@ export default function TaskListModals({ ctx }) {
           rowData={ctx.state.rowData}
           categoryData={ctx.state.CategoryData}
           openAddQuestion={ctx.state.openAddQuestion}
+          onTaskUpdated={() => ctx.getTasks()}
         />
       ) : null}
     </>
   );
 }
-

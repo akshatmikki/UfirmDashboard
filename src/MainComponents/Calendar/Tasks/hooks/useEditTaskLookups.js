@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ApiProvider from "../../DataProvider";
+import { getFrequencyList } from "../../../../Services/masterService";
 
 export default function useEditTaskLookups({
   propertyId,
@@ -15,6 +16,12 @@ export default function useEditTaskLookups({
   const [assign, setAssign] = useState([]);
   const [propertyData, setPropertyData] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [frequencyData, setFrequencyData] = useState([]);
+
+  const occurrenceOptions = (frequencyData || []).map((e) => ({
+    value: e.Occurence,
+    label: e.Name,
+  }));
 
   const manageSubCategory = useCallback(
     (categoryId) => {
@@ -86,6 +93,16 @@ export default function useEditTaskLookups({
     [Api],
   );
 
+  const loadFrequency = useCallback(async () => {
+    try {
+      const data = await getFrequencyList(propertyId ? Number(propertyId) : null);
+      setFrequencyData(data || []);
+    } catch (error) {
+      console.error("Error fetching frequency:", error);
+      setFrequencyData([]);
+    }
+  }, [propertyId]);
+
   const populateAssetDetails = useCallback(
     (id) => {
       if (!id || !(assets || []).length) return;
@@ -128,7 +145,8 @@ export default function useEditTaskLookups({
   useEffect(() => {
     manageAssign();
     manageProperties();
-  }, [manageAssign, manageProperties]);
+    loadFrequency();
+  }, [loadFrequency, manageAssign, manageProperties]);
 
   useEffect(() => {
     if (propertyId) manageAssets(propertyId);
@@ -138,6 +156,5 @@ export default function useEditTaskLookups({
     if (assetId) populateAssetDetails(assetId);
   }, [assetId, populateAssetDetails]);
 
-  return { subCategory, assign, propertyData, assets, onAssetChange };
+  return { subCategory, assign, propertyData, assets, occurrenceOptions, onAssetChange };
 }
-

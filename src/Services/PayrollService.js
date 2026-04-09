@@ -536,7 +536,7 @@ export const getUngeneratedSalaryByProperties = async (
   const ids = propertyIds.join(",");
 
   const response = await fetch(
-    `https://api.urest.in:8096/api/employee/ungeneratedSalary?propertyIds=${ids}&month=${month}&year=${year}`,
+    `https://api.urest.in:8096/ungeneratedSalary?propertyIds=${ids}&month=${month}&year=${year}`,
     {
       method: "GET",
       headers: { Accept: "application/json" },
@@ -628,12 +628,26 @@ export const deleteMultipleAttendance = async (empIds, monthyear, propertyId) =>
 };
 
 // Upload Attendance File
-export const uploadAttendance = async (file, propertyId, monthyear) => {
+export const uploadAttendance = async (
+  file,
+  propertyId,
+  monthyear,
+  options = {}
+) => {
   try {
     const formData = new FormData();
     formData.append("file", file);
     formData.append("propertyId", propertyId);
     formData.append("monthyear", monthyear);
+    if (options.forceUpload !== undefined) {
+      formData.append("forceUpload", String(!!options.forceUpload));
+    }
+    if (Array.isArray(options.crossPropertyMappings)) {
+      formData.append(
+        "crossPropertyMappings",
+        JSON.stringify(options.crossPropertyMappings)
+      );
+    }
 
     const response = await axios.post(
       `${BASE_URL}/UploadAttendance`,
@@ -1090,6 +1104,32 @@ export const getEmployeesByOffices = async (officeIds = []) => {
     return response.data;
   } catch (error) {
     console.error("Failed to fetch employees by offices", error);
+    throw error;
+  }
+};
+
+export const getEmployeesByOfficesWithAttendance = async (
+  officeIds = [],
+  monthYear = ""
+) => {
+  if (!officeIds.length) return [];
+
+  try {
+    const response = await axios.post(
+      `${EMPLOYEE_API_BASE_URL}/getByOfficesWithAttendance`,
+      {
+        OfficeIds: officeIds,
+        MonthYear: monthYear || null,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: false,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch employees by offices with attendance", error);
     throw error;
   }
 };

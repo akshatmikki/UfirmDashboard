@@ -10,7 +10,7 @@ import ViewQuestionImg from "../../ViewQuestionImg";
 import EditQuestion from "../../EditQuestion";
 
 export default function EditTaskPage(props) {
-  const { visible, closeModal, rowData, categoryData, openAddQuestion } = props;
+  const { visible, closeModal, rowData, categoryData, openAddQuestion, onTaskUpdated } = props;
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset", "fmRemarks"]);
   const ctrl = useEditTaskController({ rowData, categoryData });
   const [invalidField, setInvalidField] = useState("");
@@ -53,11 +53,22 @@ export default function EditTaskPage(props) {
     taskName: rowData?.Name,
     propertyId: rowData?.PropertyId,
     initialTaskDate: ctrl.initialTaskDate,
+    onTaskUpdated,
   });
 
   const fmQuestions = useMemo(() => {
     return (q.questions || []).map((x) => ({ id: x.QuesId, name: x.QuestionName }));
   }, [q.questions]);
+  const fallbackOccurrenceOptions = useMemo(
+    () => [
+      { value: "N", label: "Do not repeat" },
+      { value: "D", label: "Daily" },
+      { value: "W", label: "Weekly" },
+      { value: "M", label: "Monthly" },
+      { value: "Y", label: "Yearly" },
+    ],
+    [],
+  );
 
   const onSave = useCallback(async () => {
     const res = await ctrl.save();
@@ -133,13 +144,11 @@ export default function EditTaskPage(props) {
             assignOptions={ctrl.lookups.assign}
             assignTo={ctrl.form.assignTo}
             onAssignToChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ assignTo: v }); }}
-            occurrenceOptions={[
-              { value: "N", label: "Do not repeat" },
-              { value: "D", label: "Daily" },
-              { value: "W", label: "Weekly" },
-              { value: "M", label: "Monthly" },
-              { value: "Y", label: "Yearly" },
-            ]}
+            occurrenceOptions={
+              (ctrl.lookups.occurrenceOptions || []).length
+                ? ctrl.lookups.occurrenceOptions
+                : fallbackOccurrenceOptions
+            }
             occurence={ctrl.form.occurence}
             onOccurenceChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ occurence: v }); }}
             invalidField={invalidField}
@@ -191,6 +200,8 @@ export default function EditTaskPage(props) {
             remarks={fm.remarks}
             hasAnyRemarksForQuestion={fm.hasAnyRemarksForQuestion}
             chatStatus={rowData?.CurrentStatus || rowData?.TaskStatus || "Actionable"}
+            questionStatusMap={fm.questionStatusMap}
+            questionIdsWithRemarks={fm.questionIdsWithRemarks}
             onSend={fm.sendFmRemark}
           />
         </TaskSection>

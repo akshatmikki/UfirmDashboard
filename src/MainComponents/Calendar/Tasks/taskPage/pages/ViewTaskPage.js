@@ -8,7 +8,7 @@ import { TaskQuestionsViewSection } from "../TaskQuestionsSections";
 import ViewQuestionImg from "../../ViewQuestionImg";
 
 export default function ViewTaskPage(props) {
-  const { visible, closeModal, rowData } = props;
+  const { visible, closeModal, rowData, onTaskUpdated } = props;
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset", "fmRemarks"]);
   const ctrl = useViewTaskController({ rowData });
 
@@ -17,6 +17,7 @@ export default function ViewTaskPage(props) {
     taskName: rowData?.Name,
     propertyId: rowData?.PropertyId,
     initialTaskDate: ctrl.initialTaskDate,
+    onTaskUpdated,
   });
 
   const fmQuestions = useMemo(() => {
@@ -96,6 +97,8 @@ export default function ViewTaskPage(props) {
             remarks={fm.remarks}
             hasAnyRemarksForQuestion={fm.hasAnyRemarksForQuestion}
             chatStatus={rowData?.CurrentStatus || rowData?.TaskStatus || "Actionable"}
+            questionStatusMap={fm.questionStatusMap}
+            questionIdsWithRemarks={fm.questionIdsWithRemarks}
             onSend={fm.sendFmRemark}
           />
         </TaskSection>
