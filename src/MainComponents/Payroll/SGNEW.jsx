@@ -2527,13 +2527,31 @@ export default function SGNEW() {
                         }}
                       >
                         <div
-                          onClick={() => setOtStandalone(true)}
+                          onClick={() => {
+                            if (
+                              deductionAllowanceMap.PF?.OTAmount ||
+                              deductionAllowanceMap.ESI?.OTAmount
+                            ) {
+                              alert("OTAmount is already used in PF/ESI, so standalone cannot be set to Yes.");
+                              return;
+                            }
+                            setOtStandalone(true);
+                          }}
                           style={{
                             padding: "2px 12px",
                             background: otStandalone ? "#2563eb" : "#fff",
                             color: otStandalone ? "#fff" : "#2563eb",
                             fontWeight: 600,
-                            cursor: "pointer",
+                            cursor:
+                              deductionAllowanceMap.PF?.OTAmount ||
+                              deductionAllowanceMap.ESI?.OTAmount
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity:
+                              deductionAllowanceMap.PF?.OTAmount ||
+                              deductionAllowanceMap.ESI?.OTAmount
+                                ? 0.6
+                                : 1,
                             fontSize: 12
                           }}
                         >
