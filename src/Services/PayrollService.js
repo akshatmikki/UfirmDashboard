@@ -534,9 +534,13 @@ export const getUngeneratedSalaryByProperties = async (
   if (!propertyIds.length) return [];
 
   const ids = propertyIds.join(",");
+  const query = `propertyIds=${encodeURIComponent(ids)}&month=${encodeURIComponent(
+    month
+  )}&year=${encodeURIComponent(year)}`;
 
-  const response = await fetch(
-    `https://api.urest.in:8096/ungeneratedSalary?propertyIds=${ids}&month=${month}&year=${year}`,
+  // Prefer controller route with RoutePrefix; keep a fallback for legacy deployments.
+  let response = await fetch(
+    `https://api.urest.in:8096/api/employee/ungeneratedSalary?${query}`,
     {
       method: "GET",
       headers: { Accept: "application/json" },
@@ -544,10 +548,33 @@ export const getUngeneratedSalaryByProperties = async (
   );
 
   if (!response.ok) {
+    response = await fetch(
+      `https://api.urest.in:8096/ungeneratedSalary?${query}`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      }
+    );
+  }
+
+  if (!response.ok) {
     throw new Error("Failed to fetch ungenerated salary");
   }
 
-  return response.json();
+  const data = await response.json();
+  const list = Array.isArray(data) ? data : [];
+
+  // Safety net: dedupe by employee + property in case API sends repeated rows.
+  const unique = [];
+  const seen = new Set();
+  for (const emp of list) {
+    const key = `${Number(emp?.EmployeeId || 0)}-${Number(emp?.PropertyId || 0)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(emp);
+  }
+
+  return unique;
 };
 
 // ------------------------------
@@ -1187,25 +1214,58 @@ export const saveAttendanceBatch = async (monthyear, employees = []) => {
 // GET PF REPORT DATA BY CLIENT + PROPERTY
 // ==========================================
 export const getFacilityMemberSalaryDetailsByClientBranch = async (
-  clientId,
-  propertyId,
-  month,
-  year
+  arg1,
+  arg2,
+  arg3,
+  arg4
 ) => {
+  // Backward compatible:
+  // old: (clientId, propertyId, month, year)
+  // new: ({ facilityMemberIds, branchId, clientId, propertyIds, month, year, requireGeneratedSalary })
+  const options =
+    arg1 && typeof arg1 === "object" && !Array.isArray(arg1)
+      ? arg1
+      : {
+          clientId: arg1 ?? null,
+          propertyIds: arg2 ?? null,
+          month: arg3 ?? null,
+          year: arg4 ?? null,
+        };
+
+  const {
+    facilityMemberIds = null,
+    branchId = null,
+    clientId = null,
+    propertyIds = null,
+    propertyId = null, // fallback for older object calls
+    month,
+    year,
+    requireGeneratedSalary = false,
+  } = options;
+
+  const resolvedPropertyIds = Array.isArray(propertyIds)
+    ? propertyIds.join(",")
+    : (propertyIds ?? propertyId ?? null);
+
   try {
     const response = await axios.get(
       "https://api.urest.in:8096/get-facilitymember-salary-details-byclient-branch",
       {
         params: {
-          clientId: clientId,
-          propertyId: propertyId,
-          Month: month,
-          Year: year
+          facilityMemberIds: Array.isArray(facilityMemberIds)
+            ? facilityMemberIds.join(",")
+            : facilityMemberIds,
+          branchId,
+          clientId,
+          propertyIds: resolvedPropertyIds,
+          month,
+          year,
+          requireGeneratedSalary,
         },
         headers: {
-          Accept: "application/json"
+          Accept: "application/json",
         },
-        withCredentials: false
+        withCredentials: false,
       }
     );
 

@@ -6,7 +6,7 @@ import {
   // getUngeneratedSalaryByOffice,
   createGeneratedSalary,
   // getEmployeeGeneratedSalaries,
-  getFacilityMemberSalaryDetails,
+  getFacilityMemberSalaryDetailsByClientBranch,
   deleteGeneratedSalary,
   regenerateEmployeeSalary,
   updateGeneratedSalary,
@@ -100,6 +100,10 @@ export default function GenerateSalary() {
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
 
   const officeId =
+    selectedPropertyId.length === 1
+      ? selectedPropertyId[0]
+      : reduxPropertyId || null;
+  const effectivePropertyId =
     selectedPropertyId.length === 1
       ? selectedPropertyId[0]
       : reduxPropertyId || null;
@@ -452,18 +456,7 @@ export default function GenerateSalary() {
     setLoadingSalaryData(true);
     try {
       const facilityMemberIds = specificIds && specificIds.length ? specificIds : generatedEmployees.map((emp) => emp.EmployeeId);
-      let apiMonth = selectedMonth;
-      let apiYear = selectedYear;
-
-      // move to next month
-      if (apiMonth === 12) {
-        apiMonth = 1;
-        apiYear = apiYear + 1;
-      } else {
-        apiMonth = apiMonth + 1;
-      }
-
-      const monthName = apiMonth ? monthNames[apiMonth - 1] : null;
+      const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
 
       if (!monthName) {
         setSalaryData([]);
@@ -471,7 +464,21 @@ export default function GenerateSalary() {
         return;
       }
 
-      const data = await getFacilityMemberSalaryDetails(facilityMemberIds, monthName.toLowerCase(), apiYear);
+      if (!effectivePropertyId) {
+        setSalaryData([]);
+        setShowGrid(false);
+        return;
+      }
+
+      const data = await getFacilityMemberSalaryDetailsByClientBranch({
+        facilityMemberIds,
+        branchId: null,
+        clientId: selectedUnitId || reduxClientId || null,
+        propertyIds: String(effectivePropertyId),
+        month: monthName,
+        year: selectedYear,
+        requireGeneratedSalary: false,
+      });
       setSalaryData(data || []);
       if ((data || []).length === 0) setShowGrid(false);
     } catch (error) {
@@ -972,7 +979,7 @@ export default function GenerateSalary() {
       const payload = selectedEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
-        OfficeId: emp.PropertyId, // ✅ ALWAYS use employee's own property
+        OfficeId: effectivePropertyId || emp.PropertyId,
         CreatedOn: new Date().toISOString(),
         Month: monthValue,
         Year: yearValue,
@@ -1026,7 +1033,7 @@ export default function GenerateSalary() {
       const payload = selectedRegenEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
-        OfficeId: emp.PropertyId, // ✅ ALWAYS use employee's own property
+        OfficeId: effectivePropertyId || emp.PropertyId,
         CreatedOn: new Date().toISOString(),
         Month: monthValue,
         Year: yearValue,
@@ -1825,3 +1832,4 @@ export default function GenerateSalary() {
     </div>
   );
 }
+
