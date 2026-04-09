@@ -116,6 +116,7 @@ import AttendanceReportPage from "../MainComponents/Reports/AttendanceReport.jsx
 import Report from "../MainComponents/Payroll/Report.jsx";
 import BranchMaster from "../MainComponents/FacilityMember/BranchMaster.jsx";
 import AttendanceBiometricReport from "../MainComponents/Reports/AttendanceBiometricReport.jsx";
+import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 
 var currentpropertyid;
 var currentclientid;
@@ -485,6 +486,7 @@ class MainNav extends React.Component {
       "/Account/App/ProfessionalTax",
       "/Account/App/LabourFund",
       "/Account/App/AD_Percentage",
+      "/Account/App/EmployeeShiftMapping",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -1242,6 +1244,16 @@ class MainNav extends React.Component {
                           </Link>
                         </li>
 
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/EmployeeShiftMapping"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Employee Shift Mapping</p>
+                          </Link>
+                        </li>
+
                         {/* <li className="nav-item">
                           <Link to="/Account/App/Formula" className="nav-link">
                             <i className="fas fa-caret-right nav-icon"></i>
@@ -1950,6 +1962,10 @@ class MainNav extends React.Component {
             <Route
               path="/Account/App/AD_Percentage"
               component={AD_Percentage}
+            />
+            <Route
+              path="/Account/App/EmployeeShiftMapping"
+              component={EmployeeShiftMapping}
             />
             <Route
               path="/Account/App/GenerateSalary"
