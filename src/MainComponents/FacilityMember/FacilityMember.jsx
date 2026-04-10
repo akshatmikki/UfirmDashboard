@@ -132,6 +132,49 @@ const StaffPage = () => {
   const [family, setFamily] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
+  const sanitizePanValue = (value = "") => {
+    const panPattern = ["A", "A", "A", "A", "A", "9", "9", "9", "9", "A"];
+    const cleanedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    let formattedValue = "";
+
+    for (const char of cleanedValue) {
+      const expectedType = panPattern[formattedValue.length];
+      if (!expectedType) break;
+
+      const isValidChar =
+        (expectedType === "A" && /[A-Z]/.test(char)) ||
+        (expectedType === "9" && /[0-9]/.test(char));
+
+      if (isValidChar) {
+        formattedValue += char;
+      }
+    }
+
+    return formattedValue;
+  };
+
+  const sanitizeIfscValue = (value = "") => {
+    const ifscPattern = ["A", "A", "A", "A", "0", "X", "X", "X", "X", "X", "X"];
+    const cleanedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    let formattedValue = "";
+
+    for (const char of cleanedValue) {
+      const expectedType = ifscPattern[formattedValue.length];
+      if (!expectedType) break;
+
+      const isValidChar =
+        (expectedType === "A" && /[A-Z]/.test(char)) ||
+        (expectedType === "0" && char === "0") ||
+        (expectedType === "X" && /[A-Z0-9]/.test(char));
+
+      if (isValidChar) {
+        formattedValue += char;
+      }
+    }
+
+    return formattedValue;
+  };
+
   const [workHistories, setWorkHistories] = useState([
     {
       CompanyName: "",
@@ -642,24 +685,24 @@ const StaffPage = () => {
 
   const downloadSampleTemplate = () => {
     const headers = [
-      "EMPCODE",
-      "EMP NAME",
+      "EMPCODE *",
+      "EMP NAME *",
       "F/H NAME",
       "DOB",
-      "DOJ",
-      "GENDER",
+      "DOJ *",
+      "GENDER *",
       "MOBILE",
       "EMAIL",
       "JOB TYPE",
       "BANK NAME",
       "ACCOUNT NO",
       "IFSC CODE",
-      "AADHAAR NO",
+      "AADHAAR NO *",
       "PF NUMBER",
       "ESI NO",
-      "PAN NO",
+      "PAN NO *",
       "UAN NO",
-      "DESIGNATION CODE",
+      "DESIGNATION CODE *",
       "DEPT CODE",
       "ADDRESS LINE 1",
       "ADDRESS LINE 2",
@@ -789,37 +832,21 @@ const StaffPage = () => {
     // ================= VALIDATIONS =================
 
     const cleanName = employeeName.trim().replace(/\s+/g, " ");
-    // Required fields
-    if (!cleanName) {
-      setIsProcessing(false);
-      return toast.current.show({
-        severity: "warn",
-        summary: "Validation",
-        detail: "Employee Name is required"
-      });
-    }
+    const missingRequiredFields = [];
 
-    if (!employeeCode?.trim()) {
-      setIsProcessing(false);
-      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
-    }
-
-    if (!designation?.trim()) {
-      setIsProcessing(false);
-      return toast.current.show({
-        severity: "warn",
-        summary: "Validation",
-        detail: "Designation is required"
-      });
-    }
-
-
+    if (!employeeCode?.trim()) missingRequiredFields.push("Employee Code");
+    if (!cleanName) missingRequiredFields.push("Employee Name");
+    if (!designation?.trim()) missingRequiredFields.push("Designation");
     if (designation === "OTHER" && !customDesignation?.trim()) {
+      missingRequiredFields.push("Custom Designation");
+    }
+
+    if (missingRequiredFields.length > 0) {
       setIsProcessing(false);
       return toast.current.show({
         severity: "warn",
-        summary: "Validation",
-        detail: "Please enter custom designation"
+        summary: "Mandatory Fields",
+        detail: `Please fill: ${missingRequiredFields.join(", ")}`
       });
     }
 
@@ -848,7 +875,6 @@ const StaffPage = () => {
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "DOB cannot be future date" });
     }
 
-    // At least one of PAN or Aadhaar required
     if (!panCard?.trim() && !aadharCard?.trim()) {
       setIsProcessing(false);
       return toast.current.show({
@@ -898,6 +924,16 @@ const StaffPage = () => {
     if (pfNumber && !/^[A-Z0-9\/]{5,20}$/i.test(pfNumber)) {
       setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid PF Number" });
+    }
+
+    const hasMissingStartDate = workHistories.some((wh) => !wh.StartDate);
+    if (hasMissingStartDate) {
+      setIsProcessing(false);
+      return toast.current.show({
+        severity: "warn",
+        summary: "Mandatory Fields",
+        detail: "Please fill: Start Date"
+      });
     }
 
     let profileImageUrl = "";
@@ -1566,6 +1602,16 @@ const StaffPage = () => {
 
   return (
     <PrimeReactProvider>
+      <style>{`
+        .pan-placeholder-light::placeholder {
+          color: #9ca3af;
+          opacity: 1;
+        }
+
+        .required-asterisk {
+          color: #dc2626;
+        }
+      `}</style>
       <div className="content-wrapper">
         <section className="content">
           <div className="container-fluid">
@@ -1703,7 +1749,7 @@ const StaffPage = () => {
                   className="mb-3"
                   style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
-                <label>Employee Code *</label>
+                <label>Employee Code <span className="required-asterisk">*</span></label>
                 <InputText
                   placeholder="Employee Code"
                   value={employeeCode}
@@ -1716,7 +1762,7 @@ const StaffPage = () => {
                   className="mb-3"
                 />
 
-                <label>Employee Name *</label>
+                <label>Employee Name <span className="required-asterisk">*</span></label>
                 <InputText
                   placeholder="Employee Name"
                   value={employeeName}
@@ -1776,7 +1822,7 @@ const StaffPage = () => {
                   />
                 )}
 
-                <label>Designation *</label>
+                <label>Designation <span className="required-asterisk">*</span></label>
                 <Dropdown
                   placeholder={isLoadingDesignations ? "Loading..." : "Select Designation"}
                   value={designation}
@@ -1839,7 +1885,7 @@ const StaffPage = () => {
                   filter
                 />
 
-                <label>Gender *</label>
+                <label>Gender <span className="required-asterisk">*</span></label>
                 <Dropdown
                   placeholder="Select Gender"
                   value={gender}
@@ -1868,21 +1914,20 @@ const StaffPage = () => {
                   className="mb-3"
                 />
 
-                <label>Pan Card</label>
+                <label>Pan Card <span className="required-asterisk">*</span></label>
                 <InputText
-                  placeholder="Pan Card"
+                  placeholder="ABCDE1234F"
                   value={panCard}
                   onChange={(e) => {
-                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                    if (val.length <= 10) {
-                      setPanCard(val);
-                      setPanNumber(val); // 🔥 SYNC
-                    }
+                    const val = sanitizePanValue(e.target.value);
+                    setPanCard(val);
+                    setPanNumber(val);
                   }}
-                  className="mb-3"
+                  maxLength={10}
+                  className="mb-3 pan-placeholder-light"
                 />
 
-                <label>Aadhar Card</label>
+                <label>Aadhar Card <span className="required-asterisk">*</span></label>
                 <InputText
                   placeholder="Aadhar Card"
                   value={aadharCard}
@@ -1944,12 +1989,13 @@ const StaffPage = () => {
 
                 <label>Bank IFSC Code</label>
                 <InputText
-                  placeholder="Bank IFSC Code"
+                  placeholder="SBIN0123456"
                   value={bankIFSCCode}
                   onChange={(e) => {
-                    const val = e.target.value.toUpperCase();
-                    if (val.length <= 11) setBankIFSCCode(val);
+                    const val = sanitizeIfscValue(e.target.value);
+                    setBankIFSCCode(val);
                   }}
+                  maxLength={11}
                   className="mb-3"
                 />
 
@@ -1974,15 +2020,15 @@ const StaffPage = () => {
 
                 <label>PAN Number</label>
                 <InputText
-                  placeholder="PAN Number"
+                  placeholder="ABCDE1234F"
                   value={panNumber}
                   onChange={(e) => {
-                    const val = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                    if (val.length <= 10) {
-                      setPanNumber(val);
-                      setPanCard(val); // 🔥 SYNC BACK
-                    }
+                    const val = sanitizePanValue(e.target.value);
+                    setPanNumber(val);
+                    setPanCard(val);
                   }}
+                  maxLength={10}
+                  className="pan-placeholder-light"
                 />
 
                 <label>PF Number</label>
@@ -2046,7 +2092,7 @@ const StaffPage = () => {
                       className="mb-3"
                     />
 
-                    <label>Start Date *</label>
+                    <label>Start Date <span className="required-asterisk">*</span></label>
                     <Calendar
                       placeholder="Start Date"
                       value={history.StartDate}
