@@ -1,0 +1,197 @@
+.ppm-wrapper {
+  padding: 6px;
+}
+
+.ppm-card {
+  max-width: 1450px;
+  margin: 0 auto;
+  border: 1px solid #d7e0ea;
+  border-radius: 12px;
+  box-shadow: 0 4px 14px rgba(20, 51, 84, 0.07);
+  overflow: hidden;
+}
+
+.ppm-header {
+  background: #f5f8fc;
+  border-bottom: 1px solid #d7e0ea;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px;
+}
+
+.ppm-filters {
+  display: flex;
+  gap: 8px;
+}
+
+.ppm-select {
+  width: 160px;
+  border: 1px solid #c8d6e6;
+  border-radius: 9px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #213547;
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+
+.ppm-select-year {
+  width: 110px;
+}
+
+.ppm-summary-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.ppm-stat-card {
+  min-width: 122px;
+  background: #f7f9fc;
+  border: 1px solid #cdd9e8;
+  border-radius: 12px;
+  padding: 6px 12px;
+}
+
+.ppm-stat-value {
+  font-size: 1.22rem;
+  line-height: 1.1;
+  font-weight: 800;
+}
+
+.ppm-stat-label {
+  margin-top: 3px;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.ppm-stat-total .ppm-stat-value,
+.ppm-stat-total .ppm-stat-label {
+  color: #7f3fbf;
+}
+
+.ppm-stat-completed .ppm-stat-value,
+.ppm-stat-completed .ppm-stat-label {
+  color: #0d8d4c;
+}
+
+.ppm-stat-pending .ppm-stat-value,
+.ppm-stat-pending .ppm-stat-label {
+  color: #c53a3a;
+}
+
+.ppm-stat-actionable .ppm-stat-value,
+.ppm-stat-actionable .ppm-stat-label {
+  color: #c79a00;
+}
+
+.ppm-calendar-table {
+  table-layout: fixed;
+  width: 100%;
+  margin-bottom: 0;
+}
+
+.ppm-calendar-table thead th {
+  background: #edf3f9;
+  color: #1c2c3f;
+  font-size: 0.96rem;
+  font-weight: 800;
+  padding: 8px 5px;
+  border-color: #d7e0ea;
+}
+
+.ppm-day-cell {
+  vertical-align: top;
+  padding: 5px !important;
+  background: #fcfdff;
+  border-color: #e1e7ef !important;
+}
+
+.ppm-day-number {
+  font-size: 0.95rem;
+  line-height: 1;
+  font-weight: 800;
+  color: #1c2c3f;
+  margin-bottom: 4px;
+}
+
+.ppm-member-list {
+  overflow: visible;
+  max-height: none;
+  min-height: unset;
+  padding-right: 0;
+}
+
+.ppm-member-card {
+  background: #f2f5fa;
+  border: 1px solid #e1e7ef;
+  border-radius: 8px;
+  padding: 4px 7px;
+  margin-bottom: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.ppm-member-card:hover {
+  background: #edf3fa;
+}
+
+.ppm-member-name {
+  color: #1f2f40;
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.15px;
+}
+
+.ppm-count-wrap {
+  white-space: nowrap;
+  font-weight: 800;
+  font-size: 0.78rem;
+}
+
+.ppm-count-pending {
+  color: #dc3545;
+}
+
+.ppm-count-sep {
+  color: #7b8ca0;
+  margin: 0 2px;
+}
+
+.ppm-count-total {
+  color: #1f2f40;
+}
+
+@media (max-width: 992px) {
+  .ppm-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .ppm-summary-row {
+    justify-content: flex-start;
+  }
+
+  .ppm-stat-card {
+    min-width: 110px;
+  }
+}
+
+@media (max-width: 768px) {
+  .ppm-select {
+    width: 100%;
+  }
+
+  .ppm-filters {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+}
