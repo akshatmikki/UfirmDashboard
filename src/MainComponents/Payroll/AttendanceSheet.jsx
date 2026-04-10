@@ -556,9 +556,9 @@ export default function AttendanceSheet() {
         EL: att.EL ?? "",
         CL: att.CL ?? "",
         SL: att.SL ?? "",
-        weekDaysOff: att.WeekDaysOff,
-        otDays: att.OtDays || "",
-        otHours: att.OtHours || "",
+        weekDaysOff: att.WeekDaysOff ?? "",
+        otDays: att.OtDays ?? "",
+        otHours: att.OtHours ?? "",
         totalDays: att.PayableDays ?? "",
         manualTotalDays: false,
         nhDays: att.NHDays ?? "",
@@ -939,8 +939,7 @@ export default function AttendanceSheet() {
       const totalDays =
         field === "totalDays"
           ? parseFloat(value) || 0
-          : parseFloat(current.totalDays) ||
-          globalTotalDays;
+          : parseFloat(current.totalDays) || globalTotalDays;
       const monthDaysLimit = getDaysInMonth(month, year);
 
       const w = parseFloat(updated.workingDays) || 0;
@@ -949,8 +948,15 @@ export default function AttendanceSheet() {
       const sl = parseFloat(updated.SL) || 0;
       const l = el + cl + sl;
       const wk = parseFloat(updated.weekDaysOff) || 0;
+      const totalAgainstMonthLimit =
+        field === "totalDays" ? parseFloat(value) || 0 : totalDays;
 
-      if (field === "workingDays" && parseFloat(value) > monthDaysLimit) {
+      if (
+        ["workingDays", "EL", "CL", "SL", "weekDaysOff", "totalDays"].includes(
+          field
+        ) &&
+        (parseFloat(value) || 0) > monthDaysLimit
+      ) {
         return prev;
       }
 
@@ -958,9 +964,11 @@ export default function AttendanceSheet() {
         if (parseFloat(value) > totalDays) return prev;
       }
 
+      if (totalAgainstMonthLimit > monthDaysLimit) return prev;
+
       // Only validate when NOT editing totalDays itself
       if (field !== "totalDays") {
-        if (w + l + wk > totalDays) return prev;
+        if (w + l + wk > totalDays || w + l + wk > monthDaysLimit) return prev;
       }
 
       return { ...prev, [empId]: updated };
@@ -985,6 +993,7 @@ export default function AttendanceSheet() {
     try {
       const updatePromises = [];
       const newEmployees = [];
+      const savedModelsByEmpId = {};
 
       selectedEmpIds.forEach((empId) => {
         const emp = employees.find(
@@ -1045,6 +1054,7 @@ export default function AttendanceSheet() {
           PayableDays: n(inp.totalDays),
           Status: inp.status || "",
         };
+        savedModelsByEmpId[empId] = model;
 
         const existing = filteredAttendance.find(
           (a) =>
@@ -1073,9 +1083,92 @@ export default function AttendanceSheet() {
         await saveAttendanceBatch(currMonthYear, newEmployees);
       }
 
-      alert("Attendance saved successfully!");
+      // Keep UI in sync immediately (without needing full page refresh)
+      setFilteredAttendance((prev) => {
+        const merged = [...(Array.isArray(prev) ? prev : [])];
+        Object.values(savedModelsByEmpId).forEach((m) => {
+          const idx = merged.findIndex(
+            (a) =>
+              String(a.EmpID) === String(m.EmpID) &&
+              String(a.monthyear) === String(m.monthyear)
+          );
 
-      await reloadAttendanceData();
+          const normalized = {
+            ...(idx >= 0 ? merged[idx] : {}),
+            EmpID: m.EmpID,
+            monthyear: m.monthyear,
+            WorkingDays: m.WorkingDays,
+            EL: m.EL,
+            CL: m.CL,
+            SL: m.SL,
+            WeekDaysOff: m.WeekDaysOff,
+            OtDays: m.OtDays,
+            OtHours: m.OtHours,
+            PayableDays: m.PayableDays,
+            NHDays: m.NHDays,
+            FHDays: m.FHDays,
+            Holidays: m.Holidays,
+            DivideByDays: m.DivideByDays,
+            OtMonthDays: m.OtMonthDays,
+            PFArrear: m.PFArrear,
+            OtherArrear: m.OtherArrear,
+            Incentive: m.Incentive,
+            AdvanceDed: m.AdvanceDed,
+            UniformDed: m.UniformDed,
+            BGVDed: m.BGVDed,
+            RoomDed: m.RoomDed,
+            FineDed: m.FineDed,
+            JoiningKits: m.JoiningKits,
+            OtherDed: m.OtherDed,
+            FoodDed: m.FoodDed,
+            Status: m.Status,
+          };
+
+          if (idx >= 0) merged[idx] = normalized;
+          else merged.push(normalized);
+        });
+        return merged;
+      });
+
+      setDayInputs((prev) => {
+        const next = { ...prev };
+        Object.values(savedModelsByEmpId).forEach((m) => {
+          const existing = next[m.EmpID] || {};
+          next[m.EmpID] = {
+            ...existing,
+            workingDays: m.WorkingDays ?? "",
+            EL: m.EL ?? "",
+            CL: m.CL ?? "",
+            SL: m.SL ?? "",
+            weekDaysOff: m.WeekDaysOff ?? "",
+            otDays: m.OtDays ?? "",
+            otHours: m.OtHours ?? "",
+            totalDays: m.PayableDays ?? "",
+            nhDays: m.NHDays ?? "",
+            fhDays: m.FHDays ?? "",
+            holidays: m.Holidays ?? "",
+            divideByDays: m.DivideByDays ?? existing.divideByDays ?? globalTotalDays,
+            otMonthDays: m.OtMonthDays ?? "",
+            pfArrear: m.PFArrear ?? "",
+            otherArrear: m.OtherArrear ?? "",
+            incentive: m.Incentive ?? "",
+            advanceDed: m.AdvanceDed ?? "",
+            uniformDed: m.UniformDed ?? "",
+            bgvDed: m.BGVDed ?? "",
+            roomDed: m.RoomDed ?? "",
+            fineDed: m.FineDed ?? "",
+            joiningKits: m.JoiningKits ?? "",
+            otherDed: m.OtherDed ?? "",
+            foodDed: m.FoodDed ?? "",
+            status: m.Status ?? "",
+            manualTotalDays: existing.manualTotalDays ?? false,
+          };
+        });
+        return next;
+      });
+      setSelectedEmpIds(new Set());
+
+      alert("Attendance saved successfully!");
 
     } catch (err) {
       console.error("Batch save failed:", err);
