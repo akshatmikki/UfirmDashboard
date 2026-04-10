@@ -99,3 +99,24 @@ export const getAllDepartments = async () => {
 
   return response.json();
 };
+
+// --------------------------------------------------
+// DELETE SALARY GROUP (Soft Delete)
+// --------------------------------------------------
+export const deleteSalaryGroup = async (salaryGroupId) => {
+  const response = await fetch(
+    `https://api.urest.in:8096/api/salaryallowances/${salaryGroupId}`,
+    {
+      method: "DELETE",
+      headers: {
+        "Accept": "application/json"
+      }
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to delete salary group");
+  }
+
+  return response.json();
+};

@@ -22,7 +22,7 @@ export default function TaskListCounters({ tasks = [], completedTasks, pendingTa
       </div>
       <div className="task-summary-card task-summary-progress">
         <p className="task-summary-value">{inProgress}</p>
-        <p className="task-summary-label">In-progress</p>
+        <p className="task-summary-label">Actionable</p>
       </div>
       <div className="task-summary-card task-summary-pending">
         <p className="task-summary-value">{pending}</p>

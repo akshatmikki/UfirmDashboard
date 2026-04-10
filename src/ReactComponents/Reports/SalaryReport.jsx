@@ -123,18 +123,15 @@ export default function SalaryReport() {
                     { month: "long" }
                 );
 
-                const results = await Promise.all(
-                    propertyIds.map((pid) =>
-                        getFacilityMemberSalaryDetailsByClientBranch(
-                            selectedUnitId,
-                            pid,
-                            monthName,
-                            year
-                        )
-                    )
-                );
+                const data = await getFacilityMemberSalaryDetailsByClientBranch({
+                    clientId: selectedUnitId,
+                    propertyIds: propertyIds.join(","),
+                    month: monthName,
+                    year: Number(year),
+                    requireGeneratedSalary: true,
+                });
 
-                const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
+                const flat = Array.isArray(data) ? data : [];
                 setEmployees(flat);
 
                 // extract unique departments
@@ -565,3 +562,4 @@ export default function SalaryReport() {
         </div>
     );
 }
+

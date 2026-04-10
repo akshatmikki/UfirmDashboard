@@ -97,19 +97,15 @@ export default function ESIReport() {
           { month: "long" }
         );
 
-        const results = await Promise.all(
-          propertyIds.map((pid) =>
-            getFacilityMemberSalaryDetailsByClientBranch(
-              selectedUnitId,
-              pid,
-              monthName,
-              year
-            )
-          )
-        );
+        const data = await getFacilityMemberSalaryDetailsByClientBranch({
+          clientId: selectedUnitId,
+          propertyIds: propertyIds.join(","),
+          month: monthName,
+          year: Number(year),
+          requireGeneratedSalary: true,
+        });
 
-        const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
-        setEmployees(flat);
+        setEmployees(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("ESI report fetch failed", error);
         setEmployees([]);
@@ -339,3 +335,4 @@ export default function ESIReport() {
     </div>
   );
 }
+

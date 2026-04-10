@@ -61,6 +61,9 @@ const StaffPage = () => {
   const [selectedUnitId, setSelectedUnitId] = useState(null);
   const [propertyList, setPropertyList] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
+  const activePropertyId = Number(selectedPropertyId?.[0]) > 0
+    ? Number(selectedPropertyId[0])
+    : propertyId;
 
   const [branchName, setBranchName] = useState("");
   const [clientName, setClientName] = useState("");
@@ -154,25 +157,34 @@ const StaffPage = () => {
   useEffect(() => {
     const loadUnits = async () => {
       try {
+        if (Number(reduxPropertyId) > 0) {
+          setSelectedPropertyId([Number(reduxPropertyId)]);
+          setClientPropertyIds([]);
+        }
+        if (Number(reduxPropertyId) > 0) {
+          try {
+            const res = await getClientByPropertyId(reduxPropertyId);
+            setUnitList(res ? [res] : []);
+            setSelectedUnitId(Number(res?.ClientID) > 0 ? Number(res.ClientID) : null);
+          } catch (propertyClientError) {
+            setUnitList([]);
+            setSelectedUnitId(null);
+            setPropertyList([]);
+          }
+          return;
+        }
+
         if (Number(reduxClientId) > 0) {
           setSelectedUnitId(Number(reduxClientId));
           return;
         }
-        if (Number(reduxPropertyId) > 0) {
-          const res = await getClientByPropertyId(reduxPropertyId);
 
-          setUnitList(res ? [res] : []);
-          setSelectedUnitId(res?.ClientID || null);
-
-          // 🔥 ADD THIS LINE
-          setSelectedPropertyId([reduxPropertyId]);
-
-        } else {
-          const res = await getAllClients();
-          setUnitList(res || []);
-        }
+        const res = await getAllClients();
+        setUnitList(res || []);
       } catch (err) {
         console.log("Failed to load clients", err);
+        setUnitList([]);
+        setSelectedUnitId(null);
       }
     };
 
@@ -182,9 +194,17 @@ const StaffPage = () => {
   useEffect(() => {
     const loadProperties = async () => {
       try {
+        if (Number(reduxPropertyId) > 0 && !selectedUnitId) {
+          setPropertyList([]);
+          setClientPropertyIds([]);
+          setSelectedPropertyId([Number(reduxPropertyId)]);
+          return;
+        }
+
         if (!selectedUnitId) {
           setPropertyList([]);
           setSelectedPropertyId([]);
+          setClientPropertyIds([]);
           setStaff([]);
           return;
         }
@@ -197,6 +217,7 @@ const StaffPage = () => {
         // 🔥 FIX STARTS HERE
         if (Number(reduxPropertyId) > 0) {
           setSelectedPropertyId([Number(reduxPropertyId)]);
+          setClientPropertyIds([]);
         } else {
           setSelectedPropertyId([]);
 
@@ -205,17 +226,21 @@ const StaffPage = () => {
               .map((p) => Number(p.PropertyId))
               .filter((id) => Number.isFinite(id) && id > 0);
             setClientPropertyIds(ids);
+          } else {
+            setClientPropertyIds([]);
           }
         }
         // 🔥 FIX ENDS HERE
 
       } catch (err) {
         console.log("Failed to load properties", err);
+        setPropertyList([]);
+        setClientPropertyIds([]);
       }
     };
 
     loadProperties();
-  }, [selectedUnitId, reduxPropertyId]);
+  }, [selectedUnitId, reduxPropertyId, reduxPropertyIds]);
 
   useEffect(() => {
     const loadDepartments = async () => {
@@ -283,10 +308,10 @@ const StaffPage = () => {
       try {
         let officeIds = [];
 
-        if (selectedPropertyId.length > 0) {
-          officeIds = selectedPropertyId;
-        } else if (Number(reduxPropertyId) > 0) {
+        if (Number(reduxPropertyId) > 0) {
           officeIds = [Number(reduxPropertyId)];
+        } else if (selectedPropertyId.length > 0) {
+          officeIds = selectedPropertyId;
         } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
           officeIds = reduxPropertyIds;
         } else if (clientPropertyIds.length > 0) {
@@ -353,6 +378,12 @@ const StaffPage = () => {
   useEffect(() => {
     const loadClient = async () => {
       try {
+        if (propertyId) {
+          const client = await getClientByPropertyId(propertyId);
+          setClientName(client?.ClientName || "");
+          return;
+        }
+
         if (Number(reduxClientId) > 0) {
           const clients = await getAllClients();
           const match = (clients || []).find(
@@ -366,9 +397,6 @@ const StaffPage = () => {
           setClientName("");
           return;
         }
-
-        const client = await getClientByPropertyId(propertyId);
-        setClientName(client?.ClientName || "");
       } catch (err) {
         console.error("Client load failed:", err);
         setClientName("");
@@ -737,8 +765,8 @@ const StaffPage = () => {
 
     let fileName = "Export.xlsx";
 
-    if (selectedPropertyId?.length > 0) {
-      fileName = `${propertyList.find(p => p.PropertyId === selectedPropertyId[0])?.PropertyName || "Unit"} Export.xlsx`;
+    if (activePropertyId) {
+      fileName = `${propertyList.find(p => Number(p.PropertyId) === Number(activePropertyId))?.PropertyName || propertyName || "Unit"} Export.xlsx`;
     } else if (clientName) {
       fileName = `${clientName} Export.xlsx`;
     }
@@ -749,7 +777,7 @@ const StaffPage = () => {
   const saveStaff = async () => {
     setIsProcessing(true);
     // 🔒 Ensure unit/property selected
-    if (!propertyId) {
+    if (!activePropertyId) {
       toast.current.show({
         severity: "warn",
         summary: "Warning",
@@ -976,7 +1004,7 @@ const StaffPage = () => {
     if (designation === "H.K. SUPERVISOR") facilityMasterId = 19;
     else if (designation === "TECHNICAL SUPERVISOR") facilityMasterId = 34;
 
-    if (!propertyId) {
+    if (!activePropertyId) {
       toast.current.show({
         severity: "warn",
         summary: "Select Property",
@@ -992,7 +1020,7 @@ const StaffPage = () => {
 
     const employeeData = {
       Profile: {
-        OfficeId: propertyId,
+        OfficeId: activePropertyId,
         EmployeeCode: employeeCode,
         EmployeeName: cleanName,
         EmploymentType: employmentType,
@@ -1042,7 +1070,7 @@ const StaffPage = () => {
       FacilityMember: {
         Name: cleanName,
         FacilityMemberId: selectedFacilityMemberId || 0,
-        PropertyId: propertyId || 0,
+        PropertyId: activePropertyId || 0,
         Address: (addressLine1 + " " + addressLine2).trim() || "",
         FacilityMasterId: facilityMasterId,
         ProfileImageUrl: profileImageUrl || "",
@@ -1091,7 +1119,7 @@ const StaffPage = () => {
       }
 
       // 🔥 STEP 1: Refresh staff
-      const data = await getEmployeesByOffices([propertyId]);
+      const data = await getEmployeesByOffices([activePropertyId]);
       setStaff(data || []);
 
       // 🔥 STEP 2: Update view dialog (ONLY for edit)
@@ -1212,7 +1240,7 @@ const StaffPage = () => {
     const file = event.target.files[0];
 
     if (!file) return;
-    if (!propertyId) {
+    if (!activePropertyId) {
       toast.current.show({
         severity: "warn",
         summary: "Select Property",
@@ -1234,7 +1262,7 @@ const StaffPage = () => {
     try {
       setIsProcessing(true); // 🔥 START LOADING
 
-      const result = await importEmployees(propertyId, file);
+      const result = await importEmployees(activePropertyId, file);
 
       // Download failed records
       if (result.FailedCount > 0 && result.FailedRecords?.length > 0) {
@@ -1258,7 +1286,7 @@ const StaffPage = () => {
       });
 
       // Reload staff
-      const data = await getEmployeesByOffices([propertyId]);
+      const data = await getEmployeesByOffices([activePropertyId]);
       setStaff(data || []);
 
     } catch (error) {
@@ -1375,7 +1403,7 @@ const StaffPage = () => {
           icon="pi pi-upload"
           className="p-button-secondary"
           tooltip="Import Staff"
-          disabled={!selectedPropertyId[0] || isProcessing}
+          disabled={!activePropertyId || isProcessing}
           onClick={handleImportClick}
         />
         <input
@@ -1397,7 +1425,7 @@ const StaffPage = () => {
         <Button
           label="Add Staff"
           icon="pi pi-plus"
-          disabled={!selectedPropertyId[0] || isProcessing}
+          disabled={!activePropertyId || isProcessing}
           onClick={openDialog}
           className="p-button-success"
         />
@@ -1412,7 +1440,7 @@ const StaffPage = () => {
           label="Export"
           icon="pi pi-download"
           className="p-button-primary"
-          disabled={!selectedPropertyId[0] || isProcessing}
+          disabled={!activePropertyId || isProcessing}
           onClick={exportToExcel}
         />
       </div>
@@ -1434,7 +1462,7 @@ const StaffPage = () => {
     setSelectedSalaryGroup(null);
     setSalaryGroupDetails(null);
     setSalaryGroupMessage("");
-    if (!designationValue || designationValue === "OTHER" || !propertyId) {
+    if (!designationValue || designationValue === "OTHER" || !activePropertyId) {
       setSalaryGroups([]);
       setSalaryGroupMessage("");
       return;
@@ -1443,7 +1471,7 @@ const StaffPage = () => {
     setIsLoadingSalaryGroups(true);
 
     try {
-      const data = await getSalaryGroupsByDesignation(propertyId, designationValue);
+      const data = await getSalaryGroupsByDesignation(activePropertyId, designationValue);
 
       const formatted = Array.isArray(data)
         ? data.map(sg => ({
@@ -1559,7 +1587,7 @@ const StaffPage = () => {
                 >
                   <div>
                     <strong>Client:</strong>{" "}
-                    {clientName || (reduxClientId ? `#${reduxClientId}` : "-")}
+                    {clientName || "-"}
                   </div>
                   <div>
                     <strong>Property:</strong>{" "}
@@ -1610,7 +1638,7 @@ const StaffPage = () => {
 
               {showSalaryGroupView && (
                 <SalaryGroupView
-                  propertyId={propertyId}
+                  propertyId={activePropertyId}
                   facilityMemberId={String(selectedFacilityMemberId)}
                   employeeName={selectedFacilityMemberName}
                   onClose={closeSalaryGroupView}
@@ -1652,7 +1680,7 @@ const StaffPage = () => {
                 label={isProcessing ? "Processing..." : (isEditMode ? "Update" : "Save")}
                 icon={isProcessing ? "pi pi-spin pi-spinner" : "pi pi-check"}
                 onClick={saveStaff}
-                disabled={!selectedPropertyId[0] || isProcessing}
+                disabled={!activePropertyId || isProcessing}
               />
             </div>
           }
@@ -1666,12 +1694,14 @@ const StaffPage = () => {
                   value={branchName}
                   readOnly
                   className="mb-3"
+                  style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
                 <label>Client Name</label>
                 <InputText
                   value={clientName}
                   readOnly
                   className="mb-3"
+                  style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
                 <label>Employee Code *</label>
                 <InputText
