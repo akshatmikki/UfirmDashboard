@@ -621,7 +621,7 @@ export default function PropertyMaster() {
                   }
                 />
 
-                <label>Shift Hours</label>
+                {/* <label>Shift Hours</label>
                 <InputText
                   type="number"
                   className="w-100 mb-2"
@@ -670,7 +670,7 @@ export default function PropertyMaster() {
                       SalaryCycleDayTo: Number(e.target.value),
                     })
                   }
-                />
+                /> */}
 
                 <div className="mb-2">
                   <input
@@ -683,7 +683,7 @@ export default function PropertyMaster() {
                   <span className="ms-2">Exclude Sundays</span>
                 </div>
 
-                <label>Monthly Sundays</label>
+                {/* <label>Monthly Sundays</label>
                 <InputText
                   type="number"
                   className="w-100 mb-2"
@@ -691,7 +691,7 @@ export default function PropertyMaster() {
                   onChange={(e) =>
                     setForm({ ...form, MonthSundays: Number(e.target.value) })
                   }
-                />
+                /> */}
               </div>
             </div>
 
