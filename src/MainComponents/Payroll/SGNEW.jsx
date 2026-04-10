@@ -13,6 +13,7 @@ import {
   getAllClients,
   getClientByPropertyId,
   getPropertiesByClientId,
+  deleteSalaryGroup,
 } from "../../Services/ClientService";
 
 export default function SGNEW() {
@@ -931,6 +932,38 @@ export default function SGNEW() {
     }
   };
 
+  const handleDeleteSalaryGroup = async () => {
+    if (!selectedSG || selectedSG.trim() === "") {
+      alert("Please select an existing salary group to delete.");
+      return;
+    }
+
+    const existingSG = salaryGroups.find((sg) => sg.SalaryGroup === selectedSG);
+    const salaryGroupId = Array.isArray(existingSG?.SalaryGroup_IDs)
+      ? existingSG.SalaryGroup_IDs[0]
+      : existingSG?.SalaryGroup_ID;
+
+    if (!salaryGroupId) {
+      alert("Unable to find selected salary group.");
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete salary group "${selectedSG}"?`)) {
+      return;
+    }
+
+    try {
+      const res = await deleteSalaryGroup(salaryGroupId);
+      alert(res?.message || "Salary Group deleted successfully (soft delete).");
+      await loadSG(selectedPropertyId);
+      resetSalaryGroupForm();
+      setPreviewSG(null);
+    } catch (error) {
+      console.error("Delete error:", error);
+      alert("Failed to delete salary group.");
+    }
+  };
+
   // SUM OF ALLOWANCES (A + OA)
   const totalAllowance = Object.keys(allowanceAmounts)
     .filter((key) => Number(allowanceAmounts[key]) > 0)
@@ -1426,7 +1459,8 @@ export default function SGNEW() {
           </div>
 
           {/* TOP RIGHT SAVE BUTTON */}
-          <div style={{ marginLeft: "auto", marginTop: "-15px" }}>
+          <div style={{ marginLeft: "auto", marginTop: "-15px", display: "flex", gap: 8 }}>
+            
             <button
               className="btn btn-sm btn-primary"
               onClick={handleSave}
@@ -1440,6 +1474,20 @@ export default function SGNEW() {
               }}
             >
               Save
+            </button>
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={handleDeleteSalaryGroup}
+              disabled={!selectedSG}
+              style={{
+                padding: "6px 14px",
+                fontSize: 13,
+                fontWeight: 600,
+                opacity: selectedSG ? 1 : 0.5,
+                cursor: selectedSG ? "pointer" : "not-allowed"
+              }}
+            >
+              Delete
             </button>
           </div>
         </div>
@@ -2527,13 +2575,31 @@ export default function SGNEW() {
                         }}
                       >
                         <div
-                          onClick={() => setOtStandalone(true)}
+                          onClick={() => {
+                            if (
+                              deductionAllowanceMap.PF?.OTAmount ||
+                              deductionAllowanceMap.ESI?.OTAmount
+                            ) {
+                              alert("OTAmount is already used in PF/ESI, so standalone cannot be set to Yes.");
+                              return;
+                            }
+                            setOtStandalone(true);
+                          }}
                           style={{
                             padding: "2px 12px",
                             background: otStandalone ? "#2563eb" : "#fff",
                             color: otStandalone ? "#fff" : "#2563eb",
                             fontWeight: 600,
-                            cursor: "pointer",
+                            cursor:
+                              deductionAllowanceMap.PF?.OTAmount ||
+                              deductionAllowanceMap.ESI?.OTAmount
+                                ? "not-allowed"
+                                : "pointer",
+                            opacity:
+                              deductionAllowanceMap.PF?.OTAmount ||
+                              deductionAllowanceMap.ESI?.OTAmount
+                                ? 0.6
+                                : 1,
                             fontSize: 12
                           }}
                         >
