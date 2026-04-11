@@ -1460,7 +1460,7 @@ export default function SGNEW() {
 
           {/* TOP RIGHT SAVE BUTTON */}
           <div style={{ marginLeft: "auto", marginTop: "-15px", display: "flex", gap: 8 }}>
-            
+
             <button
               className="btn btn-sm btn-primary"
               onClick={handleSave}
@@ -2592,12 +2592,12 @@ export default function SGNEW() {
                             fontWeight: 600,
                             cursor:
                               deductionAllowanceMap.PF?.OTAmount ||
-                              deductionAllowanceMap.ESI?.OTAmount
+                                deductionAllowanceMap.ESI?.OTAmount
                                 ? "not-allowed"
                                 : "pointer",
                             opacity:
                               deductionAllowanceMap.PF?.OTAmount ||
-                              deductionAllowanceMap.ESI?.OTAmount
+                                deductionAllowanceMap.ESI?.OTAmount
                                 ? 0.6
                                 : 1,
                             fontSize: 12
@@ -2998,6 +2998,58 @@ export default function SGNEW() {
 
               const isPercentage = valueType === "PERCENT";
 
+              const rawValue = deductionAmounts[d.Name] ?? 0;
+
+              let displayValue = rawValue;
+
+              // 👇 ONLY FOR PF UI LIMIT
+              if (d.Name === "PF" && pfLimit) {
+                let baseAmount = 0;
+
+                if (deductionAllowanceMap.PF?.BaseSalary) {
+                  baseAmount += Number(form.baseSalary) || 0;
+                }
+
+                Object.entries(deductionAllowanceMap.PF || {}).forEach(([k, v]) => {
+                  if (k !== "BaseSalary" && v) {
+                    baseAmount += Number(allowanceAmounts[k]) || 0;
+                  }
+                });
+
+                const limitedBase = Math.min(baseAmount, Number(pfLimit));
+
+                const percent =
+                  Number(editablePercentages.PF) ||
+                  getEffectivePercentage("PF")?.Percentage ||
+                  0;
+
+                displayValue = Math.round(limitedBase * (percent / 100));
+              }
+
+              // 👇 ONLY FOR ESI UI LIMIT
+              if (d.Name === "ESI" && esiLimit) {
+                let baseAmount = 0;
+
+                if (deductionAllowanceMap.ESI?.BaseSalary) {
+                  baseAmount += Number(form.baseSalary) || 0;
+                }
+
+                Object.entries(deductionAllowanceMap.ESI || {}).forEach(([k, v]) => {
+                  if (k !== "BaseSalary" && v) {
+                    baseAmount += Number(allowanceAmounts[k]) || 0;
+                  }
+                });
+
+                const limitedBase = Math.min(baseAmount, Number(esiLimit));
+
+                const percent =
+                  Number(editablePercentages.ESI) ||
+                  getEffectivePercentage("ESI")?.Percentage ||
+                  0;
+
+                displayValue = Math.round(limitedBase * (percent / 100));
+              }
+
               return (
                 <div
                   key={d.ID}
@@ -3126,6 +3178,7 @@ export default function SGNEW() {
                     <input
                       type="number"
                       className="form-control"
+                      disabled={isPercentage}
                       style={{
                         width: 120,
                         height: "28px",
@@ -3138,7 +3191,7 @@ export default function SGNEW() {
 
                         color: "#000",
                       }}
-                      value={deductionAmounts[d.Name] ?? ""}
+                      value={displayValue}
                       onChange={(e) =>
                         setDeductionAmounts((prev) => ({
                           ...prev,
