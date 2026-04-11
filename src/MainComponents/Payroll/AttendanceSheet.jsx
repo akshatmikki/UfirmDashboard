@@ -130,6 +130,7 @@ export default function AttendanceSheet() {
   const [conflictRecords, setConflictRecords] = useState([]);
   const [salaryGroupOptions, setSalaryGroupOptions] = useState([]);
   const [salaryGroupMap, setSalaryGroupMap] = useState({});
+  const [conflictSalaryOptionsMap, setConflictSalaryOptionsMap] = useState({});
   const [pendingUpload, setPendingUpload] = useState(null);
   const [confirmingUpload, setConfirmingUpload] = useState(false);
 
@@ -245,13 +246,20 @@ export default function AttendanceSheet() {
   const fileInputRef = React.useRef(null);
 
   const getConflictKey = (record, idx = 0) => {
-    const keyPart =
+    const empPart =
       record?.FacilityMemberId ||
       record?.EmpID ||
+      record?.FMId ||
       record?.EmpCode ||
       record?.EmployeeCode ||
-      idx;
-    return String(keyPart);
+      `idx-${idx}`;
+    const designationPart =
+      record?.DesignationId ??
+      record?.Designation_ID ??
+      record?.DesignationMasterId ??
+      "no-designation";
+    const monthPart = record?.MonthYear || record?.monthyear || "no-month";
+    return `${empPart}__${designationPart}__${monthPart}`;
   };
 
   const normalizeSalaryGroupOptions = (rows = []) => {
@@ -323,11 +331,24 @@ export default function AttendanceSheet() {
     }
 
     const defaultMap = {};
+    const optionMap = {};
     safeConflicts.forEach((record, idx) => {
-      defaultMap[getConflictKey(record, idx)] = String(options[0].id);
+      const key = getConflictKey(record, idx);
+      const conflictSpecificOptions = normalizeSalaryGroupOptions(
+        record?.SalaryGroupOptions ||
+        record?.SalaryGroups ||
+        record?.AvailableSalaryGroups ||
+        []
+      );
+      const mergedOptions = conflictSpecificOptions.length
+        ? conflictSpecificOptions
+        : options;
+      optionMap[key] = mergedOptions;
+      defaultMap[key] = mergedOptions.length ? String(mergedOptions[0].id) : "";
     });
 
     setSalaryGroupOptions(options);
+    setConflictSalaryOptionsMap(optionMap);
     setSalaryGroupMap(defaultMap);
     setConflictRecords(safeConflicts);
     setPendingUpload({ file, propertyId, monthyear });
@@ -402,6 +423,7 @@ export default function AttendanceSheet() {
     setConflictRecords([]);
     setSalaryGroupOptions([]);
     setSalaryGroupMap({});
+    setConflictSalaryOptionsMap({});
     setPendingUpload(null);
   };
 
@@ -418,7 +440,7 @@ export default function AttendanceSheet() {
     });
 
     if (missingSelection) {
-      alert("Please select salary group for all cross-property employees.");
+      alert("Please select salary group for all conflict rows.");
       return;
     }
 
@@ -434,6 +456,16 @@ export default function AttendanceSheet() {
           null,
         PropertyId: pendingUpload.propertyId,
         SalaryGroupId: salaryGroupId,
+        DesignationId:
+          record?.DesignationId ??
+          record?.Designation_ID ??
+          record?.DesignationMasterId ??
+          null,
+        MonthYear:
+          pendingUpload.monthyear ||
+          record?.MonthYear ||
+          record?.monthyear ||
+          "",
       };
     });
 
@@ -2240,10 +2272,10 @@ export default function AttendanceSheet() {
             }}
           >
             <h4 style={{ marginTop: 0, marginBottom: 10 }}>
-              Cross-Property Employees Found
+              Attendance Conflicts Found
             </h4>
             <p style={{ marginTop: 0, color: "#444", fontSize: 14 }}>
-              These employees belong to another property. Confirm to continue and choose salary group for each employee.
+              Please select salary group for each employee/designation row before continuing.
             </p>
 
             <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 6 }}>
@@ -2269,6 +2301,10 @@ export default function AttendanceSheet() {
                           {record?.Error || "Employee belongs to another property"}
                         </td>
                         <td style={tdStyle}>
+                          {(() => {
+                            const rowOptions =
+                              conflictSalaryOptionsMap[key] || salaryGroupOptions;
+                            return (
                           <select
                             value={salaryGroupMap[key] || ""}
                             onChange={(e) =>
@@ -2280,12 +2316,14 @@ export default function AttendanceSheet() {
                             style={{ minWidth: 220, padding: "5px 7px" }}
                           >
                             <option value="">Select Salary Group</option>
-                            {salaryGroupOptions.map((sg) => (
+                            {rowOptions.map((sg) => (
                               <option key={sg.id} value={String(sg.id)}>
                                 {sg.name}
                               </option>
                             ))}
                           </select>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );
