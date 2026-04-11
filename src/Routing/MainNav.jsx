@@ -1479,7 +1479,7 @@ class MainNav extends React.Component {
                         </li>
                         <li className="nav-item">
                           <Link
-                            to="/Account/App/department"
+                            to="/Account/App/Department"
                             className="nav-link"
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
@@ -1723,7 +1723,7 @@ class MainNav extends React.Component {
             <Route exact path="/Account/App/ticket">
               <TicketingDashboard />
             </Route>
-            <Route path="/Account/App/department">
+            <Route path="/Account/App/Department">
               <Department />
             </Route>
             <Route path="/Account/App/ChangePassword">

@@ -17,3 +17,20 @@ export async function getAllCities() {
     throw error;
   }
 }
+
+export async function createOrGetCity(model) {
+  const response = await fetch("http://localhost:62929/CreateOrGetCity", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(model),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to create/get city");
+  }
+
+  return response.json();
+}
