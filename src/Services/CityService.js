@@ -19,7 +19,7 @@ export async function getAllCities() {
 }
 
 export async function createOrGetCity(model) {
-  const response = await fetch("http://localhost:62929/CreateOrGetCity", {
+  const response = await fetch("https://api.urest.in:8096/CreateOrGetCity", {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

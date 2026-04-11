@@ -1,6 +1,6 @@
 // src/Services/PropertyService.js
 
-const PROPERTY_API = "http://localhost:62929/api/propertymaster";
+const PROPERTY_API = "https://api.urest.in:8096/api/propertymaster";
 
 // --------------------------------------------------
 // GET ALL ACTIVE PROPERTIES
