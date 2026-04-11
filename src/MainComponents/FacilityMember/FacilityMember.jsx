@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
@@ -41,7 +41,7 @@ import {
 } from "../../Services/ClientService";
 
 import { getPropertyById } from "../../Services/PropertyService";
-import { getBranchById } from "../../Services/BranchMaster";
+import { getAllBranches } from "../../Services/BranchMaster";
 
 // Import existing components from old project
 import SalaryGroupView from "../../ReactComponents/DataGrid/SalaryGroupView.jsx";
@@ -68,6 +68,7 @@ const StaffPage = () => {
     : propertyId;
 
   const [branchName, setBranchName] = useState("");
+  const [branches, setBranches] = useState([]);
   const [clientName, setClientName] = useState("");
   const [propertyName, setPropertyName] = useState("");
   const [customDepartment, setCustomDepartment] = useState("");
@@ -92,7 +93,6 @@ const StaffPage = () => {
   const [viewData, setViewData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editEmployeeId, setEditEmployeeId] = useState(null);
-  const [managerOptions, setManagerOptions] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]); // FacilityMemberIds[]
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
@@ -178,6 +178,18 @@ const StaffPage = () => {
     others: Array.isArray(row?.FinancialInfo?.OtherDocImageUrl) ? row.FinancialInfo.OtherDocImageUrl : []
   });
 
+  const managerOptions = useMemo(() => {
+    return staff
+      .filter(row =>
+        row?.FacilityMember?.FacilityMemberId &&
+        row?.FacilityMember?.FacilityMemberId !== selectedFacilityMemberId
+      )
+      .map(row => ({
+        label: row?.Profile?.EmployeeName || "Unknown",
+        value: row.FacilityMember.FacilityMemberId
+      }));
+  }, [staff, selectedFacilityMemberId]);
+
   const getCurrentOfficeIds = () => {
     let officeIds = [];
 
@@ -196,25 +208,24 @@ const StaffPage = () => {
       .filter((id) => Number.isFinite(id) && id > 0);
   };
 
-  const loadEmployeeForDialogs = async (employeeId, fallbackRow) => {
-    if (!employeeId) return fallbackRow;
+  useEffect(() => {
+    const loadProperty = async () => {
+      if (!propertyId) return;
 
-    try {
-      const officeIds = getCurrentOfficeIds();
-      if (!officeIds.length) return fallbackRow;
+      const property = await getPropertyById(propertyId);
+      setPropertyName(property?.PropertyName || "");
+    };
 
-      const data = await getEmployeesByOffices(officeIds);
-      return (
-        (data || []).find(
-          (item) =>
-            Number(item?.FacilityMember?.FacilityMemberId) === Number(employeeId)
-        ) || fallbackRow
-      );
-    } catch (error) {
-      console.error("Failed to load employee details:", error);
-      return fallbackRow;
-    }
-  };
+    loadProperty();
+  }, [propertyId]);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      const data = await getAllBranches();
+      setBranches(data || []);
+    };
+    loadBranches();
+  }, []);
 
   useEffect(() => {
     const loadUnits = async () => {
@@ -409,33 +420,31 @@ const StaffPage = () => {
     const loadBranch = async () => {
       if (!propertyId) {
         setBranchName("");
-        setPropertyName("");
         return;
       }
 
       try {
-        // 1️⃣ Get property
         const property = await getPropertyById(propertyId);
-        setPropertyName(property?.PropertyName || property?.Name || "");
 
         if (!property?.BranchCode) {
           setBranchName("");
           return;
         }
 
-        // 2️⃣ Get branch by BranchCode
-        const branch = await getBranchById(property.BranchCode);
+        const matchedBranch = branches.find(
+          (b) => Number(b.BranchCode) === Number(property.BranchCode)
+        );
 
-        setBranchName(branch?.BranchName || "");
+        setBranchName(matchedBranch?.BranchName || "");
+
       } catch (err) {
         console.error("Branch load failed:", err);
         setBranchName("");
-        setPropertyName("");
       }
     };
 
     loadBranch();
-  }, [propertyId]);
+  }, [propertyId, branches]);
 
   useEffect(() => {
     const loadClient = async () => {
@@ -467,20 +476,6 @@ const StaffPage = () => {
 
     loadClient();
   }, [reduxClientId, propertyId]);
-
-  useEffect(() => {
-    const managers = staff
-      .filter(row =>
-        row?.FacilityMember?.FacilityMemberId &&
-        row?.FacilityMember?.FacilityMemberId !== selectedFacilityMemberId
-      )
-      .map(row => ({
-        label: row?.Profile?.EmployeeName || "Unknown",
-        value: row.FacilityMember.FacilityMemberId
-      }));
-
-    setManagerOptions(managers);
-  }, [staff, selectedFacilityMemberId]);
 
   const addDocument = (type, file) => {
     if (!file) return;
@@ -598,10 +593,8 @@ const StaffPage = () => {
   };
 
   const viewStaff = async (row) => {
-    const employeeId = row?.FacilityMember?.FacilityMemberId;
-    const latestRow = await loadEmployeeForDialogs(employeeId, row);
-    setViewData(latestRow);
-    setViewDocuments(mapRowDocuments(latestRow));
+    setViewData(row);
+    setViewDocuments(mapRowDocuments(row));
     setViewDialogVisible(true);
   };
 
@@ -677,7 +670,7 @@ const StaffPage = () => {
     setIsEditMode(true);
     const employeeId = row?.FacilityMember?.FacilityMemberId || "";
     setEditEmployeeId(employeeId);
-    const latestRow = await loadEmployeeForDialogs(employeeId, row);
+    const latestRow = row;
 
     // Profile Info
     const profile = latestRow?.Profile || {};
@@ -1348,13 +1341,27 @@ const StaffPage = () => {
       setSelectedRow(null);
     } catch (error) {
       console.error(error);
+
+      let errorMessage = "Something went wrong";
+
+      if (typeof error === "string") {
+        errorMessage = error;
+      } else if (Array.isArray(error?.message)) {
+        errorMessage = error.message.join(", ");
+      } else {
+        errorMessage =
+          error?.message ||
+          error?.Message ||
+          "Something went wrong";
+      }
+
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: isEditMode ? "Failed to update employee" : "Failed to create employee",
+        detail: errorMessage,
       });
     } finally {
-      setIsProcessing(false); // 🔥 THIS LINE SAVES YOUR LIFE
+      setIsProcessing(false);
     }
   };
 
@@ -1395,7 +1402,7 @@ const StaffPage = () => {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Failed to delete staff"
+        detail: error?.message || "Failed to delete staff"
       });
     }
   };
@@ -1946,9 +1953,9 @@ const StaffPage = () => {
                   value={employeeCode}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                      if (val.length <= 13) {
-                    setEmployeeCode(val);
-                      }
+                    if (val.length <= 13) {
+                      setEmployeeCode(val);
+                    }
                   }}
                   className="mb-3"
                 />
@@ -2671,25 +2678,25 @@ const StaffPage = () => {
                   <div className="mb-3">
                     <h6>Aadhaar Card</h6>
                     {viewDocuments?.aadhaar?.length > 0 ? (
-                      viewDocuments.aadhaar.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Aadhaar {i+1}</a></div>)
+                      viewDocuments.aadhaar.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Aadhaar {i + 1}</a></div>)
                     ) : <p className="text-muted">No Aadhaar document uploaded.</p>}
                   </div>
                   <div className="mb-3">
                     <h6>Pan Card</h6>
                     {viewDocuments?.pan?.length > 0 ? (
-                      viewDocuments.pan.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View PAN {i+1}</a></div>)
+                      viewDocuments.pan.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View PAN {i + 1}</a></div>)
                     ) : <p className="text-muted">No PAN document uploaded.</p>}
                   </div>
                   <div className="mb-3">
                     <h6>Bank Passbook</h6>
                     {viewDocuments?.bankPassbook?.length > 0 ? (
-                      viewDocuments.bankPassbook.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Bank Passbook {i+1}</a></div>)
+                      viewDocuments.bankPassbook.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Bank Passbook {i + 1}</a></div>)
                     ) : <p className="text-muted">No Bank Passbook uploaded.</p>}
                   </div>
                   <div className="mb-3">
                     <h6>Others</h6>
                     {viewDocuments?.others?.length > 0 ? (
-                      viewDocuments.others.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Other Document {i+1}</a></div>)
+                      viewDocuments.others.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Other Document {i + 1}</a></div>)
                     ) : <p className="text-muted">No other documents uploaded.</p>}
                   </div>
                 </div>

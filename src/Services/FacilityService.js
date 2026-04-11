@@ -95,7 +95,9 @@ export const createEmployee = async (employeeData) => {
     return response.data;
   } catch (error) {
     console.error("Error creating employee:", error);
-    throw error;
+    throw error?.response?.data || {
+      message: "Something went wrong",
+    };
   }
 };
 
@@ -122,7 +124,10 @@ export const updateEmployee = async (employeeId, data) => {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!response.ok) throw new Error("Failed to update employee");
+  if (!response.ok) {
+    const errorData = await response.json();
+    throw errorData;
+  }
   return response.json();
 };
 

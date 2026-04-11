@@ -2102,6 +2102,7 @@ export default function SGNEW() {
                   key={a.ID}
                   style={{
                     display: "grid",
+                    // gridTemplateColumns: "1fr 40px 40px 60px",
                     gridTemplateColumns: "30px 1fr 40px 40px 60px",
                     alignItems: "center",
                     marginBottom: 8,
@@ -2111,6 +2112,9 @@ export default function SGNEW() {
                   {/* Checkbox */}
                   <input
                     type="checkbox"
+                    // style={{ display: "none" }}
+                    disabled
+                    style={{ pointerEvents: "none", opacity: 0.7 }}
                     checked={!!allowanceSelected[a.Name]}
                     onChange={(e) => {
                       if (!activeDeduction) {
@@ -2134,7 +2138,7 @@ export default function SGNEW() {
                         [a.Name]: checked,
                       }));
                     }}
-                    style={{ transform: "scale(1.1)" }}
+                  // style={{ transform: "scale(1.1)" }}
                   />
 
                   {/* Name + Amount */}
@@ -2420,6 +2424,7 @@ export default function SGNEW() {
                   key={a.ID}
                   style={{
                     display: "grid",
+                    // gridTemplateColumns: "1fr 40px 40px 60px",
                     gridTemplateColumns: "30px 1fr 40px 40px 60px",
                     alignItems: "center",
                     marginBottom: 8,
@@ -2429,6 +2434,9 @@ export default function SGNEW() {
                   {/* MAIN checkbox (select OTAmount allowance) */}
                   <input
                     type="checkbox"
+                    // style={{ display: "none" }}
+                    disabled
+                    style={{ pointerEvents: "none", opacity: 0.7 }}
                     checked={!!allowanceSelected[a.Name]}
                     onChange={(e) => {
                       if (a.Name === "OTAmount" && otStandalone) {
@@ -2456,7 +2464,7 @@ export default function SGNEW() {
                         [a.Name]: checked,
                       }));
                     }}
-                    style={{ transform: "scale(1.1)" }}
+                  // style={{ transform: "scale(1.1)" }}
                   />
 
                   {/* UI BLOCK (special for OTAmount) */}
@@ -3065,6 +3073,8 @@ export default function SGNEW() {
                   {d.Name === "PF" || d.Name === "ESI" ? (
                     <input
                       type="checkbox"
+                      disabled
+                      style={{ pointerEvents: "none", opacity: 0.7 }}
                       checked={
                         Object.values(deductionAllowanceMap[d.Name] || {}).some(v => v === true)
                       }
@@ -3092,6 +3102,8 @@ export default function SGNEW() {
                     <input
                       type="radio"
                       name="deductionMain"
+                      disabled
+                      style={{ pointerEvents: "none", opacity: 0.7 }}
                       value={d.Name}
                       checked={activeDeduction === d.Name}
                       onChange={(e) => {
@@ -3117,7 +3129,7 @@ export default function SGNEW() {
                           [name]: prev[name] || 0,
                         }));
                       }}
-                      style={{ transform: "scale(1.1)" }}
+                    // style={{ transform: "scale(1.1)" }}
                     />
                   )}
 
@@ -3360,6 +3372,8 @@ export default function SGNEW() {
                   <input
                     type="radio"
                     name="deductionOther"
+                    disabled
+                    style={{ pointerEvents: "none", opacity: 0.7 }}
                     value={d.Name}
                     checked={activeDeduction === d.Name}
                     onChange={(e) => {
@@ -3380,7 +3394,7 @@ export default function SGNEW() {
                         [name]: "PERCENT",
                       }));
                     }}
-                    style={{ transform: "scale(1.1)" }}
+                  // style={{ transform: "scale(1.1)" }}
                   />
 
                   <div
