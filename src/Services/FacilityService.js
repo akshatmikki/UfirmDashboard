@@ -35,7 +35,7 @@ export const FacilityMemberService = {
   getFacilityMembers: async (propertyId) => {
     try {
       const response = await fetch(
-        `${BASE_URL}/get-FacilityMembers?propertyId=${propertyId}`,
+        `https://api.urest.in:8096/api/employee/getByOffice/${propertyId}`,
         {
           method: "GET",
           headers: {
@@ -131,6 +131,38 @@ export const deleteEmployee = async (employeeId) => {
   const response = await fetch(`${EMPLOYEE_API_BASE_URL}/delete/${employeeId}`, { method: "DELETE" });
   if (!response.ok) throw new Error("Failed to delete employee");
   return response.json();
+};
+
+// Upload Document -> Profile, Aadhaar, PAN, Bank, Resume, Others
+export const uploadEmployeeDocuments = async (facilityMemberId, documentType, propertyId, formData) => {
+  const response = await fetch(`${EMPLOYEE_API_BASE_URL}/upload-document?facilityMemberId=${facilityMemberId}&documentType=${documentType}&propertyId=${propertyId}`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.Message || "Failed to upload document");
+  }
+  return response.json();
+};
+
+export const deleteEmployeeDocument = async (employeeId, documentUrl) => {
+  const response = await fetch(
+    `${EMPLOYEE_API_BASE_URL}/delete-document?employeeId=${encodeURIComponent(employeeId)}&documentUrl=${encodeURIComponent(documentUrl)}`,
+    {
+      method: "DELETE",
+      headers: {
+        Accept: "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.Message || "Failed to delete document");
+  }
+
+  return response.json().catch(() => ({}));
 };
 
 export default FacilityService;
