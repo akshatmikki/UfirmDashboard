@@ -94,7 +94,30 @@ const AttendanceBiometricReport = () => {
         const minMinutes = parseTimeToMinutes(dayLog.MinTime);
         const maxMinutes = parseTimeToMinutes(dayLog.MaxTime);
         if (minMinutes == null || maxMinutes == null || maxMinutes <= minMinutes) return false;
-        return (maxMinutes - minMinutes) >= 9 * 60;
+        return (maxMinutes - minMinutes) > 8 * 60;
+    };
+
+    const hasMinimumWorkingHours = (dayLog) => {
+        if (!dayLog?.MinTime || !dayLog?.MaxTime) return false;
+        const minMinutes = parseTimeToMinutes(dayLog.MinTime);
+        const maxMinutes = parseTimeToMinutes(dayLog.MaxTime);
+        if (minMinutes == null || maxMinutes == null || maxMinutes <= minMinutes) return false;
+        return (maxMinutes - minMinutes) >= 8 * 60;
+    };
+
+    const getOtDisplay = (dayLog) => {
+        if (!hasOtForDay(dayLog)) return "";
+
+        const minMinutes = parseTimeToMinutes(dayLog.MinTime);
+        const maxMinutes = parseTimeToMinutes(dayLog.MaxTime);
+        const extraMinutes = maxMinutes - minMinutes - 8 * 60;
+        const hours = Math.floor(extraMinutes / 60);
+        const minutes = extraMinutes % 60;
+
+        if (hours > 0 && minutes > 0) return `${hours}Hr ${minutes}Min`;
+        if (hours > 0) return `${hours}Hr`;
+        if (minutes > 0) return `${minutes}Min`;
+        return "";
     };
 
     const buildAttendanceWorkbookHtml = () => {
@@ -182,9 +205,9 @@ const AttendanceBiometricReport = () => {
             const dayStatuses = dateRange.map((date) => {
                 const dateKey = formatDate(date);
                 const dayLog = employee.days[dateKey];
-                const isPresent = !!dayLog;
+                const isPresent = hasMinimumWorkingHours(dayLog);
                 const isWeeklyOff = date.getDay() === 0;
-                const otMark = "";
+                const otMark = getOtDisplay(dayLog);
 
                 if (isPresent) {
                     totalPresent += 1;
@@ -213,7 +236,7 @@ const AttendanceBiometricReport = () => {
             const dayTotals = dateRange.map((date) => {
                 const dateKey = formatDate(date);
                 return group.items.reduce(
-                    (count, employee) => count + (employee.days[dateKey] ? 1 : 0),
+                    (count, employee) => count + (hasMinimumWorkingHours(employee.days[dateKey]) ? 1 : 0),
                     0
                 );
             });

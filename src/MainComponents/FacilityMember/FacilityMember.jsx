@@ -28,6 +28,8 @@ import {
   updateEmployee,
   deleteEmployee,
   resetPassword,
+  uploadEmployeeDocuments,
+  deleteEmployeeDocument
 } from "../../Services/FacilityService";
 import { getEmployeesByOffices, getSalaryGroupsByDesignation, importEmployees } from "../../Services/PayrollService";
 
@@ -129,51 +131,22 @@ const StaffPage = () => {
     bankPassbook: [],
     others: []
   });
+  const [existingDocuments, setExistingDocuments] = useState({
+    profileImage: [],
+    aadhaar: [],
+    pan: [],
+    bankPassbook: [],
+    others: []
+  });
+  const [viewDocuments, setViewDocuments] = useState({
+    profileImage: [],
+    aadhaar: [],
+    pan: [],
+    bankPassbook: [],
+    others: []
+  });
   const [family, setFamily] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
-
-  const sanitizePanValue = (value = "") => {
-    const panPattern = ["A", "A", "A", "A", "A", "9", "9", "9", "9", "A"];
-    const cleanedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    let formattedValue = "";
-
-    for (const char of cleanedValue) {
-      const expectedType = panPattern[formattedValue.length];
-      if (!expectedType) break;
-
-      const isValidChar =
-        (expectedType === "A" && /[A-Z]/.test(char)) ||
-        (expectedType === "9" && /[0-9]/.test(char));
-
-      if (isValidChar) {
-        formattedValue += char;
-      }
-    }
-
-    return formattedValue;
-  };
-
-  const sanitizeIfscValue = (value = "") => {
-    const ifscPattern = ["A", "A", "A", "A", "0", "X", "X", "X", "X", "X", "X"];
-    const cleanedValue = value.toUpperCase().replace(/[^A-Z0-9]/g, "");
-    let formattedValue = "";
-
-    for (const char of cleanedValue) {
-      const expectedType = ifscPattern[formattedValue.length];
-      if (!expectedType) break;
-
-      const isValidChar =
-        (expectedType === "A" && /[A-Z]/.test(char)) ||
-        (expectedType === "0" && char === "0") ||
-        (expectedType === "X" && /[A-Z0-9]/.test(char));
-
-      if (isValidChar) {
-        formattedValue += char;
-      }
-    }
-
-    return formattedValue;
-  };
 
   const [workHistories, setWorkHistories] = useState([
     {
@@ -196,6 +169,52 @@ const StaffPage = () => {
     { label: "Permanent", value: "Permanent" },
     { label: "Contractual", value: "Contractual" }
   ];
+
+  const mapRowDocuments = (row) => ({
+    profileImage: row?.FacilityMember?.ProfileImageUrl ? [row.FacilityMember.ProfileImageUrl] : [],
+    aadhaar: Array.isArray(row?.FinancialInfo?.AadhaarImageUrl) ? row.FinancialInfo.AadhaarImageUrl : [],
+    pan: Array.isArray(row?.FinancialInfo?.PanCardImageUrl) ? row.FinancialInfo.PanCardImageUrl : [],
+    bankPassbook: Array.isArray(row?.FinancialInfo?.BankPassbookImageUrl) ? row.FinancialInfo.BankPassbookImageUrl : [],
+    others: Array.isArray(row?.FinancialInfo?.OtherDocImageUrl) ? row.FinancialInfo.OtherDocImageUrl : []
+  });
+
+  const getCurrentOfficeIds = () => {
+    let officeIds = [];
+
+    if (Number(reduxPropertyId) > 0) {
+      officeIds = [Number(reduxPropertyId)];
+    } else if (selectedPropertyId.length > 0) {
+      officeIds = selectedPropertyId;
+    } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+      officeIds = reduxPropertyIds;
+    } else if (clientPropertyIds.length > 0) {
+      officeIds = clientPropertyIds;
+    }
+
+    return officeIds
+      .map((id) => Number(id))
+      .filter((id) => Number.isFinite(id) && id > 0);
+  };
+
+  const loadEmployeeForDialogs = async (employeeId, fallbackRow) => {
+    if (!employeeId) return fallbackRow;
+
+    try {
+      const officeIds = getCurrentOfficeIds();
+      if (!officeIds.length) return fallbackRow;
+
+      const data = await getEmployeesByOffices(officeIds);
+      return (
+        (data || []).find(
+          (item) =>
+            Number(item?.FacilityMember?.FacilityMemberId) === Number(employeeId)
+        ) || fallbackRow
+      );
+    } catch (error) {
+      console.error("Failed to load employee details:", error);
+      return fallbackRow;
+    }
+  };
 
   useEffect(() => {
     const loadUnits = async () => {
@@ -479,6 +498,61 @@ const StaffPage = () => {
     }));
   };
 
+  const handleDeleteExistingDocument = async (type, documentUrl) => {
+    if (!editEmployeeId || !documentUrl) return;
+
+    try {
+      await deleteEmployeeDocument(editEmployeeId, documentUrl);
+      setExistingDocuments((prev) => ({
+        ...prev,
+        [type]: (prev[type] || []).filter((url) => url !== documentUrl)
+      }));
+      toast.current?.show({
+        severity: "success",
+        summary: "Success",
+        detail: "Document deleted successfully"
+      });
+    } catch (error) {
+      console.error(`Failed to delete ${type} document:`, error);
+      toast.current?.show({
+        severity: "error",
+        summary: "Error",
+        detail: error?.message || "Failed to delete document"
+      });
+    }
+  };
+
+  const handleDeleteResumeDocument = async (index, documentUrl) => {
+    if (!editEmployeeId || !documentUrl) return;
+
+    try {
+      await deleteEmployeeDocument(editEmployeeId, documentUrl);
+      setWorkHistories((prev) =>
+        prev.map((history, historyIndex) =>
+          historyIndex === index
+            ? {
+              ...history,
+              ResumeUrl: "",
+              UploadResume: null
+            }
+            : history
+        )
+      );
+      toast.current?.show({
+        severity: "success",
+        summary: "Success",
+        detail: "Document deleted successfully"
+      });
+    } catch (error) {
+      console.error("Failed to delete resume document:", error);
+      toast.current?.show({
+        severity: "error",
+        summary: "Error",
+        detail: error?.message || "Failed to delete document"
+      });
+    }
+  };
+
   const getManagerNames = (managerIds = []) => {
     if (!Array.isArray(managerIds) || managerIds.length === 0) return [];
 
@@ -523,8 +597,11 @@ const StaffPage = () => {
     setSelectedLoanAdvanceId(null);
   };
 
-  const viewStaff = (row) => {
-    setViewData(row);
+  const viewStaff = async (row) => {
+    const employeeId = row?.FacilityMember?.FacilityMemberId;
+    const latestRow = await loadEmployeeForDialogs(employeeId, row);
+    setViewData(latestRow);
+    setViewDocuments(mapRowDocuments(latestRow));
     setViewDialogVisible(true);
   };
 
@@ -580,14 +657,30 @@ const StaffPage = () => {
       bankPassbook: [],
       others: []
     });
+    setExistingDocuments({
+      profileImage: [],
+      aadhaar: [],
+      pan: [],
+      bankPassbook: [],
+      others: []
+    });
+    setViewDocuments({
+      profileImage: [],
+      aadhaar: [],
+      pan: [],
+      bankPassbook: [],
+      others: []
+    });
   };
 
-  const openEditDialog = (row) => {
+  const openEditDialog = async (row) => {
     setIsEditMode(true);
-    setEditEmployeeId(row?.FacilityMember?.FacilityMemberId || "");
+    const employeeId = row?.FacilityMember?.FacilityMemberId || "";
+    setEditEmployeeId(employeeId);
+    const latestRow = await loadEmployeeForDialogs(employeeId, row);
 
     // Profile Info
-    const profile = row?.Profile || {};
+    const profile = latestRow?.Profile || {};
     setEmployeeCode(profile.EmployeeCode || "");
     setEmployeeName(profile.EmployeeName || "");
     setDesignation(profile.Designation || "");
@@ -603,20 +696,20 @@ const StaffPage = () => {
     setAddressLine2(profile.AddressLine2 || "");
     setCity(profile.City || "");
     setStateName(profile.State || "");
-    setSelectedFacilityMemberId(row?.FacilityMember?.FacilityMemberId || "");
+    setSelectedFacilityMemberId(latestRow?.FacilityMember?.FacilityMemberId || "");
     setSelectedManagers(
-      row?.FacilityMember?.ManagerIdList || []
+      latestRow?.FacilityMember?.ManagerIdList || []
     );
     if (profile.Designation) {
       fetchSalaryGroups(profile.Designation);
     }
-    const existingSG = row?.FacilityMember?.SG_Link_ID || null;
+    const existingSG = latestRow?.FacilityMember?.SG_Link_ID || null;
 
     setSelectedSalaryGroup(existingSG);
     // Work History - Handle both single and array
-    if (row?.WorkHistories && Array.isArray(row.WorkHistories) && row.WorkHistories.length > 0) {
+    if (latestRow?.WorkHistories && Array.isArray(latestRow.WorkHistories) && latestRow.WorkHistories.length > 0) {
       setWorkHistories(
-        row.WorkHistories.map((wh) => ({
+        latestRow.WorkHistories.map((wh) => ({
           CompanyName: wh.CompanyName || "",
           Role: wh.Role || "",
           StartDate: wh.StartDate ? new Date(wh.StartDate) : null,
@@ -641,7 +734,7 @@ const StaffPage = () => {
     }
 
     // Financial Info
-    const fin = row?.FinancialInfo || {};
+    const fin = latestRow?.FinancialInfo || {};
     setBankAccountNumber(fin.BankAccountNumber || "");
     setBankIFSCCode(fin.BankIFSCCode || "");
     setBankName(fin.BankName || "");
@@ -651,9 +744,18 @@ const StaffPage = () => {
     setEsiNumber(fin.ESINumber || "");
 
     // Employee List
-    const empList = row?.EmployeeList || {};
+    const empList = latestRow?.EmployeeList || {};
     setFamily(empList.FatherName || "");
 
+    setDocuments({
+      profileImage: [],
+      aadhaar: [],
+      pan: [],
+      bankPassbook: [],
+      others: []
+    });
+
+    setExistingDocuments(mapRowDocuments(latestRow));
     setDialogVisible(true);
   };
 
@@ -683,26 +785,36 @@ const StaffPage = () => {
     setWorkHistories(updated);
   };
 
+  const sanitizePanValue = (value = "") => value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 10);
+
+  const sanitizeIfscValue = (value = "") => value
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, 11);
+
   const downloadSampleTemplate = () => {
     const headers = [
-      "EMPCODE *",
-      "EMP NAME *",
+      "EMPCODE",
+      "EMP NAME",
       "F/H NAME",
       "DOB",
-      "DOJ *",
-      "GENDER *",
+      "DOJ",
+      "GENDER",
       "MOBILE",
       "EMAIL",
       "JOB TYPE",
       "BANK NAME",
       "ACCOUNT NO",
       "IFSC CODE",
-      "AADHAAR NO *",
+      "AADHAAR NO",
       "PF NUMBER",
       "ESI NO",
-      "PAN NO *",
+      "PAN NO",
       "UAN NO",
-      "DESIGNATION CODE *",
+      "DESIGNATION CODE",
       "DEPT CODE",
       "ADDRESS LINE 1",
       "ADDRESS LINE 2",
@@ -832,21 +944,46 @@ const StaffPage = () => {
     // ================= VALIDATIONS =================
 
     const cleanName = employeeName.trim().replace(/\s+/g, " ");
-    const missingRequiredFields = [];
-
-    if (!employeeCode?.trim()) missingRequiredFields.push("Employee Code");
-    if (!cleanName) missingRequiredFields.push("Employee Name");
-    if (!designation?.trim()) missingRequiredFields.push("Designation");
-    if (designation === "OTHER" && !customDesignation?.trim()) {
-      missingRequiredFields.push("Custom Designation");
-    }
-
-    if (missingRequiredFields.length > 0) {
+    // Required fields
+    if (!cleanName) {
       setIsProcessing(false);
       return toast.current.show({
         severity: "warn",
-        summary: "Mandatory Fields",
-        detail: `Please fill: ${missingRequiredFields.join(", ")}`
+        summary: "Validation",
+        detail: "Employee Name is required"
+      });
+    }
+
+    if (!employeeCode?.trim()) {
+      setIsProcessing(false);
+      return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
+    }
+
+    if (!designation?.trim()) {
+      setIsProcessing(false);
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Designation is required"
+      });
+    }
+
+    if (!gender?.trim()) {
+      setIsProcessing(false);
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Gender is required"
+      });
+    }
+
+
+    if (designation === "OTHER" && !customDesignation?.trim()) {
+      setIsProcessing(false);
+      return toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Please enter custom designation"
       });
     }
 
@@ -880,7 +1017,7 @@ const StaffPage = () => {
       return toast.current.show({
         severity: "warn",
         summary: "Validation",
-        detail: "Either PAN or Aadhaar is required"
+        detail: "Either PAN Card or Aadhar Card is required"
       });
     }
 
@@ -926,14 +1063,15 @@ const StaffPage = () => {
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid PF Number" });
     }
 
-    const hasMissingStartDate = workHistories.some((wh) => !wh.StartDate);
-    if (hasMissingStartDate) {
-      setIsProcessing(false);
-      return toast.current.show({
-        severity: "warn",
-        summary: "Mandatory Fields",
-        detail: "Please fill: Start Date"
-      });
+    for (let i = 0; i < workHistories.length; i++) {
+      if (!workHistories[i]?.StartDate) {
+        setIsProcessing(false);
+        return toast.current.show({
+          severity: "warn",
+          summary: "Validation",
+          detail: "Start Date is required"
+        });
+      }
     }
 
     let profileImageUrl = "";
@@ -1137,6 +1275,8 @@ const StaffPage = () => {
     };
 
     try {
+      let resultingFacilityMemberId = editEmployeeId;
+
       if (isEditMode) {
         await updateEmployee(editEmployeeId, employeeData);
         toast.current.show({
@@ -1146,12 +1286,46 @@ const StaffPage = () => {
         });
 
       } else {
-        await createEmployee(employeeData);
+        const responseData = await createEmployee(employeeData);
+        resultingFacilityMemberId = responseData?.FacilityMemberId || 0;
         toast.current.show({
           severity: "success",
           summary: "Added",
           detail: "Staff member added successfully"
         });
+      }
+
+      // 🔥 SEQUENTIAL DOCUMENT UPLOAD
+      if (resultingFacilityMemberId) {
+        const uploadQueue = [];
+        const addToQueue = (files, typeName) => {
+          if (files && files.length > 0) {
+            for (let i = 0; i < files.length; i++) {
+              const fd = new FormData();
+              fd.append("file", files[i]);
+              uploadQueue.push({ type: typeName, formData: fd });
+            }
+          }
+        };
+
+        if (profileImage && profileImage instanceof File) {
+          const fd = new FormData();
+          fd.append("file", profileImage);
+          uploadQueue.push({ type: "profile", formData: fd });
+        }
+
+        addToQueue(documents.aadhaar, "aadhar");
+        addToQueue(documents.pan, "pan");
+        addToQueue(documents.bankPassbook, "passbook");
+        addToQueue(documents.others, "other");
+
+        for (const doc of uploadQueue) {
+          try {
+            await uploadEmployeeDocuments(resultingFacilityMemberId, doc.type, activePropertyId, doc.formData);
+          } catch (e) {
+            console.error(`Failed to upload ${doc.type}:`, e);
+          }
+        }
       }
 
       // 🔥 STEP 1: Refresh staff
@@ -1548,6 +1722,28 @@ const StaffPage = () => {
           <h6 className="m-0">{label}</h6>
         </div>
 
+        {existingDocuments[type]?.length > 0 && (
+          <div className="mb-2">
+            <strong className="d-block mb-1 text-primary">Existing Uploads:</strong>
+            {existingDocuments[type].map((url, index) => (
+              <div key={`exist-${index}`} className="d-flex align-items-center justify-content-between mb-1">
+                <div className="d-flex align-items-center">
+                  <i className="pi pi-file mr-2 text-primary"></i>
+                  <a href={url} target="_blank" rel="noopener noreferrer">
+                    View {label} {index + 1}
+                  </a>
+                </div>
+                <Button
+                  type="button"
+                  icon="pi pi-trash"
+                  className="p-button-text p-button-danger"
+                  onClick={() => handleDeleteExistingDocument(type, url)}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+
         {documents[type].map((file, index) => (
           <div key={index} className="d-flex align-items-center justify-content-between mb-2">
             <span>{file.name}</span>
@@ -1603,13 +1799,8 @@ const StaffPage = () => {
   return (
     <PrimeReactProvider>
       <style>{`
-        .pan-placeholder-light::placeholder {
-          color: #9ca3af;
-          opacity: 1;
-        }
-
         .required-asterisk {
-          color: #dc2626;
+          color: red;
         }
       `}</style>
       <div className="content-wrapper">
@@ -1755,9 +1946,9 @@ const StaffPage = () => {
                   value={employeeCode}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                      if (val.length <= 17) {
+                      if (val.length <= 13) {
                     setEmployeeCode(val);
-           }
+                      }
                   }}
                   className="mb-3"
                 />
@@ -1929,13 +2120,13 @@ const StaffPage = () => {
 
                 <label>Aadhar Card <span className="required-asterisk">*</span></label>
                 <InputText
-                  placeholder="Aadhar Card"
+                  placeholder="12 digit Aadhaar number"
+                  className="mb-3 pan-placeholder-light"
                   value={aadharCard}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
                     if (val.length <= 12) setAadharCard(val);
                   }}
-                  className="mb-3"
                 />
 
                 <label>Address Line 1</label>
@@ -1978,13 +2169,13 @@ const StaffPage = () => {
               <div className="p-fluid">
                 <label>Bank Account Number</label>
                 <InputText
-                  placeholder="Bank Account Number"
+                  placeholder="9–18 digit account number"
+                  className="mb-3 pan-placeholder-light"
                   value={bankAccountNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
                     if (val.length <= 18) setBankAccountNumber(val);
                   }}
-                  className="mb-3"
                 />
 
                 <label>Bank IFSC Code</label>
@@ -1996,7 +2187,7 @@ const StaffPage = () => {
                     setBankIFSCCode(val);
                   }}
                   maxLength={11}
-                  className="mb-3"
+                  className="mb-3 pan-placeholder-light"
                 />
 
                 <label>Bank Name</label>
@@ -2009,13 +2200,13 @@ const StaffPage = () => {
 
                 <label>UAN Number</label>
                 <InputText
-                  placeholder="UAN Number"
+                  placeholder="12 digit UAN"
+                  className="mb-3 pan-placeholder-light"
                   value={uanNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
                     if (val.length <= 12) setUanNumber(val);
                   }}
-                  className="mb-3"
                 />
 
                 <label>PAN Number</label>
@@ -2033,24 +2224,24 @@ const StaffPage = () => {
 
                 <label>PF Number</label>
                 <InputText
-                  placeholder="PF Number"
+                  placeholder="e.g. DL/12345/67890"
+                  className="mb-3 pan-placeholder-light"
                   value={pfNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^a-zA-Z0-9/]/g, "");
                     setPfNumber(val);
                   }}
-                  className="mb-3"
                 />
 
                 <label>ESI Number</label>
                 <InputText
-                  placeholder="ESI Number"
+                  placeholder="10–17 digit ESI"
+                  className="mb-3 pan-placeholder-light"
                   value={esiNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
                     if (val.length <= 17) setEsiNumber(val);
                   }}
-                  className="mb-3"
                 />
               </div>
             </TabPanel>
@@ -2140,9 +2331,17 @@ const StaffPage = () => {
                         className="form-control"
                       />
                       {history.ResumeUrl && (
-                        <small className="text-success d-block mt-1">
-                          Previously uploaded: {history.ResumeUrl.split('/').pop()}
-                        </small>
+                        <div className="d-flex align-items-center justify-content-between mt-1">
+                          <small className="text-success d-block">
+                            Previously uploaded: {history.ResumeUrl.split('/').pop()}
+                          </small>
+                          <Button
+                            type="button"
+                            icon="pi pi-trash"
+                            className="p-button-text p-button-danger"
+                            onClick={() => handleDeleteResumeDocument(index, history.ResumeUrl)}
+                          />
+                        </div>
                       )}
                     </div>
                   </div>
@@ -2161,6 +2360,18 @@ const StaffPage = () => {
 
                 <div className="border rounded p-3 mb-4 shadow-sm bg-light">
                   <h6>Profile Image</h6>
+
+                  {existingDocuments?.profileImage?.length > 0 && !profileImage && (
+                    <div className="mb-2">
+                      <strong className="d-block mb-1 text-primary">Existing Upload:</strong>
+                      <div className="d-flex align-items-center mb-1">
+                        <i className="pi pi-image mr-2 text-primary"></i>
+                        <a href={existingDocuments.profileImage[0]} target="_blank" rel="noopener noreferrer">
+                          View Profile Image
+                        </a>
+                      </div>
+                    </div>
+                  )}
 
                   {profileImage && (
                     <div className="d-flex justify-content-between align-items-center mb-2">
@@ -2451,12 +2662,36 @@ const StaffPage = () => {
               </TabPanel>
               <TabPanel header="Upload Documents">
                 <div className="p-fluid">
-                  {["profileImage", "aadhaar", "pan", "bankPassbook", "others"].map(type => (
-                    <div key={type} className="mb-3">
-                      <h6>{type}</h6>
-                      <p className="text-muted">Document preview will appear after backend integration.</p>
-                    </div>
-                  ))}
+                  <div className="mb-3">
+                    <h6>Profile Image</h6>
+                    {viewDocuments?.profileImage?.length > 0 ? (
+                      viewDocuments.profileImage.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Profile Image {i + 1}</a></div>)
+                    ) : <p className="text-muted">No profile image uploaded.</p>}
+                  </div>
+                  <div className="mb-3">
+                    <h6>Aadhaar Card</h6>
+                    {viewDocuments?.aadhaar?.length > 0 ? (
+                      viewDocuments.aadhaar.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Aadhaar {i+1}</a></div>)
+                    ) : <p className="text-muted">No Aadhaar document uploaded.</p>}
+                  </div>
+                  <div className="mb-3">
+                    <h6>Pan Card</h6>
+                    {viewDocuments?.pan?.length > 0 ? (
+                      viewDocuments.pan.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View PAN {i+1}</a></div>)
+                    ) : <p className="text-muted">No PAN document uploaded.</p>}
+                  </div>
+                  <div className="mb-3">
+                    <h6>Bank Passbook</h6>
+                    {viewDocuments?.bankPassbook?.length > 0 ? (
+                      viewDocuments.bankPassbook.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Bank Passbook {i+1}</a></div>)
+                    ) : <p className="text-muted">No Bank Passbook uploaded.</p>}
+                  </div>
+                  <div className="mb-3">
+                    <h6>Others</h6>
+                    {viewDocuments?.others?.length > 0 ? (
+                      viewDocuments.others.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Other Document {i+1}</a></div>)
+                    ) : <p className="text-muted">No other documents uploaded.</p>}
+                  </div>
                 </div>
               </TabPanel>
             </TabView>
