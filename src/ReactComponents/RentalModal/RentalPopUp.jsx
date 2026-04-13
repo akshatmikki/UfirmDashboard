@@ -1,40 +1,66 @@
-import React, { useState } from 'react';
-import Button from 'react-bootstrap/Button';
-import Modal from 'react-bootstrap/Modal';
-import ReturnAsset from '../../pages/ReturnAssetPage';
-import RentOut from '../../pages/RentOutAssetPage';
+import React, { useEffect, useMemo, useState } from "react";
+import Modal from "react-bootstrap/Modal";
+import ReturnAsset from "../../pages/ReturnAssetPage";
+import RentOut from "../../pages/RentOutAssetPage";
+import "./RentalPopUp.css";
 
 function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
+  const [activeMode, setActiveMode] = useState(actionType === "return" ? "rentin" : "rentout");
+
+  useEffect(() => {
+    if (show) {
+      setActiveMode(actionType === "return" ? "rentin" : "rentout");
+    }
+  }, [show, actionType]);
+
+  const title = useMemo(() => {
+    if (actionType === "return") return "Rent-in asset";
+    if (actionType === "rentout") return "Rent-out asset";
+    return "Rent asset";
+  }, [actionType]);
+
   const handleRentOutData = (rentOutData) => {
-    console.log(rentOutData);
     handleSubmit(rentOutData);
-  }
-  
+  };
+
   const handleReturnData = (returnData) => {
-    console.log(returnData);
     handleSubmit(returnData);
-  }
-  
+  };
+
+  const showModeToggle = actionType !== "return" && actionType !== "rentout";
+
   return (
-    <Modal
-      show={show}
-      onHide={handleClose}
-      backdrop="static"
-      keyboard={false}
-    >
-      <Modal.Header closeButton>
-        <Modal.Title>{actionType === "return" ? "Return Asset" : "Rent Out Asset"}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {asset ? (
-          <>
-            <p>Asset ID: {asset.Id}</p>
-            <p>Asset Name: {asset.Name}</p>
-          </>
-        ) : (
-          <p>Loading asset information...</p>
-        )}
-        {actionType === "return" ? <ReturnAsset  Close={handleClose}  setData={handleReturnData}/> : <RentOut Close={handleClose} setData={handleRentOutData}/>}
+    <Modal show={show} onHide={handleClose} backdrop="static" keyboard={false} centered dialogClassName="rental-figma-modal">
+      <Modal.Body className="rental-figma-modal-body">
+        <div className="rental-figma-shell">
+          <div className="rental-figma-header">
+            <div className="rental-figma-title-wrap">
+              <span className="rental-figma-title-icon">
+                <i className="fa fa-sign-out" aria-hidden="true" />
+              </span>
+              <h3 className="rental-figma-title">{showModeToggle ? "Rent asset" : title}</h3>
+            </div>
+          </div>
+
+          {showModeToggle ? (
+            <div className="rental-figma-mode-switch">
+              <label className="rental-figma-radio">
+                <input type="radio" name="rentMode" value="rentout" checked={activeMode === "rentout"} onChange={() => setActiveMode("rentout")} />
+                <span>Rent-out</span>
+              </label>
+              <label className="rental-figma-radio">
+                <input type="radio" name="rentMode" value="rentin" checked={activeMode === "rentin"} onChange={() => setActiveMode("rentin")} />
+                <span>Rent-in</span>
+              </label>
+            </div>
+          ) : null}
+
+          {activeMode === "rentin" ? (
+            <ReturnAsset Close={handleClose} setData={handleReturnData} asset={asset} showModeToggle={showModeToggle} />
+          ) : (
+            <RentOut Close={handleClose} setData={handleRentOutData} asset={asset} showModeToggle={showModeToggle} />
+          )}
+        </div>
       </Modal.Body>
     </Modal>
   );
