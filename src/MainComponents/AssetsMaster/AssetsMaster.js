@@ -7,7 +7,6 @@ import Button from "../../ReactComponents/Button/Button";
 import ApiProvider from "./DataProvider.js";
 import * as appCommon from "../../Common/AppCommon.js";
 import { DELETE_CONFIRMATION_MSG } from "../../Contants/Common";
-import swal from "sweetalert";
 import { CreateValidator, ValidateControls } from "./Validation.js";
 import DocumentUploader from "../../ReactComponents/FileUploader/DocumentUploader.jsx";
 import ExportToCSV from "../../ReactComponents/ExportToCSV/ExportToCSV.js";
@@ -42,11 +41,11 @@ class AssetsMaster extends Component {
       GridData: [],
       DueGridData: [],
       gridHeader: [
-        { sTitle: "ID", titleValue: "Id", orderable: true },
-        { sTitle: "Name", titleValue: "Name" },
-        { sTitle: "Location", titleValue: "Location" },
-        { sTitle: "Service due", titleValue: "NextServiceDateDisplay" },
-        { sTitle: "Status", titleValue: "StatusDisplay" },
+        { sTitle: "ID", titleValue: "Id", orderable: false },
+        { sTitle: "Name", titleValue: "Name", orderable: false },
+        { sTitle: "Location", titleValue: "Location", orderable: false },
+        { sTitle: "Service due", titleValue: "NextServiceDateDisplay", orderable: false },
+        { sTitle: "Status", titleValue: "StatusDisplay", orderable: false },
         { sTitle: "Actions", titleValue: "Action", Action: "Edit&View&Delete", Index: "0", orderable: false },
       ],
       PageMode: "Home",
@@ -87,6 +86,12 @@ class AssetsMaster extends Component {
       filterLocation: "",
       filterCapacity: "",
       selectedRowId: null,
+      showCancelConfirm: false,
+      cancelConfirmType: "",
+      showDeleteModal: false,
+      deleteTarget: null,
+      showSuccessModal: false,
+      successType: "",
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -301,20 +306,11 @@ class AssetsMaster extends Component {
   onGridDelete = (id) => {
     const rowData = this.findItem(id);
     if (!rowData) return;
-    const myhtml = document.createElement("div");
-    myhtml.innerHTML = `${DELETE_CONFIRMATION_MSG}</hr>`;
-    swal({
-      buttons: { ok: "Yes", cancel: "No" },
-      content: myhtml,
-      icon: "warning",
-      closeOnClickOutside: false,
-      dangerMode: true,
-    }).then((value) => {
-      if (value === "ok") {
-        this.setState({ Id: String(rowData.Id) }, () => this.mangaeSave(this.getModel("D"), "D"));
-      }
-    });
+    this.setState({ showDeleteModal: true, deleteTarget: rowData });
   };
+
+  requestCancelConfirm = (type) => this.setState({ showCancelConfirm: true, cancelConfirmType: type || "" });
+  closeCancelConfirm = () => this.setState({ showCancelConfirm: false, cancelConfirmType: "" });
 
   onFileChange = (event) => {
     const selected = event?.target?.files?.[0];
@@ -368,8 +364,12 @@ class AssetsMaster extends Component {
           if (rData === 0) {
             appCommon.showtextalert("Assets Name Existed !", "", "error");
           } else {
-            appCommon.showtextalert(type === "D" ? "Assets Deleted Successfully!" : "Assets Saved Successfully!", "", "success");
-            this.handleCancel();
+            if (type === "D") {
+              appCommon.showtextalert("Assets Deleted Successfully!", "", "success");
+              this.setState({ showDeleteModal: false, deleteTarget: null }, this.handleCancel);
+            } else {
+              this.setState({ showSuccessModal: true, successType: type }, this.handleCancel);
+            }
           }
         });
       }
@@ -413,6 +413,7 @@ class AssetsMaster extends Component {
   };
 
   closeSidePanel = () => this.setState({ PageMode: "Home", selectedRowId: null });
+  closeSuccessModal = () => this.setState({ showSuccessModal: false, successType: "" });
 
   resetFilters = () => {
     this.setState({
@@ -668,7 +669,7 @@ class AssetsMaster extends Component {
         </div>
         <div className="asset-side-panel-footer">
           <Button id="btnSave" Text="Save changes" Action={this.handleSave} ClassName="btn btn-primary asset-btn-footer-save" />
-          <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-outline-light asset-btn-footer-cancel" />
+          <Button id="btnCancel" Text="Cancel" Action={() => this.requestCancelConfirm("edit")} ClassName="btn btn-outline-light asset-btn-footer-cancel" />
         </div>
       </div>
     );
@@ -815,7 +816,127 @@ class AssetsMaster extends Component {
 
           <div className="asset-add-footer">
             <Button id="btnSave" Text="Save" Action={this.handleSave} ClassName="btn btn-primary asset-add-btn-save" />
-            <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-light asset-add-btn-cancel" />
+            <Button id="btnCancel" Text="Cancel" Action={() => this.requestCancelConfirm("add")} ClassName="btn btn-light asset-add-btn-cancel" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  renderCancelConfirmModal = () => {
+    if (!this.state.showCancelConfirm) return null;
+    const isEdit = this.state.cancelConfirmType === "edit";
+    const title = isEdit ? "Cancel edits" : "Cancel action";
+    return (
+      <div className="spare-add-backdrop" onClick={this.closeCancelConfirm}>
+        <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+              </span>
+              {title}
+            </div>
+            <button type="button" className="spare-add-close" onClick={this.closeCancelConfirm}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">Are you sure you want to cancel? All your updated information will be lost.</div>
+          <div className="asset-dialog-actions">
+            <button type="button" className="btn btn-light" onClick={this.closeCancelConfirm}>
+              No, keep editing
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => {
+                this.closeCancelConfirm();
+                this.handleCancel();
+              }}
+            >
+              Yes, cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  renderDeleteConfirmModal = () => {
+    if (!this.state.showDeleteModal || !this.state.deleteTarget) return null;
+    const asset = this.state.deleteTarget;
+    return (
+      <div className="spare-add-backdrop" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
+        <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+              </span>
+              Delete asset
+            </div>
+            <button type="button" className="spare-add-close" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">
+            Are you sure you want to delete this Asset? This action cannot be undone.
+            <div className="asset-dialog-assetbox">
+              <div className="asset-dialog-assetrow">
+                <span className="asset-dialog-assetlabel">Asset ID:</span>
+                <span className="asset-dialog-assetvalue">#{asset.Id}</span>
+              </div>
+              <div className="asset-dialog-assetrow">
+                <span className="asset-dialog-assetlabel">Asset Name:</span>
+                <span className="asset-dialog-assetvalue">{asset.Name || "-"}</span>
+              </div>
+              <div className="asset-dialog-assetrow">
+                <span className="asset-dialog-assetlabel">Location:</span>
+                <span className="asset-dialog-assetvalue">{asset.Location || asset.location || "-"}</span>
+              </div>
+            </div>
+          </div>
+          <div className="asset-dialog-actions asset-dialog-actions-right">
+            <button type="button" className="btn btn-light" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => this.setState({ Id: String(asset.Id) }, () => this.mangaeSave(this.getModel("D"), "D"))}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  renderSuccessModal = () => {
+    if (!this.state.showSuccessModal) return null;
+    const isUpdate = this.state.successType === "U";
+    const title = isUpdate ? "Changes updated successfully" : "Item created successfully";
+    const subtitle = isUpdate ? "The item has been updated." : "The item is ready. You can now monitor its progress.";
+    return (
+      <div className="spare-add-backdrop" onClick={this.closeSuccessModal}>
+        <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
+                <i className="fa fa-check" aria-hidden="true" />
+              </span>
+              {title}
+            </div>
+            <button type="button" className="spare-add-close" onClick={this.closeSuccessModal}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">{subtitle}</div>
+          <div className="asset-dialog-actions asset-dialog-actions-right">
+            <button type="button" className="btn btn-primary" onClick={this.closeSuccessModal}>
+              Done
+            </button>
           </div>
         </div>
       </div>
@@ -920,6 +1041,9 @@ class AssetsMaster extends Component {
           {hasSidePanel ? this.renderSidePanel() : null}
         </div>
         {showAssetModal ? this.renderAssetFormModal() : null}
+        {this.renderCancelConfirmModal()}
+        {this.renderDeleteConfirmModal()}
+        {this.renderSuccessModal()}
       </div>
     );
   }
