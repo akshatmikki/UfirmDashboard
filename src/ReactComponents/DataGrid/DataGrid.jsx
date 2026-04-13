@@ -461,8 +461,8 @@ export default class DataGrid extends React.Component {
       }
     });
 
-    if (this.props.GridData != null) {
-      $(`#${this.props.Id} tbody`).unbind("click");
+      if (this.props.GridData != null) {
+        $(`#${this.props.Id} tbody`).unbind("click");
       // EDIT ACTION
       $(`#${this.props.Id} tbody`).on("click", ".edit-btn", function () {
         let idIndex = gridBL.GetReferenceIdIndex(
@@ -606,6 +606,17 @@ export default class DataGrid extends React.Component {
             $(this).children("i").removeClass("fa-eye-slash");
           }
         }
+      });
+
+      // ROW CLICK (for side-panel view in pages like Assets Master)
+      $(`#${this.props.Id} tbody`).on("click", "tr", function (e) {
+        if (typeof object?.props?.onRowClickMethod !== "function") return;
+        if ($(e.target).closest("button, a, input, select, textarea, .showHideButton").length) return;
+        const idIndex = gridBL.GetReferenceIdIndex(object.props.ColumnCollection, "Action");
+        const row = $(this).closest("tr");
+        const data = $(`#${object.props.Id}`).DataTable().row(row).data();
+        if (!data) return;
+        object.props.onRowClickMethod(data[idIndex]);
       });
     }
     $(".tbl-loading").addClass("hide");
