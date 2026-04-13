@@ -749,7 +749,7 @@ class AssetsMaster extends Component {
             <div className="asset-master-tabs">
               <button type="button" className="asset-master-tab active">Owned assets</button>
               <button type="button" className="asset-master-tab" onClick={() => this.props.history.push("/Account/App/RentalAssets")}>Rented assets</button>
-              <button type="button" className="asset-master-tab">Spare parts</button>
+              <button type="button" className="asset-master-tab" onClick={() => this.props.history.push("/Account/App/SpareMaster")}>Spare parts</button>
             </div>
 
             <div className="asset-master-toolbar">
