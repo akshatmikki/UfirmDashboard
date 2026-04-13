@@ -189,22 +189,36 @@ class AssetsMaster extends Component {
           const merged = [...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
             const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
             const statusMeta = this.getAssetStatusMeta(item);
+            const today = new Date().toISOString().slice(0, 10);
+            const isOverdue = nextServiceDate && nextServiceDate < today;
+            const displayDate = this.formatDisplayDate(nextServiceDate);
+
             return {
               ...item,
               LastServiceDate: this.normalizeDate(item?.LastServiceDate),
               NextServiceDate: nextServiceDate,
-              NextServiceDateDisplay: this.formatDisplayDate(nextServiceDate),
+              NextServiceDateDisplay: isOverdue
+                ? `<span style="color: #eb4b4b; font-weight: 700;">${displayDate}</span>`
+                : displayDate,
               Location: item?.Location || item?.location || "Building-A",
               StatusDisplay: `<span class="asset-table-status asset-table-status-${statusMeta.key}">${statusMeta.label}</span>`,
             };
           });
+
+          // Sort: Earliest service date first (Overdue at top)
+          merged.sort((a, b) => {
+            const dateA = a.NextServiceDate || "9999-12-31";
+            const dateB = b.NextServiceDate || "9999-12-31";
+            return dateA.localeCompare(dateB);
+          });
+
           this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false });
         });
       })
       .catch(() => this.setState({ isLoading: false }));
   };
 
-  onPagechange = () => {};
+  onPagechange = () => { };
 
   findItem = (id) => this.state.GridData.find((item) => String(item.Id) === String(id)) || null;
 
@@ -488,80 +502,105 @@ class AssetsMaster extends Component {
           <h4 className="asset-side-panel-title">Asset Details</h4>
         </div>
         <div className="asset-side-panel-body">
-          <div className="asset-details-grid">
-            {this.renderReadOnlyField("ID", asset.Id)}
-            <div className="asset-info-item">
-              <span className="asset-info-label">Status</span>
-              <span className={`asset-status-pill asset-status-${statusMeta.key}`}>{statusMeta.label}</span>
+          <div className="asset-details-new-layout">
+            <div className="asset-details-row asset-details-header-row">
+              <span className="asset-info-label">ID</span>
+              <span className="asset-info-value">{asset.Id}</span>
             </div>
-            {this.renderReadOnlyField("Name", asset.Name)}
-            {this.renderReadOnlyField("Description", asset.Description, "asset-info-full")}
-            {this.renderReadOnlyField("Manufacturer", asset.Manufacturer)}
-            {this.renderReadOnlyField("Model", asset.AssetModel)}
-            {this.renderReadOnlyField("Last serviced", this.formatDisplayDate(asset.LastServiceDate))}
-            {this.renderReadOnlyField("Next service", this.formatDisplayDate(asset.NextServiceDate))}
-            {this.renderReadOnlyField("Reminder", asset.serviceReminderDay ? `${asset.serviceReminderDay} day(s)` : "No reminder set")}
-            {this.renderReadOnlyField("Value", asset.AssetValue ? `Rs. ${asset.AssetValue}` : "Rs. 0")}
-            {this.renderReadOnlyField("Is Movable", this.getBoolLabel(asset.IsMoveable))}
-            {this.renderReadOnlyField("Is Rentable", this.getBoolLabel(asset.IsRentable))}
-            {this.renderReadOnlyField("Location", asset.Location || asset.location)}
-          </div>
-          <div className="asset-doc-strip">
-            <div className="asset-qr-box">
-              {imageSource ? (
-                <img
-                  src={imageSource}
-                  alt="Asset"
-                  className="asset-doc-preview-image"
-                />
-              ) : (
-                <>
-                  <i className="fa fa-qrcode" aria-hidden="true" />
-                  <span>{asset.QRCode || "QR not available"}</span>
-                </>
-              )}
+
+            <div className="asset-details-row asset-details-name-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Name</span>
+                <span className="asset-info-value">{asset.Name}</span>
+              </div>
+              <span className={`asset-status-badge asset-status-badge-${statusMeta.key}`}>{statusMeta.label}</span>
             </div>
-            <div className="asset-doc-links">
-              {imageSource ? (
-                <a
-                  href={imageSource}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-link p-0"
-                >
-                  <i className="fa fa-picture-o mr-1" />
-                  Asset photo
-                </a>
-              ) : (
-                <button type="button" className="btn btn-link p-0" disabled>
-                  <i className="fa fa-picture-o mr-1" />
-                  Asset photo
-                </button>
-              )}
-              {amcSource ? (
-                <a
-                  href={amcSource}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-link p-0"
-                >
-                  <i className="fa fa-file-text-o mr-1" />
-                  AMC Contract
-                </a>
-              ) : (
-                <button type="button" className="btn btn-link p-0" disabled>
-                  <i className="fa fa-file-text-o mr-1" />
-                  AMC Contract
-                </button>
-              )}
+
+            <div className="asset-details-row asset-details-desc-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Description</span>
+                <span className="asset-info-value">{asset.Description || "-"}</span>
+              </div>
+            </div>
+
+            <div className="asset-details-grid-two-col">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Manufacturer</span>
+                <span className="asset-info-value">{asset.Manufacturer || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Model</span>
+                <span className="asset-info-value">{asset.AssetModel || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Last serviced</span>
+                <span className="asset-info-value">{this.formatDisplayDate(asset.LastServiceDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Next service</span>
+                <span className="asset-info-value">{this.formatDisplayDate(asset.NextServiceDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Reminder</span>
+                <span className="asset-info-value">{asset.serviceReminderDay ? `${asset.serviceReminderDay} day(s)` : "No reminder set"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Value</span>
+                <span className="asset-info-value">{asset.AssetValue ? `₹${asset.AssetValue}` : "₹0"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Is Movable</span>
+                <span className="asset-info-value">{this.getBoolLabel(asset.IsMoveable)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Is Rentable</span>
+                <span className="asset-info-value">{this.getBoolLabel(asset.IsRentable)}</span>
+              </div>
+            </div>
+
+            <div className="asset-details-row asset-details-location-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Location</span>
+                <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+              </div>
+            </div>
+
+            <div className="asset-details-docs-section">
+              <div className="asset-qr-preview-box">
+                <div className="asset-qr-wrapper">
+                  <i className="fa fa-qrcode" />
+                </div>
+              </div>
+              <div className="asset-doc-links-stack">
+                <div className="asset-doc-link-item">
+                  <div className="asset-doc-icon-wrapper">
+                    <i className="fa fa-picture-o" />
+                  </div>
+                  {imageSource ? (
+                    <a href={imageSource} target="_blank" rel="noopener noreferrer" className="asset-doc-link-text">Asset photo</a>
+                  ) : (
+                    <span className="asset-doc-link-text disabled">Asset photo</span>
+                  )}
+                </div>
+                <div className="asset-doc-link-item">
+                  <div className="asset-doc-icon-wrapper">
+                    <i className="fa fa-file-text-o" />
+                  </div>
+                  {amcSource ? (
+                    <a href={amcSource} target="_blank" rel="noopener noreferrer" className="asset-doc-link-text">AMC Contract</a>
+                  ) : (
+                    <span className="asset-doc-link-text disabled">AMC Contract</span>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>
         <div className="asset-side-panel-footer">
-          <button type="button" className="btn btn-primary" onClick={() => this.ongridedit(asset.Id)}>
+          <button type="button" className="btn btn-primary asset-btn-footer-edit" onClick={() => this.ongridedit(asset.Id)}>
             Edit
           </button>
-          <button type="button" className="btn btn-light" onClick={this.closeSidePanel}>
+          <button type="button" className="btn btn-outline-light asset-btn-footer-close" onClick={this.closeSidePanel}>
             Close
           </button>
         </div>
@@ -569,152 +608,220 @@ class AssetsMaster extends Component {
     );
   };
 
+
   renderAssetFormPanel = () => {
     const isEditMode = this.state.PageMode === "Edit";
     return (
       <div className="asset-side-panel asset-side-panel-form">
-        <div className="asset-side-panel-header">
+        <div className="asset-side-panel-header asset-form-new-header">
           <div className="asset-panel-title-wrap">
-            <span className="asset-panel-icon">
-              <i className={`fa ${isEditMode ? "fa-pencil-square-o" : "fa-plus"}`} aria-hidden="true" />
+            <span className="asset-form-icon-circle">
+              <i className="fa fa-pencil-square-o" aria-hidden="true" />
             </span>
             <h4 className="asset-side-panel-title">{isEditMode ? "Edit asset details" : "Add Asset"}</h4>
           </div>
         </div>
         <div className="asset-side-panel-body">
-          <div className="asset-qr-preview">
-            <div className="asset-qr-box asset-qr-box-large">
+          <div className="asset-form-qr-centered">
+            <div className="asset-qr-wrapper-large">
               <i className="fa fa-qrcode" aria-hidden="true" />
-              <span>{this.state.QRCode || `#${this.state.Id || "1234"}`}</span>
             </div>
           </div>
 
-          <div className="asset-form-grid">
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="assetIdDisplay">ID</label>
-                <input type="text" id="assetIdDisplay" className="form-control" value={this.state.Id || ""} readOnly />
-              </div>
-              <div className="form-group">
-                <label htmlFor="status">Status</label>
-                <select id="status" className="form-control" value={this.state.status} onChange={(e) => this.setState({ status: e.target.value })}>
-                  <option value="">Select status</option>
-                  <option value="true">Running</option>
-                  <option value="false">Inactive</option>
-                </select>
-              </div>
+          <div className="asset-form-id-row-simple">
+            <span className="asset-info-label">ID</span>
+            <span className="asset-info-value">{this.state.Id || "NEW"}</span>
+          </div>
+
+          <div className="asset-form-simple-stack">
+            <div className="form-group asset-form-group-custom">
+              <label>Name</label>
+              <input type="text" className="form-control" value={this.state.Name} onChange={(e) => this.setState({ Name: e.target.value })} />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="txtDocumentType">Name</label>
-              <input type="text" id="txtDocumentType" className="form-control" value={this.state.Name} onChange={(e) => this.setState({ Name: e.target.value })} />
-            </div>
-            <div className="form-group">
-              <label htmlFor="description">Description</label>
-              <textarea id="description" rows="3" className="form-control" value={this.state.Description} onChange={(e) => this.setState({ Description: e.target.value })} />
-            </div>
-
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="manufacturer">Manufacturer</label>
-                <input type="text" id="manufacturer" className="form-control" value={this.state.ManufacturerName} onChange={(e) => this.setState({ ManufacturerName: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label htmlFor="assetModel">Model</label>
-                <input type="text" id="assetModel" className="form-control" value={this.state.AssetModel} onChange={(e) => this.setState({ AssetModel: e.target.value })} />
-              </div>
+            <div className="form-group asset-form-group-custom">
+              <label>Status</label>
+              <select className="form-control" value={this.state.status} onChange={(e) => this.setState({ status: e.target.value })}>
+                <option value="">Select status</option>
+                <option value="true">Running</option>
+                <option value="false">Inactive</option>
+                <option value="Servicing">Servicing</option>
+              </select>
             </div>
 
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="lastServiceDate">Last service</label>
-                <input type="date" id="lastServiceDate" className="form-control" value={this.state.LastServiceDate || ""} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label htmlFor="nextServiceDate">Next service</label>
-                <input type="date" id="nextServiceDate" className="form-control" value={this.state.NextServiceDate || ""} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
-              </div>
+            <div className="form-group asset-form-group-custom">
+              <label>Description</label>
+              <textarea rows="4" className="form-control" value={this.state.Description} onChange={(e) => this.setState({ Description: e.target.value })} />
             </div>
 
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="location">Location</label>
-                <input type="text" id="location" className="form-control" value={this.state.location || ""} onChange={(e) => this.setState({ location: e.target.value })} />
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input type="text" className="form-control" value={this.state.ManufacturerName} onChange={(e) => this.setState({ ManufacturerName: e.target.value })} />
               </div>
-              <div className="form-group">
-                <label htmlFor="category">Category</label>
-                <input type="text" id="category" className="form-control" value={this.state.category || ""} onChange={(e) => this.setState({ category: e.target.value })} />
+              <div className="form-group asset-form-group-custom">
+                <label>Model</label>
+                <input type="text" className="form-control" value={this.state.AssetModel} onChange={(e) => this.setState({ AssetModel: e.target.value })} />
               </div>
-            </div>
-
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="assetValue">Value</label>
-                <input type="number" id="assetValue" className="form-control" value={this.state.AssetValue} onChange={(e) => this.setState({ AssetValue: parseFloat(e.target.value) || 0 })} onKeyDown={(e) => e.key === "e" && e.preventDefault()} />
-              </div>
-              <div className="form-group">
-                <label htmlFor="capacity">Capacity</label>
-                <input type="text" id="capacity" className="form-control" value={this.state.Capacity} onChange={(e) => this.setState({ Capacity: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="QRCode">QR Code</label>
-                <input type="text" id="QRCode" className="form-control" value={this.state.QRCode} onChange={(e) => this.setState({ QRCode: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label htmlFor="serviceReminderDay">Service reminder</label>
-                <select id="serviceReminderDay" className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}>
-                  <option value="">No Reminder</option>
-                  <option value="1">One Day Prior</option>
-                  <option value="7">One Week Prior</option>
-                  <option value="15">15 Days Prior</option>
-                  <option value="30">One Month Prior</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label htmlFor="AssetType">Asset Type</label>
-                <select id="AssetType" className="form-control" value={this.state.AssetType} onChange={(e) => this.setState({ AssetType: e.target.value })}>
-                  <option value="">Select asset type</option>
-                  <option value="Machine/Equipment">Machine/Equipment</option>
-                  <option value="MeasuringEnquipment">Measuring Equipment</option>
-                  <option value="Facility">Facility</option>
-                </select>
-              </div>
-              <div className="form-group">
-                <label htmlFor="AMCfileUploader">AMC Upload</label>
-                <DocumentUploader Class="form-control" id="AMCfileUploader" type="file" onChange={this.onAMCFileChange} />
-              </div>
-            </div>
-
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label>Is Movable</label>
-                <RadioButtonGroup options={[{ label: "Yes", value: "true" }, { label: "No", value: "false" }]} name="IsMoveable" selectedValue={String(this.state.IsMoveable)} onChange={(e) => this.setState({ IsMoveable: e.target.value })} />
-              </div>
-              <div className="form-group">
-                <label>Is Rentable</label>
-                <RadioButtonGroup options={[{ label: "Yes", value: "true" }, { label: "No", value: "false" }]} name="IsRentable" selectedValue={String(this.state.IsRentable)} onChange={(e) => this.setState({ IsRentable: e.target.value })} />
-              </div>
-            </div>
-
-            <div className="form-group">
-              <label htmlFor="kycfileUploader">Asset Image</label>
-              <DocumentUploader Class="form-control" id="kycfileUploader" type="file" onChange={this.onFileChange} />
             </div>
           </div>
         </div>
         <div className="asset-side-panel-footer">
-          <Button id="btnSave" Text="Save changes" Action={this.handleSave} ClassName="btn btn-primary" />
-          <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-light" />
+          <Button id="btnSave" Text="Save changes" Action={this.handleSave} ClassName="btn btn-primary asset-btn-footer-save" />
+          <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-outline-light asset-btn-footer-cancel" />
         </div>
       </div>
     );
   };
+
+  renderAssetFormModal = () => {
+    const isEditMode = this.state.PageMode === "Edit";
+    const title = isEditMode ? "Edit Asset" : "Add Asset";
+
+    return (
+      <div className="asset-add-backdrop" role="presentation">
+        <div className="asset-add-modal" role="dialog" aria-modal="true">
+          <div className="asset-add-header">
+            <div className="asset-add-title">
+              <span className="asset-add-icon" aria-hidden="true">
+                <i className="fa fa-plus" />
+              </span>
+              <span>{title}</span>
+            </div>
+
+            <button type="button" className="asset-add-generate" disabled>
+              <i className="fa fa-qrcode" aria-hidden="true" />
+              Generate QR code
+            </button>
+          </div>
+
+          <div className="asset-add-body">
+            <div className="asset-add-id-row">
+              <div className="asset-add-id-left">
+                <span className="asset-add-id-label">ID</span>
+                <span className="asset-add-id-value">{this.state.Id ? `#${this.state.Id}` : "#NEW"}</span>
+              </div>
+            </div>
+
+            <div className="asset-add-grid">
+              <div className="form-group asset-form-group-custom">
+                <label>Name</label>
+                <input
+                  id="txtDocumentType"
+                  type="text"
+                  className="form-control"
+                  placeholder="Add name"
+                  value={this.state.Name}
+                  onChange={(e) => this.setState({ Name: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Status</label>
+                <select className="form-control" value={this.state.status} onChange={(e) => this.setState({ status: e.target.value })}>
+                  <option value="">Input status</option>
+                  <option value="true">Running</option>
+                  <option value="false">Inactive</option>
+                  <option value="Servicing">Servicing</option>
+                </select>
+              </div>
+
+              <div className="form-group asset-form-group-custom asset-add-span-2">
+                <label>Description</label>
+                <textarea
+                  rows="4"
+                  className="form-control"
+                  placeholder="Category description"
+                  value={this.state.Description}
+                  onChange={(e) => this.setState({ Description: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Add manufacturer name"
+                  value={this.state.ManufacturerName}
+                  onChange={(e) => this.setState({ ManufacturerName: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Model</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Add asset model"
+                  value={this.state.AssetModel}
+                  onChange={(e) => this.setState({ AssetModel: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Last service</label>
+                <input type="date" className="form-control" value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Next service</label>
+                <input type="date" className="form-control" value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Is Movable</label>
+                <RadioButtonGroup
+                  name="IsMoveable"
+                  selectedValue={String(this.state.IsMoveable)}
+                  onChange={(e) => this.setState({ IsMoveable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Is Rentable</label>
+                <RadioButtonGroup
+                  name="IsRentable"
+                  selectedValue={String(this.state.IsRentable)}
+                  onChange={(e) => this.setState({ IsRentable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Service reminder</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder=""
+                  value={this.state.serviceReminderDay}
+                  onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Location</label>
+                <input type="text" className="form-control" value={this.state.location} onChange={(e) => this.setState({ location: e.target.value })} />
+              </div>
+            </div>
+          </div>
+
+          <div className="asset-add-footer">
+            <Button id="btnSave" Text="Save" Action={this.handleSave} ClassName="btn btn-primary asset-add-btn-save" />
+            <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-light asset-add-btn-cancel" />
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   renderSidePanel = () => {
     if (this.state.PageMode === "View") return this.renderAssetDetailsPanel();
@@ -735,7 +842,8 @@ class AssetsMaster extends Component {
       this.state.filterLocation,
       this.state.filterCapacity,
     ].filter((item) => String(item || "") !== "").length;
-    const hasSidePanel = this.state.PageMode !== "Home";
+    const hasSidePanel = this.state.PageMode === "View" || this.state.PageMode === "Edit";
+    const showAssetModal = this.state.PageMode === "Add";
 
     return (
       <div className="asset-master-page">
@@ -764,7 +872,7 @@ class AssetsMaster extends Component {
                   Filter
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
                 </button>
-                <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
+                {/* <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" /> */}
                 <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>
                   <i className="fa fa-plus mr-1" />
                   Add asset
@@ -811,6 +919,7 @@ class AssetsMaster extends Component {
 
           {hasSidePanel ? this.renderSidePanel() : null}
         </div>
+        {showAssetModal ? this.renderAssetFormModal() : null}
       </div>
     );
   }
