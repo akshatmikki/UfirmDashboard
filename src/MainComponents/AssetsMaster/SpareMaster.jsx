@@ -7,7 +7,7 @@ import { useSelector } from "react-redux";
 import SpareService from "../../Services/SpareService";
 import "./AssetsMaster.css";
 
-const recordsPerPage = 10;
+const recordsPerPage = 15;
 
 function getEmptySpareRow() {
   return {

@@ -449,6 +449,7 @@ export default class DataGrid extends React.Component {
       lengthChange: false,
       searching: this.props.IsSarching,
       ordering: true,
+      pageLength: parseInt(this.props.pageSize, 10) || 10,
       //"info": true,
       autoWidth: false,
       // "responsive": true,

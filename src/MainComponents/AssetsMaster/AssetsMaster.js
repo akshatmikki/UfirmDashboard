@@ -801,10 +801,10 @@ class AssetsMaster extends Component {
                 onGridViewMethod={this.onGridView}
                 onRowClickMethod={this.onGridRowSelect}
                 selectedRowId={this.state.selectedRowId}
-                DefaultPagination={false}
+                DefaultPagination={true}
                 IsSarching={false}
                 GridData={filteredGridData}
-                pageSize="2000"
+                pageSize="15"
               />
             </div>
           </div>

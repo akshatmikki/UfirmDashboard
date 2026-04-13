@@ -8,7 +8,7 @@ import RentalPopUp from "../ReactComponents/RentalModal/RentalPopUp";
 import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets";
 import "./RentalAssets.css";
 
-const recordsPerPage = 10;
+const recordsPerPage = 15;
 
 const statusOptions = {
   running: { label: "Running", key: "running" },
