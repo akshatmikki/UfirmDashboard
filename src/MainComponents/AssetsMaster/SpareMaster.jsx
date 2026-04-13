@@ -261,6 +261,14 @@ const SparePage = () => {
   }, [selectedRow]);
 
   const onRowClick = (row) => {
+    if (String(row?.SpareID) === String(selectedSpareId)) {
+      if (sideMode === "details") {
+        setSelectedSpareId(null);
+      } else {
+        setSideMode("details");
+      }
+      return;
+    }
     setSelectedSpareId(row.SpareID);
     setSideMode("details");
   };

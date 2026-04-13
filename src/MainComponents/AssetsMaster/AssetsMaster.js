@@ -206,7 +206,7 @@ class AssetsMaster extends Component {
 
   onPagechange = () => {};
 
-  findItem = (id) => this.state.GridData.find((item) => Number(item.Id) === Number(id)) || null;
+  findItem = (id) => this.state.GridData.find((item) => String(item.Id) === String(id)) || null;
 
   Addnew = () => {
     this.setState(
@@ -277,7 +277,7 @@ class AssetsMaster extends Component {
 
   onGridView = (id) => this.setFormData(this.findItem(id), "View");
   onGridRowSelect = (id) => {
-    if (this.state.PageMode === "View" && Number(this.state.selectedRowId) === Number(id)) {
+    if (this.state.PageMode === "View" && String(this.state.selectedRowId) === String(id)) {
       this.closeSidePanel();
       return;
     }

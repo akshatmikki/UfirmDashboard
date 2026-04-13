@@ -140,6 +140,14 @@ const RentalAssets = ({ propId, history }) => {
   }, [selectedAsset]);
 
   const handleSelectAsset = async (asset) => {
+    if (String(asset?.Id) === String(selectedAssetId)) {
+      if (panelMode === "details") {
+        setSelectedAssetId(null);
+      } else {
+        setPanelMode("details");
+      }
+      return;
+    }
     setSelectedAssetId(asset.Id);
     setPanelMode("details");
 
@@ -444,7 +452,7 @@ const RentalAssets = ({ propId, history }) => {
                   <button type="button" className="rental-assets-tab active">
                     Rented assets
                   </button>
-                  <button type="button" className="rental-assets-tab">
+                  <button type="button" className="rental-assets-tab" onClick={() => history.push("/Account/App/SpareMaster")}>
                     Spare parts
                   </button>
                 </div>
