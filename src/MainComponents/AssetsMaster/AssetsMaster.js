@@ -148,11 +148,9 @@ class AssetsMaster extends Component {
       return { label: rawStatus, key: rawStatus.toLowerCase().replace(/\s+/g, "-") };
     }
     const boolStatus = this.normalizeBoolean(rawStatus);
-    const today = new Date().toISOString().slice(0, 10);
-    const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
     if (boolStatus === false) return { label: "Inactive", key: "inactive" };
-    if (nextServiceDate && nextServiceDate <= today) return { label: "Servicing", key: "servicing" };
-    return { label: "Running", key: "running" };
+    if (boolStatus === true) return { label: "Active", key: "running" };
+    return { label: "-", key: "inactive" };
   };
 
   getModel = (type, overrides = {}) => [
@@ -202,20 +200,26 @@ class AssetsMaster extends Component {
               ...item,
               LastServiceDate: this.normalizeDate(item?.LastServiceDate),
               NextServiceDate: nextServiceDate,
-              NextServiceDateDisplay: isOverdue
-                ? `<span style="color: #eb4b4b; font-weight: 700;">${displayDate}</span>`
-                : displayDate,
+              NextServiceDateDisplay: displayDate,
               Location: item?.Location || item?.location || "Building-A",
               StatusDisplay: `<span class="asset-table-status asset-table-status-${statusMeta.key}">${statusMeta.label}</span>`,
             };
           });
 
-          // Sort: Earliest service date first (Overdue at top)
-          merged.sort((a, b) => {
-            const dateA = a.NextServiceDate || "9999-12-31";
-            const dateB = b.NextServiceDate || "9999-12-31";
-            return dateA.localeCompare(dateB);
-          });
+           // Sort: Upcoming (nearest first) at top, then overdue.
+           const today = new Date().toISOString().slice(0, 10);
+           merged.sort((a, b) => {
+             const dateA = a.NextServiceDate || "";
+             const dateB = b.NextServiceDate || "";
+             const isUpcomingA = !!dateA && dateA >= today;
+             const isUpcomingB = !!dateB && dateB >= today;
+
+             if (isUpcomingA !== isUpcomingB) return isUpcomingA ? -1 : 1;
+             if (!dateA && !dateB) return 0;
+             if (!dateA) return 1;
+             if (!dateB) return -1;
+             return dateA.localeCompare(dateB);
+           });
 
           this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false });
         });
