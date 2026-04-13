@@ -488,7 +488,7 @@ const RentalAssets = ({ propId, history }) => {
                         <tr>
                           <th>ID</th>
                           <th>Lease</th>
-                          <th>Location</th>
+                          <th>Manufacturer</th>
                           <th>Lease</th>
                           <th>Expiry date</th>
                           <th>Status</th>
@@ -505,7 +505,7 @@ const RentalAssets = ({ propId, history }) => {
                             <tr key={asset.Id} className={Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} onClick={() => handleSelectAsset(asset)}>
                               <td>{asset.Id || "AST-111"}</td>
                               <td>{asset.Name || "Water pump"}</td>
-                              <td>{asset.Location || asset.OutFrom || "Building-A"}</td>
+                              <td>{asset.Manufacturer || "-"}</td>
                               <td>
                                 <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
                               </td>

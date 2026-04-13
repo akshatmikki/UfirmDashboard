@@ -559,9 +559,9 @@ const SparePage = () => {
                       <thead>
                         <tr>
                           <th>ID</th>
-                          <th>Type</th>
+                          <th>Name</th>
                           <th>Asset</th>
-                          <th>Expiry date</th>
+                          <th>Service due</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>

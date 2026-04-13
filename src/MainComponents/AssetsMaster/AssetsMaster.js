@@ -1033,6 +1033,8 @@ class AssetsMaster extends Component {
                 onGridDeleteMethod={this.onGridDelete}
                 onGridViewMethod={this.onGridView}
                 onRowClickMethod={this.onGridRowSelect}
+                hideViewActionIcon={true}
+
                 selectedRowId={this.state.selectedRowId}
                 DefaultPagination={true}
                 IsSarching={false}
