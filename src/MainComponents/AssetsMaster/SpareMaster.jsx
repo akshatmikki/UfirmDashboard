@@ -46,6 +46,19 @@ function statusMeta(value) {
   return { label: "Running", key: "running" };
 }
 
+function buildPseudoQrCells(value) {
+  const seed = String(value || "QR").split("").reduce((acc, char, index) => acc + char.charCodeAt(0) * (index + 1), 0);
+  return Array.from({ length: 144 }, (_, index) => {
+    const row = Math.floor(index / 12);
+    const col = index % 12;
+    const inTopLeft = row < 3 && col < 3;
+    const inTopRight = row < 3 && col > 8;
+    const inBottomLeft = row > 8 && col < 3;
+    if (inTopLeft || inTopRight || inBottomLeft) return true;
+    return ((seed + row * 17 + col * 29 + row * col) % 5) < 2;
+  });
+}
+
 const SparePage = () => {
   const toast = useRef(null);
   const history = useHistory();
@@ -323,26 +336,26 @@ const SparePage = () => {
 
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
+  const selectedQrCells = useMemo(() => buildPseudoQrCells(selectedRow?.SerialNumber || selectedRow?.SpareID || "QR"), [selectedRow]);
 
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
     return (
-      <div className="asset-side-panel">
+      <div className="asset-side-panel spare-side-panel">
         <div className="asset-side-panel-header">
           <h4 className="asset-side-panel-title">Spare part Details</h4>
         </div>
-        <div className="asset-side-panel-body">
-          <div className="asset-details-grid">
-            <div className="asset-info-item">
+        <div className="asset-side-panel-body spare-side-panel-body">
+          <div className="asset-details-grid spare-details-grid">
+            <div className="asset-info-item asset-info-full spare-readonly-row">
               <span className="asset-info-label">ID</span>
-              <span className="asset-info-value">{selectedRow.AssetID || "AST-111"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Status</span>
-              <span className={`spare-status-pill spare-status-${selectedStatus.key}`}>{selectedStatus.label}</span>
+              <span className="asset-info-value spare-readonly-value">{selectedRow.SpareID}</span>
             </div>
             <div className="asset-info-item asset-info-full">
-              <span className="asset-info-label">Name</span>
+              <div className="spare-inline-head">
+                <span className="asset-info-label">Name</span>
+                <span className={`spare-status-pill spare-status-${selectedStatus.key}`}>{selectedStatus.label}</span>
+              </div>
               <span className="asset-info-value">{selectedRow.SpareType || "Engine filter"}</span>
             </div>
             <div className="asset-info-item asset-info-full">
@@ -387,13 +400,14 @@ const SparePage = () => {
             </div>
           </div>
 
-          <div className="asset-doc-strip asset-doc-strip--center">
-            <div className="asset-qr-box">
-              <i className="fa fa-qrcode" aria-hidden="true" />
-              <span>{selectedRow.SerialNumber || "QR not available"}</span>
+          <div className="asset-doc-strip spare-doc-strip">
+            <div className="spare-qr-code" aria-label="QR code preview">
+              {selectedQrCells.map((filled, index) => (
+                <span key={index} className={filled ? "filled" : ""} />
+              ))}
             </div>
-            <button type="button" className="asset-link-btn" disabled>
-              <i className="fa fa-picture-o mr-1" aria-hidden="true" />
+            <button type="button" className="asset-link-btn spare-photo-link" disabled>
+              <i className="fa fa-file-image-o mr-1" aria-hidden="true" />
               Spare-part photo
             </button>
           </div>
@@ -413,7 +427,7 @@ const SparePage = () => {
   const renderEditPanel = () => {
     if (!selectedRow || !editForm) return null;
     return (
-      <div className="asset-side-panel asset-side-panel-form">
+      <div className="asset-side-panel asset-side-panel-form spare-side-panel">
         <div className="asset-side-panel-header">
           <div className="asset-panel-title-wrap">
             <span className="asset-panel-icon">
@@ -422,32 +436,33 @@ const SparePage = () => {
             <h4 className="asset-side-panel-title">Edit spare part details</h4>
           </div>
         </div>
-        <div className="asset-side-panel-body">
-          <div className="asset-qr-preview">
-            <div className="asset-qr-box asset-qr-box-large">
-              <i className="fa fa-qrcode" aria-hidden="true" />
+        <div className="asset-side-panel-body spare-side-panel-body">
+          <div className="asset-qr-preview spare-edit-qr-preview">
+            <div className="spare-qr-code spare-qr-code-large" aria-label="QR code preview">
+              {selectedQrCells.map((filled, index) => (
+                <span key={index} className={filled ? "filled" : ""} />
+              ))}
             </div>
           </div>
 
-          <div className="asset-form-grid">
-            <div className="asset-form-row">
-              <div className="form-group">
-                <label>ID</label>
-                <input className="form-control" value={selectedRow.AssetID || ""} readOnly />
-              </div>
-              <div className="form-group">
-                <label>Status</label>
-                <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}>
-                  <option value="Running">Running</option>
-                  <option value="Inactive">Inactive</option>
-                  <option value="Servicing">Servicing</option>
-                </select>
-              </div>
+          <div className="asset-form-grid spare-form-grid">
+            <div className="form-group spare-readonly-row">
+              <label>ID</label>
+              <div className="spare-readonly-value">{selectedRow.AssetID || "AST-111"}</div>
             </div>
 
             <div className="form-group">
               <label>Name</label>
               <input className="form-control" value={editForm.SpareType} onChange={(e) => setEditForm((prev) => ({ ...prev, SpareType: e.target.value }))} />
+            </div>
+
+            <div className="form-group">
+              <label>Status</label>
+              <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}>
+                <option value="Running">Running</option>
+                <option value="Inactive">Inactive</option>
+                <option value="Servicing">Servicing</option>
+              </select>
             </div>
 
             <div className="form-group">

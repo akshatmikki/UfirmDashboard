@@ -980,9 +980,35 @@ class AssetsMaster extends Component {
         <div className={`asset-master-layout ${hasSidePanel ? "has-side-panel" : ""}`}>
           <div className="asset-master-main-card">
             <div className="asset-master-tabs">
-              <button type="button" className="asset-master-tab active">Owned assets</button>
-              <button type="button" className="asset-master-tab" onClick={() => this.props.history.push("/Account/App/RentalAssets")}>Rented assets</button>
-              <button type="button" className="asset-master-tab" onClick={() => this.props.history.push("/Account/App/SpareMaster")}>Spare parts</button>
+             <button
+  type="button"
+  className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
+  onClick={() => this.setState({ activeTab: "owned" })}
+>
+  Owned assets
+</button>
+
+<button
+  type="button"
+  className={`asset-master-tab ${this.state.activeTab === "rented" ? "active" : ""}`}
+  onClick={() => {
+    this.setState({ activeTab: "rented" });
+    this.props.history.push("/Account/App/RentalAssets");
+  }}
+>
+  Rented assets
+</button>
+
+<button
+  type="button"
+  className={`asset-master-tab ${this.state.activeTab === "spare" ? "active" : ""}`}
+  onClick={() => {
+    this.setState({ activeTab: "spare" });
+    this.props.history.push("/Account/App/SpareMaster");
+  }}
+>
+  Spare parts
+</button>
             </div>
 
             <div className="asset-master-toolbar">

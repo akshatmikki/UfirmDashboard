@@ -258,7 +258,6 @@ const RentalAssets = ({ propId, history }) => {
   const renderDetailsPanel = () => {
     if (!selectedAsset) return null;
     const statusMeta = getStatusMeta(selectedAsset);
-    const leaseMeta = getLeaseMeta(selectedAsset);
 
     return (
       <div className="rental-panel-card">
@@ -268,16 +267,15 @@ const RentalAssets = ({ propId, history }) => {
 
         <div className="rental-panel-body">
           <div className="rental-detail-grid">
-            <div className="rental-detail-item">
+            <div className="rental-detail-item rental-detail-full rental-readonly-row">
               <span className="rental-detail-label">ID</span>
-              <span className="rental-detail-value">{selectedAsset.Id || "AST-111"}</span>
-            </div>
-            <div className="rental-detail-item">
-              <span className="rental-detail-label">Status</span>
-              <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
+              <span className="rental-detail-value rental-readonly-value">{selectedAsset.Id || "AST-111"}</span>
             </div>
             <div className="rental-detail-item rental-detail-full">
-              <span className="rental-detail-label">Name</span>
+              <div className="rental-detail-inline-head">
+                <span className="rental-detail-label">Name</span>
+                <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
+              </div>
               <span className="rental-detail-value">{selectedAsset.Name || "Generator"}</span>
             </div>
             <div className="rental-detail-item rental-detail-full">
@@ -302,7 +300,7 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Cost</span>
-              <span className="rental-detail-value">{selectedAsset.MonthlyRent ? `Rs${selectedAsset.MonthlyRent}/day` : "Rs100/day"}</span>
+              <span className="rental-detail-value">{selectedAsset.MonthlyRent ? `₹${selectedAsset.MonthlyRent}/day` : "₹100/day"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Security deposit</span>
@@ -317,22 +315,21 @@ const RentalAssets = ({ propId, history }) => {
               <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "Building A"}</span>
             </div>
           </div>
-
           <div className="rental-panel-links">
-            <button type="button" className="rental-text-link">
+            <button type="button" className="rental-text-link rental-panel-link-row">
               <i className="fa fa-file-text mr-1" aria-hidden="true" />
               Rental contract
             </button>
-            <button type="button" className="rental-text-link" onClick={() => openHistoryModal(selectedAsset)}>
+            <button type="button" className="rental-text-link rental-panel-link-row" onClick={() => openHistoryModal(selectedAsset)}>
               <i className="fa fa-history mr-1" aria-hidden="true" />
               View asset history
             </button>
             <button
               type="button"
-              className="rental-text-link"
+              className="rental-text-link rental-panel-link-row"
               onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "return" : "rentout")}
             >
-              <i className="fa fa-sign-out mr-1" aria-hidden="true" />
+              <i className={`fa ${selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
               {selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "Rent in" : "Rent out"}
             </button>
           </div>
@@ -352,7 +349,7 @@ const RentalAssets = ({ propId, history }) => {
 
   const renderEditPanel = () => (
     <div className="rental-panel-card">
-      <div className="rental-panel-header">
+      <div className="rental-panel-header rental-edit-panel-header">
         <div className="rental-edit-title">
           <span className="rental-edit-icon">
             <i className="fa fa-pencil-square-o" aria-hidden="true" />
@@ -361,17 +358,17 @@ const RentalAssets = ({ propId, history }) => {
         </div>
       </div>
 
-      <div className="rental-panel-body">
+      <div className="rental-panel-body rental-edit-panel-body">
         <div className="rental-form-grid">
-          <div className="form-group">
+          <div className="form-group rental-form-full rental-readonly-row">
             <label>ID</label>
-            <input className="form-control" value={editForm.Id} readOnly />
+            <div className="rental-readonly-value">{editForm.Id || "AST-111"}</div>
           </div>
-          <div className="form-group">
+          <div className="form-group rental-form-full">
             <label>Name</label>
             <input className="form-control" value={editForm.Name} onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })} />
           </div>
-          <div className="form-group">
+          <div className="form-group rental-form-full">
             <label>Status</label>
             <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}>
               <option value="Running">Running</option>
@@ -411,11 +408,11 @@ const RentalAssets = ({ propId, history }) => {
             <label>Security deposit</label>
             <input className="form-control" value={editForm.SecurityDeposit} onChange={(e) => setEditForm({ ...editForm, SecurityDeposit: e.target.value })} />
           </div>
-          <div className="form-group">
+          <div className="form-group rental-form-full">
             <label>Expiry date</label>
             <input type="date" className="form-control" value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
           </div>
-          <div className="form-group">
+          <div className="form-group rental-form-full">
             <label>Location</label>
             <input className="form-control" value={editForm.Location} onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })} />
           </div>
@@ -468,7 +465,7 @@ const RentalAssets = ({ propId, history }) => {
                       <i className="fa fa-sliders mr-1" aria-hidden="true" />
                       Filter
                     </button>
-                    <ExportToCSV data={filteredAssets} fileName="RentalAssets.csv" />
+                    {/* <ExportToCSV data={filteredAssets} fileName="RentalAssets.csv" /> */}
                     <button
                       type="button"
                       className="btn rental-primary-btn"
