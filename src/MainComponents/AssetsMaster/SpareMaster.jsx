@@ -569,7 +569,7 @@ const SparePage = () => {
                   </div>
                 ) : null}
 
-                <div className="asset-master-table-wrap">
+                <div className="asset-master-table-wrap asset-master-table-wrap-spare">
                   <div className="table-responsive">
                     <table className="table custTable table-hover">
                       <thead>

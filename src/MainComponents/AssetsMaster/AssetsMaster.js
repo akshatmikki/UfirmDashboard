@@ -1073,7 +1073,7 @@ class AssetsMaster extends Component {
             <div className="asset-master-table-wrap asset-master-table-wrap-owned">
               <DataGrid
                 Id="grdAssetsMaster"
-                IsPagination={true}
+                IsPagination={false}
                 ColumnCollection={this.state.gridHeader}
                 Onpageindexchanged={this.onPagechange}
                 onEditMethod={this.ongridedit}
