@@ -193,6 +193,12 @@
   border-top: 0;
   padding: 16px 14px;
   background: #fff;
+  color: #131720;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  font-family: Inter, sans-serif;
 }
 
 .rental-assets-table tbody tr {

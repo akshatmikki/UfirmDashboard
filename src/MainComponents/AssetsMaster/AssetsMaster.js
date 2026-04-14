@@ -50,6 +50,7 @@ class AssetsMaster extends Component {
         { sTitle: "Actions", titleValue: "Action", Action: "Edit&View&Delete", Index: "0", orderable: false },
       ],
       PageMode: "Home",
+      activeTab: "owned",
       Id: 0,
       AssetType: "",
       ManufacturerName: "",
@@ -301,12 +302,8 @@ class AssetsMaster extends Component {
 
   onGridView = (id) => this.setFormData(this.findItem(id), "View");
   onGridRowSelect = (id) => {
-    if (this.state.PageMode === "View" && String(this.state.selectedRowId) === String(id)) {
-      this.closeSidePanel();
-      return;
-    }
-    this.setFormData(this.findItem(id), "View");
-  };
+  this.setFormData(this.findItem(id), "View");
+};
 
   onGridDelete = (id) => {
     const rowData = this.findItem(id);
@@ -340,6 +337,14 @@ class AssetsMaster extends Component {
     }
     appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
   };
+
+  handleTabChange = (tab) => {
+  this.setState({
+    activeTab: tab,
+    PageMode: "Home",
+    selectedRowId: null
+  });
+};
 
   handleSave = async () => {
     let assetImage = this.state.AssetImage;
@@ -984,7 +989,10 @@ class AssetsMaster extends Component {
              <button
   type="button"
   className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
-  onClick={() => this.setState({ activeTab: "owned" })}
+  onClick={() => {
+  this.setState({ activeTab: "owned" });
+  this.props.history.push("/Account/App/AssetsMaster");
+}}
 >
   Owned assets
 </button>

@@ -17,8 +17,7 @@
 }
 
 .asset-master-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  display: flex;
   gap: 16px;
   align-items: start;
   max-width: 1136px;
@@ -26,7 +25,7 @@
 }
 
 .asset-master-layout.has-side-panel {
-  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: flex-start;
 }
 
 .asset-master-main-card,
@@ -39,11 +38,20 @@
 }
 
 .asset-master-main-card {
+  flex: 1;
+  min-width: 0;
   width: 100%;
   max-width: 1136px;
   border-radius: 12px;
   border-color: rgba(19, 23, 32, 0.15);
   box-shadow: none;
+}
+
+
+
+.asset-master-layout.has-side-panel .asset-side-panel {
+  width: 320px;
+  flex-shrink: 0;
 }
 
 .asset-master-tabs {
@@ -124,6 +132,8 @@
   flex-wrap: wrap;
 }
 
+
+
 .asset-toolbar-filter,
 .asset-side-panel-footer .btn-light {
   border: 1px solid #d7e1ea;
@@ -194,15 +204,27 @@
 
 .asset-master-table-wrap {
   padding: 0 14px 14px;
+   min-height: 600px; 
 }
 
 .asset-master-table-wrap .table-responsive {
-  border: 1px solid #d7e1ea;
   border-radius: 12px;
   overflow: hidden;
-  background: #fff;
-  min-height: 540px;
 }
+
+/* 🔥 HEADER FIX */
+.asset-master-table-wrap .custTable thead {
+  background: #edf0f3;
+}
+
+.asset-master-table-wrap .custTable thead th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.asset-master-table-wrap .custTable thead th:last-child {
+  border-top-right-radius: 12px;
+}
+
 
 .asset-master-table-wrap .custTable {
   margin-bottom: 0 !important;
@@ -226,8 +248,7 @@
 }
 
 .asset-master-table-wrap .custTable thead tr {
-  background: #edf0f3 !important;
-  height: 40px;
+  background: #edf0f3;
 }
 
 .asset-master-table-wrap .custTable thead th,
@@ -252,8 +273,12 @@
   border-right: 0 !important;
   border-top: 0 !important;
   padding: 12px 14px !important;
-  color: #2d3748;
-  font-size: 14px;
+  color: #131720;
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 1;
+  letter-spacing: 0;
+  font-family: Inter, sans-serif;
   background: #fff !important;
   vertical-align: middle;
   border-color: #e8eef5;
@@ -408,6 +433,15 @@
   width: 100% !important;
 }
 
+.asset-master-table-wrap .dataTables_wrapper .dataTables_filter {
+  display: none !important;
+}
+
+.asset-master-table-wrap .dataTables_wrapper .dataTables_paginate,
+.asset-master-table-wrap .dataTables_wrapper .dataTables_info {
+  display: block !important;
+}
+
 .asset-master-table-wrap .custTable tbody td:last-child {
   white-space: nowrap;
 }
@@ -439,16 +473,7 @@
   border-color: transparent !important;
 }
 
-.asset-master-table-wrap .dataTables_wrapper .dataTables_filter,
-.asset-master-table-wrap .dataTables_wrapper .dataTables_filter {
-  display: none !important;
-}
 
-/* Owned assets now uses DataTables pagination (15 rows/page). */
-.asset-master-table-wrap .dataTables_wrapper .dataTables_paginate,
-.asset-master-table-wrap .dataTables_wrapper .dataTables_info {
-  display: block !important;
-}
 
 .asset-side-panel-header,
 .asset-side-panel-footer {
@@ -1064,7 +1089,7 @@
 
 @media (max-width: 991px) {
   .asset-master-layout.has-side-panel {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
   .asset-side-panel-body {
