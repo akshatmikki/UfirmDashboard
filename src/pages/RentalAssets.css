@@ -172,15 +172,17 @@
 }
 
 .rental-assets-table thead th {
-  background: #eef3f8;
+  background: #edf0f3;
   color: #26384d;
-  border-bottom: 1px solid #d7e1ea;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.1);
   border-left: 0;
   border-right: 0;
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
-  padding: 12px 14px;
+  padding: 0 14px;
+  height: 40px;
+  vertical-align: middle;
 }
 
 .rental-assets-table tbody td {

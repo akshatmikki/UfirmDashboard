@@ -213,24 +213,26 @@
 }
 
 .asset-master-table-wrap .custTable thead th {
-  background: #eef3f8 !important;
+  background: #edf0f3 !important;
   color: #26384d;
-  border-bottom: 1px solid #d7e1ea;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.1);
   border-left: 0 !important;
   border-right: 0 !important;
   font-size: 12px;
   font-weight: 700;
-  padding: 12px 14px !important;
+  padding: 0 14px !important;
+  height: 40px;
   vertical-align: middle;
 }
 
 .asset-master-table-wrap .custTable thead tr {
-  background: #eef3f8 !important;
+  background: #edf0f3 !important;
+  height: 40px;
 }
 
 .asset-master-table-wrap .custTable thead th,
 .asset-master-table-wrap .custTable thead td {
-  background: #eef3f8 !important;
+  background: #edf0f3 !important;
   border-left: 0 !important;
   border-right: 0 !important;
 }
@@ -239,7 +241,7 @@
 .asset-master-table-wrap .custTable thead th.sorting_asc,
 .asset-master-table-wrap .custTable thead th.sorting_desc,
 .asset-master-table-wrap .custTable thead th.sorting_disabled {
-  background: #eef3f8 !important;
+  background: #edf0f3 !important;
 }
 
 .asset-master-table-wrap .custTable tbody td {
@@ -387,8 +389,8 @@
 .asset-master-table-wrap .custTable.dataTable thead th.sorting_desc,
 .asset-master-table-wrap .custTable.dataTable thead th.sorting_asc_disabled,
 .asset-master-table-wrap .custTable.dataTable thead th.sorting_desc_disabled {
-  background-color: #eef3f8 !important;
-  box-shadow: inset 0 0 0 9999px #eef3f8 !important;
+  background-color: #edf0f3 !important;
+  box-shadow: inset 0 0 0 9999px #edf0f3 !important;
   background-image: none !important;
   padding-right: 14px !important;
 }
