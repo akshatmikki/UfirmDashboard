@@ -1,5 +1,5 @@
 .asset-master-page {
-  padding: 12px 4px;
+  padding: 20px 0;
 }
 
 .asset-master-breadcrumb {
@@ -21,6 +21,8 @@
   grid-template-columns: minmax(0, 1fr);
   gap: 16px;
   align-items: start;
+  max-width: 1136px;
+  margin: 0 auto;
 }
 
 .asset-master-layout.has-side-panel {
@@ -29,11 +31,19 @@
 
 .asset-master-main-card,
 .asset-side-panel {
-  background: #fff;
+  background: #fafafa;
   border: 1px solid #d7e1ea;
   border-radius: 14px;
   overflow: hidden;
   box-shadow: 0 2px 10px rgba(20, 43, 74, 0.04);
+}
+
+.asset-master-main-card {
+  width: 100%;
+  max-width: 1136px;
+  border-radius: 12px;
+  border-color: rgba(19, 23, 32, 0.15);
+  box-shadow: none;
 }
 
 .asset-master-tabs {
