@@ -443,6 +443,61 @@ class AssetsMaster extends Component {
     });
   };
 
+  closeFilterPopup = () => this.setState({ showFilterPanel: false });
+
+  renderFilterPopup = () => {
+    if (!this.state.showFilterPanel) return null;
+
+    return (
+      <div className="asset-filter-popup-overlay" onClick={this.closeFilterPopup}>
+        <div className="asset-filter-popup" onClick={(e) => e.stopPropagation()}>
+          <div className="asset-filter-popup-header">
+            <span className="asset-filter-popup-title">Filters</span>
+                        <button className="asset-filter-reset" type="button" onClick={this.resetFilters}>
+                          <i className="fa fa-times mr-1" />
+                          Reset All
+                        </button>
+          </div>
+          <div className="asset-filter-popup-grid">
+            <div className="asset-filter-field">
+              <label>Asset type</label>
+              <select className="form-control" value={this.state.filterAssetType} onChange={(e) => this.setState({ filterAssetType: e.target.value })}>
+                <option value="">Enter name</option>
+                <option value="Machine/Equipment">Machine/Equipment</option>
+                <option value="MeasuringEnquipment">Measuring Equipment</option>
+                <option value="Facility">Facility</option>
+              </select>
+            </div>
+            <div className="asset-filter-field">
+              <label>Location</label>
+              <input type="text" className="form-control" placeholder="Enter name" value={this.state.filterLocation} onChange={(e) => this.setState({ filterLocation: e.target.value })} />
+            </div>
+            <div className="asset-filter-field asset-filter-field-full">
+              <label>Status</label>
+              <div className="asset-filter-chip-row">
+                {[{ label: "Running", value: "true" }, { label: "Inactive", value: "false" }].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    className={`asset-filter-chip ${this.state.filterStatus === item.value ? "active" : ""}`}
+                    onClick={() => this.setState({ filterStatus: this.state.filterStatus === item.value ? "" : item.value })}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="asset-filter-popup-footer">
+            <button className="btn btn-primary asset-filter-apply" type="button" onClick={this.closeFilterPopup}>
+              Apply filters
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   getFilteredGridData = () =>
     (this.state.GridData || []).filter((item) => {
       const search = String(this.state.searchTerm || "").toLowerCase().trim();
@@ -1039,7 +1094,7 @@ class AssetsMaster extends Component {
               </div>
 
               <div className="asset-master-toolbar-actions">
-                <button className="btn btn-light asset-toolbar-filter" type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
+                <button className={`btn asset-toolbar-filter ${this.state.showFilterPanel ? "active" : ""}`} type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
                   <i className="fa fa-sliders mr-1" />
                   Filter
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
@@ -1052,23 +1107,7 @@ class AssetsMaster extends Component {
               </div>
             </div>
 
-            {this.state.showFilterPanel ? (
-              <div className="asset-inline-filters">
-                <select className="form-control" value={this.state.filterAssetType} onChange={(e) => this.setState({ filterAssetType: e.target.value })}>
-                  <option value="">All Asset Types</option>
-                  <option value="Machine/Equipment">Machine/Equipment</option>
-                  <option value="MeasuringEnquipment">Measuring Equipment</option>
-                  <option value="Facility">Facility</option>
-                </select>
-                <select className="form-control" value={this.state.filterStatus} onChange={(e) => this.setState({ filterStatus: e.target.value })}>
-                  <option value="">All Status</option>
-                  <option value="true">Running</option>
-                  <option value="false">Inactive</option>
-                </select>
-                <input type="text" className="form-control" placeholder="Location" value={this.state.filterLocation} onChange={(e) => this.setState({ filterLocation: e.target.value })} />
-                <button className="btn btn-link" type="button" onClick={this.resetFilters}>Reset</button>
-              </div>
-            ) : null}
+            {this.renderFilterPopup()}
 
             <div className="asset-master-table-wrap asset-master-table-wrap-owned">
               <DataGrid

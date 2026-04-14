@@ -335,6 +335,8 @@ const SparePage = () => {
     setFilterAssetId("");
   };
 
+  const closeFilterPopup = () => setShowFilterPanel(false);
+
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
   const selectedQrCells = useMemo(() => buildPseudoQrCells(selectedRow?.SerialNumber || selectedRow?.SpareID || "QR"), [selectedRow]);
@@ -527,7 +529,7 @@ const SparePage = () => {
                   </div>
 
                   <div className="asset-master-toolbar-actions">
-                    <button type="button" className="btn btn-light asset-toolbar-filter" onClick={() => setShowFilterPanel((prev) => !prev)}>
+                    <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>
                       <i className="fa fa-sliders mr-1" aria-hidden="true" />
                       Filter
                     </button>
@@ -546,26 +548,58 @@ const SparePage = () => {
                 </div>
 
                 {showFilterPanel ? (
-                  <div className="asset-inline-filters">
-                    <input className="form-control" placeholder="Vendor" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} />
-                    <input className="form-control" placeholder="Type" value={filterType} onChange={(e) => setFilterType(e.target.value)} />
-                    <select className="form-control" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-                      <option value="">All Status</option>
-                      <option value="Running">Running</option>
-                      <option value="Servicing">Servicing</option>
-                      <option value="Inactive">Inactive</option>
-                    </select>
-                    <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
-                      <option value="">All Assets</option>
-                      {assetOptions.map((opt) => (
-                        <option key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </option>
-                      ))}
-                    </select>
-                    <button type="button" className="btn btn-link" onClick={resetFilters}>
-                      Reset
-                    </button>
+                  <div className="asset-filter-popup-overlay" onClick={closeFilterPopup}>
+                    <div className="asset-filter-popup" onClick={(e) => e.stopPropagation()}>
+                      <div className="asset-filter-popup-header">
+                        <span className="asset-filter-popup-title">Filters</span>
+                        <button type="button" className="asset-filter-reset" onClick={resetFilters}>
+                          <i className="fa fa-times mr-1" />
+                          Reset All
+                        </button>
+                      </div>
+                      <div className="asset-filter-popup-grid">
+                        <div className="asset-filter-field">
+                          <label>Vendor</label>
+                          <input className="form-control" placeholder="Enter name" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} />
+                        </div>
+                        <div className="asset-filter-field">
+                          <label>Asset</label>
+                          <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
+                            <option value="">Enter name</option>
+                            {assetOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="asset-filter-field asset-filter-field-full">
+                          <label>Type</label>
+                          <div className="asset-filter-chip-row">
+                            {["UPS Battery", "Engine filter", "Battery"].map((item) => (
+                              <button key={item} type="button" className={`asset-filter-chip ${filterType === item ? "active" : ""}`} onClick={() => setFilterType(filterType === item ? "" : item)}>
+                                {item}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div className="asset-filter-field asset-filter-field-full">
+                          <label>Status</label>
+                          <div className="asset-filter-chip-row">
+                            {["Running", "Servicing", "Inactive"].map((item) => (
+                              <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
+                                {item}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="asset-filter-popup-footer">
+                        <button type="button" className="btn btn-primary asset-filter-apply" onClick={closeFilterPopup}>
+                          Apply filters
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 ) : null}
 

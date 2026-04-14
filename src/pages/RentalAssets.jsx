@@ -84,6 +84,10 @@ const RentalAssets = ({ propId, history }) => {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [filterManufacturer, setFilterManufacturer] = useState("");
+  const [filterLease, setFilterLease] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState(null);
   const [panelMode, setPanelMode] = useState("details");
   const [editForm, setEditForm] = useState(buildEditForm());
@@ -114,12 +118,23 @@ const RentalAssets = ({ propId, history }) => {
   const filteredAssets = useMemo(() => {
     const query = String(searchTerm || "").trim().toLowerCase();
     return rentalAssets.filter((asset) => {
-      if (!query) return true;
-      return [asset.Id, asset.Name, asset.Manufacturer, asset.Description, asset.Location]
+      const matchesSearch =
+        !query ||
+        [asset.Id, asset.Name, asset.Manufacturer, asset.Description, asset.Location]
         .filter(Boolean)
         .some((item) => String(item).toLowerCase().includes(query));
+      const matchesManufacturer = !filterManufacturer || String(asset.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());
+      const matchesLease = !filterLease || getLeaseMeta(asset).label === filterLease;
+      const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;
+      return matchesSearch && matchesManufacturer && matchesLease && matchesStatus;
     });
-  }, [rentalAssets, searchTerm]);
+  }, [rentalAssets, searchTerm, filterManufacturer, filterLease, filterStatus]);
+
+  const resetFilters = () => {
+    setFilterManufacturer("");
+    setFilterLease("");
+    setFilterStatus("");
+  };
 
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / recordsPerPage));
   const safePage = Math.min(currentPage, totalPages);
@@ -461,7 +476,7 @@ const RentalAssets = ({ propId, history }) => {
                   </div>
 
                   <div className="rental-assets-actions">
-                    <button type="button" className="btn rental-secondary-btn">
+                    <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>
                       <i className="fa fa-sliders mr-1" aria-hidden="true" />
                       Filter
                     </button>
@@ -477,6 +492,50 @@ const RentalAssets = ({ propId, history }) => {
                     </button>
                   </div>
                 </div>
+
+                {showFilterPanel ? (
+                  <div className="asset-filter-popup-overlay" onClick={() => setShowFilterPanel(false)}>
+                    <div className="asset-filter-popup" onClick={(e) => e.stopPropagation()}>
+                      <div className="asset-filter-popup-header">
+                        <span className="asset-filter-popup-title">Filters</span>
+                        <button type="button" className="asset-filter-reset" onClick={resetFilters}>
+                          <i className="fa fa-times mr-1" />
+                          Reset All
+                        </button>
+                      </div>
+                      <div className="asset-filter-popup-grid">
+                        <div className="asset-filter-field">
+                          <label>Manufacturer</label>
+                          <input className="form-control" placeholder="Enter name" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)} />
+                        </div>
+                        <div className="asset-filter-field">
+                          <label>Lease</label>
+                          <select className="form-control" value={filterLease} onChange={(e) => setFilterLease(e.target.value)}>
+                            <option value="">Enter name</option>
+                            <option value="In">In</option>
+                            <option value="Out">Out</option>
+                            <option value="Open">Open</option>
+                          </select>
+                        </div>
+                        <div className="asset-filter-field asset-filter-field-full">
+                          <label>Status</label>
+                          <div className="asset-filter-chip-row">
+                            {["Running", "Servicing", "Inactive"].map((item) => (
+                              <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
+                                {item}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="asset-filter-popup-footer">
+                        <button type="button" className="btn rental-primary-btn asset-filter-apply" onClick={() => setShowFilterPanel(false)}>
+                          Apply filters
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
 
                 <LoadingOverlay active={loading} spinner={<PropagateLoader color="#336B93" size={16} />}>
                   <div className="rental-assets-table-wrap">

@@ -152,6 +152,142 @@
   color: #26384d;
 }
 
+.asset-filter-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(19, 23, 32, 0.04);
+  z-index: 1200;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 137px;
+}
+
+.asset-filter-popup {
+  width: 808px;
+  max-width: calc(100vw - 32px);
+  background: #fff;
+  border: 1px solid rgba(19, 23, 32, 0.15);
+  border-radius: 12px;
+  padding: 20px 20px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 20px 50px rgba(20, 43, 74, 0.12);
+  animation: assetFilterPopupIn 300ms ease-out;
+}
+
+.asset-filter-popup-header,
+.asset-filter-popup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.asset-filter-popup-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #26384d;
+}
+
+.asset-filter-popup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px 32px;
+}
+
+.asset-filter-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.asset-filter-field label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5b6b7c;
+}
+
+.asset-filter-field-full {
+  grid-column: 1 / -1;
+}
+
+.asset-filter-popup .form-control {
+  width: 296px;
+  max-width: 100%;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid rgba(19, 23, 32, 0.15);
+  background: #edf0f3;
+}
+
+.asset-filter-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.asset-filter-chip {
+  border: 0;
+  background: #edf2f7;
+  color: #4f5d6b;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1;
+  transition: background-color 300ms ease-out, color 300ms ease-out, transform 300ms ease-out;
+}
+
+.asset-filter-chip.active {
+  background: #edf2f7;
+  color: #3f4f63;
+  font-weight: 600;
+}
+
+.asset-filter-reset {
+  border: 0;
+  background: transparent;
+  color: #eb4b4b;
+  font-weight: 600;
+  padding: 0;
+}
+
+.asset-filter-popup-footer {
+  justify-content: flex-end;
+}
+
+.asset-filter-apply {
+  width: 111px;
+  min-width: 111px;
+  height: 33px;
+  padding: 8px 16px;
+  gap: 4px;
+  border-radius: 4px;
+  background: #1f4e7a !important;
+  border-color: #1f4e7a !important;
+  color: #fff !important;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: none !important;
+}
+
+.asset-toolbar-filter {
+  border: 1px solid #d7e1ea;
+  background: #fff;
+  color: #26384d;
+}
+
+.asset-toolbar-filter.active {
+  background: #1f4e7a;
+  border-color: #1f4e7a;
+  color: #fff;
+}
+
+@keyframes assetFilterPopupIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .rental-assets-actions {
   align-items: center;
   flex-wrap: nowrap;
