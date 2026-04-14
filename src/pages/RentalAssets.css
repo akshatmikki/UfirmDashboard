@@ -49,25 +49,38 @@
 
 .rental-assets-tabs {
   display: flex;
-  gap: 8px;
-  padding: 14px 14px 10px;
-  border-bottom: 1px solid #edf2f7;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 20px 10px;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.1);
+  flex-wrap: nowrap;
+  align-items: center;
 }
 
 .rental-assets-tab {
   border: 0;
   background: transparent;
-  color: #5c6775;
-  padding: 8px 10px;
-  border-radius: 7px;
-  font-size: 15px;
+  color: #5a5b5d;
+  padding: 0;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0;
+  min-width: 109px;
+  height: 19px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Inter, sans-serif;
 }
 
 .rental-assets-tab.active {
-  background: #d9eaff;
-  color: #214d7a;
-  font-weight: 600;
+  background: #d3e6ff;
+  color: #000000;
+  font-weight: 500;
+  min-width: 125px;
+  height: 35px;
+  padding: 8px;
 }
 
 .rental-assets-toolbar {
@@ -81,13 +94,14 @@
 .rental-assets-search {
   display: flex;
   align-items: center;
-  gap: 10px;
-  min-width: 280px;
-  max-width: 340px;
-  width: 100%;
-  border: 1px solid #d7e1ea;
-  border-radius: 6px;
-  padding: 0 12px;
+  gap: 8px;
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
+  border: 1px solid rgba(19, 23, 32, 0.1);
+  border-radius: 4px;
+  background: #fefefe;
+  padding: 8px;
   height: 40px;
   color: #7b8793;
 }
@@ -96,12 +110,15 @@
   width: 100%;
   border: 0;
   outline: 0;
+  background: transparent;
+  padding: 0;
+  color: #5f6975;
 }
 
 .rental-assets-actions,
 .rental-panel-footer {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -129,6 +146,15 @@
   background: #fff;
   border: 1px solid #d7e1ea;
   color: #26384d;
+}
+
+.rental-assets-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.rental-assets-actions .btn {
+  height: 40px;
 }
 
 .rental-assets-table-wrap {

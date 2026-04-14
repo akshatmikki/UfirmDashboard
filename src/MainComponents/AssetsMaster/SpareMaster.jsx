@@ -89,6 +89,7 @@ const SparePage = () => {
   const [cancelAction, setCancelAction] = useState(null);
 
   const [editForm, setEditForm] = useState(null);
+  const searchInputRef = useRef(null);
 
   const loadSpares = async () => {
     try {
@@ -520,9 +521,9 @@ const SparePage = () => {
                 </div>
 
                 <div className="asset-master-toolbar">
-                  <div className="asset-master-search">
+                  <div className="asset-master-search" onClick={() => searchInputRef.current?.focus()}>
                     <i className="fa fa-search" aria-hidden="true" />
-                    <input type="text" placeholder="Search by name or ID" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+                    <input ref={searchInputRef} type="text" placeholder="Search by name or ID" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
                   </div>
 
                   <div className="asset-master-toolbar-actions">

@@ -36,6 +36,7 @@ const RadioButtonGroup = ({ options, name, selectedValue, onChange }) => (
 class AssetsMaster extends Component {
   constructor(props) {
     super(props);
+    this.searchInputRef = React.createRef();
     this.state = {
       isLoading: false,
       GridData: [],
@@ -1012,9 +1013,15 @@ class AssetsMaster extends Component {
             </div>
 
             <div className="asset-master-toolbar">
-              <div className="asset-master-search">
+              <div className="asset-master-search" onClick={() => this.searchInputRef.current?.focus()}>
                 <i className="fa fa-search" aria-hidden="true" />
-                <input type="text" placeholder="Search by name or ID" value={this.state.searchTerm} onChange={(e) => this.setState({ searchTerm: e.target.value })} />
+                <input
+                  ref={this.searchInputRef}
+                  type="text"
+                  placeholder="Search by name or ID"
+                  value={this.state.searchTerm}
+                  onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                />
               </div>
 
               <div className="asset-master-toolbar-actions">
