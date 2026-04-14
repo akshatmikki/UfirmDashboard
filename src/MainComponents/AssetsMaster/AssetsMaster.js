@@ -1038,7 +1038,7 @@ class AssetsMaster extends Component {
                   Filter
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
                 </button>
-                {/* <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" /> */}
+                <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
                 <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>
                   <i className="fa fa-plus mr-1" />
                   Add asset

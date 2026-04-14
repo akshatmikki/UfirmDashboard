@@ -86,24 +86,29 @@
 .rental-assets-toolbar {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px;
-  flex-wrap: wrap;
+  gap: 16px;
+  padding: 16px 20px 10px;
+  flex-wrap: nowrap;
+  align-items: center;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.1);
+  box-sizing: border-box;
 }
 
 .rental-assets-search {
   display: flex;
+  flex: 0 0 400px;
   align-items: center;
   gap: 8px;
   width: 400px;
   min-width: 400px;
   max-width: 400px;
+  height: 40px;
+  padding: 8px;
   border: 1px solid rgba(19, 23, 32, 0.1);
   border-radius: 4px;
   background: #fefefe;
-  padding: 8px;
-  height: 40px;
   color: #7b8793;
+  box-sizing: border-box;
 }
 
 .rental-assets-search input {
