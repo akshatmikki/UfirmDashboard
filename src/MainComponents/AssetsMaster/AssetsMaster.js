@@ -120,6 +120,9 @@ class AssetsMaster extends Component {
     return "";
   };
 
+  getRowDescription = (rowData = {}) =>
+    rowData.Description || rowData.description || rowData.AssetDescription || rowData.assetDescription || rowData.Desc || "";
+
   getBoolLabel = (value) => {
     const boolVal = this.normalizeBoolean(value);
     if (boolVal === "") return "-";
@@ -272,7 +275,7 @@ class AssetsMaster extends Component {
       selectedRowId: rowData.Id,
       Id: rowData.Id,
       Name: rowData.Name || "",
-      Description: rowData.Description || "",
+      Description: this.getRowDescription(rowData),
       QRCode: rowData.QRCode || "",
       ManufacturerName: rowData.Manufacturer || "",
       AssetModel: rowData.AssetModel || "",
@@ -530,7 +533,7 @@ class AssetsMaster extends Component {
             <div className="asset-details-row asset-details-desc-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Description</span>
-                <span className="asset-info-value">{asset.Description || "-"}</span>
+                <span className="asset-info-value">{this.getRowDescription(asset) || "-"}</span>
               </div>
             </div>
 
@@ -975,6 +978,9 @@ class AssetsMaster extends Component {
     ].filter((item) => String(item || "") !== "").length;
     const hasSidePanel = this.state.PageMode === "View" || this.state.PageMode === "Edit";
     const showAssetModal = this.state.PageMode === "Add";
+    const ownedPageSize = 15;
+    const ownedTotalRows = filteredGridData.length;
+    const ownedTotalPages = Math.max(1, Math.ceil(ownedTotalRows / ownedPageSize));
 
     return (
       <div className="asset-master-page">
@@ -983,7 +989,7 @@ class AssetsMaster extends Component {
           <span>Asset Master</span>
         </div>
 
-        <div className={`asset-master-layout ${hasSidePanel ? "has-side-panel" : ""}`}>
+        <div className={`asset-master-layout asset-master-layout-owned ${hasSidePanel ? "has-side-panel" : ""}`}>
           <div className="asset-master-main-card">
             <div className="asset-master-tabs">
              <button
@@ -1064,10 +1070,10 @@ class AssetsMaster extends Component {
               </div>
             ) : null}
 
-            <div className="asset-master-table-wrap">
+            <div className="asset-master-table-wrap asset-master-table-wrap-owned">
               <DataGrid
                 Id="grdAssetsMaster"
-                IsPagination={false}
+                IsPagination={true}
                 ColumnCollection={this.state.gridHeader}
                 Onpageindexchanged={this.onPagechange}
                 onEditMethod={this.ongridedit}
@@ -1080,6 +1086,8 @@ class AssetsMaster extends Component {
                 DefaultPagination={true}
                 IsSarching={false}
                 GridData={filteredGridData}
+                totalrows={ownedTotalRows}
+                totalpages={ownedTotalPages}
                 pageSize="15"
               />
             </div>
