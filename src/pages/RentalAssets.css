@@ -667,7 +667,7 @@
 }
 
 .rental-edit-panel-body {
-  padding: 12px;
+  padding: 12px 12px 16px;
 }
 
 .rental-edit-panel-card {
@@ -821,6 +821,10 @@
 
 .rental-edit-panel-card .rental-form-grid {
   gap: 8px 12px;
+}
+
+.rental-edit-panel-card .rental-form-grid .form-group {
+  margin-bottom: 0;
 }
 
 .rental-edit-panel-card .rental-readonly-row .asset-info-label {
