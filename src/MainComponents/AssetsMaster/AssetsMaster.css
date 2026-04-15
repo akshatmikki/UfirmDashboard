@@ -2163,8 +2163,10 @@
   border-left: 0;
   border-right: 0;
   border-top: 0;
-  padding: 18px 22px;
-  font-size: 15px;
+  padding: 0 14px;
+  height: 40px;
+  vertical-align: middle;
+  font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -2184,8 +2186,10 @@
   border-left: 0;
   border-right: 0;
   border-top: 0;
-  padding: 16px 22px;
-  font-size: 15px;
+  padding: 0 14px;
+  height: 48px;
+  color: #131720;
+  font-size: 16px;
 }
 
 .asset-owned-table tbody tr {
