@@ -452,12 +452,15 @@
 
 .asset-master-table-wrap .custTable thead th {
   background: #edf0f3 !important;
-  color: #26384d;
+  color: #131720;
   border-bottom: 1px solid rgba(19, 23, 32, 0.1);
   border-left: 0 !important;
   border-right: 0 !important;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 100%;
+  letter-spacing: 0;
+  font-family: Inter, sans-serif;
   padding: 0 14px !important;
   height: 40px;
   vertical-align: middle;
@@ -2358,7 +2361,7 @@
 
 .asset-owned-table thead th {
   background: #edf0f3;
-  color: #26384d;
+  color: #131720;
   border-bottom: 1px solid rgba(19, 23, 32, 0.1);
   border-left: 0;
   border-right: 0;
@@ -2366,8 +2369,11 @@
   padding: 0 14px;
   height: 40px;
   vertical-align: middle;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 100%;
+  letter-spacing: 0;
+  font-family: Inter, sans-serif;
   white-space: nowrap;
 }
 

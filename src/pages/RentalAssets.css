@@ -323,13 +323,16 @@
 
 .rental-assets-table thead th {
   background: #edf0f3;
-  color: #26384d;
+  color: #131720;
   border-bottom: 1px solid rgba(19, 23, 32, 0.1);
   border-left: 0;
   border-right: 0;
   border-top: 0;
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 100%;
+  letter-spacing: 0;
+  font-family: Inter, sans-serif;
   white-space: nowrap;
   padding: 0 14px;
   height: 40px;
