@@ -9,8 +9,6 @@ import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets"
 import "../MainComponents/AssetsMaster/AssetsMaster.css";
 import "./RentalAssets.css";
 
-const recordsPerPage = 15;
-
 const statusOptions = {
   running: { label: "Running", key: "running" },
   inactive: { label: "Inactive", key: "inactive" },
@@ -83,7 +81,6 @@ const buildEditForm = (asset = {}) => ({
 const RentalAssets = ({ propId, history }) => {
   const [rentalAssets, setRentalAssets] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterManufacturer, setFilterManufacturer] = useState("");
@@ -139,18 +136,6 @@ const RentalAssets = ({ propId, history }) => {
     setFilterLease("");
     setFilterStatus("");
   };
-
-  const totalPages = Math.max(1, Math.ceil(filteredAssets.length / recordsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-
-  useEffect(() => {
-    if (safePage !== currentPage) setCurrentPage(safePage);
-  }, [safePage, currentPage]);
-
-  const currentRecords = useMemo(() => {
-    const start = (safePage - 1) * recordsPerPage;
-    return filteredAssets.slice(start, start + recordsPerPage);
-  }, [filteredAssets, safePage]);
 
   const selectedAsset = useMemo(() => rentalAssets.find((item) => Number(item.Id) === Number(selectedAssetId)) || null, [rentalAssets, selectedAssetId]);
 
@@ -577,7 +562,7 @@ const RentalAssets = ({ propId, history }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {currentRecords.map((asset) => {
+                        {filteredAssets.map((asset) => {
                           const statusMeta = getStatusMeta(asset);
                           const leaseMeta = getLeaseMeta(asset);
                           const isReturnFlow = asset.ReturnDate === null && asset.RentedOutDate;
@@ -614,20 +599,6 @@ const RentalAssets = ({ propId, history }) => {
                     </table>
                   </div>
 
-                  <div className="rental-assets-pagination">
-                    <span>
-                      Showing {currentRecords.length} out of {filteredAssets.length} entries
-                    </span>
-                    <div className="rental-pagination-controls">
-                      <button type="button" className="rental-page-btn" disabled={safePage === 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>
-                        <i className="fa fa-angle-left" aria-hidden="true" />
-                      </button>
-                      <span className="rental-page-number">{safePage}</span>
-                      <button type="button" className="rental-page-btn" disabled={safePage === totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>
-                        <i className="fa fa-angle-right" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
                 </LoadingOverlay>
               </div>
 

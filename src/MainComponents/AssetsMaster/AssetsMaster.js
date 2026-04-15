@@ -33,8 +33,6 @@ const RadioButtonGroup = ({ options, name, selectedValue, onChange }) => (
 );
 
 class AssetsMaster extends Component {
-  ownedRecordsPerPage = 15;
-
   constructor(props) {
     super(props);
     this.searchInputRef = React.createRef();
@@ -88,7 +86,6 @@ class AssetsMaster extends Component {
       filterCategory: "",
       filterLocation: "",
       filterCapacity: "",
-      currentPage: 1,
       selectedRowId: null,
       showCancelConfirm: false,
       cancelConfirmType: "",
@@ -107,14 +104,6 @@ class AssetsMaster extends Component {
   componentDidUpdate(prevProps) {
     if (prevProps.PropertyId !== this.props.PropertyId) {
       this.loadHomagePageData();
-    }
-    if (
-      prevProps.PropertyId === this.props.PropertyId &&
-      this.state.currentPage > Math.max(1, Math.ceil(this.getFilteredGridData().length / this.ownedRecordsPerPage))
-    ) {
-      this.setState({
-        currentPage: Math.max(1, Math.ceil(this.getFilteredGridData().length / this.ownedRecordsPerPage)),
-      });
     }
   }
 
@@ -445,11 +434,6 @@ class AssetsMaster extends Component {
 
   closeSidePanel = () => this.setState({ PageMode: "Home", selectedRowId: null });
   closeSuccessModal = () => this.setState({ showSuccessModal: false, successType: "" });
-  setOwnedCurrentPage = (updater) =>
-    this.setState((prevState) => ({
-      currentPage: typeof updater === "function" ? updater(prevState.currentPage) : updater,
-    }));
-
   resetFilters = () => {
     this.setState({
       searchTerm: "",
@@ -462,7 +446,6 @@ class AssetsMaster extends Component {
       filterCategory: "",
       filterLocation: "",
       filterCapacity: "",
-      currentPage: 1,
     });
   };
 
@@ -567,74 +550,60 @@ class AssetsMaster extends Component {
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
 
-  renderOwnedAssetsTable = (rows, currentPageRows, safePage, totalPages) => (
-    <>
-      <div className="asset-master-table-wrap asset-master-table-wrap-owned">
-        <div className="asset-owned-table-scroll">
-          <table className="table asset-owned-table mb-0">
-            <thead>
+  renderOwnedAssetsTable = (rows) => (
+    <div className="asset-master-table-wrap asset-master-table-wrap-owned">
+      <div className="asset-owned-table-scroll">
+        <table className="table asset-owned-table mb-0">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Location</th>
+              <th>Service due</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.length ? (
+              rows.map((asset) => {
+                const statusMeta = this.getAssetStatusMeta(asset);
+                const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+                return (
+                  <tr
+                    key={asset.Id}
+                    className={isSelected ? "active" : ""}
+                    onClick={() => this.onGridRowSelect(asset.Id)}
+                  >
+                    <td>{asset.Id || "-"}</td>
+                    <td>{asset.Name || "-"}</td>
+                    <td>{asset.Location || asset.location || "-"}</td>
+                    <td>{this.formatDisplayDate(asset.NextServiceDate)}</td>
+                    <td>
+                      <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
+                    </td>
+                    <td>
+                      <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
+                          <i className="fa fa-pencil" aria-hidden="true" />
+                        </button>
+                        <button type="button" className="asset-owned-icon-btn" title="Delete" onClick={() => this.onGridDelete(asset.Id)}>
+                          <i className="fa fa-trash-o" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
               <tr>
-                <th>ID</th>
-                <th>Name</th>
-                <th>Location</th>
-                <th>Service due</th>
-                <th>Status</th>
-                <th>Actions</th>
+                <td colSpan="6" className="asset-owned-empty-state">No assets found.</td>
               </tr>
-            </thead>
-            <tbody>
-              {currentPageRows.length ? (
-                currentPageRows.map((asset) => {
-                  const statusMeta = this.getAssetStatusMeta(asset);
-                  const isSelected = String(this.state.selectedRowId) === String(asset.Id);
-                  return (
-                    <tr
-                      key={asset.Id}
-                      className={isSelected ? "active" : ""}
-                      onClick={() => this.onGridRowSelect(asset.Id)}
-                    >
-                      <td>{asset.Id || "-"}</td>
-                      <td>{asset.Name || "-"}</td>
-                      <td>{asset.Location || asset.location || "-"}</td>
-                      <td>{this.formatDisplayDate(asset.NextServiceDate)}</td>
-                      <td>
-                        <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
-                      </td>
-                      <td>
-                        <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
-                          <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
-                            <i className="fa fa-pencil" aria-hidden="true" />
-                          </button>
-                          <button type="button" className="asset-owned-icon-btn" title="Delete" onClick={() => this.onGridDelete(asset.Id)}>
-                            <i className="fa fa-trash-o" aria-hidden="true" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="6" className="asset-owned-empty-state">No assets found.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+            )}
+          </tbody>
+        </table>
       </div>
-      <div className="asset-owned-pagination">
-        <span>Showing {currentPageRows.length} out of {rows.length} entries</span>
-        <div className="asset-owned-pagination-controls">
-          <button type="button" className="asset-owned-page-btn" disabled={safePage === 1} onClick={() => this.setOwnedCurrentPage((page) => Math.max(1, page - 1))}>
-            <i className="fa fa-angle-left" aria-hidden="true" />
-          </button>
-          <span className="asset-owned-page-number">{safePage}</span>
-          <button type="button" className="asset-owned-page-btn" disabled={safePage === totalPages} onClick={() => this.setOwnedCurrentPage((page) => Math.min(totalPages, page + 1))}>
-            <i className="fa fa-angle-right" aria-hidden="true" />
-          </button>
-        </div>
-      </div>
-    </>
+    </div>
   );
 
   renderReadOnlyField = (label, value, extraClass = "") => (
@@ -1109,10 +1078,6 @@ class AssetsMaster extends Component {
 
   render() {
     const filteredGridData = this.getFilteredGridData();
-    const ownedTotalPages = Math.max(1, Math.ceil(filteredGridData.length / this.ownedRecordsPerPage));
-    const safeOwnedPage = Math.min(this.state.currentPage, ownedTotalPages);
-    const ownedStart = (safeOwnedPage - 1) * this.ownedRecordsPerPage;
-    const ownedCurrentRows = filteredGridData.slice(ownedStart, ownedStart + this.ownedRecordsPerPage);
     const activeFilterCount = [
       this.state.filterAssetType,
       this.state.filterStatus,
@@ -1198,7 +1163,7 @@ class AssetsMaster extends Component {
 
             {this.renderFilterPopup()}
 
-            {this.renderOwnedAssetsTable(filteredGridData, ownedCurrentRows, safeOwnedPage, ownedTotalPages)}
+            {this.renderOwnedAssetsTable(filteredGridData)}
           </div>
 
           {hasSidePanel ? this.renderSidePanel() : null}

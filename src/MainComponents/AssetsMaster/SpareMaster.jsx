@@ -7,8 +7,6 @@ import { useSelector } from "react-redux";
 import SpareService from "../../Services/SpareService";
 import "./AssetsMaster.css";
 
-const recordsPerPage = 15;
-
 function getEmptySpareRow() {
   return {
     SpareType: "",
@@ -68,7 +66,6 @@ const SparePage = () => {
   const [assets, setAssets] = useState([]);
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
   const [selectedSpareId, setSelectedSpareId] = useState(null);
   const [sideMode, setSideMode] = useState("details");
 
@@ -248,18 +245,6 @@ const SparePage = () => {
       return passesQuery && passesVendor && passesType && passesStatus && passesAsset;
     });
   }, [spares, searchTerm, filterVendor, filterType, filterStatus, filterAssetId]);
-
-  const totalPages = Math.max(1, Math.ceil(filteredSpares.length / recordsPerPage));
-  const safePage = Math.min(currentPage, totalPages);
-
-  useEffect(() => {
-    if (safePage !== currentPage) setCurrentPage(safePage);
-  }, [safePage, currentPage]);
-
-  const currentRecords = useMemo(() => {
-    const start = (safePage - 1) * recordsPerPage;
-    return filteredSpares.slice(start, start + recordsPerPage);
-  }, [filteredSpares, safePage]);
 
   const selectedRow = useMemo(() => (spares || []).find((row) => Number(row.SpareID) === Number(selectedSpareId)) || null, [spares, selectedSpareId]);
 
@@ -618,7 +603,7 @@ const SparePage = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {currentRecords.map((row) => {
+                        {filteredSpares.map((row) => {
                           const meta = statusMeta(row?.Status);
                           const asset = assetById.get(Number(row.AssetID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
@@ -653,20 +638,6 @@ const SparePage = () => {
                     </table>
                   </div>
 
-                  <div className="rental-assets-pagination">
-                    <span>
-                      Showing {currentRecords.length} out of {filteredSpares.length} entries
-                    </span>
-                    <div className="rental-pagination-controls">
-                      <button type="button" className="rental-page-btn" disabled={safePage === 1} onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}>
-                        <i className="fa fa-angle-left" aria-hidden="true" />
-                      </button>
-                      <span className="rental-page-number">{safePage}</span>
-                      <button type="button" className="rental-page-btn" disabled={safePage === totalPages} onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}>
-                        <i className="fa fa-angle-right" aria-hidden="true" />
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
 
