@@ -345,7 +345,7 @@ const SparePage = () => {
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
     return (
-      <div className="asset-side-panel spare-side-panel">
+      <div className="asset-side-panel spare-side-panel asset-details-view-panel">
         <div className="asset-side-panel-header">
           <h4 className="asset-side-panel-title">Spare part Details</h4>
         </div>

@@ -563,6 +563,75 @@
   font-weight: 500;
 }
 
+.rental-details-view-panel {
+  width: 320px;
+  height: 650px;
+  background: #fafafa;
+  border: 1px solid rgba(19, 23, 32, 0.15);
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.rental-details-view-panel .rental-panel-header,
+.rental-details-view-panel .rental-panel-footer {
+  padding: 14px 12px;
+  border-color: rgba(19, 23, 32, 0.15);
+}
+
+.rental-details-view-panel .rental-panel-footer {
+  justify-content: space-between;
+  padding-top: 10px;
+}
+
+.rental-details-view-panel .rental-panel-body {
+  padding: 10px 12px 0;
+  max-height: none;
+  height: calc(100% - 110px);
+  overflow: auto;
+}
+
+.rental-details-view-panel .rental-panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #131720;
+}
+
+.rental-details-view-panel .rental-detail-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #516173;
+}
+
+.rental-details-view-panel .rental-detail-value {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #717b87;
+}
+
+.rental-details-view-panel .rental-doc-strip {
+  padding-top: 14px;
+  margin-top: 14px;
+  border-top: 1px solid rgba(19, 23, 32, 0.15);
+}
+
+.rental-details-view-panel .rental-primary-btn,
+.rental-details-view-panel .rental-secondary-btn {
+  min-width: 124px;
+  border-radius: 4px;
+}
+
+.rental-details-view-panel .rental-secondary-btn {
+  border-color: #cfd8e3;
+}
+
+.rental-details-view-panel .rental-status-chip {
+  min-width: auto;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .rental-edit-title {
   display: flex;
   align-items: center;

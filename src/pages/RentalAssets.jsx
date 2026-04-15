@@ -300,7 +300,7 @@ const RentalAssets = ({ propId, history }) => {
     const statusMeta = getStatusMeta(selectedAsset);
 
     return (
-      <div className="rental-panel-card">
+      <div className="rental-panel-card rental-details-view-panel">
         <div className="rental-panel-header">
           <h4 className="rental-panel-title">Asset Details</h4>
         </div>

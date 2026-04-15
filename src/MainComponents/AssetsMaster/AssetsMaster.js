@@ -615,7 +615,7 @@ class AssetsMaster extends Component {
     const amcSource = this.getPreviewSrc(this.state.AMCimage || asset.AMCdoc || asset.AMCimage, "png");
 
     return (
-      <div className="asset-side-panel">
+      <div className="asset-side-panel asset-details-view-panel">
         <div className="asset-side-panel-header">
           <h4 className="asset-side-panel-title">Asset Details</h4>
         </div>
