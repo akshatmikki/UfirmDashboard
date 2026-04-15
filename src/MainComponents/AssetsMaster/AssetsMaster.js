@@ -2,7 +2,6 @@ import React, { Component } from "react";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
 import departmentActions from "../../redux/department/action.js";
-import DataGrid from "../../ReactComponents/DataGrid/DataGrid.jsx";
 import Button from "../../ReactComponents/Button/Button";
 import ApiProvider from "./DataProvider.js";
 import * as appCommon from "../../Common/AppCommon.js";
@@ -449,50 +448,46 @@ class AssetsMaster extends Component {
     if (!this.state.showFilterPanel) return null;
 
     return (
-      <div className="asset-filter-popup-overlay" onClick={this.closeFilterPopup}>
-        <div className="asset-filter-popup" onClick={(e) => e.stopPropagation()}>
-          <div className="asset-filter-popup-header">
-            <span className="asset-filter-popup-title">Filters</span>
-                        <button className="asset-filter-reset" type="button" onClick={this.resetFilters}>
-                          <i className="fa fa-times mr-1" />
-                          Reset All
-                        </button>
+      <div className="asset-inline-filters">
+        <div className="asset-filter-header">
+          <span className="asset-filter-title">Filters</span>
+          <button className="asset-filter-reset" type="button" onClick={this.resetFilters}>
+            <i className="fa fa-times mr-1" />
+            Reset All
+          </button>
+        </div>
+        <div className="asset-filter-field">
+          <label>Asset type</label>
+          <select className="form-control" value={this.state.filterAssetType} onChange={(e) => this.setState({ filterAssetType: e.target.value })}>
+            <option value="">Enter name</option>
+            <option value="Machine/Equipment">Machine/Equipment</option>
+            <option value="MeasuringEnquipment">Measuring Equipment</option>
+            <option value="Facility">Facility</option>
+          </select>
+        </div>
+        <div className="asset-filter-field">
+          <label>Location</label>
+          <input type="text" className="form-control" placeholder="Enter name" value={this.state.filterLocation} onChange={(e) => this.setState({ filterLocation: e.target.value })} />
+        </div>
+        <div className="asset-filter-field asset-filter-field-full">
+          <label>Status</label>
+          <div className="asset-filter-chip-row">
+            {[{ label: "Running", value: "true" }, { label: "Inactive", value: "false" }].map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                className={`asset-filter-chip ${this.state.filterStatus === item.value ? "active" : ""}`}
+                onClick={() => this.setState({ filterStatus: this.state.filterStatus === item.value ? "" : item.value })}
+              >
+                {item.label}
+              </button>
+            ))}
           </div>
-          <div className="asset-filter-popup-grid">
-            <div className="asset-filter-field">
-              <label>Asset type</label>
-              <select className="form-control" value={this.state.filterAssetType} onChange={(e) => this.setState({ filterAssetType: e.target.value })}>
-                <option value="">Enter name</option>
-                <option value="Machine/Equipment">Machine/Equipment</option>
-                <option value="MeasuringEnquipment">Measuring Equipment</option>
-                <option value="Facility">Facility</option>
-              </select>
-            </div>
-            <div className="asset-filter-field">
-              <label>Location</label>
-              <input type="text" className="form-control" placeholder="Enter name" value={this.state.filterLocation} onChange={(e) => this.setState({ filterLocation: e.target.value })} />
-            </div>
-            <div className="asset-filter-field asset-filter-field-full">
-              <label>Status</label>
-              <div className="asset-filter-chip-row">
-                {[{ label: "Running", value: "true" }, { label: "Inactive", value: "false" }].map((item) => (
-                  <button
-                    key={item.value}
-                    type="button"
-                    className={`asset-filter-chip ${this.state.filterStatus === item.value ? "active" : ""}`}
-                    onClick={() => this.setState({ filterStatus: this.state.filterStatus === item.value ? "" : item.value })}
-                  >
-                    {item.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="asset-filter-popup-footer">
-            <button className="btn btn-primary asset-filter-apply" type="button" onClick={this.closeFilterPopup}>
-              Apply filters
-            </button>
-          </div>
+        </div>
+        <div className="asset-filter-popup-footer">
+          <button className="btn btn-primary asset-filter-apply" type="button" onClick={this.closeFilterPopup}>
+            Apply filters
+          </button>
         </div>
       </div>
     );
@@ -547,6 +542,60 @@ class AssetsMaster extends Component {
     }));
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
+
+  renderOwnedAssetsTable = (rows) => (
+    <div className="asset-master-table-wrap asset-master-table-wrap-owned">
+      <table className="table asset-owned-table mb-0">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Service due</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.length ? (
+            rows.map((asset) => {
+              const statusMeta = this.getAssetStatusMeta(asset);
+              const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+              return (
+                <tr
+                  key={asset.Id}
+                  className={isSelected ? "active" : ""}
+                  onClick={() => this.onGridRowSelect(asset.Id)}
+                >
+                  <td>{asset.Id || "-"}</td>
+                  <td>{asset.Name || "-"}</td>
+                  <td>{asset.Location || asset.location || "-"}</td>
+                  <td>{this.formatDisplayDate(asset.NextServiceDate)}</td>
+                  <td>
+                    <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
+                  </td>
+                  <td>
+                    <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
+                      <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
+                        <i className="fa fa-pencil" aria-hidden="true" />
+                      </button>
+                      <button type="button" className="asset-owned-icon-btn" title="Delete" onClick={() => this.onGridDelete(asset.Id)}>
+                        <i className="fa fa-trash-o" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan="6" className="asset-owned-empty-state">No assets found.</td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </div>
+  );
 
   renderReadOnlyField = (label, value, extraClass = "") => (
     <div className={`asset-info-item ${extraClass}`.trim()}>
@@ -1033,10 +1082,6 @@ class AssetsMaster extends Component {
     ].filter((item) => String(item || "") !== "").length;
     const hasSidePanel = this.state.PageMode === "View" || this.state.PageMode === "Edit";
     const showAssetModal = this.state.PageMode === "Add";
-    const ownedPageSize = 15;
-    const ownedTotalRows = filteredGridData.length;
-    const ownedTotalPages = Math.max(1, Math.ceil(ownedTotalRows / ownedPageSize));
-
     return (
       <div className="asset-master-page">
         <div className="asset-master-breadcrumb">
@@ -1109,27 +1154,7 @@ class AssetsMaster extends Component {
 
             {this.renderFilterPopup()}
 
-            <div className="asset-master-table-wrap asset-master-table-wrap-owned">
-              <DataGrid
-                Id="grdAssetsMaster"
-                IsPagination={false}
-                ColumnCollection={this.state.gridHeader}
-                Onpageindexchanged={this.onPagechange}
-                onEditMethod={this.ongridedit}
-                onGridDeleteMethod={this.onGridDelete}
-                onGridViewMethod={this.onGridView}
-                onRowClickMethod={this.onGridRowSelect}
-                hideViewActionIcon={true}
-
-                selectedRowId={this.state.selectedRowId}
-                DefaultPagination={true}
-                IsSarching={false}
-                GridData={filteredGridData}
-                totalrows={ownedTotalRows}
-                totalpages={ownedTotalPages}
-                pageSize="15"
-              />
-            </div>
+            {this.renderOwnedAssetsTable(filteredGridData)}
           </div>
 
           {hasSidePanel ? this.renderSidePanel() : null}

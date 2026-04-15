@@ -2022,3 +2022,203 @@
   border-color: #cfd8e3;
 }
 
+/* Owned assets should visually match the rented assets shell. */
+.asset-master-tabs {
+  flex-wrap: nowrap;
+}
+
+.asset-master-tab {
+  height: auto;
+  min-height: 19px;
+  padding: 0;
+  border-radius: 4px;
+  border: 0;
+  background: transparent;
+  color: #5a5b5d;
+  font-size: 16px;
+  line-height: 19px;
+}
+
+.asset-master-tab.active {
+  min-width: 125px;
+  height: 35px;
+  padding: 8px;
+  background: #d3e6ff;
+  color: #000;
+  font-weight: 500;
+}
+
+.asset-master-toolbar {
+  flex-wrap: nowrap;
+  align-items: center;
+}
+
+.asset-master-search {
+  width: 400px;
+  min-width: 400px;
+  max-width: 400px;
+}
+
+.asset-master-toolbar-actions {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.asset-master-toolbar-actions .btn {
+  height: 40px;
+}
+
+.asset-master-table-wrap-owned {
+  width: 1096px;
+  max-width: 100%;
+  margin: 0 auto 14px;
+  padding: 0;
+}
+
+.asset-master-table-wrap-owned .table-responsive {
+  height: auto;
+  max-height: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.asset-master-table-wrap-owned .custTable {
+  min-width: 1096px;
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.asset-master-table-wrap-owned .custTable thead th:nth-child(1),
+.asset-master-table-wrap-owned .custTable tbody td:nth-child(1) {
+  width: 110px;
+}
+
+.asset-master-table-wrap-owned .custTable thead th:nth-child(2),
+.asset-master-table-wrap-owned .custTable tbody td:nth-child(2) {
+  width: 270px;
+}
+
+.asset-master-table-wrap-owned .custTable thead th:nth-child(3),
+.asset-master-table-wrap-owned .custTable tbody td:nth-child(3) {
+  width: 270px;
+}
+
+.asset-master-table-wrap-owned .custTable thead th:nth-child(4),
+.asset-master-table-wrap-owned .custTable tbody td:nth-child(4) {
+  width: 180px;
+}
+
+.asset-master-table-wrap-owned .custTable thead th:nth-child(5),
+.asset-master-table-wrap-owned .custTable tbody td:nth-child(5) {
+  width: 160px;
+}
+
+.asset-master-table-wrap-owned .custTable thead th:nth-child(6),
+.asset-master-table-wrap-owned .custTable tbody td:nth-child(6) {
+  width: 140px;
+}
+
+.asset-master-table-wrap-owned .custTable tbody td {
+  background: #fafafa !important;
+}
+
+.asset-master-table-wrap-owned .custTable tbody tr:hover td,
+.asset-master-table-wrap-owned .grid-selected-row td {
+  background: #fafafa !important;
+  box-shadow: none !important;
+}
+
+.asset-master-table-wrap-owned .custTable tbody td:last-child {
+  white-space: nowrap;
+}
+
+.asset-master-table-wrap-owned .custTable tbody td:last-child .btn {
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  min-height: 26px;
+  color: #9ab4c8 !important;
+}
+
+.asset-master-table-wrap-owned .custTable tbody td:last-child .btn:hover,
+.asset-master-table-wrap-owned .custTable tbody td:last-child .btn:focus {
+  color: #5a7f99 !important;
+}
+
+.asset-owned-table {
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 0;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.asset-owned-table thead th {
+  background: #edf0f3;
+  color: #26384d;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.1);
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  padding: 18px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.asset-owned-table thead th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.asset-owned-table thead th:last-child {
+  border-top-right-radius: 12px;
+}
+
+.asset-owned-table tbody td {
+  background: #fafafa;
+  vertical-align: middle;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.1);
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  padding: 16px 22px;
+  font-size: 15px;
+}
+
+.asset-owned-table tbody tr {
+  cursor: pointer;
+}
+
+.asset-owned-table tbody tr.active td,
+.asset-owned-table tbody tr:hover td {
+  background: #fafafa;
+}
+
+.asset-owned-row-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.asset-owned-icon-btn {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  background: transparent;
+  color: #9ab4c8;
+  padding: 0;
+}
+
+.asset-owned-icon-btn:hover,
+.asset-owned-icon-btn:focus {
+  color: #5a7f99;
+  outline: none;
+}
+
+.asset-owned-empty-state {
+  text-align: center;
+  color: #5f6975;
+}
+
