@@ -315,8 +315,16 @@ class AssetsMaster extends Component {
 
   onGridView = (id) => this.setFormData(this.findItem(id), "View");
   onGridRowSelect = (id) => {
-  this.setFormData(this.findItem(id), "View");
-};
+    if (String(id) === String(this.state.selectedRowId)) {
+      if (this.state.PageMode === "View") {
+        this.closeSidePanel();
+      } else {
+        this.setState({ PageMode: "View" });
+      }
+      return;
+    }
+    this.setFormData(this.findItem(id), "View");
+  };
 
   onGridDelete = (id) => {
     const rowData = this.findItem(id);
