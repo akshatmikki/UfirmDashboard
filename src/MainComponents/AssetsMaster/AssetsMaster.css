@@ -2336,6 +2336,27 @@
   color: #717b87;
 }
 
+.asset-details-view-panel .asset-details-header-row {
+  padding-bottom: 0;
+  align-items: center;
+}
+
+.asset-details-view-panel .asset-details-header-row .asset-info-label {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #131720;
+}
+
+.asset-details-view-panel .asset-details-header-row .asset-info-value {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: #767676;
+}
+
 .asset-details-view-panel .asset-details-docs-section {
   padding-top: 14px;
   margin-top: 14px;
