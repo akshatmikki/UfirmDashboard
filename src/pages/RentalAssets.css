@@ -274,7 +274,22 @@
 .asset-toolbar-filter {
   border: 1px solid #d7e1ea;
   background: #fff;
-  color: #26384d;
+  color: #1e3143;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  letter-spacing: -0.15px;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.asset-toolbar-filter i {
+  font-size: 20px;
+  line-height: 1;
 }
 
 .asset-toolbar-filter.active {

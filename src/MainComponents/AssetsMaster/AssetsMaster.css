@@ -170,6 +170,15 @@
   height: 40px;
 }
 
+.asset-toolbar-filter,
+.asset-export-btn,
+.asset-toolbar-add {
+  font-family: Inter, sans-serif !important;
+  font-size: 14px !important;
+  letter-spacing: -0.15px !important;
+  text-align: center;
+}
+
 .asset-inline-filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -319,7 +328,40 @@
 .asset-toolbar-filter {
   border: 1px solid #d7e1ea;
   background: #fff;
-  color: #26384d;
+  color: #1e3143;
+  line-height: 20px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.asset-toolbar-filter i {
+  font-size: 20px;
+  line-height: 1;
+}
+
+.asset-export-btn {
+  color: #1e3143 !important;
+  font-weight: 500 !important;
+  line-height: 20px !important;
+}
+
+.asset-export-btn .p-button-label {
+  font-weight: 500 !important;
+  line-height: 20px !important;
+}
+
+.asset-toolbar-add {
+  color: #fefefe !important;
+  font-weight: 400 !important;
+  line-height: 100% !important;
+}
+
+.asset-toolbar-add i {
+  font-size: 20px;
+  line-height: 1;
 }
 
 .asset-toolbar-filter.active {

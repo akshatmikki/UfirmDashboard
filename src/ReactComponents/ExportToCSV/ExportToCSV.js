@@ -11,14 +11,14 @@ const ExportToCSV = ({ data = [], fileName = "Tasklist.csv" }) => {
     >
       <Button
         label="Export"
-        icon="pi pi-download"
+        icon="pi pi-external-link"
         tooltip="Download CSV"
         type="button"
         className="asset-export-btn"
         style={{
-          width: "98px",
+          width: "106px",
           height: "40px",
-          padding: "8px 20px 8px 10px",
+          padding: "8px 20px 8px 12px",
           gap: "4px",
           borderRadius: "4px",
           border: "1px solid rgba(19, 23, 32, 0.15)",
