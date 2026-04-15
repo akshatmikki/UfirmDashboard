@@ -297,6 +297,27 @@
   height: 40px;
 }
 
+.asset-inline-filters {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  padding: 0 14px 14px;
+}
+
+.asset-filter-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 4px;
+}
+
+.asset-filter-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #26384d;
+}
+
 .rental-assets-table-wrap {
   width: 1096px;
   max-width: 100%;

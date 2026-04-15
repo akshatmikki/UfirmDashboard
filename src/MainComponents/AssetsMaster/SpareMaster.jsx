@@ -534,57 +534,53 @@ const SparePage = () => {
                 </div>
 
                 {showFilterPanel ? (
-                  <div className="asset-filter-popup-overlay" onClick={closeFilterPopup}>
-                    <div className="asset-filter-popup" onClick={(e) => e.stopPropagation()}>
-                      <div className="asset-filter-popup-header">
-                        <span className="asset-filter-popup-title">Filters</span>
-                        <button type="button" className="asset-filter-reset" onClick={resetFilters}>
-                          <i className="fa fa-times mr-1" />
-                          Reset All
-                        </button>
+                  <div className="asset-inline-filters">
+                    <div className="asset-filter-header">
+                      <span className="asset-filter-title">Filters</span>
+                      <button type="button" className="asset-filter-reset" onClick={resetFilters}>
+                        <i className="fa fa-times mr-1" />
+                        Reset All
+                      </button>
+                    </div>
+                    <div className="asset-filter-field">
+                      <label>Vendor</label>
+                      <input className="form-control" placeholder="Enter name" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} />
+                    </div>
+                    <div className="asset-filter-field">
+                      <label>Asset</label>
+                      <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
+                        <option value="">Enter name</option>
+                        {assetOptions.map((opt) => (
+                          <option key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="asset-filter-field asset-filter-field-full">
+                      <label>Type</label>
+                      <div className="asset-filter-chip-row">
+                        {["UPS Battery", "Engine filter", "Battery"].map((item) => (
+                          <button key={item} type="button" className={`asset-filter-chip ${filterType === item ? "active" : ""}`} onClick={() => setFilterType(filterType === item ? "" : item)}>
+                            {item}
+                          </button>
+                        ))}
                       </div>
-                      <div className="asset-filter-popup-grid">
-                        <div className="asset-filter-field">
-                          <label>Vendor</label>
-                          <input className="form-control" placeholder="Enter name" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} />
-                        </div>
-                        <div className="asset-filter-field">
-                          <label>Asset</label>
-                          <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
-                            <option value="">Enter name</option>
-                            {assetOptions.map((opt) => (
-                              <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                        <div className="asset-filter-field asset-filter-field-full">
-                          <label>Type</label>
-                          <div className="asset-filter-chip-row">
-                            {["UPS Battery", "Engine filter", "Battery"].map((item) => (
-                              <button key={item} type="button" className={`asset-filter-chip ${filterType === item ? "active" : ""}`} onClick={() => setFilterType(filterType === item ? "" : item)}>
-                                {item}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="asset-filter-field asset-filter-field-full">
-                          <label>Status</label>
-                          <div className="asset-filter-chip-row">
-                            {["Running", "Servicing", "Inactive"].map((item) => (
-                              <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
-                                {item}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                    </div>
+                    <div className="asset-filter-field asset-filter-field-full">
+                      <label>Status</label>
+                      <div className="asset-filter-chip-row">
+                        {["Running", "Servicing", "Inactive"].map((item) => (
+                          <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
+                            {item}
+                          </button>
+                        ))}
                       </div>
-                      <div className="asset-filter-popup-footer">
-                        <button type="button" className="btn btn-primary asset-filter-apply" onClick={closeFilterPopup}>
-                          Apply filters
-                        </button>
-                      </div>
+                    </div>
+                    <div className="asset-filter-popup-footer">
+                      <button type="button" className="btn btn-primary asset-filter-apply" onClick={closeFilterPopup}>
+                        Apply filters
+                      </button>
                     </div>
                   </div>
                 ) : null}

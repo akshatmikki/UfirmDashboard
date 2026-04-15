@@ -2402,6 +2402,16 @@
   font-family: Inter, sans-serif;
 }
 
+.asset-owned-table thead th:nth-child(1),
+.asset-owned-table tbody td:nth-child(1) {
+  width: 92px;
+}
+
+.asset-owned-table thead th:nth-child(2),
+.asset-owned-table tbody td:nth-child(2) {
+  width: 240px;
+}
+
 .asset-owned-table tbody tr {
   cursor: pointer;
 }

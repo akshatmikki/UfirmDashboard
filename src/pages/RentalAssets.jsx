@@ -504,45 +504,41 @@ const RentalAssets = ({ propId, history }) => {
                 </div>
 
                 {showFilterPanel ? (
-                  <div className="asset-filter-popup-overlay" onClick={() => setShowFilterPanel(false)}>
-                    <div className="asset-filter-popup" onClick={(e) => e.stopPropagation()}>
-                      <div className="asset-filter-popup-header">
-                        <span className="asset-filter-popup-title">Filters</span>
-                        <button type="button" className="asset-filter-reset" onClick={resetFilters}>
-                          <i className="fa fa-times mr-1" />
-                          Reset All
-                        </button>
+                  <div className="asset-inline-filters">
+                    <div className="asset-filter-header">
+                      <span className="asset-filter-title">Filters</span>
+                      <button type="button" className="asset-filter-reset" onClick={resetFilters}>
+                        <i className="fa fa-times mr-1" />
+                        Reset All
+                      </button>
+                    </div>
+                    <div className="asset-filter-field">
+                      <label>Manufacturer</label>
+                      <input className="form-control" placeholder="Enter name" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)} />
+                    </div>
+                    <div className="asset-filter-field">
+                      <label>Lease</label>
+                      <select className="form-control" value={filterLease} onChange={(e) => setFilterLease(e.target.value)}>
+                        <option value="">Enter name</option>
+                        <option value="In">In</option>
+                        <option value="Out">Out</option>
+                        <option value="Open">Open</option>
+                      </select>
+                    </div>
+                    <div className="asset-filter-field asset-filter-field-full">
+                      <label>Status</label>
+                      <div className="asset-filter-chip-row">
+                        {["Running", "Servicing", "Inactive"].map((item) => (
+                          <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
+                            {item}
+                          </button>
+                        ))}
                       </div>
-                      <div className="asset-filter-popup-grid">
-                        <div className="asset-filter-field">
-                          <label>Manufacturer</label>
-                          <input className="form-control" placeholder="Enter name" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)} />
-                        </div>
-                        <div className="asset-filter-field">
-                          <label>Lease</label>
-                          <select className="form-control" value={filterLease} onChange={(e) => setFilterLease(e.target.value)}>
-                            <option value="">Enter name</option>
-                            <option value="In">In</option>
-                            <option value="Out">Out</option>
-                            <option value="Open">Open</option>
-                          </select>
-                        </div>
-                        <div className="asset-filter-field asset-filter-field-full">
-                          <label>Status</label>
-                          <div className="asset-filter-chip-row">
-                            {["Running", "Servicing", "Inactive"].map((item) => (
-                              <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
-                                {item}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="asset-filter-popup-footer">
-                        <button type="button" className="btn rental-primary-btn asset-filter-apply" onClick={() => setShowFilterPanel(false)}>
-                          Apply filters
-                        </button>
-                      </div>
+                    </div>
+                    <div className="asset-filter-popup-footer">
+                      <button type="button" className="btn rental-primary-btn asset-filter-apply" onClick={() => setShowFilterPanel(false)}>
+                        Apply filters
+                      </button>
                     </div>
                   </div>
                 ) : null}
