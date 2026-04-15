@@ -363,7 +363,7 @@
   height: 100%;
   max-height: 430px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: auto;
   -ms-overflow-style: none;
   scrollbar-width: none;
   border-top-left-radius: 12px;
@@ -377,8 +377,14 @@
 }
 
 .asset-master-table-wrap-owned .custTable {
-  min-width: 0;
-  table-layout: auto !important;
+  min-width: 900px;
+  width: 100% !important;
+  table-layout: fixed !important;
+}
+
+.asset-master-table-wrap-owned .custTable th,
+.asset-master-table-wrap-owned .custTable td {
+  box-sizing: border-box !important;
 }
 
 .asset-master-table-wrap-owned .custTable thead {
@@ -400,26 +406,6 @@
 .asset-master-table-wrap-owned .custTable thead th:first-child,
 .asset-master-table-wrap-owned .custTable thead th:last-child {
   border-radius: 0 !important;
-}
-
-.asset-master-table-wrap-owned .custTable thead th:last-child {
-  width: 160px !important;
-  min-width: 160px;
-  padding: 8px 26px !important;
-  text-align: center;
-}
-
-.asset-master-table-wrap-owned .custTable tbody td:last-child {
-  width: 160px !important;
-  min-width: 160px;
-  white-space: nowrap;
-  text-align: center;
-  padding: 8px 26px !important;
-}
-
-.asset-master-table-wrap-owned .custTable tbody td:nth-last-child(2) {
-  width: 120px !important;
-  min-width: 120px;
 }
 
 /* 🔥 HEADER FIX */
