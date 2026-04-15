@@ -2390,6 +2390,10 @@
   height: 48px;
   color: #131720;
   font-size: 16px;
+  font-weight: 400;
+  line-height: 100%;
+  letter-spacing: 0;
+  font-family: Inter, sans-serif;
 }
 
 .asset-owned-table tbody tr {
