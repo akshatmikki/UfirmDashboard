@@ -432,7 +432,7 @@ const SparePage = () => {
   const renderEditPanel = () => {
     if (!selectedRow || !editForm) return null;
     return (
-      <div className="asset-side-panel asset-side-panel-form spare-side-panel">
+      <div className="asset-side-panel asset-side-panel-form spare-side-panel asset-side-panel-form-edit">
         <div className="asset-side-panel-header">
           <div className="asset-panel-title-wrap">
             <span className="asset-panel-icon">
@@ -450,18 +450,18 @@ const SparePage = () => {
             </div>
           </div>
 
-          <div className="asset-form-grid spare-form-grid">
-            <div className="form-group spare-readonly-row">
+          <div className="asset-form-simple-stack spare-form-grid">
+            <div className="asset-form-id-row-simple spare-readonly-row">
               <label>ID</label>
               <div className="spare-readonly-value">{editForm.SpareID || "AST-111"}</div>
             </div>
 
-            <div className="form-group">
+            <div className="asset-form-group-custom">
               <label>Name</label>
               <input className="form-control" value={editForm.SpareType} onChange={(e) => setEditForm((prev) => ({ ...prev, SpareType: e.target.value }))} />
             </div>
 
-            <div className="form-group">
+            <div className="asset-form-group-custom">
               <label>Status</label>
               <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}>
                 <option value="Running">Running</option>
@@ -470,54 +470,52 @@ const SparePage = () => {
               </select>
             </div>
 
-            <div className="form-group">
+            <div className="asset-form-group-custom">
               <label>Description</label>
               <textarea rows="4" className="form-control" value={editForm.Remarks} onChange={(e) => setEditForm((prev) => ({ ...prev, Remarks: e.target.value }))} />
             </div>
 
-            <div className="form-group">
+            <div className="asset-form-group-custom">
               <label>Serial number</label>
               <input className="form-control" value={editForm.SerialNumber} onChange={(e) => setEditForm((prev) => ({ ...prev, SerialNumber: e.target.value }))} />
             </div>
 
-            <div className="form-group">
+            <div className="asset-form-group-custom">
               <label>Asset</label>
               <input className="form-control" value={editForm.AssetName || "Generator"} readOnly />
             </div>
 
-            <div className="form-group">
-              <label>Asset ID</label>
-              <input className="form-control" value={editForm.AssetID || "-"} readOnly />
+            <div className="asset-form-row-two-col">
+              <div className="asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input className="form-control" value={editForm.Manufacturer || "Generic"} readOnly />
+              </div>
+              <div className="asset-form-group-custom">
+                <label>Model</label>
+                <input className="form-control" value={editForm.Model || "Generic model"} readOnly />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>Manufacturer</label>
-              <input className="form-control" value={editForm.Manufacturer || "Generic"} readOnly />
+            <div className="asset-form-row-two-col">
+              <div className="asset-form-group-custom">
+                <label>Vendor</label>
+                <input className="form-control" value={editForm.VendorName} onChange={(e) => setEditForm((prev) => ({ ...prev, VendorName: e.target.value }))} />
+              </div>
+              <div className="asset-form-group-custom">
+                <label>Value</label>
+                <input className="form-control" value={editForm.Rating} onChange={(e) => setEditForm((prev) => ({ ...prev, Rating: e.target.value }))} />
+              </div>
             </div>
 
-            <div className="form-group">
-              <label>Model</label>
-              <input className="form-control" value={editForm.Model || "Generic model"} readOnly />
-            </div>
-
-            <div className="form-group">
-              <label>Vendor</label>
-              <input className="form-control" value={editForm.VendorName} onChange={(e) => setEditForm((prev) => ({ ...prev, VendorName: e.target.value }))} />
-            </div>
-
-            <div className="form-group">
-              <label>Purchase price</label>
-              <input className="form-control" value={editForm.Rating} onChange={(e) => setEditForm((prev) => ({ ...prev, Rating: e.target.value }))} />
-            </div>
-
-            <div className="form-group">
-              <label>Purchase date</label>
-              <input type="date" className="form-control" value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
-            </div>
-
-            <div className="form-group">
-              <label>Expiry date</label>
-              <input type="date" className="form-control" value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
+            <div className="asset-form-row-two-col">
+              <div className="asset-form-group-custom">
+                <label>Purchase date</label>
+                <input type="date" className="form-control" value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
+              </div>
+              <div className="asset-form-group-custom">
+                <label>Expiry date</label>
+                <input type="date" className="form-control" value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
+              </div>
             </div>
           </div>
         </div>
