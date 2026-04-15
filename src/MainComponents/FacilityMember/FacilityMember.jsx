@@ -167,7 +167,10 @@ const StaffPage = () => {
 
   const employmentTypes = [
     { label: "Permanent", value: "Permanent" },
-    { label: "Contractual", value: "Contractual" }
+    { label: "Contractual", value: "Contractual" },
+    { label: "Casual", value: "Casual" },
+    { label: "Trainee", value: "Trainee" },
+    { label: "Provisional", value: "Provisional" },
   ];
 
   const mapRowDocuments = (row) => ({
@@ -1044,8 +1047,8 @@ const StaffPage = () => {
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "UAN must be 12 digits" });
     }
 
-    // ESI (10–17 digits)
-    if (esiNumber && !/^\d{10,17}$/.test(esiNumber)) {
+    // ESI (10 digits)
+    if (esiNumber && !/^\d{10}$/.test(esiNumber)) {
       setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid ESI Number" });
     }
@@ -1863,6 +1866,7 @@ const StaffPage = () => {
                     "Profile.Gender",
                     "Profile.PhoneNumber",
                     "Profile.AadharCard",
+                    "Profile.PanCard",
                     "FinancialInfo.UANNumber",
                     "FinancialInfo.PFNumber",
                     "FinancialInfo.ESINumber",
@@ -2242,12 +2246,12 @@ const StaffPage = () => {
 
                 <label>ESI Number</label>
                 <InputText
-                  placeholder="10–17 digit ESI"
+                  placeholder="10 digit ESIC IP Number"
                   className="mb-3 pan-placeholder-light"
                   value={esiNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
-                    if (val.length <= 17) setEsiNumber(val);
+                    if (val.length <= 10)setEsiNumber(val);
                   }}
                 />
               </div>

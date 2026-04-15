@@ -213,7 +213,7 @@ export default function PropertyMaster() {
       Name: "",
       AddressLine1: "",
       AddressLine12: "",
-      CityId: 0,
+      CityId: null,
       ContactNumber: "",
       Landmark: "",
       Pincode: "",
@@ -321,6 +321,33 @@ export default function PropertyMaster() {
   // SAVE
   // ---------------------------------------------------------
   const handleSave = async () => {
+    if (!form.Name || form.Name.trim() === "") {
+      toast.current.show({
+        severity: "error",
+        summary: "Validation Error",
+        detail: "Property Name is required",
+      });
+      return;
+    }
+
+    if (!form.State || form.State.trim() === "") {
+      toast.current.show({
+        severity: "error",
+        summary: "Validation Error",
+        detail: "State is required",
+      });
+      return;
+    }
+
+    // City check (handles both select + typed)
+    if (!form.CityId || form.CityId === "" || form.CityId === 0) {
+      toast.current.show({
+        severity: "error",
+        summary: "Validation Error",
+        detail: "City is required",
+      });
+      return;
+    }
     try {
       let finalCityId = form.CityId;
 
@@ -588,7 +615,7 @@ export default function PropertyMaster() {
                   }
                 />
 
-                <label>Property Name</label>
+                <label>Property Name*</label>
                 <InputText
                   className="w-100 mb-2"
                   value={form.Name}
@@ -613,7 +640,7 @@ export default function PropertyMaster() {
                   }
                 />
 
-                <label>City</label>
+                <label>City*</label>
                 <AutoComplete
                   value={
                     typeof form.CityId === "number"
