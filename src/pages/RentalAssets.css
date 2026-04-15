@@ -767,6 +767,25 @@
   appearance: auto;
 }
 
+.rental-upload-field {
+  position: relative;
+}
+
+.rental-upload-field .form-control {
+  padding-right: 40px;
+}
+
+.rental-upload-icon {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #9fb6c7;
+  font-size: 22px;
+  line-height: 1;
+  pointer-events: none;
+}
+
 .rental-readonly-row {
   display: flex;
   align-items: center;

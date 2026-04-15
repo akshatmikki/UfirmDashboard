@@ -76,6 +76,7 @@ const buildEditForm = (asset = {}) => ({
   SecurityDeposit: asset.SecurityDeposit || "",
   ExpiryDate: normalizeDate(asset.ExpiryDate || asset.ReturnDate || ""),
   Location: asset.Location || asset.OutFrom || "Building-A",
+  RentalContract: asset.RentalContract || asset.Contract || "1234.jpeg",
 });
 
 const RentalAssets = ({ propId, history }) => {
@@ -227,6 +228,8 @@ const RentalAssets = ({ propId, history }) => {
               SecurityDeposit: editForm.SecurityDeposit,
               ExpiryDate: editForm.ExpiryDate,
               Location: editForm.Location,
+              RentalContract: editForm.RentalContract,
+              Contract: editForm.RentalContract,
             }
           : item
       )
@@ -434,13 +437,28 @@ const RentalAssets = ({ propId, history }) => {
             <label>Security deposit</label>
             <input className="form-control" value={editForm.SecurityDeposit} onChange={(e) => setEditForm({ ...editForm, SecurityDeposit: e.target.value })} />
           </div>
-          <div className="form-group rental-form-full">
+          <div className="form-group">
             <label>Expiry date</label>
             <input type="date" className="form-control" value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
           </div>
-          <div className="form-group rental-form-full">
+          <div className="form-group">
             <label>Location</label>
-            <input className="form-control" value={editForm.Location} onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })} />
+            <select className="form-control" value={editForm.Location} onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}>
+              <option value={editForm.Location}>{editForm.Location}</option>
+              <option value="Building A">Building A</option>
+              <option value="Building-A">Building-A</option>
+              <option value="Basement">Basement</option>
+              <option value="Gate no-07">Gate no-07</option>
+            </select>
+          </div>
+          <div className="form-group rental-form-full">
+            <label>Rental contract</label>
+            <div className="rental-upload-field">
+              <input className="form-control" value={editForm.RentalContract} onChange={(e) => setEditForm({ ...editForm, RentalContract: e.target.value })} />
+              <span className="rental-upload-icon" aria-hidden="true">
+                <i className="fa fa-file-text" />
+              </span>
+            </div>
           </div>
         </div>
       </div>
