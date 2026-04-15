@@ -251,15 +251,23 @@ const SparePage = () => {
 
   useEffect(() => {
     if (!selectedRow) return;
+    const asset = assetById.get(Number(selectedRow.AssetID)) || {};
     setEditForm({
       SpareID: selectedRow.SpareID,
       AssetID: selectedRow.AssetID,
+      AssetName: asset.Name || asset.name || "",
       SpareType: selectedRow.SpareType || "",
       Status: selectedRow.Status || "Running",
       Remarks: selectedRow.Remarks || "",
       SerialNumber: selectedRow.SerialNumber || "",
+      Manufacturer: asset.Manufacturer || asset.manufacturer || "",
+      Model: asset.AssetModel || asset.Model || "",
+      VendorName: selectedRow.VendorName || "",
+      Rating: selectedRow.Rating || "",
+      PurchaseDate: normalizeDateOnly(selectedRow.PurchaseDate),
+      ExpiryDate: normalizeDateOnly(selectedRow.ExpiryDate),
     });
-  }, [selectedRow]);
+  }, [selectedRow, assetById]);
 
   const onRowClick = (row) => {
     if (String(row?.SpareID) === String(selectedSpareId)) {
@@ -293,14 +301,14 @@ const SparePage = () => {
       formData.append("PropertyID", propertyId);
       formData.append("AssetID", existing.AssetID || editForm.AssetID || "");
       formData.append("SpareType", editForm.SpareType);
-      formData.append("Rating", existing.Rating || "");
+      formData.append("Rating", editForm.Rating || "");
       formData.append("BackupTime", existing.BackupTime || "");
       formData.append("Status", editForm.Status);
       formData.append("Quantity", existing.Quantity ?? 1);
-      formData.append("PurchaseDate", toIsoOrEmpty(existing.PurchaseDate));
-      formData.append("ExpiryDate", toIsoOrEmpty(existing.ExpiryDate));
+      formData.append("PurchaseDate", toIsoOrEmpty(editForm.PurchaseDate));
+      formData.append("ExpiryDate", toIsoOrEmpty(editForm.ExpiryDate));
       formData.append("SerialNumber", editForm.SerialNumber);
-      formData.append("VendorName", existing.VendorName || "");
+      formData.append("VendorName", editForm.VendorName || "");
       formData.append("InvoiceNo", existing.InvoiceNo || "");
       formData.append("Warranty", existing.Warranty || "");
       formData.append("Remarks", editForm.Remarks);
@@ -445,7 +453,7 @@ const SparePage = () => {
           <div className="asset-form-grid spare-form-grid">
             <div className="form-group spare-readonly-row">
               <label>ID</label>
-              <div className="spare-readonly-value">{selectedRow.AssetID || "AST-111"}</div>
+              <div className="spare-readonly-value">{editForm.SpareID || "AST-111"}</div>
             </div>
 
             <div className="form-group">
@@ -470,6 +478,46 @@ const SparePage = () => {
             <div className="form-group">
               <label>Serial number</label>
               <input className="form-control" value={editForm.SerialNumber} onChange={(e) => setEditForm((prev) => ({ ...prev, SerialNumber: e.target.value }))} />
+            </div>
+
+            <div className="form-group">
+              <label>Asset</label>
+              <input className="form-control" value={editForm.AssetName || "Generator"} readOnly />
+            </div>
+
+            <div className="form-group">
+              <label>Asset ID</label>
+              <input className="form-control" value={editForm.AssetID || "-"} readOnly />
+            </div>
+
+            <div className="form-group">
+              <label>Manufacturer</label>
+              <input className="form-control" value={editForm.Manufacturer || "Generic"} readOnly />
+            </div>
+
+            <div className="form-group">
+              <label>Model</label>
+              <input className="form-control" value={editForm.Model || "Generic model"} readOnly />
+            </div>
+
+            <div className="form-group">
+              <label>Vendor</label>
+              <input className="form-control" value={editForm.VendorName} onChange={(e) => setEditForm((prev) => ({ ...prev, VendorName: e.target.value }))} />
+            </div>
+
+            <div className="form-group">
+              <label>Purchase price</label>
+              <input className="form-control" value={editForm.Rating} onChange={(e) => setEditForm((prev) => ({ ...prev, Rating: e.target.value }))} />
+            </div>
+
+            <div className="form-group">
+              <label>Purchase date</label>
+              <input type="date" className="form-control" value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
+            </div>
+
+            <div className="form-group">
+              <label>Expiry date</label>
+              <input type="date" className="form-control" value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
             </div>
           </div>
         </div>
@@ -593,7 +641,7 @@ const SparePage = () => {
                   </div>
                 ) : null}
 
-                <div className="asset-master-table-wrap asset-master-table-wrap-spare">
+                <div className={`asset-master-table-wrap asset-master-table-wrap-spare ${selectedSpareId ? "has-selection" : ""}`.trim()}>
                   <div className="table-responsive">
                     <table className="table custTable table-hover">
                       <thead>

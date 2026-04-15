@@ -374,7 +374,7 @@ const RentalAssets = ({ propId, history }) => {
   };
 
   const renderEditPanel = () => (
-    <div className="rental-panel-card">
+    <div className="rental-panel-card rental-edit-panel-card">
       <div className="rental-panel-header rental-edit-panel-header">
         <div className="rental-edit-title">
           <span className="rental-edit-icon">
@@ -545,7 +545,7 @@ const RentalAssets = ({ propId, history }) => {
                 ) : null}
 
                 <LoadingOverlay active={loading} spinner={<PropagateLoader color="#336B93" size={16} />}>
-                  <div className="rental-assets-table-wrap">
+                  <div className={`rental-assets-table-wrap ${selectedAssetId ? "has-selection" : ""}`.trim()}>
                     <table className="table rental-assets-table mb-0">
                       <thead>
                         <tr>

@@ -549,8 +549,8 @@ class AssetsMaster extends Component {
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
 
   renderOwnedAssetsTable = (rows) => (
-    <div className="asset-master-table-wrap asset-master-table-wrap-owned">
-      <div className="asset-owned-table-scroll">
+    <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
+      <div className={`asset-owned-table-scroll ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
         <table className="table asset-owned-table mb-0">
           <thead>
             <tr>
@@ -788,6 +788,70 @@ class AssetsMaster extends Component {
                 <label>Model</label>
                 <input type="text" className="form-control" value={this.state.AssetModel} onChange={(e) => this.setState({ AssetModel: e.target.value })} />
               </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Last serviced</label>
+                <input type="date" className="form-control" value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Next service</label>
+                <input type="date" className="form-control" value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Reminder</label>
+                <input type="text" className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Value</label>
+                <input type="text" className="form-control" value={this.state.AssetValue} onChange={(e) => this.setState({ AssetValue: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Is Movable</label>
+                <RadioButtonGroup
+                  name="IsMoveable"
+                  selectedValue={String(this.state.IsMoveable)}
+                  onChange={(e) => this.setState({ IsMoveable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Is Rentable</label>
+                <RadioButtonGroup
+                  name="IsRentable"
+                  selectedValue={String(this.state.IsRentable)}
+                  onChange={(e) => this.setState({ IsRentable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Location</label>
+              <input type="text" className="form-control" value={this.state.location} onChange={(e) => this.setState({ location: e.target.value })} />
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Asset image</label>
+              <DocumentUploader Id="assetImageUpload" Class="form-control" type="file" onChange={this.onFileChange} />
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>AMC contract</label>
+              <DocumentUploader Id="assetAmcUpload" Class="form-control" type="file" onChange={this.onAMCFileChange} />
             </div>
           </div>
         </div>
