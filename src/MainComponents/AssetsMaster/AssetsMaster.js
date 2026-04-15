@@ -739,7 +739,7 @@ class AssetsMaster extends Component {
   renderAssetFormPanel = () => {
     const isEditMode = this.state.PageMode === "Edit";
     return (
-      <div className="asset-side-panel asset-side-panel-form">
+      <div className={`asset-side-panel asset-side-panel-form ${isEditMode ? "asset-side-panel-form-edit" : ""}`.trim()}>
         <div className="asset-side-panel-header asset-form-new-header">
           <div className="asset-panel-title-wrap">
             <span className="asset-form-icon-circle">

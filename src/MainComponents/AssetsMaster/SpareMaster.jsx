@@ -627,7 +627,7 @@ const SparePage = () => {
                             </tr>
                           );
                         })}
-                        {currentRecords.length === 0 ? (
+                        {filteredSpares.length === 0 ? (
                           <tr>
                             <td colSpan={6} style={{ textAlign: "center", padding: "18px" }}>
                               No spares found
