@@ -385,27 +385,35 @@ const RentalAssets = ({ propId, history }) => {
   };
 
   const renderEditPanel = () => (
-    <div className="rental-panel-card rental-edit-panel-card">
-      <div className="rental-panel-header rental-edit-panel-header asset-form-new-header">
-        <div className="rental-edit-title asset-panel-title-wrap">
-          <span className="rental-edit-icon asset-form-icon-circle">
+    <div className="asset-side-panel asset-side-panel-form asset-side-panel-form-edit">
+      <div className="asset-side-panel-header asset-form-new-header">
+        <div className="asset-panel-title-wrap">
+          <span className="asset-form-icon-circle">
             <i className="fa fa-pencil-square-o" aria-hidden="true" />
           </span>
-          <h4 className="rental-panel-title asset-side-panel-title">Edit asset details</h4>
+          <h4 className="asset-side-panel-title">Edit asset details</h4>
         </div>
       </div>
 
-      <div className="rental-panel-body rental-edit-panel-body">
-        <div className="rental-form-grid">
-          <div className="rental-form-full rental-readonly-row asset-form-id-row-simple">
-            <span className="asset-info-label">ID</span>
-            <span className="asset-info-value">{editForm.Id || "AST-111"}</span>
+      <div className="asset-side-panel-body">
+        <div className="asset-form-qr-centered">
+          <div className="asset-qr-wrapper-large">
+            <i className="fa fa-qrcode" aria-hidden="true" />
           </div>
-          <div className="form-group rental-form-full">
+        </div>
+
+        <div className="asset-form-id-row-simple">
+          <span className="asset-info-label">ID</span>
+          <span className="asset-info-value">{editForm.Id || "AST-111"}</span>
+        </div>
+
+        <div className="asset-form-simple-stack">
+          <div className="form-group asset-form-group-custom">
             <label>Name</label>
             <input className="form-control" value={editForm.Name} onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })} />
           </div>
-          <div className="form-group rental-form-full">
+
+          <div className="form-group asset-form-group-custom">
             <label>Status</label>
             <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}>
               <option value="Running">Running</option>
@@ -413,53 +421,67 @@ const RentalAssets = ({ propId, history }) => {
               <option value="Servicing">Servicing</option>
             </select>
           </div>
-          <div className="form-group rental-form-full">
+
+          <div className="form-group asset-form-group-custom">
             <label>Description</label>
             <textarea className="form-control" rows="4" value={editForm.Description} onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })} />
           </div>
-          <div className="form-group">
-            <label>Vendor</label>
-            <input className="form-control" value={editForm.Vendor} onChange={(e) => setEditForm({ ...editForm, Vendor: e.target.value })} />
+
+          <div className="asset-form-row-two-col">
+            <div className="form-group asset-form-group-custom">
+              <label>Vendor</label>
+              <input className="form-control" value={editForm.Vendor} onChange={(e) => setEditForm({ ...editForm, Vendor: e.target.value })} />
+            </div>
+            <div className="form-group asset-form-group-custom">
+              <label>Lease type</label>
+              <select className="form-control" value={editForm.LeaseType} onChange={(e) => setEditForm({ ...editForm, LeaseType: e.target.value })}>
+                <option value="Outbound">Outbound</option>
+                <option value="Inbound">Inbound</option>
+                <option value="Open">Open</option>
+              </select>
+            </div>
           </div>
-          <div className="form-group">
-            <label>Lease type</label>
-            <select className="form-control" value={editForm.LeaseType} onChange={(e) => setEditForm({ ...editForm, LeaseType: e.target.value })}>
-              <option value="Outbound">Outbound</option>
-              <option value="Inbound">Inbound</option>
-              <option value="Open">Open</option>
-            </select>
+
+          <div className="asset-form-row-two-col">
+            <div className="form-group asset-form-group-custom">
+              <label>Manufacturer</label>
+              <input className="form-control" value={editForm.Manufacturer} onChange={(e) => setEditForm({ ...editForm, Manufacturer: e.target.value })} />
+            </div>
+            <div className="form-group asset-form-group-custom">
+              <label>Model</label>
+              <input className="form-control" value={editForm.Model} onChange={(e) => setEditForm({ ...editForm, Model: e.target.value })} />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Manufacturer</label>
-            <input className="form-control" value={editForm.Manufacturer} onChange={(e) => setEditForm({ ...editForm, Manufacturer: e.target.value })} />
+
+          <div className="asset-form-row-two-col">
+            <div className="form-group asset-form-group-custom">
+              <label>Cost</label>
+              <input className="form-control" value={editForm.Cost} onChange={(e) => setEditForm({ ...editForm, Cost: e.target.value })} />
+            </div>
+            <div className="form-group asset-form-group-custom">
+              <label>Security deposit</label>
+              <input className="form-control" value={editForm.SecurityDeposit} onChange={(e) => setEditForm({ ...editForm, SecurityDeposit: e.target.value })} />
+            </div>
           </div>
-          <div className="form-group">
-            <label>Model</label>
-            <input className="form-control" value={editForm.Model} onChange={(e) => setEditForm({ ...editForm, Model: e.target.value })} />
+
+          <div className="asset-form-row-two-col">
+            <div className="form-group asset-form-group-custom">
+              <label>Expiry date</label>
+              <input type="date" className="form-control" value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
+            </div>
+            <div className="form-group asset-form-group-custom">
+              <label>Location</label>
+              <select className="form-control" value={editForm.Location} onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}>
+                <option value={editForm.Location}>{editForm.Location}</option>
+                <option value="Building A">Building A</option>
+                <option value="Building-A">Building-A</option>
+                <option value="Basement">Basement</option>
+                <option value="Gate no-07">Gate no-07</option>
+              </select>
+            </div>
           </div>
-          <div className="form-group">
-            <label>Cost</label>
-            <input className="form-control" value={editForm.Cost} onChange={(e) => setEditForm({ ...editForm, Cost: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label>Security deposit</label>
-            <input className="form-control" value={editForm.SecurityDeposit} onChange={(e) => setEditForm({ ...editForm, SecurityDeposit: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label>Expiry date</label>
-            <input type="date" className="form-control" value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
-          </div>
-          <div className="form-group">
-            <label>Location</label>
-            <select className="form-control" value={editForm.Location} onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}>
-              <option value={editForm.Location}>{editForm.Location}</option>
-              <option value="Building A">Building A</option>
-              <option value="Building-A">Building-A</option>
-              <option value="Basement">Basement</option>
-              <option value="Gate no-07">Gate no-07</option>
-            </select>
-          </div>
-          <div className="form-group rental-form-full">
+
+          <div className="form-group asset-form-group-custom">
             <label>Rental contract</label>
             <div className="rental-upload-field">
               <input className="form-control" value={editForm.RentalContract} onChange={(e) => setEditForm({ ...editForm, RentalContract: e.target.value })} />
@@ -471,11 +493,11 @@ const RentalAssets = ({ propId, history }) => {
         </div>
       </div>
 
-      <div className="rental-panel-footer">
-        <button type="button" className="btn rental-primary-btn" onClick={handleSaveEdit}>
+      <div className="asset-side-panel-footer">
+        <button type="button" className="btn btn-primary asset-btn-footer-save" onClick={handleSaveEdit}>
           Save changes
         </button>
-        <button type="button" className="btn rental-secondary-btn" onClick={() => setShowCancelConfirm(true)}>
+        <button type="button" className="btn btn-outline-light asset-btn-footer-cancel" onClick={() => setShowCancelConfirm(true)}>
           Cancel
         </button>
       </div>

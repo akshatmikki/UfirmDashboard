@@ -1,0 +1,231 @@
+.transfer-page .rental-assets-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.transfer-page .rental-assets-card.with-side-panel .rental-assets-main-card {
+  width: calc(100% - 336px);
+  max-width: calc(100% - 336px);
+}
+
+.transfer-page .rental-assets-main-card {
+  overflow: hidden;
+  flex: 1 1 auto;
+}
+
+.transfer-page .asset-master-table-wrap,
+.transfer-page .asset-master-table-wrap-owned,
+.transfer-page .asset-master-table-wrap-spare {
+  height: 501px;
+  min-height: 501px;
+}
+
+.transfer-page .asset-master-table-wrap .table-responsive,
+.transfer-page .asset-master-table-wrap-owned .table-responsive,
+.transfer-page .asset-master-table-wrap-spare .table-responsive {
+  height: 100%;
+  max-height: 430px;
+  overflow-y: auto;
+  overflow-x: auto;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.transfer-page .asset-master-table-wrap .table-responsive::-webkit-scrollbar,
+.transfer-page .asset-master-table-wrap-owned .table-responsive::-webkit-scrollbar,
+.transfer-page .asset-master-table-wrap-spare .table-responsive::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+.transfer-table tbody td {
+  vertical-align: middle;
+}
+
+.transfer-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  height: 24px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 500;
+}
+
+.transfer-chip-out {
+  background: rgba(175, 119, 255, 0.12);
+  color: #8a4dff;
+}
+
+.transfer-chip-in {
+  background: rgba(19, 23, 32, 0.08);
+  color: #6a7178;
+}
+
+.transfer-chip-open {
+  background: rgba(27, 134, 209, 0.12);
+  color: #1b86d1;
+}
+
+.transfer-toolbar-checkin {
+  background: #fff !important;
+  border: 1px solid rgba(19, 23, 32, 0.15) !important;
+  color: #1f4f82 !important;
+}
+
+.transfer-toolbar-checkin:hover,
+.transfer-toolbar-checkin:focus {
+  background: #fff !important;
+  color: #1f4f82 !important;
+}
+
+.transfer-side-panel .asset-side-panel-body {
+  padding-bottom: 12px;
+}
+
+.transfer-dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.transfer-danger-icon {
+  background: rgba(235, 75, 75, 0.12) !important;
+  color: #eb4b4b !important;
+}
+
+.transfer-success-icon {
+  background: rgba(33, 150, 243, 0.12) !important;
+  color: #1f4f82 !important;
+}
+
+.transfer-page .asset-master-empty {
+  text-align: center;
+  padding: 24px 12px;
+  color: #5a5b5d;
+}
+
+.transfer-page .asset-master-actions {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.transfer-page .asset-master-icon-btn {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #9fb6c7;
+  font-size: 24px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transfer-page .asset-master-icon-btn:hover,
+.transfer-page .asset-master-icon-btn:focus {
+  color: #7e9bb0;
+}
+
+.transfer-page .transfer-side-panel {
+  flex: 0 0 320px;
+}
+
+.transfer-history-link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+@media (max-width: 1199px) {
+  .transfer-page .rental-assets-card {
+    flex-direction: column;
+  }
+
+  .transfer-page .rental-assets-card.with-side-panel .rental-assets-main-card,
+  .transfer-page .rental-assets-main-card {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .transfer-page .transfer-side-panel {
+    width: 100%;
+    max-width: 100%;
+    flex: 1 1 auto;
+  }
+}
+
+@media (max-width: 991px) {
+  .transfer-page .asset-master-toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  .transfer-page .asset-master-search {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .transfer-page .asset-master-toolbar-actions {
+    width: 100%;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    gap: 12px;
+  }
+
+  .transfer-page .asset-master-toolbar-actions > * {
+    flex: 0 0 auto;
+  }
+
+  .transfer-page .asset-master-table-wrap,
+  .transfer-page .asset-master-table-wrap-owned,
+  .transfer-page .asset-master-table-wrap-spare {
+    height: auto;
+    min-height: 0;
+  }
+
+  .transfer-page .asset-master-table-wrap .table-responsive,
+  .transfer-page .asset-master-table-wrap-owned .table-responsive,
+  .transfer-page .asset-master-table-wrap-spare .table-responsive {
+    height: auto;
+    max-height: none;
+  }
+}
+
+@media (max-width: 767px) {
+  .transfer-page .asset-master-tabs {
+    gap: 12px;
+    padding: 12px;
+    flex-wrap: wrap;
+  }
+
+  .transfer-page .asset-master-toolbar {
+    padding: 12px;
+  }
+
+  .transfer-page .asset-master-toolbar-actions .btn,
+  .transfer-page .asset-master-toolbar-actions > * {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .transfer-page .asset-master-actions {
+    gap: 10px;
+  }
+
+  .transfer-page .asset-master-icon-btn {
+    font-size: 20px;
+  }
+
+  .transfer-page .transfer-side-panel {
+    min-width: 0;
+  }
+}

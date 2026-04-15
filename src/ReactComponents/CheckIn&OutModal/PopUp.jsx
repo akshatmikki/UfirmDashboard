@@ -1,19 +1,14 @@
-import React, { useState } from 'react';
-import Button from 'react-bootstrap/Button';
+import React from 'react';
 import Modal from 'react-bootstrap/Modal';
 import './PopUp.css';
 import CheckIn from '../../pages/CheckInPage';
 import CheckOut from '../../pages/CheckOutPage';
 
-function PopUp({ show, handleClose, asset, actionType, handleSubmit}) {
-  const [formData, setFormData]=useState({});
+function PopUp({ show, handleClose, asset, actionType, handleSubmit, initialType = "asset", hideTypeSwitch = false }) {
   const handleCheckOutData=(CheckOutData)=>{
-    //console.log(CheckOutData);
     handleSubmit(CheckOutData);
   }
   const handleCheckInData =(CheckInData)=>{
-    //console.log(CheckInData);
-   
     handleSubmit(CheckInData);
   }
   return (
@@ -35,7 +30,9 @@ function PopUp({ show, handleClose, asset, actionType, handleSubmit}) {
         ) : (
           <p>Loading asset information...</p>
         )}
-        {actionType === "checkin" ? <CheckIn sendData={handleCheckInData} close={handleClose}/> : <CheckOut sendData={handleCheckOutData} close={handleClose}/>}
+        {actionType === "checkin"
+          ? <CheckIn sendData={handleCheckInData} close={handleClose} initialType={initialType} hideTypeSwitch={hideTypeSwitch} />
+          : <CheckOut sendData={handleCheckOutData} close={handleClose} initialType={initialType} hideTypeSwitch={hideTypeSwitch} />}
       </Modal.Body>
     </Modal>
   );
