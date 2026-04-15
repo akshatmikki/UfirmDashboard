@@ -26,6 +26,42 @@ const formatDate = (value) => {
   return `${day}-${month}-${year}`;
 };
 
+const formatDateTimeParts = (value) => {
+  if (!value) return { date: "-", time: "-" };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { date: formatDate(value), time: "-" };
+  return {
+    date: date.toLocaleDateString("en-GB").replace(/\//g, "-"),
+    time: date.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }),
+  };
+};
+
+const toReadableLabel = (key) =>
+  String(key || "")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+
+const looksLikeImageField = (key, value) => {
+  if (!value) return false;
+  const text = String(value).trim();
+  return /image|photo|attachment/i.test(String(key || "")) || /^data:image\//i.test(text) || /\.(png|jpe?g|gif|webp|bmp|svg)(\?|$)/i.test(text) || /^https?:\/\//i.test(text);
+};
+
+const resolveImageSource = (value) => {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  if (/^data:image\//i.test(text) || /^https?:\/\//i.test(text)) return text;
+  if (/^[A-Za-z0-9+/=]+$/.test(text) && text.length > 80) return `data:image/jpeg;base64,${text}`;
+  return text;
+};
+
+const getHistorySections = (item = {}) =>
+  [
+    { key: "CheckOut", type: "checkout", title: "Asset checked out from location", data: item?.CheckOut || null },
+    { key: "CheckIn", type: "checkin", title: "Asset checked into location", data: item?.CheckIn || null },
+  ].filter((section) => section.data && Object.keys(section.data).length > 0);
+
 const statusMeta = (value) => {
   const raw = String(value || "").trim().toLowerCase();
   if (raw === "true" || raw === "running" || raw === "active") {
@@ -126,6 +162,7 @@ const CheckInCheckOut = ({ propId }) => {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyData, setHistoryData] = useState([]);
   const [historyTitle, setHistoryTitle] = useState("");
+  const [expandedHistoryKeys, setExpandedHistoryKeys] = useState([]);
 
   const loadPageData = async () => {
     try {
@@ -400,12 +437,52 @@ const CheckInCheckOut = ({ propId }) => {
       setHistoryTitle(row?.Name || row?.AssetName || "Asset");
       const data = await getAssetCheckInOutHistoryByAssetId(row?.Id || row?.AssetID);
       setHistoryData(Array.isArray(data) ? data : []);
+      setExpandedHistoryKeys(
+        (Array.isArray(data) ? data : []).flatMap((item, index) =>
+          getHistorySections(item).map((section) => `${index}-${section.key}`)
+        )
+      );
     } catch (error) {
       console.error("Failed to load history:", error);
       setHistoryData([]);
+      setExpandedHistoryKeys([]);
     } finally {
       setHistoryLoading(false);
     }
+  };
+
+  const renderHistoryDetails = (data = {}) => {
+    const entries = Object.entries(data).filter(([, value]) => value !== null && value !== undefined && String(value).trim() !== "");
+    const imageEntries = entries.filter(([key, value]) => looksLikeImageField(key, value));
+    const detailEntries = entries.filter(([key, value]) => !looksLikeImageField(key, value));
+
+    return (
+      <div className="transfer-history-detail-card">
+        {detailEntries.length ? (
+          <div className="transfer-history-detail-grid">
+            {detailEntries.map(([key, value]) => (
+              <div key={key} className="transfer-history-detail-row">
+                <span className="transfer-history-detail-label">{toReadableLabel(key)}</span>
+                <span className="transfer-history-detail-value">
+                  {/date|time/i.test(key) ? formatDateTimeParts(value).date !== "-" && /time/i.test(key) ? `${formatDateTimeParts(value).date} ${formatDateTimeParts(value).time}` : formatDate(value) : String(value)}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {imageEntries.length ? (
+          <div className="transfer-history-images">
+            {imageEntries.map(([key, value]) => (
+              <div key={key} className="transfer-history-image-card">
+                <span className="transfer-history-detail-label">{toReadableLabel(key)}</span>
+                <img className="transfer-history-image" src={resolveImageSource(value)} alt={toReadableLabel(key)} />
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
   };
   const renderFilterPanel = () => {
     if (!showFilterPanel) return null;
@@ -1092,15 +1169,15 @@ const CheckInCheckOut = ({ propId }) => {
             ) : null}
             {showHistoryModal ? (
               <div className="rental-history-overlay" onClick={() => setShowHistoryModal(false)}>
-                <div className="rental-history-card" onClick={(e) => e.stopPropagation()}>
+                <div className="rental-history-card transfer-history-card" onClick={(e) => e.stopPropagation()}>
                   <div className="rental-history-header">
                     <div className="rental-history-title-wrap">
-                      <span className="rental-history-icon">
+                      <span className="rental-history-icon transfer-history-icon">
                         <i className="fa fa-history" aria-hidden="true" />
                       </span>
                       <div>
-                        <h4 className="rental-history-title">Transfer History</h4>
-                        <div className="rental-history-subtitle">{historyTitle}</div>
+                        <h4 className="rental-history-title">{historyTitle}</h4>
+                        <div className="rental-history-subtitle">Asset check-in / check-out history</div>
                       </div>
                     </div>
                     <button type="button" className="rental-history-close" onClick={() => setShowHistoryModal(false)}>
@@ -1113,37 +1190,50 @@ const CheckInCheckOut = ({ propId }) => {
                     ) : historyData.length === 0 ? (
                       <div className="rental-history-empty">No history found.</div>
                     ) : (
-                      historyData.map((item, index) => (
-                        <div key={index} className="rental-history-entry">
-                          <div className="rental-history-entry-title">Transfer {index + 1}</div>
-                          <div className="rental-history-grid">
-                            <div className="rental-history-item">
-                              <span className="rental-history-label">Assignee</span>
-                              <span className="rental-history-value">{item.CheckOut?.AssigneeName || "-"}</span>
+                      historyData.flatMap((item, index) =>
+                        getHistorySections(item).map((section) => {
+                          const sectionKey = `${index}-${section.key}`;
+                          const isExpanded = expandedHistoryKeys.includes(sectionKey);
+                          const timeParts = formatDateTimeParts(
+                            section.type === "checkout"
+                              ? section.data?.CheckOutDateTime || section.data?.CreatedOn || section.data?.TentativeReturnDate
+                              : section.data?.ReturnDate || section.data?.CheckInDateTime || section.data?.CreatedOn
+                          );
+                          const actor =
+                            section.type === "checkout"
+                              ? section.data?.AssigneeName || section.data?.ApprovedBy || section.data?.CreatedBy
+                              : section.data?.ReturnedBy || section.data?.ApprovedBy || section.data?.CreatedBy;
+
+                          return (
+                            <div key={sectionKey} className="transfer-history-section">
+                              <button
+                                type="button"
+                                className="transfer-history-section-head"
+                                onClick={() =>
+                                  setExpandedHistoryKeys((prev) =>
+                                    prev.includes(sectionKey) ? prev.filter((itemKey) => itemKey !== sectionKey) : [...prev, sectionKey]
+                                  )
+                                }
+                              >
+                                <span className="transfer-history-section-dot" />
+                                <div className="transfer-history-section-datetime">
+                                  <strong>{timeParts.date}</strong>
+                                  <span>{timeParts.time}</span>
+                                </div>
+                                <span className={`transfer-history-status-pill ${section.type === "checkout" ? "checkout" : "checkin"}`}>
+                                  {section.type === "checkout" ? "Checked out" : "Checked in"}
+                                </span>
+                                <div className="transfer-history-section-copy">
+                                  <strong>{section.title}</strong>
+                                  <span>{actor ? `By ${actor}` : "-"}</span>
+                                </div>
+                                <span className={`transfer-history-chevron fa ${isExpanded ? "fa-angle-up" : "fa-angle-down"}`} aria-hidden="true" />
+                              </button>
+                              {isExpanded ? renderHistoryDetails(section.data) : null}
                             </div>
-                            <div className="rental-history-item">
-                              <span className="rental-history-label">Purpose</span>
-                              <span className="rental-history-value">{item.CheckOut?.Purpose || "-"}</span>
-                            </div>
-                            <div className="rental-history-item">
-                              <span className="rental-history-label">Out from</span>
-                              <span className="rental-history-value">{item.CheckOut?.OutFrom || "-"}</span>
-                            </div>
-                            <div className="rental-history-item">
-                              <span className="rental-history-label">Sent to</span>
-                              <span className="rental-history-value">{item.CheckOut?.SentTo || "-"}</span>
-                            </div>
-                            <div className="rental-history-item">
-                              <span className="rental-history-label">Check out date</span>
-                              <span className="rental-history-value">{formatDate(item.CheckOut?.CheckOutDateTime)}</span>
-                            </div>
-                            <div className="rental-history-item">
-                              <span className="rental-history-label">Return date</span>
-                              <span className="rental-history-value">{formatDate(item.CheckIn?.ReturnDate)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      ))
+                          );
+                        })
+                      )
                     )}
                   </div>
                   <div className="rental-history-footer">
