@@ -570,7 +570,7 @@
 }
 
 .asset-master-table-wrap .grid-selected-row td {
-  background: #dceaff !important;
+  background: #d3e6ff !important;
 }
 
 .asset-master-table-wrap .custTable.table-striped tbody tr:nth-of-type(odd),
@@ -2311,9 +2311,13 @@
   background: #fafafa !important;
 }
 
-.asset-master-table-wrap-owned .custTable tbody tr:hover td,
-.asset-master-table-wrap-owned .grid-selected-row td {
+.asset-master-table-wrap-owned .custTable tbody tr:hover td {
   background: #fafafa !important;
+  box-shadow: none !important;
+}
+
+.asset-master-table-wrap-owned .grid-selected-row td {
+  background: #d3e6ff !important;
   box-shadow: none !important;
 }
 
@@ -2416,7 +2420,10 @@
   cursor: pointer;
 }
 
-.asset-owned-table tbody tr.active td,
+.asset-owned-table tbody tr.active td {
+  background: #d3e6ff;
+}
+
 .asset-owned-table tbody tr:hover td {
   background: #fafafa;
 }
