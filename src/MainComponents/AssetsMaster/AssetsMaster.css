@@ -1194,10 +1194,12 @@
 }
 
 .asset-add-modal {
-  width: min(720px, 100%);
-  background: #fff;
+  width: min(636px, 100%);
+  height: 555px;
+  background: #fafafa;
+  border: 1px solid rgba(19, 23, 32, 0.15);
   border-radius: 12px;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.25);
+  box-shadow: none;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -1208,28 +1210,37 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid #eef3f8;
+  padding: 16px;
+  border-bottom: 1px solid rgba(19, 23, 32, 0.15);
+  background: #fafafa;
 }
 
 .asset-add-title {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 16px;
-  font-weight: 700;
-  color: #26384d;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.45px;
+  color: #131720;
 }
 
 .asset-add-icon {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background: rgba(31, 79, 130, 0.12);
   color: #1f4f82;
+}
+
+.asset-add-icon .fa {
+  font-size: 14px;
+  line-height: 14px;
+  color: #006990;
 }
 
 .asset-add-generate {
@@ -1244,8 +1255,9 @@
 }
 
 .asset-add-body {
-  padding: 14px 16px 0;
+  padding: 16px;
   overflow: auto;
+  background: #fafafa;
 }
 
 .asset-add-modal .form-control {
@@ -1296,12 +1308,13 @@
 
 .asset-add-footer {
   display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 20px;
+  flex-wrap: nowrap;
   justify-content: flex-start;
-  padding: 12px 16px;
-  border-top: 1px solid #eef3f8;
-  background: #fff;
+  padding: 12px 12px 20px;
+  border-top: 1px solid rgba(19, 23, 32, 0.15);
+  background: #fafafa;
+  min-height: 65px;
 }
 
 .asset-add-btn-save {

@@ -815,11 +815,6 @@ class AssetsMaster extends Component {
               </span>
               <span>{title}</span>
             </div>
-
-            <button type="button" className="asset-add-generate" disabled>
-              <i className="fa fa-qrcode" aria-hidden="true" />
-              Generate QR code
-            </button>
           </div>
 
           <div className="asset-add-body">
@@ -828,6 +823,10 @@ class AssetsMaster extends Component {
                 <span className="asset-add-id-label">ID</span>
                 <span className="asset-add-id-value">{this.state.Id ? `#${this.state.Id}` : "#NEW"}</span>
               </div>
+              <button type="button" className="asset-add-generate" disabled>
+                <i className="fa fa-qrcode" aria-hidden="true" />
+                Generate QR code
+              </button>
             </div>
 
             <div className="asset-add-grid">
