@@ -2325,15 +2325,26 @@
 }
 
 .asset-details-view-panel .asset-info-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: #516173;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.15px;
+  color: #4a5565;
 }
 
 .asset-details-view-panel .asset-info-value {
   font-size: 13px;
   line-height: 1.4;
   color: #717b87;
+}
+
+.asset-details-view-panel .asset-details-name-row .asset-info-value,
+.asset-details-view-panel .asset-details-new-layout .asset-info-item .asset-info-value {
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.15px;
+  color: #5a5b5d;
 }
 
 .asset-details-view-panel .asset-details-header-row {
