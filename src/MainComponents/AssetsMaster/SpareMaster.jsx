@@ -84,6 +84,7 @@ const SparePage = () => {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelAction, setCancelAction] = useState(null);
@@ -320,7 +321,7 @@ const SparePage = () => {
       formData.append("Reusable", 0);
 
       await SpareService.update(formData);
-      toast.current?.show({ severity: "success", summary: "Saved", detail: "Spare updated" });
+      setShowSuccessModal(true);
       setSideMode("details");
       loadSpares();
     } catch {
@@ -832,32 +833,32 @@ const SparePage = () => {
 
             {showDeleteModal && deleteTarget ? (
               <div className="spare-add-backdrop" onClick={() => setShowDeleteModal(false)}>
-                <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+                <div className="asset-master-main-card asset-delete-modal" onClick={(e) => e.stopPropagation()}>
                   <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div className="spare-add-title">
                       <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
                         <i className="fa fa-exclamation-triangle" aria-hidden="true" />
                       </span>
-                      Container
+                      Delete asset
                     </div>
                     <button type="button" className="spare-add-close" onClick={() => setShowDeleteModal(false)}>
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
                   <div className="asset-side-panel-body">
-                    Are you sure you want to delete this item? This action cannot be undone.
+                    Are you sure you want to delete this Asset? This action cannot be undone.
                     <div className="asset-dialog-assetbox">
                       <div className="asset-dialog-assetrow">
-                        <span className="asset-dialog-assetlabel">Spare ID:</span>
+                        <span className="asset-dialog-assetlabel">Asset ID:</span>
                         <span className="asset-dialog-assetvalue">#{deleteTarget.SpareID}</span>
                       </div>
                       <div className="asset-dialog-assetrow">
-                        <span className="asset-dialog-assetlabel">Type:</span>
+                        <span className="asset-dialog-assetlabel">Asset Name:</span>
                         <span className="asset-dialog-assetvalue">{deleteTarget.SpareType || "-"}</span>
                       </div>
                       <div className="asset-dialog-assetrow">
-                        <span className="asset-dialog-assetlabel">Asset Name:</span>
-                        <span className="asset-dialog-assetvalue">{assetById.get(Number(deleteTarget.AssetID))?.Name || "Generator"}</span>
+                        <span className="asset-dialog-assetlabel">Location:</span>
+                        <span className="asset-dialog-assetvalue">{assetById.get(Number(deleteTarget.AssetID))?.Location || "Building A"}</span>
                       </div>
                     </div>
                   </div>
@@ -867,6 +868,30 @@ const SparePage = () => {
                     </button>
                     <button type="button" className="btn btn-danger" onClick={deleteSpare}>
                       Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {showSuccessModal ? (
+              <div className="spare-add-backdrop" onClick={() => setShowSuccessModal(false)}>
+                <div className="asset-master-main-card asset-success-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="spare-add-title">
+                      <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
+                        <i className="fa fa-check" aria-hidden="true" />
+                      </span>
+                      Changes updated successfully
+                    </div>
+                    <button type="button" className="spare-add-close" onClick={() => setShowSuccessModal(false)}>
+                      <i className="fa fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="asset-side-panel-body">The item has been updated.</div>
+                  <div className="asset-dialog-actions asset-dialog-actions-right">
+                    <button type="button" className="btn btn-primary" onClick={() => setShowSuccessModal(false)}>
+                      Done
                     </button>
                   </div>
                 </div>

@@ -935,7 +935,7 @@ class AssetsMaster extends Component {
     const asset = this.state.deleteTarget;
     return (
       <div className="spare-add-backdrop" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
-        <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+        <div className="asset-master-main-card asset-delete-modal" onClick={(e) => e.stopPropagation()}>
           <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="spare-add-title">
               <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
@@ -988,7 +988,7 @@ class AssetsMaster extends Component {
     const subtitle = isUpdate ? "The item has been updated." : "The item is ready. You can now monitor its progress.";
     return (
       <div className="spare-add-backdrop" onClick={this.closeSuccessModal}>
-        <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+        <div className="asset-master-main-card asset-success-modal" onClick={(e) => e.stopPropagation()}>
           <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="spare-add-title">
               <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>

@@ -402,11 +402,19 @@
   border-radius: 0 !important;
 }
 
+.asset-master-table-wrap-owned .custTable thead th:last-child {
+  width: 160px !important;
+  min-width: 160px;
+  padding: 8px 26px !important;
+  text-align: center;
+}
+
 .asset-master-table-wrap-owned .custTable tbody td:last-child {
-  width: 120px !important;
-  min-width: 120px;
+  width: 160px !important;
+  min-width: 160px;
   white-space: nowrap;
   text-align: center;
+  padding: 8px 26px !important;
 }
 
 .asset-master-table-wrap-owned .custTable tbody td:nth-last-child(2) {
@@ -682,6 +690,19 @@
 .asset-master-table-wrap .custTable tbody .btn + .btn {
   margin-left: 14px !important;
   margin-left: 8px;
+}
+
+.asset-master-table-wrap-owned .custTable tbody .btn {
+  min-width: 18px;
+  min-height: 18px;
+}
+
+.asset-master-table-wrap-owned .custTable tbody .btn + .btn {
+  margin-left: 8px !important;
+}
+
+.asset-master-table-wrap-owned .custTable tbody .btn-warning {
+  display: none !important;
 }
 
 .asset-master-table-wrap .custTable tbody .btn:hover,
@@ -990,9 +1011,9 @@
 
 .asset-dialog-actions {
   display: flex;
-  gap: 10px;
-  padding: 14px 18px 18px;
-  border-top: 1px solid #eef3f8;
+  gap: 12px;
+  padding: 14px 18px 14px;
+  border-top: 1px solid #d3e6ff;
   justify-content: flex-end;
 }
 
@@ -1002,13 +1023,16 @@
 
 .asset-dialog-actions .btn {
   min-width: 140px;
+  flex: 1 1 0;
+  height: 36px;
+  border-radius: 4px;
 }
 
 .asset-dialog-assetbox {
   margin-top: 14px;
-  background: rgba(32, 116, 255, 0.12);
-  border-radius: 6px;
-  padding: 10px 12px;
+  background: #d7e8ff;
+  border-radius: 4px;
+  padding: 12px;
 }
 
 .asset-dialog-assetrow {
@@ -1016,20 +1040,149 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 4px 0;
+  padding: 0;
+  margin-bottom: 8px;
+}
+
+.asset-dialog-assetrow:last-child {
+  margin-bottom: 0;
 }
 
 .asset-dialog-assetlabel {
-  color: #26384d;
-  font-weight: 600;
+  color: #5d6b7b;
+  font-weight: 500;
   font-size: 12px;
 }
 
 .asset-dialog-assetvalue {
-  color: #26384d;
+  color: #1f2d3d;
   font-weight: 600;
   font-size: 12px;
   text-align: right;
+}
+
+.asset-delete-modal {
+  max-width: 478px !important;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #d3e6ff;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+}
+
+.asset-delete-modal .asset-side-panel-header {
+  padding: 24px;
+  min-height: 81px;
+  border-bottom: 1px solid #d3e6ff;
+}
+
+.asset-delete-modal .asset-side-panel-body {
+  padding: 12px 20px;
+  color: #4b5563;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 1px solid #d3e6ff;
+}
+
+.asset-delete-modal .spare-add-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.asset-delete-modal .spare-add-icon {
+  width: 36px;
+  height: 36px;
+  background: #fdeaea !important;
+  color: #d9534f !important;
+}
+
+.asset-delete-modal .spare-add-close {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #5f6b7a;
+}
+
+.asset-delete-modal .btn-light {
+  background: #ffffff;
+  border: 1px solid #d8dee6;
+  color: #2f3640;
+}
+
+.asset-delete-modal .btn-danger {
+  background: #c93737;
+  border-color: #c93737;
+}
+
+.asset-success-modal {
+  max-width: 480px !important;
+  width: 100%;
+  background: #ffffff;
+  border: 1px solid #d3e6ff;
+  border-radius: 6px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.14);
+}
+
+.asset-success-modal .asset-side-panel-header {
+  padding: 24px;
+  min-height: 81px;
+  border-bottom: 1px solid #d3e6ff;
+}
+
+.asset-success-modal .asset-side-panel-body {
+  padding: 20px 24px;
+  min-height: 88px;
+  color: #5d6673;
+  font-size: 14px;
+  line-height: 1.5;
+  border-bottom: 1px solid #d3e6ff;
+}
+
+.asset-success-modal .spare-add-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.asset-success-modal .spare-add-icon {
+  width: 36px;
+  height: 36px;
+  background: #e8f1ff !important;
+  color: #2d5f92 !important;
+}
+
+.asset-success-modal .spare-add-close {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  color: #5f6b7a;
+}
+
+.asset-success-modal .asset-dialog-actions {
+  padding: 16px 24px;
+  border-top: 0;
+}
+
+.asset-success-modal .asset-dialog-actions .btn {
+  flex: 0 0 auto;
+  min-width: 67px;
+  height: 33px;
+  border-radius: 4px;
+  padding: 8px 16px;
+  line-height: 17px;
+}
+
+.asset-success-modal .btn-primary {
+  background: #1f4e7a;
+  border-color: #1f4e7a;
 }
 
 .spare-add-backdrop {

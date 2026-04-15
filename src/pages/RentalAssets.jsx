@@ -6,6 +6,7 @@ import { PropagateLoader } from "react-spinners";
 import ExportToCSV from "../ReactComponents/ExportToCSV/ExportToCSV";
 import RentalPopUp from "../ReactComponents/RentalModal/RentalPopUp";
 import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets";
+import "../MainComponents/AssetsMaster/AssetsMaster.css";
 import "./RentalAssets.css";
 
 const recordsPerPage = 15;
@@ -96,6 +97,9 @@ const RentalAssets = ({ propId, history }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyAsset, setHistoryAsset] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const fetchRentalAssets = async () => {
     try {
@@ -198,6 +202,26 @@ const RentalAssets = ({ propId, history }) => {
     setPanelMode("edit");
   };
 
+  const handleDeleteClick = (asset) => {
+    setDeleteTarget(asset || null);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteTarget) return;
+    setRentalAssets((prev) => prev.filter((item) => Number(item.Id) !== Number(deleteTarget.Id)));
+    if (Number(selectedAssetId) === Number(deleteTarget.Id)) {
+      setSelectedAssetId(null);
+      setPanelMode("details");
+    }
+    if (Number(historyAsset?.Id) === Number(deleteTarget.Id)) {
+      setShowHistoryModal(false);
+      setHistoryAsset(null);
+    }
+    setShowDeleteModal(false);
+    setDeleteTarget(null);
+  };
+
   const handleSaveEdit = () => {
     setRentalAssets((prev) =>
       prev.map((item) =>
@@ -222,6 +246,7 @@ const RentalAssets = ({ propId, history }) => {
       )
     );
     setPanelMode("details");
+    setShowSuccessModal(true);
   };
 
   const handleActionSubmit = async (formData) => {
@@ -574,7 +599,7 @@ const RentalAssets = ({ propId, history }) => {
                                   <button type="button" className="rental-icon-btn" title="Edit" onClick={() => handleEditClick(asset)}>
                                     <i className="fa fa-pencil" aria-hidden="true" />
                                   </button>
-                                  <button type="button" className="rental-icon-btn" title="Delete">
+                                  <button type="button" className="rental-icon-btn" title="Delete" onClick={() => handleDeleteClick(asset)}>
                                     <i className="fa fa-trash-o" aria-hidden="true" />
                                   </button>
                                   <button type="button" className="rental-icon-btn" title={isReturnFlow ? "Rent in" : "Rent out"} onClick={() => handleOpenRentModal(asset, isReturnFlow ? "return" : "rentout")}>
@@ -617,6 +642,73 @@ const RentalAssets = ({ propId, history }) => {
                 actionType={actionType}
                 handleSubmit={handleActionSubmit}
               />
+            ) : null}
+
+            {showDeleteModal && deleteTarget ? (
+              <div className="spare-add-backdrop" onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); }}>
+                <div className="asset-master-main-card asset-delete-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="spare-add-title">
+                      <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                        <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+                      </span>
+                      Delete asset
+                    </div>
+                    <button type="button" className="spare-add-close" onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); }}>
+                      <i className="fa fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="asset-side-panel-body">
+                    Are you sure you want to delete this Asset? This action cannot be undone.
+                    <div className="asset-dialog-assetbox">
+                      <div className="asset-dialog-assetrow">
+                        <span className="asset-dialog-assetlabel">Asset ID:</span>
+                        <span className="asset-dialog-assetvalue">#{deleteTarget.Id}</span>
+                      </div>
+                      <div className="asset-dialog-assetrow">
+                        <span className="asset-dialog-assetlabel">Asset Name:</span>
+                        <span className="asset-dialog-assetvalue">{deleteTarget.Name || "-"}</span>
+                      </div>
+                      <div className="asset-dialog-assetrow">
+                        <span className="asset-dialog-assetlabel">Location:</span>
+                        <span className="asset-dialog-assetvalue">{deleteTarget.Location || deleteTarget.OutFrom || "-"}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="asset-dialog-actions asset-dialog-actions-right">
+                    <button type="button" className="btn btn-light" onClick={() => { setShowDeleteModal(false); setDeleteTarget(null); }}>
+                      Cancel
+                    </button>
+                    <button type="button" className="btn btn-danger" onClick={handleConfirmDelete}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {showSuccessModal ? (
+              <div className="spare-add-backdrop" onClick={() => setShowSuccessModal(false)}>
+                <div className="asset-master-main-card asset-success-modal" onClick={(e) => e.stopPropagation()}>
+                  <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="spare-add-title">
+                      <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
+                        <i className="fa fa-check" aria-hidden="true" />
+                      </span>
+                      Changes updated successfully
+                    </div>
+                    <button type="button" className="spare-add-close" onClick={() => setShowSuccessModal(false)}>
+                      <i className="fa fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="asset-side-panel-body">The item has been updated.</div>
+                  <div className="asset-dialog-actions asset-dialog-actions-right">
+                    <button type="button" className="btn btn-primary" onClick={() => setShowSuccessModal(false)}>
+                      Done
+                    </button>
+                  </div>
+                </div>
+              </div>
             ) : null}
 
             {showHistoryModal ? (
