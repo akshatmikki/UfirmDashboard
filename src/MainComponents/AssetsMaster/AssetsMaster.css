@@ -1868,6 +1868,8 @@
 .asset-side-panel-form-edit {
   width: 320px;
   height: 650px;
+  display: flex;
+  flex-direction: column;
   background: #fafafa;
   border: 1px solid rgba(19, 23, 32, 0.15);
   border-radius: 12px;
@@ -1877,7 +1879,9 @@
 
 .asset-side-panel-form-edit .asset-side-panel-body {
   width: 100%;
-  height: calc(100% - 110px);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
   padding: 12px;
   max-height: none;
   overflow-y: auto;
@@ -1998,6 +2002,7 @@
 
 .asset-side-panel-form-edit .asset-side-panel-footer {
   gap: 4px;
+  flex-shrink: 0;
   flex-wrap: nowrap;
   justify-content: space-between;
   padding-top: 10px;
@@ -2032,6 +2037,9 @@
 .asset-side-panel-form-edit .asset-btn-footer-save,
 .asset-side-panel-form-edit .asset-btn-footer-cancel {
   flex: 0 0 auto;
+  width: 138px;
+  min-width: 138px;
+  max-width: 138px;
 }
 
 .asset-side-panel-form-edit .asset-form-row-two-col {
