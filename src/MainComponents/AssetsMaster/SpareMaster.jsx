@@ -523,7 +523,17 @@ const SparePage = () => {
           <button type="button" className="btn btn-primary" onClick={saveEdit}>
             Save changes
           </button>
-          <button type="button" className="btn btn-light" onClick={() => setSideMode("details")}>
+          <button
+            type="button"
+            className="btn btn-light"
+            onClick={() =>
+              requestCancelConfirm(() => {
+                setSelectedSpareId(null);
+                setSideMode("details");
+                setEditForm(null);
+              })
+            }
+          >
             Cancel
           </button>
         </div>

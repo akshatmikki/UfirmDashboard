@@ -98,6 +98,7 @@ const RentalAssets = ({ propId, history }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   const fetchRentalAssets = async () => {
     try {
@@ -236,6 +237,13 @@ const RentalAssets = ({ propId, history }) => {
     );
     setPanelMode("details");
     setShowSuccessModal(true);
+  };
+
+  const handleCancelEdit = () => {
+    setShowCancelConfirm(false);
+    setSelectedAssetId(null);
+    setPanelMode("details");
+    setEditForm(buildEditForm());
   };
 
   const handleActionSubmit = async (formData) => {
@@ -467,7 +475,7 @@ const RentalAssets = ({ propId, history }) => {
         <button type="button" className="btn rental-primary-btn" onClick={handleSaveEdit}>
           Save changes
         </button>
-        <button type="button" className="btn rental-secondary-btn" onClick={() => setPanelMode("details")}>
+        <button type="button" className="btn rental-secondary-btn" onClick={() => setShowCancelConfirm(true)}>
           Cancel
         </button>
       </div>
@@ -691,6 +699,35 @@ const RentalAssets = ({ propId, history }) => {
                   <div className="asset-dialog-actions asset-dialog-actions-right">
                     <button type="button" className="btn btn-primary" onClick={() => setShowSuccessModal(false)}>
                       Done
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {showCancelConfirm ? (
+              <div className="spare-add-backdrop" onClick={() => setShowCancelConfirm(false)}>
+                <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+                  <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div className="spare-add-title">
+                      <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                        <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+                      </span>
+                      Cancel edits
+                    </div>
+                    <button type="button" className="spare-add-close" onClick={() => setShowCancelConfirm(false)}>
+                      <i className="fa fa-times" aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="asset-side-panel-body">
+                    Are you sure you want to cancel? All your entered information will be lost.
+                  </div>
+                  <div className="asset-dialog-actions">
+                    <button type="button" className="btn btn-light" onClick={() => setShowCancelConfirm(false)}>
+                      No, keep editing
+                    </button>
+                    <button type="button" className="btn btn-danger" onClick={handleCancelEdit}>
+                      Yes, cancel
                     </button>
                   </div>
                 </div>
