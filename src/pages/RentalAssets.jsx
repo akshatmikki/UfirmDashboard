@@ -378,20 +378,20 @@ const RentalAssets = ({ propId, history }) => {
 
   const renderEditPanel = () => (
     <div className="rental-panel-card rental-edit-panel-card">
-      <div className="rental-panel-header rental-edit-panel-header">
-        <div className="rental-edit-title">
-          <span className="rental-edit-icon">
+      <div className="rental-panel-header rental-edit-panel-header asset-form-new-header">
+        <div className="rental-edit-title asset-panel-title-wrap">
+          <span className="rental-edit-icon asset-form-icon-circle">
             <i className="fa fa-pencil-square-o" aria-hidden="true" />
           </span>
-          <h4 className="rental-panel-title">Edit asset details</h4>
+          <h4 className="rental-panel-title asset-side-panel-title">Edit asset details</h4>
         </div>
       </div>
 
       <div className="rental-panel-body rental-edit-panel-body">
         <div className="rental-form-grid">
-          <div className="form-group rental-form-full rental-readonly-row">
-            <label>ID</label>
-            <div className="rental-readonly-value">{editForm.Id || "AST-111"}</div>
+          <div className="rental-form-full rental-readonly-row asset-form-id-row-simple">
+            <span className="asset-info-label">ID</span>
+            <span className="asset-info-value">{editForm.Id || "AST-111"}</span>
           </div>
           <div className="form-group rental-form-full">
             <label>Name</label>

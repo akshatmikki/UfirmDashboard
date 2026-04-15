@@ -433,9 +433,9 @@ const SparePage = () => {
     if (!selectedRow || !editForm) return null;
     return (
       <div className="asset-side-panel asset-side-panel-form spare-side-panel asset-side-panel-form-edit">
-        <div className="asset-side-panel-header">
+        <div className="asset-side-panel-header asset-form-new-header">
           <div className="asset-panel-title-wrap">
-            <span className="asset-panel-icon">
+            <span className="asset-form-icon-circle">
               <i className="fa fa-pencil-square-o" aria-hidden="true" />
             </span>
             <h4 className="asset-side-panel-title">Edit spare part details</h4>
@@ -452,8 +452,8 @@ const SparePage = () => {
 
           <div className="asset-form-simple-stack spare-form-grid">
             <div className="asset-form-id-row-simple spare-readonly-row">
-              <label>ID</label>
-              <div className="spare-readonly-value">{editForm.SpareID || "AST-111"}</div>
+              <span className="asset-info-label">ID</span>
+              <span className="asset-info-value">{editForm.SpareID || "AST-111"}</span>
             </div>
 
             <div className="asset-form-group-custom">
