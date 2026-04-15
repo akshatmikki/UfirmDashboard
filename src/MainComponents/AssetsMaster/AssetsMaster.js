@@ -503,10 +503,10 @@ class AssetsMaster extends Component {
   getFilteredGridData = () =>
     (this.state.GridData || []).filter((item) => {
       const search = String(this.state.searchTerm || "").toLowerCase().trim();
-      const rowId = String(item?.Id || "").toLowerCase();
-      const rowName = String(item?.Name || "").toLowerCase();
-      const rowDescription = String(item?.Description || "").toLowerCase();
-      const rowQr = String(item?.QRCode || "").toLowerCase();
+      const rowId = String(item?.Id ?? item?.AssetID ?? "").toLowerCase();
+      const rowName = String(item?.Name || item?.name || item?.AssetName || "").toLowerCase();
+      const rowDescription = String(this.getRowDescription(item) || "").toLowerCase();
+      const rowQr = String(item?.QRCode || item?.QrCode || item?.QR || "").toLowerCase();
       const rowType = String(item?.AssetType || "");
       const rowCategory = String(item?.Category || "").toLowerCase();
       const rowLocation = String(item?.Location || "").toLowerCase();

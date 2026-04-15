@@ -235,16 +235,18 @@ const SparePage = () => {
   const filteredSpares = useMemo(() => {
     const query = String(searchTerm || "").trim().toLowerCase();
     return (spares || []).filter((row) => {
+      const relatedAsset = assetById.get(Number(row?.AssetID));
       const passesQuery =
         !query ||
-        [row?.AssetID, row?.SpareType, row?.SerialNumber, row?.VendorName].some((v) => String(v || "").toLowerCase().includes(query));
+        [row?.SpareID, row?.AssetID, row?.SpareType, row?.Name, row?.SerialNumber, row?.VendorName, relatedAsset?.Name, relatedAsset?.name]
+          .some((v) => String(v || "").toLowerCase().includes(query));
       const passesVendor = !filterVendor || String(row?.VendorName || "").toLowerCase().includes(String(filterVendor).toLowerCase());
       const passesType = !filterType || String(row?.SpareType || "").toLowerCase().includes(String(filterType).toLowerCase());
-      const passesStatus = !filterStatus || String(row?.Status || "").toLowerCase().includes(String(filterStatus).toLowerCase());
+      const passesStatus = !filterStatus || statusMeta(row?.Status).label === filterStatus;
       const passesAsset = !filterAssetId || String(row?.AssetID ?? "") === String(filterAssetId);
       return passesQuery && passesVendor && passesType && passesStatus && passesAsset;
     });
-  }, [spares, searchTerm, filterVendor, filterType, filterStatus, filterAssetId]);
+  }, [spares, searchTerm, filterVendor, filterType, filterStatus, filterAssetId, assetById]);
 
   const selectedRow = useMemo(() => (spares || []).find((row) => Number(row.SpareID) === Number(selectedSpareId)) || null, [spares, selectedSpareId]);
 
