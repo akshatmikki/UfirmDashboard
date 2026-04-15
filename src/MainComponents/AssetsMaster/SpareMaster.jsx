@@ -331,62 +331,69 @@ const SparePage = () => {
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
     return (
-      <div className="asset-side-panel spare-side-panel asset-details-view-panel">
+      <div className="asset-side-panel asset-details-view-panel">
         <div className="asset-side-panel-header">
           <h4 className="asset-side-panel-title">Spare part Details</h4>
         </div>
-        <div className="asset-side-panel-body spare-side-panel-body">
-          <div className="asset-details-grid spare-details-grid">
-            <div className="asset-info-item asset-info-full spare-readonly-row">
+        <div className="asset-side-panel-body">
+          <div className="asset-details-new-layout">
+            <div className="asset-details-row asset-details-header-row">
               <span className="asset-info-label">ID</span>
-              <span className="asset-info-value spare-readonly-value">{selectedRow.SpareID}</span>
+              <span className="asset-info-value">{selectedRow.SpareID}</span>
             </div>
-            <div className="asset-info-item asset-info-full">
-              <div className="spare-inline-head">
+
+            <div className="asset-details-row asset-details-name-row">
+              <div className="asset-info-item">
                 <span className="asset-info-label">Name</span>
-                <span className={`spare-status-pill spare-status-${selectedStatus.key}`}>{selectedStatus.label}</span>
+                <span className="asset-info-value">{selectedRow.SpareType || "Engine filter"}</span>
               </div>
-              <span className="asset-info-value">{selectedRow.SpareType || "Engine filter"}</span>
+              <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatus.label}</span>
             </div>
-            <div className="asset-info-item asset-info-full">
-              <span className="asset-info-label">Description</span>
-              <span className="asset-info-value">{selectedRow.Remarks || "Generic engine filter for industrial equipment"}</span>
+
+            <div className="asset-details-row asset-details-desc-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Description</span>
+                <span className="asset-info-value">{selectedRow.Remarks || "Generic engine filter for industrial equipment"}</span>
+              </div>
             </div>
-            <div className="asset-info-item asset-info-full">
-              <span className="asset-info-label">Serial number</span>
-              <span className="asset-info-value">{selectedRow.SerialNumber || "1234567890"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Asset</span>
-              <span className="asset-info-value">{selectedAsset?.Name || selectedAsset?.name || "Generator"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Asset ID</span>
-              <span className="asset-info-value">{selectedRow.AssetID || "-"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Manufacturer</span>
-              <span className="asset-info-value">{selectedAsset?.Manufacturer || selectedAsset?.manufacturer || "Generic"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Model</span>
-              <span className="asset-info-value">{selectedAsset?.AssetModel || selectedAsset?.Model || "Generic model"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Vendor</span>
-              <span className="asset-info-value">{selectedRow.VendorName || "Generic vendor"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Purchase price</span>
-              <span className="asset-info-value">{selectedRow.Rating ? `Rs${selectedRow.Rating}` : "Rs1000"}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Purchase date</span>
-              <span className="asset-info-value">{formatDisplayDate(selectedRow.PurchaseDate)}</span>
-            </div>
-            <div className="asset-info-item">
-              <span className="asset-info-label">Expiry date</span>
-              <span className="asset-info-value">{formatDisplayDate(selectedRow.ExpiryDate)}</span>
+
+            <div className="asset-details-grid spare-details-grid">
+              <div className="asset-info-item asset-info-full">
+                <span className="asset-info-label">Serial number</span>
+                <span className="asset-info-value">{selectedRow.SerialNumber || "1234567890"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Asset</span>
+                <span className="asset-info-value">{selectedAsset?.Name || selectedAsset?.name || "Generator"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Asset ID</span>
+                <span className="asset-info-value">{selectedRow.AssetID || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Manufacturer</span>
+                <span className="asset-info-value">{selectedAsset?.Manufacturer || selectedAsset?.manufacturer || "Generic"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Model</span>
+                <span className="asset-info-value">{selectedAsset?.AssetModel || selectedAsset?.Model || "Generic model"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Vendor</span>
+                <span className="asset-info-value">{selectedRow.VendorName || "Generic vendor"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Purchase price</span>
+                <span className="asset-info-value">{selectedRow.Rating ? `Rs${selectedRow.Rating}` : "Rs1000"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Purchase date</span>
+                <span className="asset-info-value">{formatDisplayDate(selectedRow.PurchaseDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Expiry date</span>
+                <span className="asset-info-value">{formatDisplayDate(selectedRow.ExpiryDate)}</span>
+              </div>
             </div>
           </div>
 
