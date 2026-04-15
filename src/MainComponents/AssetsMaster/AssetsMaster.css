@@ -2398,6 +2398,10 @@
   height: 33px;
   padding: 8px 16px;
   border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .asset-details-view-panel .asset-side-panel-footer {
@@ -2411,6 +2415,10 @@
   border-color: #cfd8e3;
   background: #fff;
   color: #131720;
+}
+
+.asset-details-view-panel .btn-primary {
+  color: #fafafa;
 }
 
 .asset-details-view-panel .asset-status-badge,
