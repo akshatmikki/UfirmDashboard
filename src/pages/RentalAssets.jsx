@@ -119,23 +119,12 @@ const RentalAssets = ({ propId, history }) => {
   const filteredAssets = useMemo(() => {
     const query = String(searchTerm || "").trim().toLowerCase();
     return rentalAssets.filter((asset) => {
-      const assetSearchFields = [
-        asset?.Id,
-        asset?.AssetID,
-        asset?.Name,
-        asset?.name,
-        asset?.AssetName,
-        asset?.Manufacturer,
-        asset?.Vendor,
-        asset?.Description,
-        asset?.Location,
-        asset?.OutFrom,
-      ];
+      const assetSearchFields = [asset?.Id, asset?.AssetID, asset?.Name, asset?.name, asset?.AssetName];
       const matchesSearch =
         !query ||
         assetSearchFields
-        .filter(Boolean)
-        .some((item) => String(item).toLowerCase().includes(query));
+          .filter(Boolean)
+          .some((item) => String(item).toLowerCase().includes(query));
       const matchesManufacturer = !filterManufacturer || String(asset.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());
       const matchesLease = !filterLease || getLeaseMeta(asset).label === filterLease;
       const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;

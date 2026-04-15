@@ -505,8 +505,6 @@ class AssetsMaster extends Component {
       const search = String(this.state.searchTerm || "").toLowerCase().trim();
       const rowId = String(item?.Id ?? item?.AssetID ?? "").toLowerCase();
       const rowName = String(item?.Name || item?.name || item?.AssetName || "").toLowerCase();
-      const rowDescription = String(this.getRowDescription(item) || "").toLowerCase();
-      const rowQr = String(item?.QRCode || item?.QrCode || item?.QR || "").toLowerCase();
       const rowType = String(item?.AssetType || "");
       const rowCategory = String(item?.Category || "").toLowerCase();
       const rowLocation = String(item?.Location || "").toLowerCase();
@@ -514,7 +512,7 @@ class AssetsMaster extends Component {
       const rowNextServiceDate = this.normalizeDate(item?.NextServiceDate);
 
       return (
-        (!search || rowId.includes(search) || rowName.includes(search) || rowDescription.includes(search) || rowQr.includes(search)) &&
+        (!search || rowId.includes(search) || rowName.includes(search)) &&
         (!this.state.filterAssetType || rowType === this.state.filterAssetType) &&
         (this.state.filterStatus === "" || this.normalizeBoolean(item?.Status) === this.normalizeBoolean(this.state.filterStatus)) &&
         (this.state.filterMoveable === "" || this.normalizeBoolean(item?.IsMoveable) === this.normalizeBoolean(this.state.filterMoveable)) &&
