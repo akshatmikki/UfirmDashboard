@@ -2369,16 +2369,20 @@
 }
 
 .asset-details-view-panel .asset-details-docs-section {
-  padding-top: 14px;
-  margin-top: 14px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  margin-top: 0;
   border-top: 1px solid rgba(19, 23, 32, 0.15);
+  gap: 8px;
 }
 
 .asset-details-view-panel .asset-qr-preview-box {
   border: 0;
   background: transparent;
-  width: auto;
-  height: auto;
+  width: 80px;
+  height: 82px;
+  flex: 0 0 80px;
+  padding: 0;
 }
 
 .asset-details-view-panel .asset-doc-link-text,
@@ -2389,12 +2393,21 @@
 .asset-details-view-panel .btn-primary,
 .asset-details-view-panel .btn-light,
 .asset-details-view-panel .btn-outline-light {
-  min-width: 124px;
+  width: 138px;
+  min-width: 138px;
+  height: 33px;
+  padding: 8px 16px;
   border-radius: 4px;
+}
+
+.asset-details-view-panel .asset-side-panel-footer {
+  gap: 4px;
+  flex-wrap: nowrap;
 }
 
 .asset-details-view-panel .btn-light,
 .asset-details-view-panel .btn-outline-light {
+  border: 1px solid rgba(19, 23, 32, 0.15);
   border-color: #cfd8e3;
   background: #fff;
   color: #131720;
