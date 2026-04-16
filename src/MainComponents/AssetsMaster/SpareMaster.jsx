@@ -44,6 +44,22 @@ function statusMeta(value) {
   return { label: "Running", key: "running" };
 }
 
+function getServiceStatus(row = {}) {
+  const rawStatus = String(row?.ServiceStatus || row?.serviceStatus || "").trim();
+  if (rawStatus) return rawStatus;
+  const expiryDate = normalizeDateOnly(row?.ExpiryDate);
+  if (!expiryDate) return "";
+  const today = new Date().toISOString().slice(0, 10);
+  return expiryDate < today ? "Overdue" : "Upcoming";
+}
+
+function matchesServiceStatus(row = {}, selectedStatus = "") {
+  if (!selectedStatus) return true;
+  const current = String(getServiceStatus(row) || "").trim().toLowerCase();
+  const selected = String(selectedStatus || "").trim().toLowerCase();
+  return current === selected;
+}
+
 function buildPseudoQrCells(value) {
   const seed = String(value || "QR").split("").reduce((acc, char, index) => acc + char.charCodeAt(0) * (index + 1), 0);
   return Array.from({ length: 144 }, (_, index) => {
@@ -118,9 +134,14 @@ const SparePage = () => {
   };
 
   useEffect(() => {
-    if (propertyId) {
+    if (Number(propertyId) > 0) {
       loadSpares();
       loadAssets();
+    } else {
+      setSpares([]);
+      setAssets([]);
+      setSelectedSpareId(null);
+      setShowFilterPanel(false);
     }
   }, [propertyId]);
 
@@ -249,7 +270,7 @@ const SparePage = () => {
       const passesStatus = !filterStatus || statusMeta(row?.Status).label === filterStatus;
       const passesAsset = !filterAssetId || String(row?.AssetID ?? "") === String(filterAssetId);
       const passesManufacturer = !filterManufacturer || String(row?.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());
-      const passesServiceStatus = !filterServiceStatus || (row?.ServiceStatus === filterServiceStatus);
+      const passesServiceStatus = matchesServiceStatus(row, filterServiceStatus);
 
       return passesQuery && passesVendor && passesType && passesStatus && passesAsset && passesManufacturer && passesServiceStatus;
     });

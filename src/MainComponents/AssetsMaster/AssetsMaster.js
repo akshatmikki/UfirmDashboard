@@ -244,6 +244,12 @@ class AssetsMaster extends Component {
   ];
 
   loadHomagePageData = () => {
+    const propertyId = Number(this.props.PropertyId);
+    if (!(propertyId > 0)) {
+      this.setState({ GridData: [], DueGridData: [], isLoading: false, selectedRowId: null, PageMode: "Home" });
+      return;
+    }
+
     this.setState({ isLoading: true });
     this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
       .then((resp) => {

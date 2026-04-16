@@ -110,6 +110,22 @@ const getLeaseMeta = (asset = {}) => {
   return leaseOptions.in;
 };
 
+const getServiceStatus = (asset = {}) => {
+  const rawStatus = String(asset?.ServiceStatus || asset?.serviceStatus || "").trim();
+  if (rawStatus) return rawStatus;
+  const expiryDate = normalizeDate(asset?.ExpiryDate || asset?.ReturnDate || "");
+  if (!expiryDate) return "";
+  const today = new Date().toISOString().slice(0, 10);
+  return expiryDate < today ? "Overdue" : "Upcoming";
+};
+
+const matchesServiceStatus = (asset = {}, selectedStatus = "") => {
+  if (!selectedStatus) return true;
+  const current = String(getServiceStatus(asset) || "").trim().toLowerCase();
+  const selected = String(selectedStatus || "").trim().toLowerCase();
+  return current === selected;
+};
+
 const buildEditForm = (asset = {}) => ({
   Id: asset.Id || "",
   Name: asset.Name || "",
@@ -167,7 +183,15 @@ const RentalAssets = ({ propId, history }) => {
   };
 
   useEffect(() => {
-    fetchRentalAssets();
+    if (Number(propId) > 0) {
+      fetchRentalAssets();
+    } else {
+      setRentalAssets([]);
+      setSelectedAssetId(null);
+      setPanelMode("details");
+      setShowFilterPanel(false);
+      setLoading(false);
+    }
   }, [propId]);
 
   const filteredAssets = useMemo(() => {
@@ -184,9 +208,9 @@ const RentalAssets = ({ propId, history }) => {
       const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;
       const matchesVendor = !filterVendor || String(asset.Vendor || asset.VendorName || "").toLowerCase().includes(filterVendor.toLowerCase());
       const matchesType = !filterType || String(asset.AssetType || asset.LeaseType || "").toLowerCase().includes(filterType.toLowerCase());
-      const matchesServiceStatus = !filterServiceStatus || (asset.ServiceStatus === filterServiceStatus);
+      const passesServiceStatus = matchesServiceStatus(asset, filterServiceStatus);
 
-      return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && matchesServiceStatus;
+      return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && passesServiceStatus;
     });
   }, [rentalAssets, searchTerm, filterManufacturer, filterVendor, filterStatus, filterType, filterServiceStatus]);
 
