@@ -438,6 +438,11 @@
   font-weight: 500;
 }
 
+.rental-lease-in {
+  background: #ececec;
+  color: #5f6368;
+}
+
 .rental-lease-return {
   background: #ececec;
   color: #5f6368;

@@ -16,9 +16,8 @@ const statusOptions = {
 };
 
 const leaseOptions = {
-  returned: { label: "Return", key: "return" },
+  in: { label: "In", key: "in" },
   out: { label: "Out", key: "out" },
-  return: { label: "Return", key: "return" },
 };
 
 const normalizeDate = (value) => {
@@ -102,13 +101,13 @@ const getStatusMeta = (asset = {}) => {
 
 const getLeaseMeta = (asset = {}) => {
   const raw = String(asset.LeaseType || asset.Lease || "").trim().toLowerCase();
-  if (raw === "in" || raw === "return" || raw === "returned") return leaseOptions.return;
+  if (raw === "in" || raw === "return" || raw === "returned") return leaseOptions.in;
   if (raw === "out") return leaseOptions.out;
   const rentOutTime = asset?.RentedOutDate ? new Date(asset.RentedOutDate).getTime() : 0;
   const returnTime = asset?.ReturnDate ? new Date(asset.ReturnDate).getTime() : 0;
-  if (returnTime && returnTime >= rentOutTime) return leaseOptions.return;
+  if (returnTime && returnTime >= rentOutTime) return leaseOptions.in;
   if (rentOutTime) return leaseOptions.out;
-  return leaseOptions.return;
+  return leaseOptions.in;
 };
 
 const buildEditForm = (asset = {}) => ({
@@ -201,6 +200,18 @@ const RentalAssets = ({ propId, history }) => {
     const startIndex = (safeCurrentPage - 1) * ROWS_PER_PAGE;
     return filteredAssets.slice(startIndex, startIndex + ROWS_PER_PAGE);
   }, [filteredAssets, safeCurrentPage]);
+
+  const manufacturerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rentalAssets
+            .map((asset) => String(asset?.Manufacturer || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [rentalAssets]
+  );
 
   const resetFilters = () => {
     setFilterManufacturer("");
@@ -674,8 +685,11 @@ const RentalAssets = ({ propId, history }) => {
                         <label>Manufacturer</label>
                         <select className="form-control" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)}>
                           <option value="">Enter name</option>
-                          <option value="manfb1">Manufacturer 1</option>
-                          <option value="manfb2">Manufacturer 2</option>
+                          {manufacturerOptions.map((manufacturer) => (
+                            <option key={manufacturer} value={manufacturer}>
+                              {manufacturer}
+                            </option>
+                          ))}
                         </select>
                       </div>
 

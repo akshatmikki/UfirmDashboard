@@ -266,6 +266,18 @@ const SparePage = () => {
     return filteredSpares.slice(startIndex, startIndex + ROWS_PER_PAGE);
   }, [filteredSpares, safeCurrentPage]);
 
+  const manufacturerOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          assets
+            .map((asset) => String(asset?.Manufacturer || asset?.manufacturer || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [assets]
+  );
+
   const selectedRow = useMemo(() => (spares || []).find((row) => Number(row.SpareID) === Number(selectedSpareId)) || null, [spares, selectedSpareId]);
 
   useEffect(() => {
@@ -656,8 +668,11 @@ const SparePage = () => {
                         <label>Manufacturer</label>
                         <select className="form-control" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)}>
                           <option value="">Enter name</option>
-                          <option value="manfb1">Manufacturer 1</option>
-                          <option value="manfb2">Manufacturer 2</option>
+                          {manufacturerOptions.map((manufacturer) => (
+                            <option key={manufacturer} value={manufacturer}>
+                              {manufacturer}
+                            </option>
+                          ))}
                         </select>
                       </div>
 

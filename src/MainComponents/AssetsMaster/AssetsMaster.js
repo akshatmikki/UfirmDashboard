@@ -528,8 +528,11 @@ class AssetsMaster extends Component {
             <label>Manufacturer</label>
             <select className="form-control" value={this.state.filterManufacturer} onChange={(e) => this.setState({ filterManufacturer: e.target.value })}>
               <option value="">Enter name</option>
-              <option value="manfb1">Manufacturer 1</option>
-              <option value="manfb2">Manufacturer 2</option>
+              {this.getManufacturerOptions().map((manufacturer) => (
+                <option key={manufacturer} value={manufacturer}>
+                  {manufacturer}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -634,6 +637,15 @@ class AssetsMaster extends Component {
     }));
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
+
+  getManufacturerOptions = () =>
+    Array.from(
+      new Set(
+        (this.state.GridData || [])
+          .map((item) => String(item?.Manufacturer || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
 
   getPaginatedRows = (rows) => {
     const pageSize = 15;
