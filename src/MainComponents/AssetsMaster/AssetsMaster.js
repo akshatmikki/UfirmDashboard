@@ -183,13 +183,34 @@ class AssetsMaster extends Component {
 
   getAssetStatusMeta = (item = {}) => {
     const rawStatus = item?.Status;
+    const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
+    const today = new Date().toISOString().slice(0, 10);
+    const rawServiceStatus = String(item?.ServiceStatus || item?.serviceStatus || "").trim();
+    const serviceStatus = rawServiceStatus || (!nextServiceDate ? "" : nextServiceDate < today ? "Overdue" : "Upcoming");
     if (typeof rawStatus === "string" && rawStatus && rawStatus !== "true" && rawStatus !== "false") {
-      return { label: rawStatus, key: rawStatus.toLowerCase().replace(/\s+/g, "-") };
+      return { label: rawStatus, key: rawStatus.toLowerCase().replace(/\s+/g, "-"), serviceStatus };
     }
     const boolStatus = this.normalizeBoolean(rawStatus);
-    if (boolStatus === false) return { label: "Inactive", key: "inactive" };
-    if (boolStatus === true) return { label: "Active", key: "running" };
-    return { label: "-", key: "inactive" };
+    if (boolStatus === false) return { label: "Inactive", key: "inactive", serviceStatus };
+    if (boolStatus === true) return { label: "Running", key: "running", serviceStatus };
+    return { label: "-", key: "inactive", serviceStatus };
+  };
+
+  getAssetTypeLabel = (item = {}) => {
+    const rawType = String(item?.AssetType || item?.Type || item?.LeaseType || "").trim().toLowerCase();
+    if (!rawType) return "";
+    if (rawType.includes("rented in") || rawType === "in" || rawType.includes("inbound")) return "Rented in";
+    if (rawType.includes("rented out") || rawType === "out" || rawType.includes("outbound")) return "Rented Out";
+    if (rawType.includes("house") || rawType.includes("in house") || rawType.includes("owned")) return "In house";
+    return String(item?.AssetType || item?.Type || item?.LeaseType || "").trim();
+  };
+
+  matchesServiceStatus = (item = {}, selectedStatus = "") => {
+    if (!selectedStatus) return true;
+    const current = String(this.getAssetStatusMeta(item).serviceStatus || "").trim().toLowerCase();
+    const selected = String(selectedStatus || "").trim().toLowerCase();
+    if (!current) return false;
+    return current === selected;
   };
 
   getModel = (type, overrides = {}) => [
@@ -520,8 +541,11 @@ class AssetsMaster extends Component {
             <label>Vendor</label>
             <select className="form-control" value={this.state.filterVendor} onChange={(e) => this.setState({ filterVendor: e.target.value })}>
               <option value="">Enter name</option>
-              <option value="vendor1">Vendor 1</option>
-              <option value="vendor2">Vendor 2</option>
+              {this.getVendorOptions().map((vendor) => (
+                <option key={vendor} value={vendor}>
+                  {vendor}
+                </option>
+              ))}
             </select>
           </div>
           <div className="asset-filter-field">
@@ -610,8 +634,8 @@ class AssetsMaster extends Component {
         (!this.state.filterManufacturer || String(item?.Manufacturer || "").toLowerCase().includes(this.state.filterManufacturer.toLowerCase())) &&
         (!this.state.filterVendor || String(item?.Vendor || "").toLowerCase().includes(this.state.filterVendor.toLowerCase())) &&
         (!this.state.filterStatus || this.getAssetStatusMeta(item).label === this.state.filterStatus) &&
-        (!this.state.filterType || String(item?.AssetType || "").toLowerCase().includes(this.state.filterType.toLowerCase())) &&
-        (!this.state.filterServiceStatus || this.getAssetStatusMeta(item).serviceStatus === this.state.filterServiceStatus)
+        (!this.state.filterType || this.getAssetTypeLabel(item) === this.state.filterType) &&
+        this.matchesServiceStatus(item, this.state.filterServiceStatus)
       );
     });
 
@@ -637,6 +661,15 @@ class AssetsMaster extends Component {
     }));
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
+
+  getVendorOptions = () =>
+    Array.from(
+      new Set(
+        (this.state.GridData || [])
+          .map((item) => String(item?.Vendor || item?.Distributor || item?.VendorName || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
 
   getManufacturerOptions = () =>
     Array.from(

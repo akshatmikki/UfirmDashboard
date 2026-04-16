@@ -278,6 +278,18 @@ const SparePage = () => {
     [assets]
   );
 
+  const vendorOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          (spares || [])
+            .map((row) => String(row?.VendorName || row?.Vendor || row?.Distributor || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [spares]
+  );
+
   const selectedRow = useMemo(() => (spares || []).find((row) => Number(row.SpareID) === Number(selectedSpareId)) || null, [spares, selectedSpareId]);
 
   useEffect(() => {
@@ -660,8 +672,11 @@ const SparePage = () => {
                         <label>Vendor</label>
                         <select className="form-control" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}>
                           <option value="">Enter name</option>
-                          <option value="vendor1">Vendor 1</option>
-                          <option value="vendor2">Vendor 2</option>
+                          {vendorOptions.map((vendor) => (
+                            <option key={vendor} value={vendor}>
+                              {vendor}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div className="asset-filter-field">

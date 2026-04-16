@@ -213,6 +213,18 @@ const RentalAssets = ({ propId, history }) => {
     [rentalAssets]
   );
 
+  const vendorOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rentalAssets
+            .map((asset) => String(asset?.Vendor || asset?.VendorName || asset?.Distributor || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [rentalAssets]
+  );
+
   const resetFilters = () => {
     setFilterManufacturer("");
     setFilterVendor("");
@@ -677,8 +689,11 @@ const RentalAssets = ({ propId, history }) => {
                         <label>Vendor</label>
                         <select className="form-control" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}>
                           <option value="">Enter name</option>
-                          <option value="vendor1">Vendor 1</option>
-                          <option value="vendor2">Vendor 2</option>
+                          {vendorOptions.map((vendor) => (
+                            <option key={vendor} value={vendor}>
+                              {vendor}
+                            </option>
+                          ))}
                         </select>
                       </div>
                       <div className="asset-filter-field">
