@@ -1207,7 +1207,7 @@ class AssetsMaster extends Component {
                 </div>
               </div>
 
-              <div className="form-group asset-form-group-custom asset-add-span-2">
+              <div className="form-group asset-form-group-custom">
                 <label>Asset image</label>
                 <div className="asset-file-input-wrapper">
                   <input type="text" className="form-control" placeholder="Upload file" value={this.state.assetImageFileName || ""} readOnly />
