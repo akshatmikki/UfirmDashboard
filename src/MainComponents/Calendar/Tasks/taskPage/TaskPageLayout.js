@@ -1,41 +1,59 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+﻿import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const taskPageCss = `
-.task-page-shell{position:fixed;inset:0;z-index:1050;background:#f4f6f9;padding:0;overflow:hidden;}
+.task-page-shell{position:fixed;inset:0;z-index:1050;background:rgba(244,246,249,.95);padding:40px 0 0;overflow:hidden;display:flex;align-items:flex-start;justify-content:center;}
 .task-page-shell--one-third{justify-content:flex-end;}
 .task-page-shell--one-third .task-page-content{width:min(560px,33vw);min-width:460px;}
-.task-page-content{width:100vw;height:100vh;}
+.task-page-content{width:min(1260px,96vw);height:min(720px,92vh);margin-top:0;}
 .task-page-shell .row{margin:0;height:100%;}
 .task-page-shell .col-12{padding:0;height:100%;}
-.task-modal-card{width:100vw;height:100vh;display:flex;flex-direction:column;margin:0;border-radius:0;}
+.task-modal-card{width:100%;height:100%;display:flex;flex-direction:column;margin:0;border-radius:0;overflow:hidden;box-shadow:none;}
 .task-modal-card .card-header{padding:0;border-bottom:0;}
-.task-modal-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:linear-gradient(135deg,#1f4f6d,#2f6f96);border-radius:0;}
-.task-modal-title{font-size:22px;font-weight:600;color:#fff;letter-spacing:.5px;margin:0;}
-.task-modal-close i{color:#fff;font-size:18px;}
-.task-modal-body{flex:1;overflow-y:auto;padding:16px 18px;}
+.task-modal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 20px;background:#fff;border-bottom:1px solid #dfe5ee;border-radius:0;}
+.task-modal-title{font-size:22px;font-weight:600;color:#234a73;letter-spacing:0;margin:0;}
+.task-modal-close i{color:#aabbd0;font-size:20px;}
+.task-modal-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:0;background:#fff;}
 .task-modal-footer{background:#fff;border-top:1px solid #e9ecef;padding:12px 18px;display:flex;justify-content:flex-end;gap:10px;}
-.task-section{border:1px solid #e9ecef;border-radius:10px;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.04);margin-bottom:14px;}
-.task-section-title{padding:10px 12px;font-weight:600;border-bottom:1px solid #e9ecef;border-radius:10px 10px 0 0;width:100%;min-width:0;text-align:left;display:flex;align-items:center;justify-content:space-between;cursor:pointer;}
-.task-section-title--blue{background:#d9efff;border-bottom-color:#bddcf8;}
-.task-section-title--blue{padding:6px 10px;font-size:1rem;min-height:36px;}
-.task-section-title--green{background:#e3f6e3;border-bottom-color:#c7e9c7;}
-.task-section-title--yellow{background:#fff6cc;border-bottom-color:#f1df95;}
-.task-section-title--red{background:#ffe2e2;border-bottom-color:#f3bebe;}
+.task-section{border:0;border-top:1px solid #e5e7eb;border-radius:0;background:#fff;box-shadow:none;margin-bottom:0;}
+.task-section-title{padding:5px 12px;font-weight:600;border-bottom:1px solid #e9ecef;border-radius:0;width:100%;min-width:0;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;background:#fff;color:#25518b;font-size:15px;}
+.task-section-title--blue{background:#fff;border-bottom-color:#e9ecef;padding:5px 10px;font-size:15px;min-height:34px;}
+.task-section-title--green{background:#fff;border-bottom-color:#e9ecef;}
+.task-section-title--yellow{background:#fff;border-bottom-color:#e9ecef;}
+.task-section-title--red{background:#fff;border-bottom-color:#e9ecef;}
 .task-section-toggle{border:0;}
-.task-section-icon{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:6px;background:#eef7ff;border:1px solid #bddcf8;color:#2f6f96;}
-.task-section-content{padding:12px;}
-.add-task-form label{font-weight:500;margin-bottom:6px;display:block;}
-.task-details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 14px;}
+.task-section-icon{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:4px;background:#e8f4ff;border:1px solid #bddcf8;color:#2f6f96;}
+.task-section-content{padding:8px 16px 10px;}
+.task-inline-section{border-top:1px solid #e5e7eb;background:#fff;}
+.task-inline-section-header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;color:#25518b;}
+.task-inline-section-title{margin:0;font-size:18px;font-weight:600;line-height:1.2;color:#25518b;}
+.task-inline-section-action{display:inline-flex;align-items:center;gap:6px;border:0;background:transparent;color:#25518b;font-size:16px;font-weight:500;padding:0;}
+.task-inline-section-body{padding:0 16px 14px;}
+.task-procedure-row{display:grid;grid-template-columns:28px minmax(0,1fr) auto;align-items:center;gap:10px;padding:4px 0;}
+.task-procedure-index{color:#5c6674;font-size:14px;line-height:1;font-weight:500;text-align:right;}
+.task-procedure-input{height:34px !important;border-radius:8px !important;font-size:14px !important;padding:6px 12px !important;}
+.task-procedure-actions{display:flex;align-items:center;gap:8px;}
+.task-procedure-icon-btn{border:0;background:transparent;color:#9fb3c6;font-size:18px;line-height:1;padding:0;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;}
+.task-procedure-icon-spacer{display:inline-block;width:28px;height:28px;}
+.task-asset-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.task-asset-title-row h4{margin:0;font-size:18px;font-weight:600;color:#25518b;}
+.task-asset-add-btn{border:0;background:transparent;color:#25518b;font-size:16px;font-weight:500;display:inline-flex;align-items:center;gap:6px;padding:0;}
+.add-task-form label{font-weight:600;margin-bottom:6px;display:block;color:#1f3d5a;font-size:14px;line-height:18px;}
+.task-details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 12px;align-items:start;}
 @media (max-width:1199.98px){.task-details-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:991.98px){.task-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
 @media (max-width:575.98px){.task-details-grid{grid-template-columns:1fr;}}
-.task-field{min-width:0;}
+.task-field{min-width:0;display:flex;flex-direction:column;gap:5px;box-sizing:border-box;}
+.task-field--wide{grid-column:span 2;}
+.task-field--full{grid-column:1 / -1;}
 .task-field--switch .switch{margin-top:6px;}
 .task-field--all-day{display:flex;flex-direction:column;justify-content:flex-end;}
 .task-all-day-checkbox{display:inline-flex;align-items:center;gap:8px;margin-top:8px;font-weight:500;color:#334155;}
 .task-all-day-checkbox input{width:20px;height:20px;accent-color:#1f4f6d;}
-.add-task-form .form-control,.add-task-form .react-datepicker-wrapper,.add-task-form .react-datepicker__input-container input{height:38px;padding:6px 12px;font-size:14px;}
-.add-task-form .react-datepicker-wrapper{width:100%;}
+.add-task-form .form-control,.add-task-form .react-datepicker__input-container input{height:38px;padding:8px 12px;font-size:14px;border-radius:8px;border:1px solid #d1d7df;box-shadow:none;color:#1f2d3d;width:100%;}
+.add-task-form .react-datepicker-wrapper,
+.add-task-form .react-datepicker__input-container{display:block;width:100%;}
+.task-picker-input{width:100%;display:block;}
+.task-description-box{min-height:38px;height:38px;resize:none;}
 .task-input-error{border-color:#e37f7f !important;box-shadow:0 0 0 1px rgba(227,127,127,.18);}
 .add-task-form .form-control:disabled,
 .add-task-form .form-control[readonly],
@@ -80,6 +98,7 @@ const taskPageCss = `
   .task-page-shell--one-third{justify-content:center;}
   .task-page-shell--one-third .task-page-content{width:min(96vw,900px);min-width:0;}
   .task-section-title{width:100%;min-width:0;}
+  .task-page-content{height:min(760px,94vh);}
 }
 `;
 
@@ -186,14 +205,38 @@ export function TaskSection({ title, isOpen = true, onToggle, children }) {
       <button
         className={`task-section-title task-section-toggle ${getHeaderToneClass()}`}
         type="button"
-        onClick={() => onToggle?.()}
+        style={{ cursor: String(title || "").toLowerCase().trim() === "task details" ? "default" : "pointer" }}
+        onClick={() => {
+          if (String(title || "").toLowerCase().trim() !== "task details") {
+            onToggle?.();
+          }
+        }}
       >
         <span>{title}</span>
-        <span className="task-section-icon">
-          <i className={`fas ${isOpen ? "fa-minus" : "fa-plus"}`} />
-        </span>
+        {String(title || "").toLowerCase().trim() !== "task details" && (
+          <span className="task-section-icon">
+            <i className={`fas ${isOpen ? "fa-minus" : "fa-plus"}`} />
+          </span>
+        )}
       </button>
       {isOpen ? <div className="task-section-content">{children}</div> : null}
+    </section>
+  );
+}
+
+export function TaskInlineSection({ title, actionLabel, onAction, children }) {
+  return (
+    <section className="task-inline-section">
+      <div className="task-inline-section-header">
+        <h4 className="task-inline-section-title">{title}</h4>
+        {onAction ? (
+          <button type="button" className="task-inline-section-action" onClick={onAction}>
+            <i className="fa fa-plus" />
+            <span>{actionLabel || "Add"}</span>
+          </button>
+        ) : null}
+      </div>
+      <div className="task-inline-section-body">{children}</div>
     </section>
   );
 }

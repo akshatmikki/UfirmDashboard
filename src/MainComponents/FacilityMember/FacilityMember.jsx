@@ -1887,6 +1887,7 @@ const StaffPage = () => {
                   show={showLoanAdvanceDialog}
                   onClose={closeLoanAdvanceDialog}
                   facilityMemberId={selectedLoanAdvanceId}
+                  employeeName={selectedRow?.Profile?.EmployeeName}
                 />
               )}
             </div>

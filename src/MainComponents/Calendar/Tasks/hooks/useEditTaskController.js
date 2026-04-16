@@ -40,6 +40,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
 
   const [form, setForm] = useState(() => ({
     taskName: rowData?.Name || "",
+    description: rowData?.Description || "",
     location: rowData?.Location || "",
     selectedCategory: rowData?.TaskCategoryId || "",
     selectedSubCategory: rowData?.TaskSubCategoryId || "",
@@ -130,7 +131,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
         CategoryId: parseInt(form.selectedCategory),
         SubCategoryId: parseInt(form.selectedSubCategory),
         Name: form.taskName,
-        Description: "Desc",
+        Description: form.description,
         DateFrom: form.startDate,
         DateTo: form.endDate,
         TimeFrom: form.startTime,

@@ -11,6 +11,13 @@ const getPriorityClass = (priority) => {
   return "";
 };
 
+const getDisplayStatus = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "pending") return "Overdue";
+  if (normalized === "completed" || normalized === "complete") return "Completed";
+  return status || "Overdue";
+};
+
 const toTaskDateMoment = (value) => {
   if (!value) return null;
   const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
@@ -44,7 +51,7 @@ const getStatusCounts = (tasks = []) => {
 
 export default function attachRenderCards(TaskList) {
   TaskList.prototype.renderTaskCards = function () {
-    const { data, searchTerm, cardPage = 1, cardPageSize = 12 } = this.state;
+    const { data, searchTerm } = this.state;
     const searchStr = String(searchTerm || "").trim().toLowerCase();
     const filteredData = searchStr
       ? data.filter((task) =>
@@ -94,6 +101,8 @@ export default function attachRenderCards(TaskList) {
           const tasks = groupedByDate[date] || [];
           const isExpanded = activeDate === date;
           const { completed, pending, actionable } = getStatusCounts(tasks);
+          const cardPageSize = Number(this.state.cardPageSize || 12);
+          const cardPage = Number(this.state.cardPage || 1);
           const totalPages = Math.max(1, Math.ceil(tasks.length / cardPageSize));
           const currentPage = Math.min(cardPage, totalPages);
           const startIndex = (currentPage - 1) * cardPageSize;
@@ -130,7 +139,7 @@ export default function attachRenderCards(TaskList) {
                   <div className="task-grid">
                     {pagedTasks.map((task, index) => (
                       <div
-                        key={`${task.TaskId}-${startIndex + index}`}
+                        key={`${task.TaskId}-${index}`}
                         className={`task-card ${getStatusClass(task.TaskStatus)}`}
                         onClick={() => this.ViewTask(task)}
                         role="button"
@@ -143,49 +152,61 @@ export default function attachRenderCards(TaskList) {
                           <span>
                             {task.CategoryName} / {task.SubCategoryName}
                           </span>
-                          <span className={`task-chip task-chip-status ${getStatusClass(task.TaskStatus)}`}>{task.TaskStatus || "Pending"}</span>
+                          <span className={`task-chip-status ${getStatusClass(task.TaskStatus)}`}>
+                            {String(task.TaskStatus || "").trim().toLowerCase() === "pending" ? (
+                              <span className="task-status-dot" aria-hidden="true" />
+                            ) : null}
+                            {getDisplayStatus(task.TaskStatus)}
+                          </span>
                         </div>
 
                         <div className="task-card-body">
                           <div className="task-card-content">
-                            <h6 className="task-card-title">{task.Name || "Task"}</h6>
-                            <p className="task-card-id">({task.TaskId})</p>
+                            <div className="task-card-title-group">
+                              <h6 className="task-card-title">{task.Name || "Task"}</h6>
+                              <p className="task-card-id">({task.TaskId})</p>
+                            </div>
 
                             <div className="task-card-kv">
                               <span>Priority</span>
                               <b className={`task-priority ${getPriorityClass(task.TaskPriority)}`}>{task.TaskPriority || "-"}</b>
+                              
                               <span>Assigned to</span>
                               <b>{task.AssignedTo || "-"}</b>
+                              
                               <span>Location</span>
                               <b>{task.Location || "-"}</b>
-                              <span>Task Date</span>
+                              
+                              <span>Due date</span>
                               <b>{getTaskDateDisplay(task.UpdatedOn)}</b>
                             </div>
                           </div>
 
                           <div className="task-card-actions">
-                            <button
-                              className="btn btn-link task-action-edit"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                this.EditTask(task);
-                              }}
-                              title="Edit Task"
-                              type="button"
-                            >
-                              <i className="fa fa-pencil-square-o" />
-                            </button>
-                            <button
-                              className="btn btn-link task-action-delete"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                this.DeleteTask(task);
-                              }}
-                              title="Delete Task"
-                              type="button"
-                            >
-                              <i className="fa fa-trash-o" />
-                            </button>
+                            <div className="task-card-action-group">
+                              <button
+                                className="btn btn-link task-action-edit"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  this.EditTask(task);
+                                }}
+                                title="Edit Task"
+                                type="button"
+                              >
+                                <i className="fa fa-pencil-square-o" />
+                              </button>
+                              <button
+                                className="btn btn-link task-action-delete"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  this.DeleteTask(task);
+                                }}
+                                title="Delete Task"
+                                type="button"
+                              >
+                                <i className="fa fa-trash-o" />
+                              </button>
+                            </div>
                             {task.EntryType === "PPM" ? (
                               <button
                                 className="btn btn-link task-action-add"
@@ -207,17 +228,28 @@ export default function attachRenderCards(TaskList) {
 
                   {tasks.length > cardPageSize ? (
                     <div className="task-pager">
-                      <button className="btn btn-sm btn-outline-primary" disabled={currentPage <= 1} onClick={() => this.setState({ cardPage: currentPage - 1 })}>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={currentPage <= 1}
+                        onClick={() => this.setState({ cardPage: currentPage - 1 })}
+                        type="button"
+                      >
                         Prev
                       </button>
                       <span className="text-muted">
                         Page {currentPage} of {totalPages}
                       </span>
-                      <button className="btn btn-sm btn-outline-primary" disabled={currentPage >= totalPages} onClick={() => this.setState({ cardPage: currentPage + 1 })}>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => this.setState({ cardPage: currentPage + 1 })}
+                        type="button"
+                      >
                         Next
                       </button>
                     </div>
                   ) : null}
+
                 </>
               ) : null}
             </div>

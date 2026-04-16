@@ -1,7 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import moment from "moment";
 import { useEditTaskController, useTaskFmRemarks } from "../../taskHooks";
-import { TaskShell, TaskSection, useMultiOpenSections } from "../TaskPageLayout";
+import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection } from "../TaskPageLayout";
 import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import TaskFmRemarksSection from "../TaskFmRemarksSection";
@@ -10,14 +10,23 @@ import ViewQuestionImg from "../../ViewQuestionImg";
 import EditQuestion from "../../EditQuestion";
 
 export default function EditTaskPage(props) {
-  const { visible, closeModal, rowData, categoryData, openAddQuestion, onTaskUpdated } = props;
-  const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset", "fmRemarks"]);
+  const { visible, closeModal, rowData, categoryData, onTaskUpdated } = props;
+  const { openSection, toggleSection } = useSingleOpenSection("details");
   const ctrl = useEditTaskController({ rowData, categoryData });
+  
+  const fmCtrl = useTaskFmRemarks({
+    taskId: rowData?.TaskId,
+    taskName: rowData?.Name || ctrl.form.taskName,
+    propertyId: ctrl.form.propertyId,
+    initialTaskDate: ctrl.initialTaskDate,
+    onTaskUpdated,
+  });
+
+  const isActionable = String(rowData?.TaskStatus || "").toLowerCase() === "actionable";
   const [invalidField, setInvalidField] = useState("");
   const [inlineError, setInlineError] = useState("");
   const [successInfo, setSuccessInfo] = useState(null);
   const q = ctrl.questionsCtrl;
-  const autoOpenedRef = useRef(false);
   const onStartDateChange = useCallback(
     (d) => {
       if (!(d instanceof Date) || Number.isNaN(d.getTime())) return;
@@ -37,28 +46,6 @@ export default function EditTaskPage(props) {
     [ctrl],
   );
 
-  useEffect(() => {
-    if (!visible) {
-      autoOpenedRef.current = false;
-      return;
-    }
-    if (!openAddQuestion) return;
-    if (autoOpenedRef.current) return;
-    autoOpenedRef.current = true;
-    q.openAddQuestion();
-  }, [openAddQuestion, q, visible]);
-
-  const fm = useTaskFmRemarks({
-    taskId: rowData?.TaskId,
-    taskName: rowData?.Name,
-    propertyId: rowData?.PropertyId,
-    initialTaskDate: ctrl.initialTaskDate,
-    onTaskUpdated,
-  });
-
-  const fmQuestions = useMemo(() => {
-    return (q.questions || []).map((x) => ({ id: x.QuesId, name: x.QuestionName }));
-  }, [q.questions]);
   const fallbackOccurrenceOptions = useMemo(
     () => [
       { value: "N", label: "Do not repeat" },
@@ -105,15 +92,19 @@ export default function EditTaskPage(props) {
     </>
   );
 
+  const questions = q.questions || [];
+
   return (
     <div>
       <TaskShell visible={visible} title="Edit Task" onClose={closeModal} footer={footer}>
-        <TaskSection title="Task Details" isOpen={isOpen("details")} onToggle={() => toggleSection("details")}>
+        <TaskSection title="Task Details" isOpen={openSection === "details"} onToggle={() => toggleSection("details")}>
           <TaskDetailsForm
             showTaskId
             taskId={rowData?.TaskId}
             taskName={ctrl.form.taskName}
             onTaskNameChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ taskName: v }); }}
+            description={ctrl.form.description}
+            onDescriptionChange={(v) => ctrl.updateForm({ description: v })}
             propertyId={ctrl.form.propertyId}
             propertyOptions={ctrl.lookups.propertyData}
             location={ctrl.form.location}
@@ -155,19 +146,23 @@ export default function EditTaskPage(props) {
           />
         </TaskSection>
 
-        <TaskSection title="Questionnaire (Checklist)" isOpen={isOpen("questions")} onToggle={() => toggleSection("questions")}>
+        <TaskInlineSection
+          title="Checklist (Optional)"
+          actionLabel="Add procedure"
+          onAction={q.openAddQuestion}
+        >
           <TaskQuestionsEditSection
-            taskName={ctrl.form.taskName}
-            location={ctrl.form.location}
-            loading={q.loadingQuestions}
-            questions={q.questions}
-            onAddQuestion={q.openAddQuestion}
+            questions={questions}
             onEditQuestion={q.openEditQuestion}
             onDeleteQuestion={ctrl.requestDeleteQuestion}
           />
-        </TaskSection>
+        </TaskInlineSection>
 
-        <TaskSection title="Asset" isOpen={isOpen("asset")} onToggle={() => toggleSection("asset")}>
+        <TaskInlineSection
+          title="Assets (Optional)"
+          actionLabel="Add asset"
+          onAction={() => ctrl.lookups.onAssetChange?.(ctrl.form.assetId || "")}
+        >
           <TaskAssetSection
             taskName={ctrl.form.taskName}
             location={ctrl.form.location}
@@ -181,30 +176,28 @@ export default function EditTaskPage(props) {
             assetPhoto={ctrl.form.assetPhoto}
             QRCode={ctrl.form.QRCode}
           />
-        </TaskSection>
+        </TaskInlineSection>
 
-        <TaskSection title="FM Remarks" isOpen={isOpen("fmRemarks")} onToggle={() => toggleSection("fmRemarks")}>
-          <TaskFmRemarksSection
-            taskName={ctrl.form.taskName}
-            location={ctrl.form.location}
-            questions={fmQuestions}
-            selectedQuestionId={fm.selectedQuestionId}
-            onSelectQuestion={fm.onSelectQuestion}
-            onViewImage={(questionId) => {
-              const selected = (q.questions || []).find((item) => Number(item.QuesId) === Number(questionId));
-              if (selected) q.openViewImage(selected);
-            }}
-            fmSelectedDate={fm.fmSelectedDate}
-            onDateChange={fm.onDateChange}
-            loading={fm.loading}
-            remarks={fm.remarks}
-            hasAnyRemarksForQuestion={fm.hasAnyRemarksForQuestion}
-            chatStatus={rowData?.CurrentStatus || rowData?.TaskStatus || "Actionable"}
-            questionStatusMap={fm.questionStatusMap}
-            questionIdsWithRemarks={fm.questionIdsWithRemarks}
-            onSend={fm.sendFmRemark}
-          />
-        </TaskSection>
+        {isActionable && (
+          <TaskSection title="Fm Remarks" isOpen={openSection === "fmRemarks"} onToggle={() => toggleSection("fmRemarks")}>
+            <TaskFmRemarksSection
+              taskName={rowData?.Name || ctrl.form.taskName}
+              location={rowData?.Location || ctrl.form.location}
+              questions={questions}
+              selectedQuestionId={fmCtrl.selectedQuestionId}
+              onSelectQuestion={fmCtrl.onSelectQuestion}
+              onViewImage={(qid) => q.openViewImage?.(qid)}
+              fmSelectedDate={fmCtrl.fmSelectedDate}
+              onDateChange={fmCtrl.onDateChange}
+              loading={fmCtrl.loading}
+              remarks={fmCtrl.remarks}
+              chatStatus={rowData?.TaskStatus}
+              questionStatusMap={fmCtrl.questionStatusMap}
+              questionIdsWithRemarks={fmCtrl.questionIdsWithRemarks}
+              onSend={fmCtrl.sendFmRemark}
+            />
+          </TaskSection>
+        )}
 
         {inlineError ? (
           <div className="task-inline-error-pop">

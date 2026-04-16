@@ -31,7 +31,7 @@ import EmergencyContactPage from "../pages/EmergencyContactPage";
 import LayoutDataProvider from "./LayoutDataProvider.js";
 import * as appCommon from "../Common/AppCommon.js";
 import Notification from "../MainComponents/Notification Center/Notification.jsx";
-import LeaveDashboard  from "../MainComponents/Attendance/EmployeeLeaveRemaining.jsx";
+import LeaveDashboard from "../MainComponents/Attendance/EmployeeLeaveRemaining.jsx";
 import ApiService from "../apiService";
 import { getConfig } from "../utility/apiConfig";
 import { getManagedEmployeesByIdentity } from "../Services/UserAccessService";
@@ -1152,7 +1152,7 @@ class MainNav extends React.Component {
                       </a>
                       <ul className="nav nav-treeview">
 
-                        
+
                         <li className="nav-item">
                           <Link
                             to="/Account/App/SGNEW"
@@ -1193,7 +1193,7 @@ class MainNav extends React.Component {
                             <p>Allowance Deduction</p>
                           </Link>
                         </li>
-                         <li className="nav-item">
+                        <li className="nav-item">
                           <Link
                             to="/Account/App/Designation"
                             className="nav-link"
@@ -1530,7 +1530,7 @@ class MainNav extends React.Component {
                         className="nav nav-treeview"
                         style={{ display: "none" }}
                       >
-                        
+
                         <li className="nav-item">
                           <Link
                             to="/Account/App/BranchMaster"
@@ -2036,8 +2036,8 @@ class MainNav extends React.Component {
             <Route path="/Account/App/ItemAssigned">
               <ItemAssignedPage />
             </Route>
-            
-            
+
+
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
             </Route>

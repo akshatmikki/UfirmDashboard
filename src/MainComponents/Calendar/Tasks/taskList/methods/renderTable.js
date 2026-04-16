@@ -11,6 +11,13 @@ const getPriorityClass = (priority) => {
   return "";
 };
 
+const getDisplayStatus = (status) => {
+  const normalized = String(status || "").trim().toLowerCase();
+  if (normalized === "pending") return "Overdue";
+  if (normalized === "completed" || normalized === "complete") return "Completed";
+  return status || "Overdue";
+};
+
 const toTaskDateMoment = (value) => {
   if (!value) return null;
   const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
@@ -44,7 +51,7 @@ const getStatusCounts = (tasks = []) => {
 
 export default function attachRenderTable(TaskList) {
   TaskList.prototype.renderTaskTable = function () {
-    const { data, searchTerm, tablePage = 1, tablePageSize = 12 } = this.state;
+    const { data, searchTerm } = this.state;
     const searchStr = String(searchTerm || "").trim().toLowerCase();
     const filteredData = searchStr
       ? data.filter((task) =>
@@ -94,6 +101,8 @@ export default function attachRenderTable(TaskList) {
           const tasks = groupedByDate[date] || [];
           const isExpanded = activeDate === date;
           const { completed, pending, actionable } = getStatusCounts(tasks);
+          const tablePageSize = Number(this.state.tablePageSize || 12);
+          const tablePage = Number(this.state.tablePage || 1);
           const totalPages = Math.max(1, Math.ceil(tasks.length / tablePageSize));
           const currentPage = Math.min(tablePage, totalPages);
           const startIndex = (currentPage - 1) * tablePageSize;
@@ -130,7 +139,7 @@ export default function attachRenderTable(TaskList) {
                   <div className="task-list-stack">
                     {pagedTasks.map((task, index) => (
                       <div
-                        key={`${task.TaskId}-${startIndex + index}`}
+                        key={`${task.TaskId}-${index}`}
                         className={`task-line-item ${getStatusClass(task.TaskStatus)}`}
                         onClick={() => this.ViewTask(task)}
                         role="button"
@@ -139,46 +148,58 @@ export default function attachRenderTable(TaskList) {
                           if (e.key === "Enter" || e.key === " ") this.ViewTask(task);
                         }}
                       >
-                        <div className="task-line-top">
-                          <div>
-                            <h6 className="task-line-title">
-                              {task.Name} <small>({task.TaskId})</small>
-                            </h6>
-                            <div className="task-meta-inline">
-                              {task.CategoryName} / {task.SubCategoryName}
+                        <div className="task-line-content">
+                          <div className="task-line-top">
+                            <div className="task-line-main">
+                              <div className="task-line-header-row">
+                                <h6 className="task-line-title">{task.Name || "Untitled Task"}</h6>
+                                <span className="task-line-id">#{task.TaskId || "-"}</span>
+                                <span className="task-line-category">
+                                  {[task.CategoryName, task.SubCategoryName].filter(Boolean).join(" / ") || "-"}
+                                </span>
+                                <span className="task-chip task-chip-location">{task.Location || "-"}</span>
+                              </div>
+                              <div className="task-line-desc">{task.Description || "Routine maintenance check"}</div>
                             </div>
-                          </div>
 
-                          <span className="task-chip task-chip-location">{task.Location || "-"}</span>
-
-                          <div className="d-flex align-items-center justify-content-end">
-                            <span className={`task-chip task-chip-status ${getStatusClass(task.TaskStatus)}`}>{task.TaskStatus || "Pending"}</span>
-                            <div className="task-line-actions ml-3">
-                              <button className="btn btn-link task-action-edit" onClick={(e) => { e.stopPropagation(); this.EditTask(task); }} title="Edit Task" type="button">
-                                <i className="fa fa-pencil-square-o" />
-                              </button>
-                              <button className="btn btn-link task-action-delete" onClick={(e) => { e.stopPropagation(); this.DeleteTask(task); }} title="Delete Task" type="button">
-                                <i className="fa fa-trash-o" />
-                              </button>
-                              {task.EntryType === "PPM" ? (
-                                <button className="btn btn-link task-action-add" onClick={(e) => { e.stopPropagation(); this.AddQuestion(task); }} title="Add Question" type="button">
-                                  <i className="fa fa-plus-square-o" />
+                            <div className="task-line-side">
+                              <span className={`task-chip task-chip-status ${getStatusClass(task.TaskStatus)}`}>
+                                {String(task.TaskStatus || "").trim().toLowerCase() === "pending" ? (
+                                  <span className="task-status-dot" aria-hidden="true" />
+                                ) : null}
+                                {getDisplayStatus(task.TaskStatus)}
+                              </span>
+                              <div className="task-line-actions">
+                                <button className="btn btn-link task-action-edit" onClick={(e) => { e.stopPropagation(); this.EditTask(task); }} title="Edit Task" type="button">
+                                  <i className="fa fa-pencil-square-o" />
                                 </button>
-                              ) : null}
+                                <button className="btn btn-link task-action-delete" onClick={(e) => { e.stopPropagation(); this.DeleteTask(task); }} title="Delete Task" type="button">
+                                  <i className="fa fa-trash-o" />
+                                </button>
+                                {task.EntryType === "PPM" ? (
+                                  <button className="btn btn-link task-action-add" onClick={(e) => { e.stopPropagation(); this.AddQuestion(task); }} title="Add Question" type="button">
+                                    <i className="fa fa-plus-square-o" />
+                                  </button>
+                                ) : null}
+                              </div>
                             </div>
                           </div>
-                        </div>
 
-                        <div className="task-line-desc">{task.Description || "Routine maintenance check"}</div>
-
-                        <div className="task-line-bottom">
-                          <span>
-                            <i className="fa fa-refresh mr-1" />
-                            {task.OccurenceView || "-"}
-                          </span>
-                          <span className={`task-priority ${getPriorityClass(task.TaskPriority)}`}>{task.TaskPriority || "Normal Priority"}</span>
-                          <span>{task.AssignedTo || "-"}</span>
-                          <span>Task Date {getTaskDateDisplay(task.UpdatedOn)}</span>
+                          <div className="task-line-bottom">
+                            <span className="task-line-info-item">
+                              <i className="fa fa-refresh" />
+                              {task.OccurenceView || "-"}
+                            </span>
+                            <span className={`task-line-info-item task-priority ${getPriorityClass(task.TaskPriority)}`}>
+                              {task.TaskPriority || "Normal Priority"}
+                            </span>
+                            <span className="task-line-info-item">
+                              {task.AssignedTo || "-"}
+                            </span>
+                            <span className="task-line-info-item">
+                              Due {getTaskDateDisplay(task.UpdatedOn)}
+                            </span>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -186,17 +207,28 @@ export default function attachRenderTable(TaskList) {
 
                   {tasks.length > tablePageSize ? (
                     <div className="task-pager">
-                      <button className="btn btn-sm btn-outline-primary" disabled={currentPage <= 1} onClick={() => this.setState({ tablePage: currentPage - 1 })}>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={currentPage <= 1}
+                        onClick={() => this.setState({ tablePage: currentPage - 1 })}
+                        type="button"
+                      >
                         Prev
                       </button>
                       <span className="text-muted">
                         Page {currentPage} of {totalPages}
                       </span>
-                      <button className="btn btn-sm btn-outline-primary" disabled={currentPage >= totalPages} onClick={() => this.setState({ tablePage: currentPage + 1 })}>
+                      <button
+                        className="btn btn-sm btn-outline-primary"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => this.setState({ tablePage: currentPage + 1 })}
+                        type="button"
+                      >
                         Next
                       </button>
                     </div>
                   ) : null}
+
                 </>
               ) : null}
             </div>

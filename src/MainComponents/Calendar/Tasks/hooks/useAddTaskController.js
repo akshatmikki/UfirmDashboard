@@ -35,9 +35,10 @@ function getMissingRequiredField(form = {}) {
 }
 
 export default function useAddTaskController({ PropertyId, categoryData, type }) {
-  const [form, setForm] = useState(() => ({
-    taskName: "",
-    location: "",
+    const [form, setForm] = useState(() => ({
+      taskName: "",
+      description: "",
+      location: "",
     selectedCategory: "",
     selectedSubCategory: "",
     assignTo: "",
@@ -134,7 +135,7 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
         CategoryId: parseInt(form.selectedCategory),
         SubCategoryId: parseInt(form.selectedSubCategory),
         Name: form.taskName,
-        Description: "Desc",
+        Description: form.description,
         DateFrom: form.startDate,
         DateTo: form.endDate,
         TimeFrom: form.startTime,

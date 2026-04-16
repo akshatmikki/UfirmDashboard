@@ -14,6 +14,8 @@ export default function TaskDetailsForm({
   taskId,
   taskName,
   onTaskNameChange,
+  description,
+  onDescriptionChange,
   propertyId,
   propertyOptions,
   location,
@@ -84,16 +86,13 @@ export default function TaskDetailsForm({
         return setHours(setMinutes(new Date(), nextTime.getMinutes()), nextTime.getHours());
       })()
     : defaultMinTime;
+  const pickerInputClass = "form-control task-picker-input";
 
   return (
     <div className="add-task-form task-details-grid">
-      {showTaskId ? (
-        <TaskField label="Task Id">
-          <input className="form-control" value={taskId || ""} disabled />
-        </TaskField>
-      ) : null}
+     
 
-      <TaskField label="Task Name*">
+      <TaskField label="Task Name*" className="task-field--wide">
         {readOnly ? (
           <input className="form-control" value={taskName || ""} disabled />
         ) : (
@@ -205,7 +204,7 @@ export default function TaskDetailsForm({
           />
         ) : (
           <ReactDatePicker
-            className="form-control"
+            customInput={<input className={pickerInputClass} />}
             selected={startDateIsDate ? startDate : new Date()}
             dateFormat="dd/MM/yyyy"
             placeholderText="dd/mm/yyyy"
@@ -223,7 +222,7 @@ export default function TaskDetailsForm({
           />
         ) : (
           <ReactDatePicker
-            className="form-control"
+            customInput={<input className={pickerInputClass} />}
             selected={endDateIsDate ? endDate : new Date()}
             dateFormat="dd/MM/yyyy"
             minDate={minEndDate}
@@ -242,7 +241,7 @@ export default function TaskDetailsForm({
           />
         ) : (
           <ReactDatePicker
-            className="form-control"
+            customInput={<input className={pickerInputClass} />}
             selected={startTimeIsDate ? startTime : new Date()}
             onChange={(d) => onStartTimeChange?.(d)}
             showTimeSelect
@@ -265,7 +264,7 @@ export default function TaskDetailsForm({
           />
         ) : (
           <ReactDatePicker
-            className="form-control"
+            customInput={<input className={pickerInputClass} />}
             selected={endTimeIsDate ? endTime : new Date()}
             onChange={(d) => onEndTimeChange?.(d)}
             showTimeSelect
@@ -321,6 +320,19 @@ export default function TaskDetailsForm({
             onChange={(e) => onAllDayChange?.(e.target.checked)}
           />
         </label>
+      </TaskField>
+
+      <TaskField label="Description" className="task-field--full">
+        {readOnly ? (
+          <textarea className="form-control task-description-box" value={description || ""} disabled />
+        ) : (
+          <textarea
+            className={`form-control task-description-box ${isInvalid("description") ? "task-input-error" : ""}`}
+            value={description || ""}
+            placeholder="Enter task description"
+            onChange={(e) => onDescriptionChange?.(e.target.value)}
+          />
+        )}
       </TaskField>
     </div>
   );

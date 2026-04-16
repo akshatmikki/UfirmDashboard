@@ -62,6 +62,7 @@ const displayNameMap = {
   PerfAll: "Performance Allowance",
   SplAll: "Special Allowance",
   Wash: "Washing Allowance",
+  LoanEMI: "Loan EMI",
 };
 
 const boxStyle = {
@@ -538,7 +539,7 @@ export default function GenerateSalary() {
 
     // Also include numeric keys present in row that look like deductions but not already included
     // Common deduction candidates by key substring
-    const deductionCandidates = ["PF", "ESI", "PFT", "LWF", "FOOD", "ACCOMMODATION", "UNIFORM", "ABC"]; // substring hints
+    const deductionCandidates = ["PF", "ESI", "PFT", "LWF", "FOOD", "ACCOMMODATION", "UNIFORM", "ABC", "LOAN", "EMI"]; // substring hints
     for (const k of rowKeys) {
       if (found.includes(k)) continue;
 
@@ -887,6 +888,12 @@ export default function GenerateSalary() {
           <td class="v-bold">${row.FHAmount || 0}</td>
           <td>Joining Kits</td>
           <td>${row.Joiningkits || 0}</td>
+        </tr>
+        <tr class="no-horiz-border">
+          <td></td>
+          <td></td>
+          <td>Loan EMI</td>
+          <td class="v-light">${row.LoanEMI || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>Education Allowance</td>
