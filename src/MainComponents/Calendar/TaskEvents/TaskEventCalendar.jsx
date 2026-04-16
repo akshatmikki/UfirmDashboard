@@ -3,6 +3,7 @@ import { Calendar, Views, momentLocalizer } from "react-big-calendar";
 // import events from './events';
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import "./Event.css";
 
 import { EditorState, ContentState } from "draft-js";
 import htmlToDraft from "html-to-draftjs";
@@ -457,7 +458,7 @@ class TaskEventCalendar extends Component {
         {this.state.PageMode === "Home" && (
           <div className="row">
             <div className="col-12">
-              <div className="card">
+              <div className="card task-calendar-shell">
                 <div className="card-header d-flex p-0">
                   <ul className="nav ml-auto tableFilterContainer">
                     {/* <li className="nav-item">

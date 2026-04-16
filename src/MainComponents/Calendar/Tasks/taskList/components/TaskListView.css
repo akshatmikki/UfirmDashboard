@@ -8,6 +8,7 @@
   border: 1px solid #d8e0e8;
   background: #ffffff;
   overflow: hidden;
+  zoom: 0.9; /* Added to simulate 90% browser zoom */
 }
 
 .task-summary-grid {
