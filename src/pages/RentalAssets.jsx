@@ -599,7 +599,7 @@ const RentalAssets = ({ propId, history }) => {
               <span>Asset Master</span>
             </div>
 
-            <div className={`rental-assets-layout ${selectedAsset ? "has-side-panel" : ""}`}>
+            <div className={`rental-assets-layout ${selectedAsset && !showActionModal ? "has-side-panel" : ""}`}>
               <div className="rental-assets-main-card">
                 <div className="rental-assets-tabs">
                   <button type="button" className="rental-assets-tab" onClick={() => history.push("/Account/App/AssetsMaster")}>
@@ -723,7 +723,7 @@ const RentalAssets = ({ propId, history }) => {
                 ) : null}
 
                 <LoadingOverlay active={loading} spinner={<PropagateLoader color="#336B93" size={16} />}>
-                  <div className={`rental-assets-table-wrap ${selectedAssetId ? "has-selection" : ""}`.trim()}>
+                  <div className={`rental-assets-table-wrap ${selectedAssetId && !showActionModal ? "has-selection" : ""}`.trim()}>
                     <table className="table rental-assets-table mb-0">
                       <thead>
                         <tr>
@@ -774,7 +774,7 @@ const RentalAssets = ({ propId, history }) => {
                 </LoadingOverlay>
               </div>
 
-              {selectedAsset ? (panelMode === "edit" ? renderEditPanel() : renderDetailsPanel()) : null}
+              {!showActionModal && selectedAsset ? (panelMode === "edit" ? renderEditPanel() : renderDetailsPanel()) : null}
             </div>
 
             {showActionModal && (selectedAsset || filteredAssets[0]) ? (

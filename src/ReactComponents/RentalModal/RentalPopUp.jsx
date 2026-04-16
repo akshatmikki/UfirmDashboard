@@ -4,14 +4,23 @@ import ReturnAsset from "../../pages/ReturnAssetPage";
 import RentOut from "../../pages/RentOutAssetPage";
 import "./RentalPopUp.css";
 
+const getInitialMode = (actionType, asset) => {
+  if (actionType === "return") return "rentin";
+  if (actionType === "rentout") return "rentout";
+
+  const rentOutTime = asset?.RentedOutDate ? new Date(asset.RentedOutDate).getTime() : 0;
+  const returnTime = asset?.ReturnDate ? new Date(asset.ReturnDate).getTime() : 0;
+  return rentOutTime > returnTime ? "rentin" : "rentout";
+};
+
 function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
-  const [activeMode, setActiveMode] = useState(actionType === "return" ? "rentin" : "rentout");
+  const [activeMode, setActiveMode] = useState(getInitialMode(actionType, asset));
 
   useEffect(() => {
     if (show) {
-      setActiveMode(actionType === "return" ? "rentin" : "rentout");
+      setActiveMode(getInitialMode(actionType, asset));
     }
-  }, [show, actionType]);
+  }, [show, actionType, asset]);
 
   const title = useMemo(() => {
     if (actionType === "return") return "Rent-in asset";
