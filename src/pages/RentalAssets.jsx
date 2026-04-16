@@ -16,9 +16,9 @@ const statusOptions = {
 };
 
 const leaseOptions = {
-  in: { label: "In", key: "in" },
+  returned: { label: "Return", key: "return" },
   out: { label: "Out", key: "out" },
-  open: { label: "Open", key: "open" },
+  return: { label: "Return", key: "return" },
 };
 
 const normalizeDate = (value) => {
@@ -100,12 +100,13 @@ const getStatusMeta = (asset = {}) => {
 
 const getLeaseMeta = (asset = {}) => {
   const raw = String(asset.LeaseType || asset.Lease || "").trim().toLowerCase();
-  if (raw === "in") return leaseOptions.in;
+  if (raw === "in" || raw === "return" || raw === "returned") return leaseOptions.return;
   if (raw === "out") return leaseOptions.out;
-  if (raw === "open") return leaseOptions.open;
-  if (asset.ReturnDate === null && asset.RentedOutDate) return leaseOptions.out;
-  if (asset.ReturnDate) return leaseOptions.in;
-  return leaseOptions.open;
+  const rentOutTime = asset?.RentedOutDate ? new Date(asset.RentedOutDate).getTime() : 0;
+  const returnTime = asset?.ReturnDate ? new Date(asset.ReturnDate).getTime() : 0;
+  if (returnTime && returnTime >= rentOutTime) return leaseOptions.return;
+  if (rentOutTime) return leaseOptions.out;
+  return leaseOptions.return;
 };
 
 const buildEditForm = (asset = {}) => ({

@@ -438,7 +438,7 @@
   font-weight: 500;
 }
 
-.rental-lease-in {
+.rental-lease-return {
   background: #ececec;
   color: #5f6368;
 }
@@ -446,11 +446,6 @@
 .rental-lease-out {
   background: #efe5ff;
   color: #722de1;
-}
-
-.rental-lease-open {
-  background: #e7f5ff;
-  color: #1690da;
 }
 
 .rental-status-running {
