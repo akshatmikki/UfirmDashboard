@@ -785,7 +785,7 @@ const RentalAssets = ({ propId, history }) => {
                               <td>
                                 <div className="rental-row-actions" onClick={(e) => e.stopPropagation()}>
                                   <button type="button" className="rental-icon-btn" title="Edit" onClick={() => handleEditClick(asset)}>
-                                    <i className="fa fa-pencil" aria-hidden="true" />
+                                    <i className="fa fa-pencil-square-o" aria-hidden="true" />
                                   </button>
                                   <button type="button" className="rental-icon-btn" title="Delete" onClick={() => handleDeleteClick(asset)}>
                                     <i className="fa fa-trash-o" aria-hidden="true" />

@@ -716,7 +716,7 @@ class AssetsMaster extends Component {
                     <td className="col-actions">
                       <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
-                          <i className="fa fa-pencil" aria-hidden="true" />
+                          <i className="fa fa-pencil-square-o" aria-hidden="true" />
                         </button>
                         <button type="button" className="asset-owned-icon-btn" title="Delete" onClick={() => this.onGridDelete(asset.Id)}>
                           <i className="fa fa-trash-o" aria-hidden="true" />

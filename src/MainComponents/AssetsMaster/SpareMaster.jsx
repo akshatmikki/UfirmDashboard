@@ -774,10 +774,10 @@ const SparePage = () => {
                               </td>
                               <td onClick={(e) => e.stopPropagation()}>
                                 <button type="button" className="btn btn-sm btn-info" title="Edit" onClick={() => openEditPanel(row)}>
-                                  <i className="fa fa-pencil" aria-hidden="true" />
+                                  <i className="fa fa-pencil-square-o" aria-hidden="true" />
                                 </button>
                                 <button type="button" className="btn btn-sm btn-danger" title="Delete" onClick={() => confirmDelete(row)}>
-                                  <i className="fa fa-trash" aria-hidden="true" />
+                                  <i className="fa fa-trash-o" aria-hidden="true" />
                                 </button>
                               </td>
                             </tr>
