@@ -193,7 +193,7 @@
   flex-direction: column;
   gap: 20px;
   padding: 24px;
-  background: #ffffff;
+  background: #fafafa;
   border: 1px solid rgba(19, 23, 32, 0.1);
   border-radius: 12px;
   margin: 0 20px 24px;
@@ -1180,6 +1180,17 @@
   border-radius: 4px;
 }
 
+.asset-master-main-card:not(.asset-delete-modal):not(.asset-success-modal) .asset-dialog-actions .btn {
+  height: 44px;
+  padding: 8px 16px;
+}
+
+.asset-master-main-card:not(.asset-delete-modal):not(.asset-success-modal) .asset-dialog-actions .btn-light {
+  border: 1px solid rgba(19, 23, 32, 0.15);
+  background: #fff;
+  color: #131720;
+}
+
 .asset-dialog-assetbox {
   margin-top: 14px;
   background: #d7e8ff;
@@ -1678,6 +1689,11 @@
   gap: 12px;
   padding: 14px 16px 16px;
   border-top: 1px solid #eef3f8;
+}
+
+.spare-add-footer .btn-primary {
+  background: #1f4e7a;
+  border-color: #1f4e7a;
 }
 
 @media (max-width: 991px) {
