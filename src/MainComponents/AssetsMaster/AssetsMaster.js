@@ -1077,9 +1077,10 @@ class AssetsMaster extends Component {
                 <label>Service reminder</label>
                 <select className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}>
                   <option value="">Select reminder</option>
-                  <option value="1">1 day before</option>
-                  <option value="3">3 days before</option>
-                  <option value="7">1 week before</option>
+                  <option value="1">One Day Prior</option>
+                  <option value="7">One Week Prior</option>
+                  <option value="15">15 Days Prior</option>
+                  <option value="30">One Month Prior</option>
                 </select>
               </div>
 
