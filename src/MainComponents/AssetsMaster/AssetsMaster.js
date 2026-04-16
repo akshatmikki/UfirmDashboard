@@ -61,6 +61,7 @@ class AssetsMaster extends Component {
       ImageData: null,
       AssetImage: "",
       ImageExt: "",
+      assetImageFileName: "",
       showImagefiletype: null,
       showImagefile: null,
       extension: null,
@@ -71,21 +72,18 @@ class AssetsMaster extends Component {
       Capacity: "",
       AMCdoc: null,
       AMCimage: "",
+      amcFileName: "",
       status: false,
       category: "",
       location: "",
       serviceReminderDay: "",
       searchTerm: "",
       showFilterPanel: false,
-      filterAssetType: "",
-      filterStatus: "",
-      filterMoveable: "",
-      filterRentable: "",
-      filterDueFrom: "",
-      filterDueTo: "",
-      filterCategory: "",
-      filterLocation: "",
       filterCapacity: "",
+      filterVendor: "",
+      filterManufacturer: "",
+      filterServiceStatus: "",
+      filterType: "",
       selectedRowId: null,
       showCancelConfirm: false,
       cancelConfirmType: "",
@@ -93,6 +91,8 @@ class AssetsMaster extends Component {
       deleteTarget: null,
       showSuccessModal: false,
       successType: "",
+      PurchaseDate: "",
+      WarrantyDate: "",
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -146,6 +146,27 @@ class AssetsMaster extends Component {
     return `data:${mimeType};base64,${raw}`;
   };
 
+  openDocumentUrl = (src) => {
+    if (!src) return;
+    if (src.startsWith("http://") || src.startsWith("https://")) {
+      window.open(src, "_blank", "noopener,noreferrer");
+      return;
+    }
+    // Chrome blocks opening data: URLs via target="_blank"; open in new window instead
+    const win = window.open("", "_blank");
+    if (!win) return;
+    if (src.startsWith("data:application/pdf")) {
+      win.document.write(
+        `<html><body style="margin:0;padding:0"><embed src="${src}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+      );
+    } else {
+      win.document.write(
+        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${src}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
+      );
+    }
+    win.document.close();
+  };
+
   getAssetStatusMeta = (item = {}) => {
     const rawStatus = item?.Status;
     if (typeof rawStatus === "string" && rawStatus && rawStatus !== "true" && rawStatus !== "false") {
@@ -181,6 +202,8 @@ class AssetsMaster extends Component {
       location: this.state.location,
       serviceReminderDay: this.state.serviceReminderDay,
       propertyId: this.props.PropertyId,
+      PurchaseDate: this.state.PurchaseDate,
+      WarrantyDate: this.state.WarrantyDate,
       ...overrides,
     },
   ];
@@ -251,6 +274,7 @@ class AssetsMaster extends Component {
         ImageData: null,
         AssetImage: "",
         ImageExt: "",
+        assetImageFileName: "",
         LastServiceDate: "",
         NextServiceDate: "",
         IsRentable: false,
@@ -258,10 +282,13 @@ class AssetsMaster extends Component {
         Capacity: "",
         AMCdoc: null,
         AMCimage: "",
+        amcFileName: "",
         status: false,
         category: "",
         location: "",
         serviceReminderDay: "",
+        PurchaseDate: "",
+        WarrantyDate: "",
       },
       () => CreateValidator()
     );
@@ -287,6 +314,14 @@ class AssetsMaster extends Component {
       AssetType: rowData.AssetType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
       AMCimage: rowData.AMCdoc || rowData.AMCimage || "",
+      assetImageFileName:
+        rowData.AssetImageName ||
+        rowData.ImageName ||
+        ((rowData.AssetImage || rowData.Image) ? `Existing image${rowData.ImageExt ? `.${rowData.ImageExt}` : ""}` : ""),
+      amcFileName:
+        rowData.AMCdocName ||
+        rowData.AMCimageName ||
+        ((rowData.AMCdoc || rowData.AMCimage) ? "Existing document" : ""),
       showImagefiletype: rowData.ImageExt || null,
       showImagefile: rowData.Image || null,
       extension: rowData.ImageExt || null,
@@ -294,6 +329,8 @@ class AssetsMaster extends Component {
       category: rowData.Category || "",
       location: rowData.Location || "",
       serviceReminderDay: rowData.serviceReminderDay || "",
+      PurchaseDate: this.normalizeDate(rowData.PurchaseDate),
+      WarrantyDate: this.normalizeDate(rowData.WarrantyDate),
     });
   };
 
@@ -330,7 +367,7 @@ class AssetsMaster extends Component {
     const valid = ["jpg", "jpeg", "png", "pdf"];
     const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
     if (valid.includes(extension)) {
-      this.setState({ ImageData: selected });
+      this.setState({ ImageData: selected, assetImageFileName: selected.name });
       return;
     }
     appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
@@ -342,7 +379,7 @@ class AssetsMaster extends Component {
     const valid = ["jpg", "jpeg", "png", "pdf"];
     const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
     if (valid.includes(extension)) {
-      this.setState({ AMCdoc: selected });
+      this.setState({ AMCdoc: selected, amcFileName: selected.name });
       return;
     }
     appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
@@ -413,6 +450,7 @@ class AssetsMaster extends Component {
         ImageData: null,
         AssetImage: "",
         ImageExt: "",
+        assetImageFileName: "",
         showImagefiletype: null,
         showImagefile: null,
         extension: null,
@@ -423,10 +461,13 @@ class AssetsMaster extends Component {
         Capacity: "",
         AMCdoc: null,
         AMCimage: "",
+        amcFileName: "",
         status: false,
         category: "",
         location: "",
         serviceReminderDay: "",
+        PurchaseDate: "",
+        WarrantyDate: "",
       },
       this.loadHomagePageData
     );
@@ -437,15 +478,11 @@ class AssetsMaster extends Component {
   resetFilters = () => {
     this.setState({
       searchTerm: "",
-      filterAssetType: "",
-      filterStatus: "",
-      filterMoveable: "",
-      filterRentable: "",
-      filterDueFrom: "",
-      filterDueTo: "",
-      filterCategory: "",
-      filterLocation: "",
       filterCapacity: "",
+      filterVendor: "",
+      filterManufacturer: "",
+      filterServiceStatus: "",
+      filterType: "",
     });
   };
 
@@ -459,40 +496,80 @@ class AssetsMaster extends Component {
         <div className="asset-filter-header">
           <span className="asset-filter-title">Filters</span>
           <button className="asset-filter-reset" type="button" onClick={this.resetFilters}>
-            <i className="fa fa-times mr-1" />
+            <i className="fa fa-times" />
             Reset All
           </button>
         </div>
-        <div className="asset-filter-field">
-          <label>Asset type</label>
-          <select className="form-control" value={this.state.filterAssetType} onChange={(e) => this.setState({ filterAssetType: e.target.value })}>
-            <option value="">Enter name</option>
-            <option value="Machine/Equipment">Machine/Equipment</option>
-            <option value="MeasuringEnquipment">Measuring Equipment</option>
-            <option value="Facility">Facility</option>
-          </select>
-        </div>
-        <div className="asset-filter-field">
-          <label>Location</label>
-          <input type="text" className="form-control" placeholder="Enter name" value={this.state.filterLocation} onChange={(e) => this.setState({ filterLocation: e.target.value })} />
-        </div>
-        <div className="asset-filter-field asset-filter-field-full">
-          <label>Status</label>
-          <div className="asset-filter-chip-row">
-            {[{ label: "Running", value: "true" }, { label: "Inactive", value: "false" }].map((item) => (
-              <button
-                key={item.value}
-                type="button"
-                className={`asset-filter-chip ${this.state.filterStatus === item.value ? "active" : ""}`}
-                onClick={() => this.setState({ filterStatus: this.state.filterStatus === item.value ? "" : item.value })}
-              >
-                {item.label}
-              </button>
-            ))}
+
+        <div className="asset-filter-grid">
+          <div className="asset-filter-field">
+            <label>Vendor</label>
+            <select className="form-control" value={this.state.filterVendor} onChange={(e) => this.setState({ filterVendor: e.target.value })}>
+              <option value="">Enter name</option>
+              <option value="vendor1">Vendor 1</option>
+              <option value="vendor2">Vendor 2</option>
+            </select>
+          </div>
+          <div className="asset-filter-field">
+            <label>Manufacturer</label>
+            <select className="form-control" value={this.state.filterManufacturer} onChange={(e) => this.setState({ filterManufacturer: e.target.value })}>
+              <option value="">Enter name</option>
+              <option value="manfb1">Manufacturer 1</option>
+              <option value="manfb2">Manufacturer 2</option>
+            </select>
+          </div>
+
+          <div className="asset-filter-field asset-filter-field-full">
+            <label>Type</label>
+            <div className="asset-filter-chip-row">
+              {["Rented in", "Rented Out", "In house"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`asset-filter-chip ${this.state.filterType === item ? "active" : ""}`}
+                  onClick={() => this.setState({ filterType: this.state.filterType === item ? "" : item })}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="asset-filter-field asset-filter-field-full">
+            <label>Status</label>
+            <div className="asset-filter-chip-row">
+              {["Running", "Servicing", "Inactive"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`asset-filter-chip ${this.state.filterStatus === item ? "active" : ""}`}
+                  onClick={() => this.setState({ filterStatus: this.state.filterStatus === item ? "" : item })}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="asset-filter-field asset-filter-field-full">
+            <label>Service Status</label>
+            <div className="asset-filter-chip-row">
+              {["Due", "Upcoming", "Overdue"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`asset-filter-chip ${this.state.filterServiceStatus === item ? "active" : ""}`}
+                  onClick={() => this.setState({ filterServiceStatus: this.state.filterServiceStatus === item ? "" : item })}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
+
         <div className="asset-filter-popup-footer">
-          <button className="btn btn-primary asset-filter-apply" type="button" onClick={this.closeFilterPopup}>
+          <button className="asset-filter-apply" type="button" onClick={this.closeFilterPopup}>
             Apply filters
           </button>
         </div>
@@ -513,15 +590,11 @@ class AssetsMaster extends Component {
 
       return (
         (!search || rowId.includes(search) || rowName.includes(search)) &&
-        (!this.state.filterAssetType || rowType === this.state.filterAssetType) &&
-        (this.state.filterStatus === "" || this.normalizeBoolean(item?.Status) === this.normalizeBoolean(this.state.filterStatus)) &&
-        (this.state.filterMoveable === "" || this.normalizeBoolean(item?.IsMoveable) === this.normalizeBoolean(this.state.filterMoveable)) &&
-        (this.state.filterRentable === "" || this.normalizeBoolean(item?.IsRentable) === this.normalizeBoolean(this.state.filterRentable)) &&
-        (!this.state.filterCategory || rowCategory.includes(String(this.state.filterCategory).toLowerCase().trim())) &&
-        (!this.state.filterLocation || rowLocation.includes(String(this.state.filterLocation).toLowerCase().trim())) &&
-        (!this.state.filterCapacity || rowCapacity.includes(String(this.state.filterCapacity).toLowerCase().trim())) &&
-        (!this.state.filterDueFrom || !rowNextServiceDate || rowNextServiceDate >= this.state.filterDueFrom) &&
-        (!this.state.filterDueTo || !rowNextServiceDate || rowNextServiceDate <= this.state.filterDueTo)
+        (!this.state.filterManufacturer || String(item?.Manufacturer || "").toLowerCase().includes(this.state.filterManufacturer.toLowerCase())) &&
+        (!this.state.filterVendor || String(item?.Vendor || "").toLowerCase().includes(this.state.filterVendor.toLowerCase())) &&
+        (!this.state.filterStatus || this.getAssetStatusMeta(item).label === this.state.filterStatus) &&
+        (!this.state.filterType || String(item?.AssetType || "").toLowerCase().includes(this.state.filterType.toLowerCase())) &&
+        (!this.state.filterServiceStatus || this.getAssetStatusMeta(item).serviceStatus === this.state.filterServiceStatus)
       );
     });
 
@@ -550,16 +623,15 @@ class AssetsMaster extends Component {
 
   renderOwnedAssetsTable = (rows) => (
     <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
-      <div className={`asset-owned-table-scroll ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
-        <table className="table asset-owned-table mb-0">
+      <table className="table asset-owned-table custTable table-hover mb-0">
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Location</th>
-              <th>Service due</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th className="col-id" style={{ width: "70px" }}>ID</th>
+              <th className="col-name">Name</th>
+              <th className="col-location">Location</th>
+              <th className="col-date" style={{ width: "110px" }}>Service due</th>
+              <th className="col-status" style={{ width: "100px" }}>Status</th>
+              <th className="col-actions" style={{ width: "100px" }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -570,17 +642,17 @@ class AssetsMaster extends Component {
                 return (
                   <tr
                     key={asset.Id}
-                    className={isSelected ? "active" : ""}
+                    className={isSelected ? "grid-selected-row active" : ""}
                     onClick={() => this.onGridRowSelect(asset.Id)}
                   >
-                    <td>{asset.Id || "-"}</td>
-                    <td>{asset.Name || "-"}</td>
-                    <td>{asset.Location || asset.location || "-"}</td>
-                    <td>{this.formatDisplayDate(asset.NextServiceDate)}</td>
-                    <td>
+                    <td className="col-id">{asset.Id || "-"}</td>
+                    <td className="col-name">{asset.Name || "-"}</td>
+                    <td className="col-location">{asset.Location || asset.location || "-"}</td>
+                    <td className="col-date">{this.formatDisplayDate(asset.NextServiceDate)}</td>
+                    <td className="col-status">
                       <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
                     </td>
-                    <td>
+                    <td className="col-actions">
                       <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
                           <i className="fa fa-pencil" aria-hidden="true" />
@@ -600,7 +672,6 @@ class AssetsMaster extends Component {
             )}
           </tbody>
         </table>
-      </div>
     </div>
   );
 
@@ -702,7 +773,11 @@ class AssetsMaster extends Component {
                     <i className="fa fa-picture-o" />
                   </div>
                   {imageSource ? (
-                    <a href={imageSource} target="_blank" rel="noopener noreferrer" className="asset-doc-link-text">Asset photo</a>
+                    <button
+                      type="button"
+                      className="asset-doc-link-text"
+                      onClick={() => this.openDocumentUrl(imageSource)}
+                    >Asset photo</button>
                   ) : (
                     <span className="asset-doc-link-text disabled">Asset photo</span>
                   )}
@@ -712,7 +787,11 @@ class AssetsMaster extends Component {
                     <i className="fa fa-file-text-o" />
                   </div>
                   {amcSource ? (
-                    <a href={amcSource} target="_blank" rel="noopener noreferrer" className="asset-doc-link-text">AMC Contract</a>
+                    <button
+                      type="button"
+                      className="asset-doc-link-text"
+                      onClick={() => this.openDocumentUrl(amcSource)}
+                    >AMC Contract</button>
                   ) : (
                     <span className="asset-doc-link-text disabled">AMC Contract</span>
                   )}
@@ -734,7 +813,7 @@ class AssetsMaster extends Component {
   };
 
 
-  renderAssetFormPanel = () => {
+  renderAssetForm = () => {
     const isEditMode = this.state.PageMode === "Edit";
     return (
       <div className={`asset-side-panel asset-side-panel-form ${isEditMode ? "asset-side-panel-form-edit" : ""}`.trim()}>
@@ -847,11 +926,13 @@ class AssetsMaster extends Component {
             <div className="form-group asset-form-group-custom">
               <label>Asset image</label>
               <DocumentUploader Id="assetImageUpload" Class="form-control" type="file" onChange={this.onFileChange} />
+              <small className="asset-upload-file-name">{this.state.assetImageFileName || "No file chosen"}</small>
             </div>
 
             <div className="form-group asset-form-group-custom">
               <label>AMC contract</label>
               <DocumentUploader Id="assetAmcUpload" Class="form-control" type="file" onChange={this.onAMCFileChange} />
+              <small className="asset-upload-file-name">{this.state.amcFileName || "No file chosen"}</small>
             </div>
           </div>
         </div>
@@ -883,9 +964,9 @@ class AssetsMaster extends Component {
             <div className="asset-add-id-row">
               <div className="asset-add-id-left">
                 <span className="asset-add-id-label">ID</span>
-                <span className="asset-add-id-value">{this.state.Id ? `#${this.state.Id}` : "#NEW"}</span>
+                <span className="asset-add-id-value">{this.state.Id ? `#${this.state.Id}` : "#1234"}</span>
               </div>
-              <button type="button" className="asset-add-generate" disabled>
+              <button type="button" className="asset-add-generate">
                 <i className="fa fa-qrcode" aria-hidden="true" />
                 Generate QR code
               </button>
@@ -895,7 +976,6 @@ class AssetsMaster extends Component {
               <div className="form-group asset-form-group-custom">
                 <label>Name</label>
                 <input
-                  id="txtDocumentType"
                   type="text"
                   className="form-control"
                   placeholder="Add name"
@@ -917,7 +997,7 @@ class AssetsMaster extends Component {
               <div className="form-group asset-form-group-custom asset-add-span-2">
                 <label>Description</label>
                 <textarea
-                  rows="4"
+                  rows="3"
                   className="form-control"
                   placeholder="Category description"
                   value={this.state.Description}
@@ -949,12 +1029,22 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Last service</label>
-                <input type="date" className="form-control" value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={this.state.LastServiceDate} 
+                  onChange={(e) => this.setState({ LastServiceDate: e.target.value })} 
+                />
               </div>
 
               <div className="form-group asset-form-group-custom">
                 <label>Next service</label>
-                <input type="date" className="form-control" value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={this.state.NextServiceDate} 
+                  onChange={(e) => this.setState({ NextServiceDate: e.target.value })} 
+                />
               </div>
 
               <div className="form-group asset-form-group-custom">
@@ -985,25 +1075,82 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Service reminder</label>
-                <input
-                  type="text"
-                  className="form-control"
-                  placeholder=""
-                  value={this.state.serviceReminderDay}
-                  onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
-                />
+                <select className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}>
+                  <option value="">Select reminder</option>
+                  <option value="1">1 day before</option>
+                  <option value="3">3 days before</option>
+                  <option value="7">1 week before</option>
+                </select>
               </div>
 
               <div className="form-group asset-form-group-custom">
                 <label>Location</label>
-                <input type="text" className="form-control" value={this.state.location} onChange={(e) => this.setState({ location: e.target.value })} />
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Location"
+                  value={this.state.location} 
+                  onChange={(e) => this.setState({ location: e.target.value })} 
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Date of Purchase</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={this.state.PurchaseDate} 
+                  onChange={(e) => this.setState({ PurchaseDate: e.target.value })} 
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Value</label>
+                <div className="asset-input-icon-wrapper">
+                  <span className="asset-input-icon">₹</span>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder=""
+                    value={this.state.AssetValue} 
+                    onChange={(e) => this.setState({ AssetValue: e.target.value })} 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Warranty date</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  value={this.state.WarrantyDate} 
+                  onChange={(e) => this.setState({ WarrantyDate: e.target.value })} 
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Warranty document</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
+                  <i className="fa fa-file-text-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+                </div>
+              </div>
+
+              <div className="form-group asset-form-group-custom asset-add-span-2">
+                <label>Asset image</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.assetImageFileName || ""} readOnly />
+                  <i className="fa fa-picture-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
+                </div>
               </div>
             </div>
           </div>
 
           <div className="asset-add-footer">
-            <Button id="btnSave" Text="Save" Action={this.handleSave} ClassName="btn btn-primary asset-add-btn-save" />
-            <Button id="btnCancel" Text="Cancel" Action={() => this.requestCancelConfirm("add")} ClassName="btn btn-light asset-add-btn-cancel" />
+            <button type="button" className="btn btn-primary asset-add-btn-save" onClick={this.handleSave}>Save</button>
+            <button type="button" className="btn btn-light asset-add-btn-cancel" onClick={() => this.requestCancelConfirm("add")}>Cancel</button>
           </div>
         </div>
       </div>
@@ -1133,7 +1280,7 @@ class AssetsMaster extends Component {
 
   renderSidePanel = () => {
     if (this.state.PageMode === "View") return this.renderAssetDetailsPanel();
-    if (this.state.PageMode === "Add" || this.state.PageMode === "Edit") return this.renderAssetFormPanel();
+    if (this.state.PageMode === "Add" || this.state.PageMode === "Edit") return this.renderAssetForm();
     return null;
   };
 
@@ -1159,7 +1306,7 @@ class AssetsMaster extends Component {
           <span>Asset Master</span>
         </div>
 
-        <div className={`asset-master-layout asset-master-layout-owned ${hasSidePanel ? "has-side-panel" : ""}`}>
+        <div className={`asset-master-layout ${hasSidePanel ? "has-side-panel" : ""}`}>
           <div className="asset-master-main-card">
             <div className="asset-master-tabs">
              <button
@@ -1210,13 +1357,13 @@ class AssetsMaster extends Component {
 
               <div className="asset-master-toolbar-actions">
                 <button className={`btn asset-toolbar-filter ${this.state.showFilterPanel ? "active" : ""}`} type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
-                  <i className="fa fa-sliders mr-1" />
+                  <i className="fa fa-sliders" aria-hidden="true" />
                   Filter
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
                 </button>
                 <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
                 <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>
-                  <i className="fa fa-plus mr-1" />
+                  <i className="fa fa-plus" aria-hidden="true" />
                   Add asset
                 </button>
               </div>

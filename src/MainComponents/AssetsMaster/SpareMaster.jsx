@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Toast } from "primereact/toast";
@@ -71,9 +71,11 @@ const SparePage = () => {
 
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterVendor, setFilterVendor] = useState("");
+  const [filterManufacturer, setFilterManufacturer] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterAssetId, setFilterAssetId] = useState("");
+  const [filterServiceStatus, setFilterServiceStatus] = useState("");
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [assetId, setAssetId] = useState("");
@@ -243,9 +245,12 @@ const SparePage = () => {
       const passesType = !filterType || String(row?.SpareType || "").toLowerCase().includes(String(filterType).toLowerCase());
       const passesStatus = !filterStatus || statusMeta(row?.Status).label === filterStatus;
       const passesAsset = !filterAssetId || String(row?.AssetID ?? "") === String(filterAssetId);
-      return passesQuery && passesVendor && passesType && passesStatus && passesAsset;
+      const passesManufacturer = !filterManufacturer || String(row?.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());
+      const passesServiceStatus = !filterServiceStatus || (row?.ServiceStatus === filterServiceStatus);
+
+      return passesQuery && passesVendor && passesType && passesStatus && passesAsset && passesManufacturer && passesServiceStatus;
     });
-  }, [spares, searchTerm, filterVendor, filterType, filterStatus, filterAssetId]);
+  }, [spares, searchTerm, filterVendor, filterType, filterStatus, filterAssetId, filterManufacturer, filterServiceStatus]);
 
   const selectedRow = useMemo(() => (spares || []).find((row) => Number(row.SpareID) === Number(selectedSpareId)) || null, [spares, selectedSpareId]);
 
@@ -325,9 +330,11 @@ const SparePage = () => {
 
   const resetFilters = () => {
     setFilterVendor("");
+    setFilterManufacturer("");
     setFilterStatus("");
     setFilterType("");
     setFilterAssetId("");
+    setFilterServiceStatus("");
   };
 
   const closeFilterPopup = () => setShowFilterPanel(false);
@@ -411,10 +418,25 @@ const SparePage = () => {
                 <span key={index} className={filled ? "filled" : ""} />
               ))}
             </div>
-            <button type="button" className="asset-link-btn spare-photo-link" disabled>
-              <i className="fa fa-file-image-o mr-1" aria-hidden="true" />
-              Spare-part photo
-            </button>
+            {(() => {
+              const photoSrc = selectedRow?.Image || selectedRow?.Photo || selectedRow?.AssetImage || selectedRow?.ImageUrl || "";
+              if (photoSrc) {
+                const openPhoto = () => {
+                  const raw = String(photoSrc);
+                  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+                    window.open(raw, "_blank", "noopener,noreferrer");
+                    return;
+                  }
+                  const imgSrc = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
+                  const win = window.open("", "_blank");
+                  if (!win) return;
+                  win.document.write(`<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${imgSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
+                  win.document.close();
+                };
+                return (<button type="button" className="asset-link-btn spare-photo-link" onClick={openPhoto}><i className="fa fa-file-image-o mr-1" aria-hidden="true" />Spare-part photo</button>);
+              }
+              return (<span className="asset-link-btn spare-photo-link" style={{ opacity: 0.45, cursor: "default" }}><i className="fa fa-file-image-o mr-1" aria-hidden="true" />Spare-part photo</span>);
+            })()}
           </div>
         </div>
         <div className="asset-side-panel-footer">
@@ -580,7 +602,7 @@ const SparePage = () => {
 
                   <div className="asset-master-toolbar-actions">
                     <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>
-                      <i className="fa fa-sliders mr-1" aria-hidden="true" />
+                      <i className="fa fa-sliders" aria-hidden="true" />
                       Filter
                     </button>
                     <button
@@ -591,7 +613,7 @@ const SparePage = () => {
                         setShowAddModal(true);
                       }}
                     >
-                      <i className="fa fa-plus mr-1" aria-hidden="true" />
+                      <i className="fa fa-plus" aria-hidden="true" />
                       Add spare part
                     </button>
                   </div>
@@ -602,47 +624,92 @@ const SparePage = () => {
                     <div className="asset-filter-header">
                       <span className="asset-filter-title">Filters</span>
                       <button type="button" className="asset-filter-reset" onClick={resetFilters}>
-                        <i className="fa fa-times mr-1" />
+                        <i className="fa fa-times" aria-hidden="true" />
                         Reset All
                       </button>
                     </div>
-                    <div className="asset-filter-field">
-                      <label>Vendor</label>
-                      <input className="form-control" placeholder="Enter name" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)} />
-                    </div>
-                    <div className="asset-filter-field">
-                      <label>Asset</label>
-                      <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
-                        <option value="">Enter name</option>
-                        {assetOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="asset-filter-field asset-filter-field-full">
-                      <label>Type</label>
-                      <div className="asset-filter-chip-row">
-                        {["UPS Battery", "Engine filter", "Battery"].map((item) => (
-                          <button key={item} type="button" className={`asset-filter-chip ${filterType === item ? "active" : ""}`} onClick={() => setFilterType(filterType === item ? "" : item)}>
-                            {item}
-                          </button>
-                        ))}
+
+                    <div className="asset-filter-grid">
+                      <div className="asset-filter-field">
+                        <label>Vendor</label>
+                        <select className="form-control" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}>
+                          <option value="">Enter name</option>
+                          <option value="vendor1">Vendor 1</option>
+                          <option value="vendor2">Vendor 2</option>
+                        </select>
+                      </div>
+                      <div className="asset-filter-field">
+                        <label>Manufacturer</label>
+                        <select className="form-control" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)}>
+                          <option value="">Enter name</option>
+                          <option value="manfb1">Manufacturer 1</option>
+                          <option value="manfb2">Manufacturer 2</option>
+                        </select>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Asset</label>
+                        <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
+                          <option value="">Enter name</option>
+                          {assetOptions.map((opt) => (
+                            <option key={opt.value} value={opt.value}>
+                              {opt.label}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Type</label>
+                        <div className="asset-filter-chip-row">
+                          {["Rented in", "Rented Out", "In house"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              className={`asset-filter-chip ${filterType === item ? "active" : ""}`}
+                              onClick={() => setFilterType(filterType === item ? "" : item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Status</label>
+                        <div className="asset-filter-chip-row">
+                          {["Running", "Servicing", "Inactive"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`}
+                              onClick={() => setFilterStatus(filterStatus === item ? "" : item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Service Status</label>
+                        <div className="asset-filter-chip-row">
+                          {["Due", "Upcoming", "Overdue"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              className={`asset-filter-chip ${filterServiceStatus === item ? "active" : ""}`}
+                              onClick={() => setFilterServiceStatus(filterServiceStatus === item ? "" : item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                    <div className="asset-filter-field asset-filter-field-full">
-                      <label>Status</label>
-                      <div className="asset-filter-chip-row">
-                        {["Running", "Servicing", "Inactive"].map((item) => (
-                          <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
-                            {item}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+
                     <div className="asset-filter-popup-footer">
-                      <button type="button" className="btn btn-primary asset-filter-apply" onClick={closeFilterPopup}>
+                      <button type="button" className="asset-filter-apply" onClick={closeFilterPopup}>
                         Apply filters
                       </button>
                     </div>
@@ -936,3 +1003,4 @@ const SparePage = () => {
 };
 
 export default SparePage;
+

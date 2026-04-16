@@ -117,6 +117,7 @@ import Report from "../MainComponents/Payroll/Report.jsx";
 import BranchMaster from "../MainComponents/FacilityMember/BranchMaster.jsx";
 import AttendanceBiometricReport from "../MainComponents/Reports/AttendanceBiometricReport.jsx";
 import Designation from "../MainComponents/Payroll/Designation.jsx";
+import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
 
 var currentpropertyid;
 var currentclientid;
@@ -487,6 +488,7 @@ class MainNav extends React.Component {
       "/Account/App/ProfessionalTax",
       "/Account/App/LabourFund",
       "/Account/App/AD_Percentage",
+      "/Account/App/EmployeeTransfer",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -1250,6 +1252,16 @@ class MainNav extends React.Component {
                           >
                             <i className="fas fa-caret-right nav-icon"></i>
                             <p>Percentage</p>
+                          </Link>
+                        </li>
+
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/EmployeeTransfer"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Employee Transfer</p>
                           </Link>
                         </li>
 
@@ -2019,8 +2031,9 @@ class MainNav extends React.Component {
             <Route path="/Account/App/ItemAssigned">
               <ItemAssignedPage />
             </Route>
-            
-            
+            <Route path="/Account/App/EmployeeTransfer">
+              <EmployeeTransfer />
+            </Route>
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
             </Route>

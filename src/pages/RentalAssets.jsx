@@ -85,8 +85,11 @@ const RentalAssets = ({ propId, history }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterManufacturer, setFilterManufacturer] = useState("");
+  const [filterVendor, setFilterVendor] = useState("");
   const [filterLease, setFilterLease] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterType, setFilterType] = useState("");
+  const [filterServiceStatus, setFilterServiceStatus] = useState("");
   const [selectedAssetId, setSelectedAssetId] = useState(null);
   const [panelMode, setPanelMode] = useState("details");
   const [editForm, setEditForm] = useState(buildEditForm());
@@ -130,14 +133,21 @@ const RentalAssets = ({ propId, history }) => {
       const matchesManufacturer = !filterManufacturer || String(asset.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());
       const matchesLease = !filterLease || getLeaseMeta(asset).label === filterLease;
       const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;
-      return matchesSearch && matchesManufacturer && matchesLease && matchesStatus;
+      const matchesVendor = !filterVendor || String(asset.Vendor || asset.VendorName || "").toLowerCase().includes(filterVendor.toLowerCase());
+      const matchesType = !filterType || String(asset.AssetType || asset.LeaseType || "").toLowerCase().includes(filterType.toLowerCase());
+      const matchesServiceStatus = !filterServiceStatus || (asset.ServiceStatus === filterServiceStatus);
+
+      return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && matchesServiceStatus;
     });
-  }, [rentalAssets, searchTerm, filterManufacturer, filterLease, filterStatus]);
+  }, [rentalAssets, searchTerm, filterManufacturer, filterVendor, filterStatus, filterType, filterServiceStatus]);
 
   const resetFilters = () => {
     setFilterManufacturer("");
+    setFilterVendor("");
     setFilterLease("");
     setFilterStatus("");
+    setFilterType("");
+    setFilterServiceStatus("");
   };
 
   const selectedAsset = useMemo(() => rentalAssets.find((item) => Number(item.Id) === Number(selectedAssetId)) || null, [rentalAssets, selectedAssetId]);
@@ -292,6 +302,32 @@ const RentalAssets = ({ propId, history }) => {
     }
   };
 
+  const handleOpenContract = () => {
+    if (!selectedAsset) return;
+    const contract = selectedAsset.ImageOut || selectedAsset.RentalContract || selectedAsset.Contract || selectedAsset.Image || "";
+    if (!contract) return;
+    
+    const raw = String(contract);
+    if (raw.startsWith("http://") || raw.startsWith("https://")) {
+      window.open(raw, "_blank", "noopener,noreferrer");
+      return;
+    }
+    
+    const win = window.open("", "_blank");
+    if (!win) return;
+    if (raw.startsWith("data:application/pdf")) {
+      win.document.write(
+        `<html><body style="margin:0;padding:0"><embed src="${raw}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+      );
+    } else {
+      const imgSrc = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
+      win.document.write(
+        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${imgSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
+      );
+    }
+    win.document.close();
+  };
+
   const renderDetailsPanel = () => {
     if (!selectedAsset) return null;
     const statusMeta = getStatusMeta(selectedAsset);
@@ -353,7 +389,7 @@ const RentalAssets = ({ propId, history }) => {
             </div>
           </div>
           <div className="rental-panel-links">
-            <button type="button" className="rental-text-link rental-panel-link-row">
+            <button type="button" className="rental-text-link rental-panel-link-row" onClick={handleOpenContract}>
               <i className="fa fa-file-text mr-1" aria-hidden="true" />
               Rental contract
             </button>
@@ -536,7 +572,7 @@ const RentalAssets = ({ propId, history }) => {
 
                   <div className="rental-assets-actions">
                     <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>
-                      <i className="fa fa-sliders mr-1" aria-hidden="true" />
+                      <i className="fa fa-sliders" aria-hidden="true" />
                       Filter
                     </button>
                     {/* <ExportToCSV data={filteredAssets} fileName="RentalAssets.csv" /> */}
@@ -546,7 +582,7 @@ const RentalAssets = ({ propId, history }) => {
                       onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "rentout")}
                       disabled={!selectedAsset && filteredAssets.length === 0}
                     >
-                      <i className="fa fa-sign-out mr-1" aria-hidden="true" />
+                      <i className="fa fa-sign-out" aria-hidden="true" />
                       Rent asset
                     </button>
                   </div>
@@ -557,35 +593,80 @@ const RentalAssets = ({ propId, history }) => {
                     <div className="asset-filter-header">
                       <span className="asset-filter-title">Filters</span>
                       <button type="button" className="asset-filter-reset" onClick={resetFilters}>
-                        <i className="fa fa-times mr-1" />
+                        <i className="fa fa-times" aria-hidden="true" />
                         Reset All
                       </button>
                     </div>
-                    <div className="asset-filter-field">
-                      <label>Manufacturer</label>
-                      <input className="form-control" placeholder="Enter name" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)} />
-                    </div>
-                    <div className="asset-filter-field">
-                      <label>Lease</label>
-                      <select className="form-control" value={filterLease} onChange={(e) => setFilterLease(e.target.value)}>
-                        <option value="">Enter name</option>
-                        <option value="In">In</option>
-                        <option value="Out">Out</option>
-                        <option value="Open">Open</option>
-                      </select>
-                    </div>
-                    <div className="asset-filter-field asset-filter-field-full">
-                      <label>Status</label>
-                      <div className="asset-filter-chip-row">
-                        {["Running", "Servicing", "Inactive"].map((item) => (
-                          <button key={item} type="button" className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`} onClick={() => setFilterStatus(filterStatus === item ? "" : item)}>
-                            {item}
-                          </button>
-                        ))}
+
+                    <div className="asset-filter-grid">
+                      <div className="asset-filter-field">
+                        <label>Vendor</label>
+                        <select className="form-control" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}>
+                          <option value="">Enter name</option>
+                          <option value="vendor1">Vendor 1</option>
+                          <option value="vendor2">Vendor 2</option>
+                        </select>
+                      </div>
+                      <div className="asset-filter-field">
+                        <label>Manufacturer</label>
+                        <select className="form-control" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)}>
+                          <option value="">Enter name</option>
+                          <option value="manfb1">Manufacturer 1</option>
+                          <option value="manfb2">Manufacturer 2</option>
+                        </select>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Type</label>
+                        <div className="asset-filter-chip-row">
+                          {["Rented in", "Rented Out", "In house"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              className={`asset-filter-chip ${filterType === item ? "active" : ""}`}
+                              onClick={() => setFilterType(filterType === item ? "" : item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Status</label>
+                        <div className="asset-filter-chip-row">
+                          {["Running", "Servicing", "Inactive"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              className={`asset-filter-chip ${filterStatus === item ? "active" : ""}`}
+                              onClick={() => setFilterStatus(filterStatus === item ? "" : item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="asset-filter-field asset-filter-field-full">
+                        <label>Service Status</label>
+                        <div className="asset-filter-chip-row">
+                          {["Due", "Upcoming", "Overdue"].map((item) => (
+                            <button
+                              key={item}
+                              type="button"
+                              className={`asset-filter-chip ${filterServiceStatus === item ? "active" : ""}`}
+                              onClick={() => setFilterServiceStatus(filterServiceStatus === item ? "" : item)}
+                            >
+                              {item}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
+
                     <div className="asset-filter-popup-footer">
-                      <button type="button" className="btn rental-primary-btn asset-filter-apply" onClick={() => setShowFilterPanel(false)}>
+                      <button type="button" className="asset-filter-apply" onClick={() => setShowFilterPanel(false)}>
                         Apply filters
                       </button>
                     </div>
@@ -631,9 +712,6 @@ const RentalAssets = ({ propId, history }) => {
                                   </button>
                                   <button type="button" className="rental-icon-btn" title="Delete" onClick={() => handleDeleteClick(asset)}>
                                     <i className="fa fa-trash-o" aria-hidden="true" />
-                                  </button>
-                                  <button type="button" className="rental-icon-btn" title={isReturnFlow ? "Rent in" : "Rent out"} onClick={() => handleOpenRentModal(asset, isReturnFlow ? "return" : "rentout")}>
-                                    <i className={`fa ${isReturnFlow ? "fa-sign-in" : "fa-sign-out"}`} aria-hidden="true" />
                                   </button>
                                 </div>
                               </td>
@@ -829,3 +907,4 @@ function mapStateToProps(state) {
 }
 
 export default withRouter(connect(mapStateToProps)(RentalAssets));
+

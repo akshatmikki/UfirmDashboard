@@ -8,6 +8,7 @@ export async function getAssetRentOutReturnHistoryByAssetId(assetId) {
       headers: {
         Accept: "application/json",
       },
+      withCredentials: false,
     });
 
     if (!response.ok) {
