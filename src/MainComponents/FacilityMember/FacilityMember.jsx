@@ -792,25 +792,29 @@ const StaffPage = () => {
     .slice(0, 11);
 
   const downloadSampleTemplate = () => {
+    const note = [
+      "Fields marked with * are mandatory"
+    ];
+
     const headers = [
-      "EMPCODE",
-      "EMP NAME",
+      "EMPCODE *",
+      "EMP NAME *",
       "F/H NAME",
       "DOB",
-      "DOJ",
-      "GENDER",
+      "DOJ *",
+      "GENDER *",
       "MOBILE",
       "EMAIL",
       "JOB TYPE",
       "BANK NAME",
       "ACCOUNT NO",
       "IFSC CODE",
-      "AADHAAR NO",
+      "AADHAAR NO *",
       "PF NUMBER",
       "ESI NO",
-      "PAN NO",
+      "PAN NO *",
       "UAN NO",
-      "DESIGNATION CODE",
+      "DESIGNATION CODE *",
       "DEPT CODE",
       "ADDRESS LINE 1",
       "ADDRESS LINE 2",
@@ -819,7 +823,10 @@ const StaffPage = () => {
     ];
 
     // 👇 create empty row just to generate headers
-    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      note,
+      headers
+    ]);
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
@@ -2251,7 +2258,7 @@ const StaffPage = () => {
                   value={esiNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
-                    if (val.length <= 10)setEsiNumber(val);
+                    if (val.length <= 10) setEsiNumber(val);
                   }}
                 />
               </div>
