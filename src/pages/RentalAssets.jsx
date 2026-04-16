@@ -681,7 +681,7 @@ const RentalAssets = ({ propId, history }) => {
                           <th>ID</th>
                           <th>Lease</th>
                           <th>Manufacturer</th>
-                          <th>Lease</th>
+                          {/* <th>Lease</th> */}
                           <th>Expiry date</th>
                           <th>Status</th>
                           <th>Actions</th>
@@ -698,9 +698,9 @@ const RentalAssets = ({ propId, history }) => {
                               <td>{asset.Id || "AST-111"}</td>
                               <td>{asset.Name || "Water pump"}</td>
                               <td>{asset.Manufacturer || "-"}</td>
-                              <td>
+                              {/* <td>
                                 <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
-                              </td>
+                              </td> */}
                               <td>{formatDate(asset.ExpiryDate || asset.ReturnDate)}</td>
                               <td>
                                 <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
