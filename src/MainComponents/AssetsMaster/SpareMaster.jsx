@@ -57,6 +57,8 @@ function buildPseudoQrCells(value) {
   });
 }
 
+const ROWS_PER_PAGE = 15;
+
 const SparePage = () => {
   const toast = useRef(null);
   const history = useHistory();
@@ -84,6 +86,7 @@ const SparePage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [cancelAction, setCancelAction] = useState(null);
@@ -251,6 +254,17 @@ const SparePage = () => {
       return passesQuery && passesVendor && passesType && passesStatus && passesAsset && passesManufacturer && passesServiceStatus;
     });
   }, [spares, searchTerm, filterVendor, filterType, filterStatus, filterAssetId, filterManufacturer, filterServiceStatus]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterVendor, filterManufacturer, filterStatus, filterType, filterAssetId, filterServiceStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredSpares.length / ROWS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedSpares = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ROWS_PER_PAGE;
+    return filteredSpares.slice(startIndex, startIndex + ROWS_PER_PAGE);
+  }, [filteredSpares, safeCurrentPage]);
 
   const selectedRow = useMemo(() => (spares || []).find((row) => Number(row.SpareID) === Number(selectedSpareId)) || null, [spares, selectedSpareId]);
 
@@ -730,7 +744,7 @@ const SparePage = () => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredSpares.map((row) => {
+                        {paginatedSpares.map((row) => {
                           const meta = statusMeta(row?.Status);
                           const asset = assetById.get(Number(row.AssetID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
@@ -764,6 +778,20 @@ const SparePage = () => {
                       </tbody>
                     </table>
                   </div>
+                  {filteredSpares.length > ROWS_PER_PAGE ? (
+                    <div className="asset-owned-pagination">
+                      <span>{`Showing ${(safeCurrentPage - 1) * ROWS_PER_PAGE + 1}-${Math.min(safeCurrentPage * ROWS_PER_PAGE, filteredSpares.length)} of ${filteredSpares.length}`}</span>
+                      <div className="asset-owned-pagination-controls">
+                        <button type="button" className="asset-owned-page-btn" disabled={safeCurrentPage === 1} onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}>
+                          <i className="fa fa-angle-left" aria-hidden="true" />
+                        </button>
+                        <span className="asset-owned-page-number">{safeCurrentPage}</span>
+                        <button type="button" className="asset-owned-page-btn" disabled={safeCurrentPage === totalPages} onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}>
+                          <i className="fa fa-angle-right" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
 
                 </div>
               </div>

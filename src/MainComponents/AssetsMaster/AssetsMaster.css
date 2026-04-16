@@ -555,9 +555,9 @@
 
 .asset-master-table-wrap-spare .table-responsive {
   height: 100%;
-  max-height: 430px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  max-height: none;
+  overflow-y: visible;
+  overflow-x: visible;
   -ms-overflow-style: none;
   scrollbar-width: none;
 }

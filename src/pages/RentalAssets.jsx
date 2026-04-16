@@ -89,6 +89,8 @@ const buildHistoryEntries = (history = []) =>
     })
     .sort((a, b) => new Date(b.dateValue).getTime() - new Date(a.dateValue).getTime());
 
+const ROWS_PER_PAGE = 15;
+
 const getStatusMeta = (asset = {}) => {
   const raw = String(asset.Status || asset.AssetStatus || "").trim().toLowerCase();
   if (raw.includes("inactive")) return statusOptions.inactive;
@@ -149,6 +151,7 @@ const RentalAssets = ({ propId, history }) => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const fetchRentalAssets = async () => {
     try {
@@ -187,6 +190,17 @@ const RentalAssets = ({ propId, history }) => {
       return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && matchesServiceStatus;
     });
   }, [rentalAssets, searchTerm, filterManufacturer, filterVendor, filterStatus, filterType, filterServiceStatus]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterManufacturer, filterVendor, filterStatus, filterType, filterServiceStatus]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredAssets.length / ROWS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedAssets = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ROWS_PER_PAGE;
+    return filteredAssets.slice(startIndex, startIndex + ROWS_PER_PAGE);
+  }, [filteredAssets, safeCurrentPage]);
 
   const resetFilters = () => {
     setFilterManufacturer("");
@@ -737,7 +751,7 @@ const RentalAssets = ({ propId, history }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {filteredAssets.map((asset) => {
+                        {paginatedAssets.map((asset) => {
                           const statusMeta = getStatusMeta(asset);
                           const leaseMeta = getLeaseMeta(asset);
                           const isReturnFlow = asset.ReturnDate === null && asset.RentedOutDate;
@@ -769,6 +783,20 @@ const RentalAssets = ({ propId, history }) => {
                         })}
                       </tbody>
                     </table>
+                    {filteredAssets.length > ROWS_PER_PAGE ? (
+                      <div className="asset-owned-pagination">
+                        <span>{`Showing ${(safeCurrentPage - 1) * ROWS_PER_PAGE + 1}-${Math.min(safeCurrentPage * ROWS_PER_PAGE, filteredAssets.length)} of ${filteredAssets.length}`}</span>
+                        <div className="asset-owned-pagination-controls">
+                          <button type="button" className="asset-owned-page-btn" disabled={safeCurrentPage === 1} onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}>
+                            <i className="fa fa-angle-left" aria-hidden="true" />
+                          </button>
+                          <span className="asset-owned-page-number">{safeCurrentPage}</span>
+                          <button type="button" className="asset-owned-page-btn" disabled={safeCurrentPage === totalPages} onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}>
+                            <i className="fa fa-angle-right" aria-hidden="true" />
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
 
                 </LoadingOverlay>

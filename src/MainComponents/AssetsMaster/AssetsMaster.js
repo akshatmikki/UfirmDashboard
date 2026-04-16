@@ -93,6 +93,7 @@ class AssetsMaster extends Component {
       successType: "",
       PurchaseDate: "",
       WarrantyDate: "",
+      currentPage: 1,
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -101,9 +102,22 @@ class AssetsMaster extends Component {
     this.loadHomagePageData();
   }
 
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps, prevState) {
     if (prevProps.PropertyId !== this.props.PropertyId) {
       this.loadHomagePageData();
+    }
+
+    const filterKeys = [
+      "searchTerm",
+      "filterCapacity",
+      "filterVendor",
+      "filterManufacturer",
+      "filterServiceStatus",
+      "filterType",
+    ];
+
+    if (filterKeys.some((key) => prevState[key] !== this.state[key])) {
+      this.setState({ currentPage: 1 });
     }
   }
 
@@ -621,7 +635,42 @@ class AssetsMaster extends Component {
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
 
-  renderOwnedAssetsTable = (rows) => (
+  getPaginatedRows = (rows) => {
+    const pageSize = 15;
+    const totalPages = Math.max(1, Math.ceil((rows || []).length / pageSize));
+    const currentPage = Math.min(this.state.currentPage || 1, totalPages);
+    const startIndex = (currentPage - 1) * pageSize;
+    return {
+      rows: (rows || []).slice(startIndex, startIndex + pageSize),
+      currentPage,
+      totalPages,
+      totalRows: (rows || []).length,
+    };
+  };
+
+  renderTablePagination = (currentPage, totalPages, totalRows, onPageChange) => {
+    if (totalRows <= 15) return null;
+
+    return (
+      <div className="asset-owned-pagination">
+        <span>{`Showing ${(currentPage - 1) * 15 + 1}-${Math.min(currentPage * 15, totalRows)} of ${totalRows}`}</span>
+        <div className="asset-owned-pagination-controls">
+          <button type="button" className="asset-owned-page-btn" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)}>
+            <i className="fa fa-angle-left" aria-hidden="true" />
+          </button>
+          <span className="asset-owned-page-number">{currentPage}</span>
+          <button type="button" className="asset-owned-page-btn" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)}>
+            <i className="fa fa-angle-right" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  renderOwnedAssetsTable = (rows) => {
+    const paginated = this.getPaginatedRows(rows);
+
+    return (
     <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
       <table className="table asset-owned-table custTable table-hover mb-0">
           <thead>
@@ -635,8 +684,8 @@ class AssetsMaster extends Component {
             </tr>
           </thead>
           <tbody>
-            {rows.length ? (
-              rows.map((asset) => {
+            {paginated.rows.length ? (
+              paginated.rows.map((asset) => {
                 const statusMeta = this.getAssetStatusMeta(asset);
                 const isSelected = String(this.state.selectedRowId) === String(asset.Id);
                 return (
@@ -672,8 +721,10 @@ class AssetsMaster extends Component {
             )}
           </tbody>
         </table>
+        {this.renderTablePagination(paginated.currentPage, paginated.totalPages, paginated.totalRows, (page) => this.setState({ currentPage: page }))}
     </div>
   );
+  };
 
   renderReadOnlyField = (label, value, extraClass = "") => (
     <div className={`asset-info-item ${extraClass}`.trim()}>
