@@ -203,9 +203,7 @@ export default function SalaryReport() {
 
         const [year, monthNum] = selectedMonth.split("-");
 
-        // go to previous month
         const date = new Date(year, monthNum - 1);
-        date.setMonth(date.getMonth() - 1);
 
         const monthName = date.toLocaleString("default", { month: "long" });
         const displayYear = date.getFullYear();
@@ -224,9 +222,7 @@ export default function SalaryReport() {
 
         const [year, monthNum] = selectedMonth.split("-");
 
-        // go to previous month
         const date = new Date(year, monthNum - 1);
-        date.setMonth(date.getMonth() - 1);
 
         const monthName = date.toLocaleString("default", { month: "long" });
         const displayYear = date.getFullYear();
@@ -249,9 +245,7 @@ export default function SalaryReport() {
 
             const [year, monthNum] = selectedMonth.split("-");
 
-            // go to previous month
             const date = new Date(year, monthNum - 1);
-            date.setMonth(date.getMonth() - 1);
 
             const monthName = date.toLocaleString("default", { month: "long" });
             const displayYear = date.getFullYear();

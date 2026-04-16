@@ -58,6 +58,18 @@ const DesignationMaster = () => {
         fetchData();
     }, []);
 
+    const normalize = (str) => {
+        return str?.toLowerCase().replace(/[.\s]/g, "");
+    };
+
+    const filteredData = data.filter((item) => {
+        if (!globalFilter) return true;
+
+        return normalize(item.DesignationName).includes(
+            normalize(globalFilter)
+        );
+    });
+
     const openAdd = () => {
         setFormData({
             Designation_ID: null,
@@ -191,7 +203,7 @@ const DesignationMaster = () => {
                 style={{ marginLeft: "auto", justifyContent: "flex-end", columnGap: "1rem" }}
             >
                 <span className="p-input-icon-left w-full" style={{ maxWidth: "18rem" }}>
-                    
+
                     <InputText
                         placeholder="Search..."
                         value={globalFilter}
@@ -257,11 +269,10 @@ const DesignationMaster = () => {
                             {header}
 
                             <DataTable
-                                value={data}
+                                value={filteredData}
                                 paginator
                                 rows={10}
                                 loading={loading}
-                                globalFilter={globalFilter}
                                 emptyMessage="No designations found."
                                 responsiveLayout="scroll"
                                 className="p-datatable-gridlines p-datatable-sm"

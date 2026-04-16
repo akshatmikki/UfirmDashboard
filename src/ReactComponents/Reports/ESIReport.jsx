@@ -146,14 +146,14 @@ export default function ESIReport() {
     employees.forEach((emp, index) => {
       const row = [
         index + 1,
-        emp?.Profile?.EmployeeCode || "-",
-        emp?.Profile?.EmployeeName || "-",
-        "", // Working Days
-        "", // Gross
-        "", // ESI Wage
-        "", // 0.75%
-        "", // 3.25%
-        "", // LWF
+        emp.EmployeeCode || "-",
+        emp.FacilityMemberName || "-",
+        emp.WorkingDays || 0,
+        emp.ProratedTotalGross || 0,
+        emp.ProratedTotalGross || 0,
+        Math.ceil((emp.ProratedTotalGross || 0) * 0.0075),
+        Math.ceil((emp.ProratedTotalGross || 0) * 0.0325),
+        emp.LwfEmployeeAmount || 0,
       ];
 
       csvContent += row.join(",") + "\n";

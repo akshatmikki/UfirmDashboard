@@ -88,8 +88,8 @@ export default function AttendanceSheet() {
     selectedPropertyId.length > 0
       ? selectedPropertyId
       : Number(reduxPropertyId) > 0
-      ? [Number(reduxPropertyId)]
-      : [];
+        ? [Number(reduxPropertyId)]
+        : [];
   const hasSingleEffectiveProperty = effectivePropertyIds.length === 1;
   const effectiveSinglePropertyId = hasSingleEffectiveProperty
     ? Number(effectivePropertyIds[0])
@@ -1316,7 +1316,38 @@ export default function AttendanceSheet() {
     });
 
     const headers = Object.keys(data[0]);
-    const worksheet = XLSX.utils.json_to_sheet(data, { header: headers });
+    // 1. Create worksheet WITHOUT data first
+    const worksheet = XLSX.utils.aoa_to_sheet([]);
+
+    // 2. Get names (IMPORTANT)
+    const selectedProperty = propertyList.find(
+      (p) => p.PropertyId === effectiveSinglePropertyId
+    );
+
+    const propertyName = selectedProperty?.PropertyName || "N/A";
+
+    const selectedClient = unitList.find(
+      (u) => u.ClientID === selectedUnitId
+    );
+
+    const clientName = selectedClient?.ClientName || "N/A";
+
+    // 3. Month-Year display
+    const monthYearDisplay = `${monthNames[month - 1]} ${year}`;
+
+    // 4. Add TOP INFO rows
+    XLSX.utils.sheet_add_aoa(worksheet, [
+      [`Client: ${clientName}`],
+      [`Property: ${propertyName}`],
+      [`Month: ${monthYearDisplay}`],
+      [] // empty row for spacing
+    ], { origin: "A1" });
+
+    // 5. Add actual table (IMPORTANT OFFSET)
+    XLSX.utils.sheet_add_json(worksheet, data, {
+      origin: "A5", // 👈 data starts from row 5
+      header: headers,
+    });
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
@@ -2305,23 +2336,23 @@ export default function AttendanceSheet() {
                             const rowOptions =
                               conflictSalaryOptionsMap[key] || salaryGroupOptions;
                             return (
-                          <select
-                            value={salaryGroupMap[key] || ""}
-                            onChange={(e) =>
-                              setSalaryGroupMap((prev) => ({
-                                ...prev,
-                                [key]: e.target.value,
-                              }))
-                            }
-                            style={{ minWidth: 220, padding: "5px 7px" }}
-                          >
-                            <option value="">Select Salary Group</option>
-                            {rowOptions.map((sg) => (
-                              <option key={sg.id} value={String(sg.id)}>
-                                {sg.name}
-                              </option>
-                            ))}
-                          </select>
+                              <select
+                                value={salaryGroupMap[key] || ""}
+                                onChange={(e) =>
+                                  setSalaryGroupMap((prev) => ({
+                                    ...prev,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                                style={{ minWidth: 220, padding: "5px 7px" }}
+                              >
+                                <option value="">Select Salary Group</option>
+                                {rowOptions.map((sg) => (
+                                  <option key={sg.id} value={String(sg.id)}>
+                                    {sg.name}
+                                  </option>
+                                ))}
+                              </select>
                             );
                           })()}
                         </td>
