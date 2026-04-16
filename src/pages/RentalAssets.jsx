@@ -954,7 +954,7 @@ const RentalAssets = ({ propId, history }) => {
                     </button>
                   </div>
                   <div className="asset-side-panel-body">
-                    Are you sure you want to cancel? All your entered information will be lost.
+                    Are you sure you want to cancel? All your updated information will be lost.
                   </div>
                   <div className="asset-dialog-actions">
                     <button type="button" className="btn btn-light" onClick={() => setShowCancelConfirm(false)}>

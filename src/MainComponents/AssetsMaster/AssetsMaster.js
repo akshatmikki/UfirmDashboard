@@ -1270,6 +1270,9 @@ class AssetsMaster extends Component {
     if (!this.state.showCancelConfirm) return null;
     const isEdit = this.state.cancelConfirmType === "edit";
     const title = isEdit ? "Cancel edits" : "Cancel action";
+    const bodyText = isEdit
+      ? "Are you sure you want to cancel? All your updated information will be lost."
+      : "Are you sure you want to cancel? All your entered information will be lost.";
     return (
       <div className="spare-add-backdrop" onClick={this.closeCancelConfirm}>
         <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
@@ -1284,7 +1287,7 @@ class AssetsMaster extends Component {
               <i className="fa fa-times" aria-hidden="true" />
             </button>
           </div>
-          <div className="asset-side-panel-body">Are you sure you want to cancel? All your updated information will be lost.</div>
+          <div className="asset-side-panel-body">{bodyText}</div>
           <div className="asset-dialog-actions">
             <button type="button" className="btn btn-light" onClick={this.closeCancelConfirm}>
               No, keep editing
