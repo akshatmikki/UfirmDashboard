@@ -422,6 +422,11 @@
   background: #d3e6ff;
 }
 
+.rental-assets-empty-state {
+  text-align: center;
+  color: #5f6975;
+}
+
 .rental-assets-table-wrap:not(.has-selection) .rental-assets-table tbody tr:hover td {
   background: #d3e6ff;
 }

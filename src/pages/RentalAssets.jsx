@@ -765,7 +765,11 @@ const RentalAssets = ({ propId, history }) => {
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedAssets.map((asset) => {
+                        {paginatedAssets.length === 0 ? (
+                          <tr>
+                            <td colSpan="7" className="rental-assets-empty-state">No assets found.</td>
+                          </tr>
+                        ) : paginatedAssets.map((asset) => {
                           const statusMeta = getStatusMeta(asset);
                           const leaseMeta = getLeaseMeta(asset);
                           const isReturnFlow = asset.ReturnDate === null && asset.RentedOutDate;
