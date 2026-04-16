@@ -304,7 +304,7 @@ export async function addLoanAdvance(loanAdvanceData) {
 
 // Create a new loan for an employee
 export async function createEmployeeLoan(requestData) {
-  const url = "http://localhost:62929/api/loan/create";
+  const url = "https://api.urest.in:8096/api/loan/create";
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -325,7 +325,7 @@ export async function createEmployeeLoan(requestData) {
   }
 }
 
-const LOAN_API_BASE_URL = "http://localhost:62929/api/loan";
+const LOAN_API_BASE_URL = "http://api.urest.in:8096/api/loan";
 const parseJsonOrText = (text) => {
   if (!text) return {};
   try {
@@ -817,7 +817,7 @@ export const uploadAttendance = async (
     }
 
     const response = await axios.post(
-      `http://localhost:62929/api/attendance-summary/UploadAttendance`,
+      `http://api.urest.in:8096/api/attendance-summary/UploadAttendance`,
       formData,
       {
         responseType: "blob", // 🔥 THIS IS THE KEY
@@ -1283,7 +1283,7 @@ export const getEmployeesByOfficesWithAttendance = async (
 
   try {
     const response = await axios.post(
-      `http://localhost:62929/api/employee/getByOfficesWithAttendance`,
+      `http://api.urest.in:8096/api/employee/getByOfficesWithAttendance`,
       {
         OfficeIds: officeIds,
         MonthYear: monthYear || null,
@@ -1309,7 +1309,7 @@ export const getAttendanceByProperties = async (
 
   try {
     const response = await axios.post(
-      `http://localhost:62929/api/attendance-summary/by-properties`,
+      `http://api.urest.in:8096/api/attendance-summary/by-properties`,
       {
         PropertyIds: propertyIds,
         MonthYear: monthYear,
