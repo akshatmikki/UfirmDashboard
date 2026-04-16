@@ -37,12 +37,57 @@ const formatDate = (value) => {
 const formatTime = (value) => {
   if (!value) return "";
   const text = String(value);
-  if (text.includes("T")) {
-    const time = text.split("T")[1] || "";
-    return time.slice(0, 5);
-  }
-  return text.slice(0, 5);
+  const normalized = text.includes("T") ? text : `1970-01-01T${text}`;
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
 };
+
+const buildHistoryEntries = (history = []) =>
+  (Array.isArray(history) ? history : [])
+    .flatMap((item, index) => {
+      const entries = [];
+
+      if (item?.RentOut?.RentedOutDate) {
+        entries.push({
+          id: `rentout-${index}-${item.RentOut.RentedOutDate}`,
+          type: "out",
+          label: "Rented Out",
+          summary: "Asset rented out to customer",
+          byLabel: item?.RentOut?.AssigneeName || "S Kumar",
+          dateValue: item.RentOut.RentedOutDate,
+          details: [
+            { label: "Rented To", value: item?.RentOut?.RentedTo || "-" },
+            { label: "Out From", value: item?.RentOut?.OutFrom || "-" },
+            { label: "Approved By", value: item?.RentOut?.ApprovedBy || "-" },
+            { label: "Tentative Date", value: formatDate(item?.RentOut?.TentativeDate) || "-" },
+          ],
+        });
+      }
+
+      if (item?.Return?.ReturnDate) {
+        entries.push({
+          id: `return-${index}-${item.Return.ReturnDate}`,
+          type: "returned",
+          label: "Returned",
+          summary: "Asset returned by customer",
+          byLabel: item?.Return?.ReturnedBy || "S Kumar",
+          dateValue: item.Return.ReturnDate,
+          details: [
+            { label: "Returned By", value: item?.Return?.ReturnedBy || "-" },
+            { label: "Return From", value: item?.Return?.ReturnFrom || "-" },
+            { label: "Return Date", value: formatDate(item?.Return?.ReturnDate) || "-" },
+          ],
+        });
+      }
+
+      return entries;
+    })
+    .sort((a, b) => new Date(b.dateValue).getTime() - new Date(a.dateValue).getTime());
 
 const getStatusMeta = (asset = {}) => {
   const raw = String(asset.Status || asset.AssetStatus || "").trim().toLowerCase();
@@ -98,6 +143,7 @@ const RentalAssets = ({ propId, history }) => {
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyAsset, setHistoryAsset] = useState(null);
+  const [expandedHistoryId, setExpandedHistoryId] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -256,12 +302,13 @@ const RentalAssets = ({ propId, history }) => {
     setEditForm(buildEditForm());
   };
 
-  const handleActionSubmit = async (formData) => {
+  const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
-    const url = actionType === "return" ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
+    const isReturnMode = submitMode === "return";
+    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
 
     await fetch(url, {
-      method: actionType === "return" ? "PUT" : "POST",
+      method: isReturnMode ? "PUT" : "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -281,6 +328,7 @@ const RentalAssets = ({ propId, history }) => {
     setShowHistoryModal(true);
     setHistoryLoading(true);
     setHistoryAsset(asset);
+    setExpandedHistoryId(null);
     try {
       const historyData = Array.isArray(asset.history) ? asset.history : await getAssetRentOutReturnHistoryByAssetId(asset.Id);
       const normalizedHistory = Array.isArray(historyData) ? historyData : [];
@@ -579,7 +627,7 @@ const RentalAssets = ({ propId, history }) => {
                     <button
                       type="button"
                       className="btn rental-primary-btn"
-                      onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "rentout")}
+                      onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "toggle")}
                       disabled={!selectedAsset && filteredAssets.length === 0}
                     >
                       <i className="fa fa-sign-out" aria-hidden="true" />
@@ -681,7 +729,7 @@ const RentalAssets = ({ propId, history }) => {
                           <th>ID</th>
                           <th>Lease</th>
                           <th>Manufacturer</th>
-                          {/* <th>Lease</th> */}
+                          <th>Lease</th>
                           <th>Expiry date</th>
                           <th>Status</th>
                           <th>Actions</th>
@@ -698,9 +746,9 @@ const RentalAssets = ({ propId, history }) => {
                               <td>{asset.Id || "AST-111"}</td>
                               <td>{asset.Name || "Water pump"}</td>
                               <td>{asset.Manufacturer || "-"}</td>
-                              {/* <td>
+                              <td>
                                 <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
-                              </td> */}
+                              </td>
                               <td>{formatDate(asset.ExpiryDate || asset.ReturnDate)}</td>
                               <td>
                                 <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
@@ -842,9 +890,10 @@ const RentalAssets = ({ propId, history }) => {
                       <span className="rental-history-icon">
                         <i className="fa fa-history" aria-hidden="true" />
                       </span>
-                      <div>
-                        <h4>Rented asset - {historyAsset?.Name || "Generator"}</h4>
-                        <span>({historyAsset?.Id || "AST-111"})</span>
+                      <div className="rental-history-title-text">
+                        <span className="rental-history-title-main">Rented asset</span>
+                        <span className="rental-history-title-lease">- {historyAsset?.Name || "Generator"}</span>
+                        <span className="rental-history-title-id">({historyAsset?.Id || "AST-111"})</span>
                       </div>
                     </div>
                     <button type="button" className="rental-history-close" onClick={() => setShowHistoryModal(false)}>
@@ -855,28 +904,44 @@ const RentalAssets = ({ propId, history }) => {
                   <div className="rental-history-body">
                     {historyLoading ? (
                       <div className="rental-history-empty">Loading history...</div>
-                    ) : Array.isArray(historyAsset?.history) && historyAsset.history.length > 0 ? (
-                      historyAsset.history.map((item, index) => {
-                        const isRentOut = !!item?.RentOut;
-                        const statusLabel = isRentOut ? "Rented Out" : "Returned";
-                        const statusKey = isRentOut ? "out" : "returned";
-                        const dateValue = isRentOut ? item?.RentOut?.RentedOutDate : item?.Return?.ReturnDate;
-                        const nameValue = isRentOut ? item?.RentOut?.AssigneeName : item?.Return?.ReturnedBy;
-                        const summary = isRentOut ? "Asset rented out to customer" : "Asset returned by customer";
-
-                        return (
-                          <div key={index} className="rental-history-item">
+                    ) : buildHistoryEntries(historyAsset?.history).length > 0 ? (
+                      buildHistoryEntries(historyAsset?.history).map((item) => {
+                          const isExpanded = expandedHistoryId === item.id;
+                          return (
+                          <div
+                            key={item.id}
+                            className={`rental-history-item ${isExpanded ? "expanded" : ""}`}
+                            onClick={() => setExpandedHistoryId(isExpanded ? null : item.id)}
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setExpandedHistoryId(isExpanded ? null : item.id);
+                              }
+                            }}
+                          >
                             <span className="rental-history-dot" />
                             <div className="rental-history-date">
-                              <strong>{formatDate(dateValue)}</strong>
-                              <span>{formatTime(dateValue)}</span>
+                              <strong>{formatDate(item.dateValue)}</strong>
+                              <span>{formatTime(item.dateValue)}</span>
                             </div>
-                            <span className={`rental-history-badge rental-history-${statusKey}`}>{statusLabel}</span>
+                            <span className={`rental-history-badge rental-history-${item.type}`}>{item.label}</span>
                             <div className="rental-history-copy">
-                              <strong>{summary}</strong>
-                              <span>By {nameValue || "S Kumar"}</span>
+                              <strong>{item.summary}</strong>
+                              <span>By {item.byLabel}</span>
                             </div>
-                            <i className="fa fa-angle-down" aria-hidden="true" />
+                            <i className={`fa ${isExpanded ? "fa-angle-up" : "fa-angle-down"} rental-history-row-icon`} aria-hidden="true" />
+                            {isExpanded ? (
+                              <div className="rental-history-details">
+                                {item.details.map((detail, detailIndex) => (
+                                  <div key={`${item.id}-detail-${detailIndex}`} className="rental-history-detail-item">
+                                    <span className="rental-history-detail-label">{detail.label}</span>
+                                    <span className="rental-history-detail-value">{detail.value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
                           </div>
                         );
                       })

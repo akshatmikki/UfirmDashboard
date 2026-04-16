@@ -20,11 +20,11 @@ function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
   }, [actionType]);
 
   const handleRentOutData = (rentOutData) => {
-    handleSubmit(rentOutData);
+    handleSubmit(rentOutData, "rentout");
   };
 
   const handleReturnData = (returnData) => {
-    handleSubmit(returnData);
+    handleSubmit(returnData, "return");
   };
 
   const showModeToggle = actionType !== "return" && actionType !== "rentout";
