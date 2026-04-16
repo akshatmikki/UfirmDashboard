@@ -12,7 +12,6 @@ const ExportToCSV = ({ data = [], fileName = "Tasklist.csv" }) => {
       <Button
         label="Export"
         icon="fa fa-external-link"
-        tooltip="Download CSV"
         type="button"
         className="asset-export-btn"
         style={{

@@ -677,12 +677,22 @@
 
 .rental-details-view-panel .rental-primary-btn,
 .rental-details-view-panel .rental-secondary-btn {
-  min-width: 124px;
+  width: 138px;
+  min-width: 138px;
+  height: 33px;
+  padding: 8px 16px;
   border-radius: 4px;
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: 0;
 }
 
 .rental-details-view-panel .rental-secondary-btn {
+  border: 1px solid rgba(19, 23, 32, 0.15);
   border-color: #cfd8e3;
+  background: #fff;
+  color: #131720;
 }
 
 .rental-details-view-panel .rental-status-chip {

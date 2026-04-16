@@ -2208,6 +2208,25 @@
   resize: none;
 }
 
+.asset-side-panel-form-edit .asset-form-group-custom input[type="file"].form-control {
+  padding: 0;
+  overflow: hidden;
+}
+
+.asset-side-panel-form-edit .asset-form-group-custom input[type="file"].form-control::file-selector-button {
+  height: 100%;
+  margin: 0;
+  margin-right: 12px;
+  padding: 0 12px;
+  border: 0;
+  border-right: 1px solid #d1dae5;
+  background: #edf0f3;
+  color: #131720;
+  font-family: Inter, sans-serif;
+  font-size: 14px;
+  font-weight: 400;
+}
+
 .asset-side-panel-form-edit .asset-side-panel-header,
 .asset-side-panel-form-edit .asset-side-panel-footer {
   padding: 14px 12px;

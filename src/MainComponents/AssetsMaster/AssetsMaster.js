@@ -988,14 +988,20 @@ class AssetsMaster extends Component {
 
             <div className="form-group asset-form-group-custom">
               <label>Asset image</label>
-              <DocumentUploader Id="assetImageUpload" Class="form-control" type="file" onChange={this.onFileChange} />
-              <small className="asset-upload-file-name">{this.state.assetImageFileName || "No file chosen"}</small>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={this.state.assetImageFileName || ""} readOnly />
+                <i className="fa fa-picture-o asset-file-icon" />
+                <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
+              </div>
             </div>
 
             <div className="form-group asset-form-group-custom">
               <label>AMC contract</label>
-              <DocumentUploader Id="assetAmcUpload" Class="form-control" type="file" onChange={this.onAMCFileChange} />
-              <small className="asset-upload-file-name">{this.state.amcFileName || "No file chosen"}</small>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={this.state.amcFileName || ""} readOnly />
+                <i className="fa fa-file-text-o asset-file-icon" />
+                <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+              </div>
             </div>
           </div>
         </div>

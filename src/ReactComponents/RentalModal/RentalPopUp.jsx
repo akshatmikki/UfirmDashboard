@@ -15,10 +15,12 @@ const getInitialMode = (actionType, asset) => {
 
 function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
   const [activeMode, setActiveMode] = useState(getInitialMode(actionType, asset));
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (show) {
       setActiveMode(getInitialMode(actionType, asset));
+      setShowCancelConfirm(false);
     }
   }, [show, actionType, asset]);
 
@@ -34,6 +36,15 @@ function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
 
   const handleReturnData = (returnData) => {
     handleSubmit(returnData, "return");
+  };
+
+  const handleRequestClose = () => {
+    setShowCancelConfirm(true);
+  };
+
+  const handleConfirmClose = () => {
+    setShowCancelConfirm(false);
+    handleClose();
   };
 
   const showModeToggle = actionType !== "return" && actionType !== "rentout";
@@ -65,11 +76,40 @@ function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
           ) : null}
 
           {activeMode === "rentin" ? (
-            <ReturnAsset Close={handleClose} setData={handleReturnData} asset={asset} showModeToggle={showModeToggle} />
+            <ReturnAsset Close={handleRequestClose} setData={handleReturnData} asset={asset} showModeToggle={showModeToggle} />
           ) : (
-            <RentOut Close={handleClose} setData={handleRentOutData} asset={asset} showModeToggle={showModeToggle} />
+            <RentOut Close={handleRequestClose} setData={handleRentOutData} asset={asset} showModeToggle={showModeToggle} />
           )}
         </div>
+
+        {showCancelConfirm ? (
+          <div className="spare-add-backdrop" onClick={() => setShowCancelConfirm(false)}>
+            <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+              <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="spare-add-title">
+                  <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                    <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+                  </span>
+                  Cancel edits
+                </div>
+                <button type="button" className="spare-add-close" onClick={() => setShowCancelConfirm(false)}>
+                  <i className="fa fa-times" aria-hidden="true" />
+                </button>
+              </div>
+              <div className="asset-side-panel-body">
+                Are you sure you want to cancel? All your updated information will be lost.
+              </div>
+              <div className="asset-dialog-actions">
+                <button type="button" className="btn btn-light" onClick={() => setShowCancelConfirm(false)}>
+                  No, keep editing
+                </button>
+                <button type="button" className="btn btn-danger" onClick={handleConfirmClose}>
+                  Yes, cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </Modal.Body>
     </Modal>
   );
