@@ -391,7 +391,7 @@
   color: #1e3143 !important;
   font-weight: 500 !important;
   line-height: 20px !important;
-  gap: 10px !important;
+  gap: 2px !important;
   padding: 8px 18px !important;
   min-width: 126px !important;
 }
@@ -417,9 +417,9 @@
 }
 
 .asset-toolbar-add i {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
-  width: 18px;
+  width: 16px;
   text-align: center;
 }
 

@@ -11,7 +11,7 @@ const ExportToCSV = ({ data = [], fileName = "Tasklist.csv" }) => {
     >
       <Button
         label="Export"
-        icon="fa fa-share-square-o"
+        icon="fa fa-external-link"
         tooltip="Download CSV"
         type="button"
         className="asset-export-btn"
@@ -19,7 +19,7 @@ const ExportToCSV = ({ data = [], fileName = "Tasklist.csv" }) => {
           width: "106px",
           height: "40px",
           padding: "8px 20px 8px 12px",
-          gap: "4px",
+          gap: "2px",
           borderRadius: "4px",
           border: "1px solid rgba(19, 23, 32, 0.15)",
           background: "#ffffff",
