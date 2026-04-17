@@ -93,6 +93,8 @@ const StaffPage = () => {
   const [viewData, setViewData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editEmployeeId, setEditEmployeeId] = useState(null);
+  const [editDocumentEmployeeId, setEditDocumentEmployeeId] = useState(null);
+  const [managerOptions, setManagerOptions] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]); // FacilityMemberIds[]
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
@@ -181,17 +183,23 @@ const StaffPage = () => {
     others: Array.isArray(row?.FinancialInfo?.OtherDocImageUrl) ? row.FinancialInfo.OtherDocImageUrl : []
   });
 
-  const managerOptions = useMemo(() => {
-    return staff
-      .filter(row =>
-        row?.FacilityMember?.FacilityMemberId &&
-        row?.FacilityMember?.FacilityMemberId !== selectedFacilityMemberId
-      )
-      .map(row => ({
-        label: row?.Profile?.EmployeeName || "Unknown",
-        value: row.FacilityMember.FacilityMemberId
-      }));
-  }, [staff, selectedFacilityMemberId]);
+
+  const getDocumentEmployeeId = (row) =>
+    row?.EmployeeID ||
+    row?.EmployeeId ||
+    row?.Profile?.EmployeeID ||
+    row?.Profile?.EmployeeId ||
+    row?.EmployeeList?.EmployeeID ||
+    row?.EmployeeList?.EmployeeId ||
+    row?.FinancialInfo?.EmployeeID ||
+    row?.FinancialInfo?.EmployeeId ||
+    null;
+
+  const getEmployeeIdFromDocumentUrl = (documentUrl) => {
+    if (!documentUrl) return null;
+    const match = documentUrl.match(/\/EmployeesDoc\/(\d+)\//i);
+    return match?.[1] || null;
+  };
 
   const getCurrentOfficeIds = () => {
     let officeIds = [];
@@ -497,10 +505,21 @@ const StaffPage = () => {
   };
 
   const handleDeleteExistingDocument = async (type, documentUrl) => {
-    if (!editEmployeeId || !documentUrl) return;
+    const employeeIdForDelete =
+      editDocumentEmployeeId ||
+      getEmployeeIdFromDocumentUrl(documentUrl) ||
+      editEmployeeId;
+    if (!employeeIdForDelete || !documentUrl) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "Warning",
+        detail: "Employee id not found for document delete"
+      });
+      return;
+    }
 
     try {
-      await deleteEmployeeDocument(editEmployeeId, documentUrl);
+      await deleteEmployeeDocument(employeeIdForDelete, documentUrl);
       setExistingDocuments((prev) => ({
         ...prev,
         [type]: (prev[type] || []).filter((url) => url !== documentUrl)
@@ -521,10 +540,21 @@ const StaffPage = () => {
   };
 
   const handleDeleteResumeDocument = async (index, documentUrl) => {
-    if (!editEmployeeId || !documentUrl) return;
+    const employeeIdForDelete =
+      editDocumentEmployeeId ||
+      getEmployeeIdFromDocumentUrl(documentUrl) ||
+      editEmployeeId;
+    if (!employeeIdForDelete || !documentUrl) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "Warning",
+        detail: "Employee id not found for document delete"
+      });
+      return;
+    }
 
     try {
-      await deleteEmployeeDocument(editEmployeeId, documentUrl);
+      await deleteEmployeeDocument(employeeIdForDelete, documentUrl);
       setWorkHistories((prev) =>
         prev.map((history, historyIndex) =>
           historyIndex === index
@@ -643,6 +673,7 @@ const StaffPage = () => {
     ]);
     setIsEditMode(false);
     setEditEmployeeId(null);
+    setEditDocumentEmployeeId(null);
     setSalaryGroups([]);
     setSelectedSalaryGroup(null);
     setSalaryGroupMessage("");
@@ -673,7 +704,8 @@ const StaffPage = () => {
     setIsEditMode(true);
     const employeeId = row?.FacilityMember?.FacilityMemberId || "";
     setEditEmployeeId(employeeId);
-    const latestRow = row;
+    const latestRow = await loadEmployeeForDialogs(employeeId, row);
+    setEditDocumentEmployeeId(getDocumentEmployeeId(latestRow) || getDocumentEmployeeId(row));
 
     // Profile Info
     const profile = latestRow?.Profile || {};

@@ -1,19 +1,19 @@
-
 import React, { Component } from "react";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
 import departmentActions from "../../redux/department/action.js";
-import DataGrid from "../../ReactComponents/DataGrid/DataGrid.jsx";
 import Button from "../../ReactComponents/Button/Button";
 import ApiProvider from "./DataProvider.js";
 import * as appCommon from "../../Common/AppCommon.js";
 import { DELETE_CONFIRMATION_MSG } from "../../Contants/Common";
-import swal from "sweetalert";
 import { CreateValidator, ValidateControls } from "./Validation.js";
 import DocumentUploader from "../../ReactComponents/FileUploader/DocumentUploader.jsx";
 import ExportToCSV from "../../ReactComponents/ExportToCSV/ExportToCSV.js";
 import "../Calendar/Tasks/taskList/components/TaskListView.css";
 import "./AssetsMaster.css";
+import { withRouter } from "react-router-dom";
+import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
+import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -23,24 +23,12 @@ const toBase64 = (file) =>
     reader.onerror = (error) => reject(error);
   });
 
-const RadioButtonGroup = ({ options, name, selectedValue, onChange, disabled = false }) => (
-  <div className="d-flex align-items-center justify-content-around flex-wrap">
+const RadioButtonGroup = ({ options, name, selectedValue, onChange }) => (
+  <div className="asset-radio-group">
     {options.map((opt) => (
-      <label
-        key={opt.value}
-        className="form-check-label d-flex align-items-center mr-3 mb-1"
-        style={{ cursor: disabled ? "not-allowed" : "pointer", gap: "8px" }}
-      >
-        <input
-          type="radio"
-          name={name}
-          value={opt.value}
-          checked={selectedValue === opt.value}
-          onChange={onChange}
-          className="form-check-input"
-          disabled={disabled}
-        />
-        {opt.label}
+      <label key={opt.value} className="asset-radio-option">
+        <input type="radio" name={name} value={opt.value} checked={selectedValue === opt.value} onChange={onChange} />
+        <span>{opt.label}</span>
       </label>
     ))}
   </div>
@@ -49,32 +37,25 @@ const RadioButtonGroup = ({ options, name, selectedValue, onChange, disabled = f
 class AssetsMaster extends Component {
   constructor(props) {
     super(props);
+    this.searchInputRef = React.createRef();
     this.state = {
       isLoading: false,
       GridData: [],
       DueGridData: [],
       gridHeader: [
-        { sTitle: "Id", titleValue: "Id", orderable: true },
-        { sTitle: "Assets Name", titleValue: "Name" },
-        { sTitle: "Description", titleValue: "Description" },
-        { sTitle: "QRCode", titleValue: "QRCode" },
-        { sTitle: "Service Due Date", titleValue: "NextServiceDate" },
-        {
-          sTitle: "Action",
-          titleValue: "Action",
-          Action: "Edit&View&Delete",
-          Index: "0",
-          orderable: false,
-        },
+        { sTitle: "ID", titleValue: "Id", orderable: false },
+        { sTitle: "Name", titleValue: "Name", orderable: false },
+        { sTitle: "Location", titleValue: "Location", orderable: false },
+        { sTitle: "Service due", titleValue: "NextServiceDateDisplay", orderable: false },
+        { sTitle: "Status", titleValue: "StatusDisplay", orderable: false },
+        { sTitle: "Actions", titleValue: "Action", Action: "Edit&View&Delete", Index: "0", orderable: false },
       ],
       PageMode: "Home",
+      activeTab: "owned",
       Id: 0,
       AssetType: "",
       ManufacturerName: "",
-      SelectedCategory: "",
-      SelectedSubCategory: "",
-      SelectedAssetName: "",
-      SelectedAssetModel: "",
+      AssetModel: "",
       IsMoveable: false,
       Name: "",
       Description: "",
@@ -82,35 +63,40 @@ class AssetsMaster extends Component {
       ImageData: null,
       AssetImage: "",
       ImageExt: "",
-      documentVal: "",
-      currentSelectedFile: null,
-      showImagefilename: "",
+      assetImageFileName: "",
       showImagefiletype: null,
-      showImagefile: [],
-      extension: "",
-      LastServiceDate: null,
-      NextServiceDate: null,
+      showImagefile: null,
+      extension: null,
+      LastServiceDate: "",
+      NextServiceDate: "",
       IsRentable: false,
       AssetValue: 0,
       Capacity: "",
       AMCdoc: null,
       AMCimage: "",
+      amcFileName: "",
       status: false,
-      category: null,
-      location: null,
+      category: "",
+      location: "",
       serviceReminderDay: "",
-
       searchTerm: "",
       showFilterPanel: false,
-      filterAssetType: "",
-      filterStatus: "",
-      filterMoveable: "",
-      filterRentable: "",
-      filterDueFrom: "",
-      filterDueTo: "",
-      filterCategory: "",
-      filterLocation: "",
       filterCapacity: "",
+      filterVendor: "",
+      filterManufacturer: "",
+      filterStatus: "",
+      filterServiceStatus: "",
+      filterType: "",
+      selectedRowId: null,
+      showCancelConfirm: false,
+      cancelConfirmType: "",
+      showDeleteModal: false,
+      deleteTarget: null,
+      showSuccessModal: false,
+      successType: "",
+      PurchaseDate: "",
+      WarrantyDate: "",
+      currentPage: 1,
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -119,9 +105,22 @@ class AssetsMaster extends Component {
     this.loadHomagePageData();
   }
 
-  componentDidUpdate(prevProps) {
+  componentDidUpdate(prevProps, prevState) {
     if (prevProps.PropertyId !== this.props.PropertyId) {
       this.loadHomagePageData();
+    }
+
+    const filterKeys = [
+      "searchTerm",
+      "filterCapacity",
+      "filterVendor",
+      "filterManufacturer",
+      "filterServiceStatus",
+      "filterType",
+    ];
+
+    if (filterKeys.some((key) => prevState[key] !== this.state[key])) {
+      this.setState({ currentPage: 1 });
     }
   }
 
@@ -137,237 +136,326 @@ class AssetsMaster extends Component {
     return "";
   };
 
+  getRowDescription = (rowData = {}) =>
+    rowData.Description || rowData.description || rowData.AssetDescription || rowData.assetDescription || rowData.Desc || "";
+
   getBoolLabel = (value) => {
     const boolVal = this.normalizeBoolean(value);
-    if (boolVal === "") return "";
+    if (boolVal === "") return "-";
     return boolVal ? "Yes" : "No";
   };
 
-  getStatusLabel = (value) => {
-    const boolVal = this.normalizeBoolean(value);
-    if (boolVal === "") return "";
-    return boolVal ? "Functional" : "Non-Functional";
+  formatDisplayDate = (value) => {
+    const normalized = this.normalizeDate(value);
+    if (!normalized) return "-";
+    const [year, month, day] = normalized.split("-");
+    return year && month && day ? `${day}-${month}-${year}` : normalized;
   };
 
-  getModel = (type, overrides = {}) => {
-    return [
-      {
-        Id: this.state.Id,
-        Name: this.state.Name,
-        Description: this.state.Description,
-        QRCode: this.state.QRCode,
-        AssetType: this.state.AssetType,
-        Manufacturer: this.state.ManufacturerName,
-        AssetModel: this.state.AssetModel,
-        IsMoveable: this.state.IsMoveable,
-        Flag: type,
-        AssetImage: this.state.AssetImage,
-        LastServiceDate: this.state.LastServiceDate,
-        NextServiceDate: this.state.NextServiceDate,
-        IsRentable: this.state.IsRentable,
-        AssetValue: this.state.AssetValue,
-        Capacity: this.state.Capacity,
-        capacity: this.state.Capacity,
-        AMCdoc: this.state.AMCimage,
-        status: this.state.status,
-        category: this.state.category,
-        location: this.state.location,
-        serviceReminderDay: this.state.serviceReminderDay,
-        propertyId: this.props.PropertyId,
-        ...overrides,
-      },
-    ];
+  getPreviewSrc = (fileData, ext = "png") => {
+    if (!fileData) return "";
+    const raw = String(fileData);
+    if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) {
+      return raw;
+    }
+    const normalizedExt = String(ext || "png").toLowerCase();
+    const mimeType = normalizedExt === "pdf" ? "application/pdf" : `image/${normalizedExt === "jpg" ? "jpeg" : normalizedExt}`;
+    return `data:${mimeType};base64,${raw}`;
   };
 
-  loadHomagePageData() {
-    const model = this.getModel();
+  openDocumentUrl = (src) => {
+    if (!src) return;
+    if (src.startsWith("http://") || src.startsWith("https://")) {
+      window.open(src, "_blank", "noopener,noreferrer");
+      return;
+    }
+    // Chrome blocks opening data: URLs via target="_blank"; open in new window instead
+    const win = window.open("", "_blank");
+    if (!win) return;
+    if (src.startsWith("data:application/pdf")) {
+      win.document.write(
+        `<html><body style="margin:0;padding:0"><embed src="${src}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+      );
+    } else {
+      win.document.write(
+        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${src}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
+      );
+    }
+    win.document.close();
+  };
+
+  getAssetStatusMeta = (item = {}) => {
+    const rawStatus = item?.Status;
+    const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
+    const today = new Date().toISOString().slice(0, 10);
+    const rawServiceStatus = String(item?.ServiceStatus || item?.serviceStatus || "").trim();
+    const serviceStatus = rawServiceStatus || (!nextServiceDate ? "" : nextServiceDate < today ? "Overdue" : "Upcoming");
+    if (typeof rawStatus === "string" && rawStatus && rawStatus !== "true" && rawStatus !== "false") {
+      return { label: rawStatus, key: rawStatus.toLowerCase().replace(/\s+/g, "-"), serviceStatus };
+    }
+    const boolStatus = this.normalizeBoolean(rawStatus);
+    if (boolStatus === false) return { label: "Inactive", key: "inactive", serviceStatus };
+    if (boolStatus === true) return { label: "Active", key: "running", serviceStatus };
+    return { label: "-", key: "inactive", serviceStatus };
+  };
+
+  getAssetTypeLabel = (item = {}) => {
+    const rawType = String(item?.AssetType || item?.Type || item?.LeaseType || "").trim().toLowerCase();
+    if (!rawType) return "";
+    if (rawType.includes("rented in") || rawType === "in" || rawType.includes("inbound")) return "Rented in";
+    if (rawType.includes("rented out") || rawType === "out" || rawType.includes("outbound")) return "Rented Out";
+    if (rawType.includes("house") || rawType.includes("in house") || rawType.includes("owned")) return "In house";
+    return String(item?.AssetType || item?.Type || item?.LeaseType || "").trim();
+  };
+
+  matchesServiceStatus = (item = {}, selectedStatus = "") => {
+    if (!selectedStatus) return true;
+    const current = String(this.getAssetStatusMeta(item).serviceStatus || "").trim().toLowerCase();
+    const selected = String(selectedStatus || "").trim().toLowerCase();
+    if (!current) return false;
+    return current === selected;
+  };
+
+  getModel = (type, overrides = {}) => [
+    {
+      Id: this.state.Id,
+      Name: this.state.Name,
+      Description: this.state.Description,
+      QRCode: this.state.QRCode,
+      AssetType: this.state.AssetType,
+      Manufacturer: this.state.ManufacturerName,
+      AssetModel: this.state.AssetModel,
+      IsMoveable: this.state.IsMoveable,
+      Flag: type,
+      AssetImage: this.state.AssetImage,
+      LastServiceDate: this.state.LastServiceDate,
+      NextServiceDate: this.state.NextServiceDate,
+      IsRentable: this.state.IsRentable,
+      AssetValue: this.state.AssetValue,
+      Capacity: this.state.Capacity,
+      capacity: this.state.Capacity,
+      AMCdoc: this.state.AMCimage,
+      status: this.state.status,
+      category: this.state.category,
+      location: this.state.location,
+      serviceReminderDay: this.state.serviceReminderDay,
+      propertyId: this.props.PropertyId,
+      PurchaseDate: this.state.PurchaseDate,
+      WarrantyDate: this.state.WarrantyDate,
+      ...overrides,
+    },
+  ];
+
+  loadHomagePageData = () => {
+    const propertyId = Number(this.props.PropertyId);
+    if (!(propertyId > 0)) {
+      this.setState({ GridData: [], DueGridData: [], isLoading: false, selectedRowId: null, PageMode: "Home" });
+      return;
+    }
+
     this.setState({ isLoading: true });
-    this.ApiProviderr.manageDocumentTypeMaster(model, "R")
+    this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
       .then((resp) => {
-        if (resp.ok && resp.status === 200) {
-          return resp.json().then((rData) => {
-            const dueServiceAssets = Array.isArray(rData?.PassedServiceDates)
-              ? rData.PassedServiceDates
-              : [];
-            const upcomingServiceAssets = Array.isArray(rData?.UpcomingServiceDates)
-              ? rData.UpcomingServiceDates
-              : [];
-            const merged = [...dueServiceAssets, ...upcomingServiceAssets].map((item) => ({
+        if (!resp.ok || resp.status !== 200) return null;
+        return resp.json().then((rData) => {
+          const dueServiceAssets = Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
+          const upcomingServiceAssets = Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
+          const merged = [...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
+            const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
+            const statusMeta = this.getAssetStatusMeta(item);
+            const today = new Date().toISOString().slice(0, 10);
+            const isOverdue = nextServiceDate && nextServiceDate < today;
+            const displayDate = this.formatDisplayDate(nextServiceDate);
+
+            return {
               ...item,
-              NextServiceDate: this.normalizeDate(item?.NextServiceDate),
               LastServiceDate: this.normalizeDate(item?.LastServiceDate),
-            }));
-
-            this.setState({
-              GridData: merged,
-              DueGridData: dueServiceAssets,
-              isLoading: false,
-            });
+              NextServiceDate: nextServiceDate,
+              NextServiceDateDisplay: displayDate,
+              Location: item?.Location || item?.location || "Building-A",
+              StatusDisplay: `<span class="asset-table-status asset-table-status-${statusMeta.key}">${statusMeta.label}</span>`,
+            };
           });
-        }
-        this.setState({ isLoading: false });
-        return null;
-      })
-      .catch(() => {
-        this.setState({ isLoading: false });
-      });
-  }
 
-  onPagechange = () => {};
+           // Sort: Upcoming (nearest first) at top, then overdue.
+           const today = new Date().toISOString().slice(0, 10);
+           merged.sort((a, b) => {
+             const dateA = a.NextServiceDate || "";
+             const dateB = b.NextServiceDate || "";
+             const isUpcomingA = !!dateA && dateA >= today;
+             const isUpcomingB = !!dateB && dateB >= today;
+
+             if (isUpcomingA !== isUpcomingB) return isUpcomingA ? -1 : 1;
+             if (!dateA && !dateB) return 0;
+             if (!dateA) return 1;
+             if (!dateB) return -1;
+             return dateA.localeCompare(dateB);
+           });
+
+          this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false });
+        });
+      })
+      .catch(() => this.setState({ isLoading: false }));
+  };
+
+  onPagechange = () => { };
+
+  findItem = (id) => this.state.GridData.find((item) => String(item.Id) === String(id)) || null;
 
   Addnew = () => {
-    this.setState({ PageMode: "Add" }, () => {
-      CreateValidator();
-    });
+    this.setState(
+      {
+        PageMode: "Add",
+        selectedRowId: null,
+        Id: 0,
+        AssetType: "",
+        ManufacturerName: "",
+        AssetModel: "",
+        IsMoveable: false,
+        Name: "",
+        Description: "",
+        QRCode: "",
+        ImageData: null,
+        AssetImage: "",
+        ImageExt: "",
+        assetImageFileName: "",
+        LastServiceDate: "",
+        NextServiceDate: "",
+        IsRentable: false,
+        AssetValue: 0,
+        Capacity: "",
+        AMCdoc: null,
+        AMCimage: "",
+        amcFileName: "",
+        status: false,
+        category: "",
+        location: "",
+        serviceReminderDay: "",
+        PurchaseDate: "",
+        WarrantyDate: "",
+      },
+      () => CreateValidator()
+    );
   };
-
-  findItem(id) {
-    return this.state.GridData.find((item) => Number(item.Id) === Number(id)) || null;
-  }
 
   setFormData = (rowData, mode) => {
     if (!rowData) return;
     this.setState({
       PageMode: mode,
+      selectedRowId: rowData.Id,
       Id: rowData.Id,
       Name: rowData.Name || "",
-      Description: rowData.Description || "",
+      Description: this.getRowDescription(rowData),
       QRCode: rowData.QRCode || "",
       ManufacturerName: rowData.Manufacturer || "",
       AssetModel: rowData.AssetModel || "",
-      IsMoveable: this.normalizeBoolean(rowData.IsMoveable),
+      IsMoveable: String(this.normalizeBoolean(rowData.IsMoveable)),
       LastServiceDate: this.normalizeDate(rowData.LastServiceDate),
       NextServiceDate: this.normalizeDate(rowData.NextServiceDate),
-      IsRentable: this.normalizeBoolean(rowData.IsRentable),
+      IsRentable: String(this.normalizeBoolean(rowData.IsRentable)),
       AssetValue: rowData.AssetValue || 0,
       Capacity: rowData.Capacity ?? rowData.capacity ?? "",
       AssetType: rowData.AssetType || "",
-      AssetImage: rowData.AssetImage || "",
-      AMCimage: rowData.AMCdoc || "",
-      showImagefiletype: rowData.ImageExt,
-      showImagefile: rowData.Image,
-      extension: rowData.ImageExt,
-      status: this.normalizeBoolean(rowData.Status),
+      AssetImage: rowData.AssetImage || rowData.Image || "",
+      AMCimage: rowData.AMCdoc || rowData.AMCimage || "",
+      assetImageFileName:
+        rowData.AssetImageName ||
+        rowData.ImageName ||
+        ((rowData.AssetImage || rowData.Image) ? `Existing image${rowData.ImageExt ? `.${rowData.ImageExt}` : ""}` : ""),
+      amcFileName:
+        rowData.AMCdocName ||
+        rowData.AMCimageName ||
+        ((rowData.AMCdoc || rowData.AMCimage) ? "Existing document" : ""),
+      showImagefiletype: rowData.ImageExt || null,
+      showImagefile: rowData.Image || null,
+      extension: rowData.ImageExt || null,
+      status: String(this.normalizeBoolean(rowData.Status)),
       category: rowData.Category || "",
       location: rowData.Location || "",
       serviceReminderDay: rowData.serviceReminderDay || "",
+      PurchaseDate: this.normalizeDate(rowData.PurchaseDate),
+      WarrantyDate: this.normalizeDate(rowData.WarrantyDate),
     });
   };
 
   ongridedit = (id) => {
     CreateValidator();
-    const rowData = this.findItem(id);
-    this.setFormData(rowData, "Edit");
+    this.setFormData(this.findItem(id), "Edit");
+  };
+
+  onGridView = (id) => this.setFormData(this.findItem(id), "View");
+  onGridRowSelect = (id) => {
+    if (String(id) === String(this.state.selectedRowId)) {
+      if (this.state.PageMode === "View") {
+        this.closeSidePanel();
+      } else {
+        this.setState({ PageMode: "View" });
+      }
+      return;
+    }
+    this.setFormData(this.findItem(id), "View");
   };
 
   onGridDelete = (id) => {
     const rowData = this.findItem(id);
     if (!rowData) return;
-
-    const myhtml = document.createElement("div");
-    myhtml.innerHTML = `${DELETE_CONFIRMATION_MSG}</hr>`;
-
-    swal({
-      buttons: { ok: "Yes", cancel: "No" },
-      content: myhtml,
-      icon: "warning",
-      closeOnClickOutside: false,
-      dangerMode: true,
-    }).then((value) => {
-      if (value === "ok") {
-        this.setState({ Id: String(rowData.Id) }, () => {
-          const type = "D";
-          const model = this.getModel(type);
-          this.mangaeSave(model, type);
-        });
-      }
-    });
+    this.setState({ showDeleteModal: true, deleteTarget: rowData });
   };
 
-  onGridView = (id) => {
-    const rowData = this.findItem(id);
-    this.setFormData(rowData, "View");
-  };
+  requestCancelConfirm = (type) => this.setState({ showCancelConfirm: true, cancelConfirmType: type || "" });
+  closeCancelConfirm = () => this.setState({ showCancelConfirm: false, cancelConfirmType: "" });
 
-  onFileChange(event) {
-    const validFileExtensions = ["jpg", "jpeg", "png", "pdf"];
+  onFileChange = (event) => {
     const selected = event?.target?.files?.[0];
     if (!selected) return;
-
-    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1);
-    const isValidFiletype = validFileExtensions.some((x) => x === extension.toLowerCase());
-
-    if (isValidFiletype) {
-      this.setState({ ImageData: selected });
+    const valid = ["jpg", "jpeg", "png", "pdf"];
+    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
+    if (valid.includes(extension)) {
+      this.setState({ ImageData: selected, assetImageFileName: selected.name });
       return;
     }
-
-    this.setState({ documentVal: "", currentSelectedFile: null });
-    appCommon.showtextalert(
-      `${selected.name} Invalid file type, Please select only ${validFileExtensions.join(", ")}`,
-      "",
-      "error"
-    );
-  }
+    appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
+  };
 
   onAMCFileChange = (event) => {
-    const validFileExtensions = ["jpg", "jpeg", "png", "pdf"];
     const selected = event?.target?.files?.[0];
     if (!selected) return;
-
-    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1);
-    const isValidFiletype = validFileExtensions.some((x) => x === extension.toLowerCase());
-
-    if (isValidFiletype) {
-      this.setState({ AMCdoc: selected });
+    const valid = ["jpg", "jpeg", "png", "pdf"];
+    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
+    if (valid.includes(extension)) {
+      this.setState({ AMCdoc: selected, amcFileName: selected.name });
       return;
     }
-
-    this.setState({ documentVal: "", currentSelectedFile: null });
-    appCommon.showtextalert(
-      `${selected.name} Invalid file type, Please select only ${validFileExtensions.join(", ")}`,
-      "",
-      "error"
-    );
+    appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
   };
 
-  handleSave = async () => {
-    const upFile = this.state.ImageData;
-    const amcUpFile = this.state.AMCdoc;
+  handleTabChange = (tab) => {
+  this.setState({
+    activeTab: tab,
+    PageMode: "Home",
+    selectedRowId: null
+  });
+};
 
+  handleSave = async () => {
     let assetImage = this.state.AssetImage;
     let imageExt = this.state.ImageExt;
     let amcImage = this.state.AMCimage;
 
-    if (upFile && upFile.name && upFile.size) {
-      const fileD = await toBase64(upFile);
-      const extension = upFile.name.substring(upFile.name.lastIndexOf(".") + 1);
+    if (this.state.ImageData?.name && this.state.ImageData?.size) {
+      const fileD = await toBase64(this.state.ImageData);
       assetImage = fileD[1];
-      imageExt = extension;
+      imageExt = this.state.ImageData.name.substring(this.state.ImageData.name.lastIndexOf(".") + 1);
     }
-
-    if (amcUpFile && amcUpFile.name && amcUpFile.size) {
-      const fileD = await toBase64(amcUpFile);
+    if (this.state.AMCdoc?.name && this.state.AMCdoc?.size) {
+      const fileD = await toBase64(this.state.AMCdoc);
       amcImage = fileD[1];
     }
 
     if (ValidateControls()) {
       const type = this.state.PageMode === "Add" ? "I" : "U";
-      const model = this.getModel(type, {
-        AssetImage: assetImage,
-        ImageExt: imageExt,
-        AMCdoc: amcImage,
-      });
-      this.mangaeSave(model, type);
+      this.mangaeSave(this.getModel(type, { AssetImage: assetImage, ImageExt: imageExt, AMCdoc: amcImage }), type);
     }
-
-    this.setState({
-      ImageData: null,
-      AssetImage: "",
-      ImageExt: "",
-      AMCdoc: null,
-      AMCimage: "",
-    });
   };
 
   mangaeSave = (model, type) => {
@@ -377,12 +465,12 @@ class AssetsMaster extends Component {
           if (rData === 0) {
             appCommon.showtextalert("Assets Name Existed !", "", "error");
           } else {
-            if (type !== "D") {
-              appCommon.showtextalert("Assets Saved Successfully!", "", "success");
-            } else {
+            if (type === "D") {
               appCommon.showtextalert("Assets Deleted Successfully!", "", "success");
+              this.setState({ showDeleteModal: false, deleteTarget: null }, this.handleCancel);
+            } else {
+              this.setState({ showSuccessModal: true, successType: type }, this.handleCancel);
             }
-            this.handleCancel();
           }
         });
       }
@@ -393,127 +481,174 @@ class AssetsMaster extends Component {
   handleCancel = () => {
     this.setState(
       {
+        PageMode: "Home",
+        selectedRowId: null,
         Id: 0,
-        Name: "",
-        Description: "",
-        QRCode: "",
+        AssetType: "",
         ManufacturerName: "",
         AssetModel: "",
         IsMoveable: false,
+        Name: "",
+        Description: "",
+        QRCode: "",
+        ImageData: null,
+        AssetImage: "",
+        ImageExt: "",
+        assetImageFileName: "",
+        showImagefiletype: null,
+        showImagefile: null,
+        extension: null,
         LastServiceDate: "",
         NextServiceDate: "",
         IsRentable: false,
         AssetValue: 0,
         Capacity: "",
-        AssetType: "",
-        AssetImage: "",
+        AMCdoc: null,
         AMCimage: "",
-        showImagefiletype: null,
-        showImagefile: null,
-        extension: null,
+        amcFileName: "",
         status: false,
         category: "",
         location: "",
         serviceReminderDay: "",
-        ImageData: null,
-        AMCdoc: null,
+        PurchaseDate: "",
+        WarrantyDate: "",
       },
-      () => {
-        this.setState({ PageMode: "Home" });
-        this.loadHomagePageData();
-      }
+      this.loadHomagePageData
     );
   };
+
+  closeSidePanel = () => this.setState({ PageMode: "Home", selectedRowId: null });
+  closeSuccessModal = () => this.setState({ showSuccessModal: false, successType: "" });
   resetFilters = () => {
     this.setState({
       searchTerm: "",
-      filterAssetType: "",
-      filterStatus: "",
-      filterMoveable: "",
-      filterRentable: "",
-      filterDueFrom: "",
-      filterDueTo: "",
-      filterCategory: "",
-      filterLocation: "",
       filterCapacity: "",
+      filterVendor: "",
+      filterManufacturer: "",
+      filterStatus: "",
+      filterServiceStatus: "",
+      filterType: "",
     });
   };
 
-  getFilteredGridData = () => {
-    const {
-      GridData,
-      searchTerm,
-      filterAssetType,
-      filterStatus,
-      filterMoveable,
-      filterRentable,
-      filterDueFrom,
-      filterDueTo,
-      filterCategory,
-      filterLocation,
-      filterCapacity,
-    } = this.state;
+  closeFilterPopup = () => this.setState({ showFilterPanel: false });
 
-    return (GridData || []).filter((item) => {
-      const rowId = String(item?.Id || "");
-      const rowName = String(item?.Name || "");
-      const rowDescription = String(item?.Description || "");
-      const rowQr = String(item?.QRCode || "");
+  renderFilterPopup = () => {
+    if (!this.state.showFilterPanel) return null;
+
+    return (
+      <div className="asset-inline-filters">
+        <div className="asset-filter-header">
+          <span className="asset-filter-title">Filters</span>
+          <button className="asset-filter-reset" type="button" onClick={this.resetFilters}>
+            <i className="fa fa-times" />
+            Reset All
+          </button>
+        </div>
+
+        <div className="asset-filter-grid">
+          <div className="asset-filter-field">
+            <label>Vendor</label>
+            <CustomDropdown 
+              variant="long" 
+              value={this.state.filterVendor} 
+              onChange={(e) => this.setState({ filterVendor: e.target.value })} 
+              placeholder="Enter name" 
+              options={this.getVendorOptions().map(v => ({ label: v, value: v }))} 
+            />
+          </div>
+          <div className="asset-filter-field">
+            <label>Manufacturer</label>
+            <CustomDropdown 
+              variant="long" 
+              value={this.state.filterManufacturer} 
+              onChange={(e) => this.setState({ filterManufacturer: e.target.value })} 
+              placeholder="Enter name" 
+              options={this.getManufacturerOptions().map(m => ({ label: m, value: m }))} 
+            />
+          </div>
+
+          <div className="asset-filter-field asset-filter-field-full">
+            <label>Type</label>
+            <div className="asset-filter-chip-row">
+              {["Rented in", "Rented Out", "In house"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`asset-filter-chip ${this.state.filterType === item ? "active" : ""}`}
+                  onClick={() => this.setState({ filterType: this.state.filterType === item ? "" : item })}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="asset-filter-field asset-filter-field-full">
+            <label>Status</label>
+            <div className="asset-filter-chip-row">
+              {["Active", "Servicing", "Inactive"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`asset-filter-chip ${this.state.filterStatus === item ? "active" : ""}`}
+                  onClick={() => this.setState({ filterStatus: this.state.filterStatus === item ? "" : item })}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="asset-filter-field asset-filter-field-full">
+            <label>Service Status</label>
+            <div className="asset-filter-chip-row">
+              {["Due", "Upcoming", "Overdue"].map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className={`asset-filter-chip ${this.state.filterServiceStatus === item ? "active" : ""}`}
+                  onClick={() => this.setState({ filterServiceStatus: this.state.filterServiceStatus === item ? "" : item })}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="asset-filter-popup-footer">
+          <button className="asset-filter-apply" type="button" onClick={this.closeFilterPopup}>
+            Apply filters
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  getFilteredGridData = () =>
+    (this.state.GridData || []).filter((item) => {
+      const search = String(this.state.searchTerm || "").toLowerCase().trim();
+      const rowId = String(item?.Id ?? item?.AssetID ?? "").toLowerCase();
+      const rowName = String(item?.Name || item?.name || item?.AssetName || "").toLowerCase();
       const rowType = String(item?.AssetType || "");
-      const rowCategory = String(item?.Category || "");
-      const rowLocation = String(item?.Location || "");
-      const rowCapacity = String(item?.Capacity ?? item?.capacity ?? "");
+      const rowCategory = String(item?.Category || "").toLowerCase();
+      const rowLocation = String(item?.Location || "").toLowerCase();
+      const rowCapacity = String(item?.Capacity ?? item?.capacity ?? "").toLowerCase();
       const rowNextServiceDate = this.normalizeDate(item?.NextServiceDate);
 
-      const search = String(searchTerm || "").toLowerCase().trim();
-      const matchesSearch =
-        !search ||
-        rowId.toLowerCase().includes(search) ||
-        rowName.toLowerCase().includes(search) ||
-        rowDescription.toLowerCase().includes(search) ||
-        rowQr.toLowerCase().includes(search);
-
-      const matchesAssetType = !filterAssetType || rowType === filterAssetType;
-      const matchesStatus =
-        filterStatus === ""
-          ? true
-          : this.normalizeBoolean(item?.Status) === this.normalizeBoolean(filterStatus);
-      const matchesMovable =
-        filterMoveable === ""
-          ? true
-          : this.normalizeBoolean(item?.IsMoveable) === this.normalizeBoolean(filterMoveable);
-      const matchesRentable =
-        filterRentable === ""
-          ? true
-          : this.normalizeBoolean(item?.IsRentable) === this.normalizeBoolean(filterRentable);
-
-      const matchesCategory =
-        !filterCategory || rowCategory.toLowerCase().includes(String(filterCategory).toLowerCase().trim());
-      const matchesLocation =
-        !filterLocation || rowLocation.toLowerCase().includes(String(filterLocation).toLowerCase().trim());
-      const matchesCapacity =
-        !filterCapacity || rowCapacity.toLowerCase().includes(String(filterCapacity).toLowerCase().trim());
-
-      const matchesDueFrom = !filterDueFrom || !rowNextServiceDate || rowNextServiceDate >= filterDueFrom;
-      const matchesDueTo = !filterDueTo || !rowNextServiceDate || rowNextServiceDate <= filterDueTo;
-
       return (
-        matchesSearch &&
-        matchesAssetType &&
-        matchesStatus &&
-        matchesMovable &&
-        matchesRentable &&
-        matchesCategory &&
-        matchesLocation &&
-        matchesCapacity &&
-        matchesDueFrom &&
-        matchesDueTo
+        (!search || rowId.includes(search) || rowName.includes(search)) &&
+        (!this.state.filterManufacturer || String(item?.Manufacturer || "").toLowerCase().includes(this.state.filterManufacturer.toLowerCase())) &&
+        (!this.state.filterVendor || String(item?.Vendor || "").toLowerCase().includes(this.state.filterVendor.toLowerCase())) &&
+        (!this.state.filterStatus || this.getAssetStatusMeta(item).label === this.state.filterStatus) &&
+        (!this.state.filterType || this.getAssetTypeLabel(item) === this.state.filterType) &&
+        this.matchesServiceStatus(item, this.state.filterServiceStatus)
       );
     });
-  };
 
-  getExportData = (rows) => {
-    return (rows || []).map((item) => ({
+  getExportData = (rows) =>
+    (rows || []).map((item) => ({
       Id: item.Id,
       Name: item.Name,
       Description: item.Description,
@@ -527,21 +662,739 @@ class AssetsMaster extends Component {
       IsRentable: this.getBoolLabel(item.IsRentable),
       AssetValue: item.AssetValue,
       Capacity: item.Capacity ?? item.capacity,
-      Status: this.getStatusLabel(item.Status),
+      Status: this.getAssetStatusMeta(item).label,
       Category: item.Category,
       Location: item.Location,
       ServiceReminderDay: item.serviceReminderDay,
     }));
+
+  getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
+
+  getVendorOptions = () =>
+    Array.from(
+      new Set(
+        (this.state.GridData || [])
+          .map((item) => String(item?.Vendor || item?.Distributor || item?.VendorName || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+  getManufacturerOptions = () =>
+    Array.from(
+      new Set(
+        (this.state.GridData || [])
+          .map((item) => String(item?.Manufacturer || "").trim())
+          .filter(Boolean)
+      )
+    ).sort((a, b) => a.localeCompare(b));
+
+  getPaginatedRows = (rows) => {
+    const pageSize = 15;
+    const totalPages = Math.max(1, Math.ceil((rows || []).length / pageSize));
+    const currentPage = Math.min(this.state.currentPage || 1, totalPages);
+    const startIndex = (currentPage - 1) * pageSize;
+    return {
+      rows: (rows || []).slice(startIndex, startIndex + pageSize),
+      currentPage,
+      totalPages,
+      totalRows: (rows || []).length,
+    };
   };
 
-  renderHomeView = () => {
-    const filteredGridData = this.getFilteredGridData();
-    const dueCount = this.state.DueGridData.length;
-    const functionalCount = filteredGridData.filter((item) => this.normalizeBoolean(item.Status) === true).length;
-    const nonFunctionalCount = filteredGridData.filter(
-      (item) => this.normalizeBoolean(item.Status) === false
-    ).length;
+  renderTablePagination = (currentPage, totalPages, totalRows, onPageChange) => {
+    if (totalRows <= 15) return null;
 
+    return (
+      <div className="asset-owned-pagination">
+        <span>{`Showing ${(currentPage - 1) * 15 + 1}-${Math.min(currentPage * 15, totalRows)} of ${totalRows}`}</span>
+        <div className="asset-owned-pagination-controls">
+          <button type="button" className="asset-owned-page-btn" disabled={currentPage === 1} onClick={() => onPageChange(currentPage - 1)}>
+            <i className="fa fa-angle-left" aria-hidden="true" />
+          </button>
+          <span className="asset-owned-page-number">{currentPage}</span>
+          <button type="button" className="asset-owned-page-btn" disabled={currentPage === totalPages} onClick={() => onPageChange(currentPage + 1)}>
+            <i className="fa fa-angle-right" aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  renderOwnedAssetsTable = (rows) => {
+    const paginated = this.getPaginatedRows(rows);
+
+    return (
+    <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
+      <table className="table asset-owned-table custTable table-hover mb-0">
+          <thead>
+            <tr>
+              <th className="col-id" style={{ width: "70px" }}>ID</th>
+              <th className="col-name">Name</th>
+              <th className="col-location">Location</th>
+              <th className="col-date" style={{ width: "110px" }}>Service due</th>
+              <th className="col-status" style={{ width: "100px" }}>Status</th>
+              <th className="col-actions" style={{ width: "100px" }}>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginated.rows.length ? (
+              paginated.rows.map((asset) => {
+                const statusMeta = this.getAssetStatusMeta(asset);
+                const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+                return (
+                  <tr
+                    key={asset.Id}
+                    className={isSelected ? "grid-selected-row active" : ""}
+                    onClick={() => this.onGridRowSelect(asset.Id)}
+                  >
+                    <td className="col-id">{asset.Id || "-"}</td>
+                    <td className="col-name">{asset.Name || "-"}</td>
+                    <td className="col-location">{asset.Location || asset.location || "-"}</td>
+                    <td className="col-date">{this.formatDisplayDate(asset.NextServiceDate)}</td>
+                    <td className="col-status">
+                      <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
+                    </td>
+                    <td className="col-actions">
+                      <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
+                        <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
+                          <i className="fa fa-pencil-square-o" aria-hidden="true" />
+                        </button>
+                        <button type="button" className="asset-owned-icon-btn" title="Delete" onClick={() => this.onGridDelete(asset.Id)}>
+                          <i className="fa fa-trash-o" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+            ) : (
+              <tr>
+                <td colSpan="6" className="asset-owned-empty-state">No assets found.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {this.renderTablePagination(paginated.currentPage, paginated.totalPages, paginated.totalRows, (page) => this.setState({ currentPage: page }))}
+    </div>
+  );
+  };
+
+  renderReadOnlyField = (label, value, extraClass = "") => (
+    <div className={`asset-info-item ${extraClass}`.trim()}>
+      <span className="asset-info-label">{label}</span>
+      <span className="asset-info-value">{value || "-"}</span>
+    </div>
+  );
+
+  renderAssetDetailsPanel = () => {
+    const asset = this.getSelectedAssetRecord();
+    if (!asset) return null;
+    const statusMeta = this.getAssetStatusMeta(asset);
+    const imageSource = this.getPreviewSrc(
+      this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
+      this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
+    );
+    const amcSource = this.getPreviewSrc(this.state.AMCimage || asset.AMCdoc || asset.AMCimage, "png");
+
+    return (
+      <div className="asset-side-panel asset-details-view-panel">
+        <div className="asset-side-panel-header">
+          <h4 className="asset-side-panel-title">Asset Details</h4>
+        </div>
+        <div className="asset-side-panel-body">
+          <div className="asset-details-new-layout">
+            <div className="asset-details-row asset-details-header-row">
+              <span className="asset-info-label">ID</span>
+              <span className="asset-info-value">{asset.Id}</span>
+            </div>
+
+            <div className="asset-details-row asset-details-name-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Name</span>
+                <span className="asset-info-value">{asset.Name}</span>
+              </div>
+              <span className={`asset-status-badge asset-status-badge-${statusMeta.key}`}>{statusMeta.label}</span>
+            </div>
+
+            <div className="asset-details-row asset-details-desc-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Description</span>
+                <span className="asset-info-value">{this.getRowDescription(asset) || "-"}</span>
+              </div>
+            </div>
+
+            <div className="asset-details-grid-two-col">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Manufacturer</span>
+                <span className="asset-info-value">{asset.Manufacturer || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Model</span>
+                <span className="asset-info-value">{asset.AssetModel || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Last serviced</span>
+                <span className="asset-info-value">{this.formatDisplayDate(asset.LastServiceDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Next service</span>
+                <span className="asset-info-value">{this.formatDisplayDate(asset.NextServiceDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Reminder</span>
+                <span className="asset-info-value">{asset.serviceReminderDay ? `${asset.serviceReminderDay} day(s)` : "No reminder set"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Value</span>
+                <span className="asset-info-value">{asset.AssetValue ? `₹${asset.AssetValue}` : "₹0"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Is Movable</span>
+                <span className="asset-info-value">{this.getBoolLabel(asset.IsMoveable)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Is Rentable</span>
+                <span className="asset-info-value">{this.getBoolLabel(asset.IsRentable)}</span>
+              </div>
+            </div>
+
+            <div className="asset-details-row asset-details-location-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Location</span>
+                <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+              </div>
+            </div>
+
+            <div className="asset-details-docs-section">
+              <div className="asset-qr-preview-box">
+                <div className="asset-qr-wrapper">
+                  <i className="fa fa-qrcode" />
+                </div>
+              </div>
+              <div className="asset-doc-links-stack">
+                <div className="asset-doc-link-item">
+                  <div className="asset-doc-icon-wrapper">
+                    <i className="fa fa-picture-o" />
+                  </div>
+                  {imageSource ? (
+                    <button
+                      type="button"
+                      className="asset-doc-link-text"
+                      onClick={() => this.openDocumentUrl(imageSource)}
+                    >Asset photo</button>
+                  ) : (
+                    <span className="asset-doc-link-text disabled">Asset photo</span>
+                  )}
+                </div>
+                <div className="asset-doc-link-item">
+                  <div className="asset-doc-icon-wrapper">
+                    <i className="fa fa-file-text-o" />
+                  </div>
+                  {amcSource ? (
+                    <button
+                      type="button"
+                      className="asset-doc-link-text"
+                      onClick={() => this.openDocumentUrl(amcSource)}
+                    >AMC Contract</button>
+                  ) : (
+                    <span className="asset-doc-link-text disabled">AMC Contract</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="asset-side-panel-footer">
+          <button type="button" className="btn btn-primary asset-btn-footer-edit" onClick={() => this.ongridedit(asset.Id)}>
+            Edit
+          </button>
+          <button type="button" className="btn btn-outline-light asset-btn-footer-close" onClick={this.closeSidePanel}>
+            Close
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+
+  renderAssetForm = () => {
+    const isEditMode = this.state.PageMode === "Edit";
+    return (
+      <div className={`asset-side-panel asset-side-panel-form ${isEditMode ? "asset-side-panel-form-edit" : ""}`.trim()}>
+        <div className="asset-side-panel-header asset-form-new-header">
+          <div className="asset-panel-title-wrap">
+            <span className="asset-form-icon-circle">
+              <i className="fa fa-pencil-square-o" aria-hidden="true" />
+            </span>
+            <h4 className="asset-side-panel-title">{isEditMode ? "Edit asset details" : "Add Asset"}</h4>
+          </div>
+        </div>
+        <div className="asset-side-panel-body">
+          <div className="asset-form-qr-centered">
+            <div className="asset-qr-wrapper-large">
+              <i className="fa fa-qrcode" aria-hidden="true" />
+            </div>
+          </div>
+
+          <div className="asset-form-id-row-simple">
+            <span className="asset-info-label">ID</span>
+            <span className="asset-info-value">{this.state.Id || "NEW"}</span>
+          </div>
+
+          <div className="asset-form-simple-stack">
+            <div className="form-group asset-form-group-custom">
+              <label>Name</label>
+              <input type="text" className="form-control" value={this.state.Name} onChange={(e) => this.setState({ Name: e.target.value })} />
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Status</label>
+              <CustomDropdown
+                variant="short"
+                value={this.state.status}
+                onChange={(e) => this.setState({ status: e.target.value })}
+                placeholder="Select status"
+                options={[
+                  { label: "Active", value: "true" },
+                  { label: "Inactive", value: "false" },
+                  { label: "Servicing", value: "Servicing" }
+                ]}
+              />
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Description</label>
+              <textarea rows="4" className="form-control" value={this.state.Description} onChange={(e) => this.setState({ Description: e.target.value })} />
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input type="text" className="form-control" value={this.state.ManufacturerName} onChange={(e) => this.setState({ ManufacturerName: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Model</label>
+                <input type="text" className="form-control" value={this.state.AssetModel} onChange={(e) => this.setState({ AssetModel: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Last serviced</label>
+                <CustomDatePicker value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Next service</label>
+                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Reminder</label>
+                <input type="text" className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Value</label>
+                <input type="text" className="form-control" value={this.state.AssetValue} onChange={(e) => this.setState({ AssetValue: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Is Movable</label>
+                <RadioButtonGroup
+                  name="IsMoveable"
+                  selectedValue={String(this.state.IsMoveable)}
+                  onChange={(e) => this.setState({ IsMoveable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Is Rentable</label>
+                <RadioButtonGroup
+                  name="IsRentable"
+                  selectedValue={String(this.state.IsRentable)}
+                  onChange={(e) => this.setState({ IsRentable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Location</label>
+              <input type="text" className="form-control" value={this.state.location} onChange={(e) => this.setState({ location: e.target.value })} />
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Asset image</label>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={this.state.assetImageFileName || ""} readOnly />
+                <i className="fa fa-picture-o asset-file-icon" />
+                <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
+              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>AMC contract</label>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={this.state.amcFileName || ""} readOnly />
+                <i className="fa fa-file-text-o asset-file-icon" />
+                <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="asset-side-panel-footer">
+          <Button id="btnSave" Text="Save changes" Action={this.handleSave} ClassName="btn btn-primary asset-btn-footer-save" />
+          <Button id="btnCancel" Text="Cancel" Action={() => this.requestCancelConfirm("edit")} ClassName="btn btn-outline-light asset-btn-footer-cancel" />
+        </div>
+      </div>
+    );
+  };
+
+  renderAssetFormModal = () => {
+    const isEditMode = this.state.PageMode === "Edit";
+    const title = isEditMode ? "Edit Asset" : "Add Asset";
+
+    return (
+      <div className="asset-add-backdrop" role="presentation">
+        <div className="asset-add-modal" role="dialog" aria-modal="true">
+          <div className="asset-add-header">
+            <div className="asset-add-title">
+              <span className="asset-add-icon" aria-hidden="true">
+                <i className="fa fa-plus" />
+              </span>
+              <span>{title}</span>
+            </div>
+          </div>
+
+          <div className="asset-add-body">
+            <div className="asset-add-id-row">
+              <div className="asset-add-id-left">
+                <span className="asset-add-id-label">ID</span>
+                <span className="asset-add-id-value">{this.state.Id ? `#${this.state.Id}` : "#1234"}</span>
+              </div>
+              <button type="button" className="asset-add-generate">
+                <i className="fa fa-qrcode" aria-hidden="true" />
+                Generate QR code
+              </button>
+            </div>
+
+            <div className="asset-add-grid">
+              <div className="form-group asset-form-group-custom">
+                <label>Name</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Add name"
+                  value={this.state.Name}
+                  onChange={(e) => this.setState({ Name: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Status</label>
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.status}
+                  onChange={(e) => this.setState({ status: e.target.value })}
+                  placeholder="Input status"
+                  options={[
+                    { label: "Active", value: "true" },
+                    { label: "Inactive", value: "false" },
+                    { label: "Servicing", value: "Servicing" }
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom asset-add-span-2">
+                <label>Description</label>
+                <textarea
+                  rows="3"
+                  className="form-control"
+                  placeholder="Category description"
+                  value={this.state.Description}
+                  onChange={(e) => this.setState({ Description: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Add manufacturer name"
+                  value={this.state.ManufacturerName}
+                  onChange={(e) => this.setState({ ManufacturerName: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Model</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Add asset model"
+                  value={this.state.AssetModel}
+                  onChange={(e) => this.setState({ AssetModel: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Last service</label>
+                <CustomDatePicker value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Next service</label>
+                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Is Movable</label>
+                <RadioButtonGroup
+                  name="IsMoveable"
+                  selectedValue={String(this.state.IsMoveable)}
+                  onChange={(e) => this.setState({ IsMoveable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Is Rentable</label>
+                <RadioButtonGroup
+                  name="IsRentable"
+                  selectedValue={String(this.state.IsRentable)}
+                  onChange={(e) => this.setState({ IsRentable: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Service reminder</label>
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.serviceReminderDay}
+                  onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
+                  placeholder="Select reminder"
+                  options={[
+                    { label: "One Day Prior", value: "1" },
+                    { label: "One Week Prior", value: "7" },
+                    { label: "15 Days Prior", value: "15" },
+                    { label: "One Month Prior", value: "30" }
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Location</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  placeholder="Location"
+                  value={this.state.location} 
+                  onChange={(e) => this.setState({ location: e.target.value })} 
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Date of Purchase</label>
+                <CustomDatePicker value={this.state.PurchaseDate} onChange={(e) => this.setState({ PurchaseDate: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Value</label>
+                <div className="asset-input-icon-wrapper">
+                  <span className="asset-input-icon">₹</span>
+                  <input 
+                    type="text" 
+                    className="form-control" 
+                    placeholder=""
+                    value={this.state.AssetValue} 
+                    onChange={(e) => this.setState({ AssetValue: e.target.value })} 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Warranty date</label>
+                <CustomDatePicker value={this.state.WarrantyDate} onChange={(e) => this.setState({ WarrantyDate: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Warranty document</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
+                  <i className="fa fa-file-text-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+                </div>
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Asset image</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.assetImageFileName || ""} readOnly />
+                  <i className="fa fa-picture-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="asset-add-footer">
+            <button type="button" className="btn btn-primary asset-add-btn-save" onClick={this.handleSave}>Save</button>
+            <button type="button" className="btn btn-light asset-add-btn-cancel" onClick={() => this.requestCancelConfirm("add")}>Cancel</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  renderCancelConfirmModal = () => {
+    if (!this.state.showCancelConfirm) return null;
+    const isEdit = this.state.cancelConfirmType === "edit";
+    const title = isEdit ? "Cancel edits" : "Cancel action";
+    const bodyText = isEdit
+      ? "Are you sure you want to cancel? All your updated information will be lost."
+      : "Are you sure you want to cancel? All your entered information will be lost.";
+    return (
+      <div className="spare-add-backdrop" onClick={this.closeCancelConfirm}>
+        <div className="asset-master-main-card" style={{ maxWidth: "520px" }} onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+              </span>
+              {title}
+            </div>
+            <button type="button" className="spare-add-close" onClick={this.closeCancelConfirm}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">{bodyText}</div>
+          <div className="asset-dialog-actions">
+            <button type="button" className="btn btn-light" onClick={this.closeCancelConfirm}>
+              No, keep editing
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => {
+                this.closeCancelConfirm();
+                this.handleCancel();
+              }}
+            >
+              Yes, cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  renderDeleteConfirmModal = () => {
+    if (!this.state.showDeleteModal || !this.state.deleteTarget) return null;
+    const asset = this.state.deleteTarget;
+    return (
+      <div className="spare-add-backdrop" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
+        <div className="asset-master-main-card asset-delete-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
+                <i className="fa fa-exclamation-triangle" aria-hidden="true" />
+              </span>
+              Delete asset
+            </div>
+            <button type="button" className="spare-add-close" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">
+            Are you sure you want to delete this Asset? This action cannot be undone.
+            <div className="asset-dialog-assetbox">
+              <div className="asset-dialog-assetrow">
+                <span className="asset-dialog-assetlabel">Asset ID:</span>
+                <span className="asset-dialog-assetvalue">#{asset.Id}</span>
+              </div>
+              <div className="asset-dialog-assetrow">
+                <span className="asset-dialog-assetlabel">Asset Name:</span>
+                <span className="asset-dialog-assetvalue">{asset.Name || "-"}</span>
+              </div>
+              <div className="asset-dialog-assetrow">
+                <span className="asset-dialog-assetlabel">Location:</span>
+                <span className="asset-dialog-assetvalue">{asset.Location || asset.location || "-"}</span>
+              </div>
+            </div>
+          </div>
+          <div className="asset-dialog-actions asset-dialog-actions-right">
+            <button type="button" className="btn btn-light" onClick={() => this.setState({ showDeleteModal: false, deleteTarget: null })}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => this.setState({ Id: String(asset.Id) }, () => this.mangaeSave(this.getModel("D"), "D"))}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  renderSuccessModal = () => {
+    if (!this.state.showSuccessModal) return null;
+    const isUpdate = this.state.successType === "U";
+    const title = isUpdate ? "Changes updated successfully" : "Item created successfully";
+    const subtitle = isUpdate ? "The item has been updated." : "The item is ready. You can now monitor its progress.";
+    return (
+      <div className="spare-add-backdrop" onClick={this.closeSuccessModal}>
+        <div className="asset-master-main-card asset-success-modal" onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
+                <i className="fa fa-check" aria-hidden="true" />
+              </span>
+              {title}
+            </div>
+            <button type="button" className="spare-add-close" onClick={this.closeSuccessModal}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">{subtitle}</div>
+          <div className="asset-dialog-actions asset-dialog-actions-right">
+            <button type="button" className="btn btn-primary" onClick={this.closeSuccessModal}>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+
+  renderSidePanel = () => {
+    if (this.state.PageMode === "View") return this.renderAssetDetailsPanel();
+    if (this.state.PageMode === "Add" || this.state.PageMode === "Edit") return this.renderAssetForm();
+    return null;
+  };
+
+  render() {
+    const filteredGridData = this.getFilteredGridData();
     const activeFilterCount = [
       this.state.filterAssetType,
       this.state.filterStatus,
@@ -553,579 +1406,96 @@ class AssetsMaster extends Component {
       this.state.filterLocation,
       this.state.filterCapacity,
     ].filter((item) => String(item || "") !== "").length;
-
+    const hasSidePanel = this.state.PageMode === "View" || this.state.PageMode === "Edit";
+    const showAssetModal = this.state.PageMode === "Add";
     return (
-      <div className="row">
-        <div className="col-12">
-          <div className="card p-2 task-planner-shell asset-master-shell">
-            <div className="task-summary-grid">
-              <div className="task-summary-card task-summary-total">
-                <p className="task-summary-value">{filteredGridData.length}</p>
-                <p className="task-summary-label">Total Assets</p>
-              </div>
-              <div className="task-summary-card task-summary-overdue">
-                <p className="task-summary-value">{dueCount}</p>
-                <p className="task-summary-label">Service Overdue</p>
-              </div>
-              <div className="task-summary-card task-summary-completed">
-                <p className="task-summary-value">{functionalCount}</p>
-                <p className="task-summary-label">Functional</p>
-              </div>
-              <div className="task-summary-card task-summary-pending">
-                <p className="task-summary-value">{nonFunctionalCount}</p>
-                <p className="task-summary-label">Non-Functional</p>
-              </div>
-            </div>
-
-            <div className="card-header p-2 task-list-filter-shell">
-              <div className="task-planner-toolbar">
-                <div className="input-group task-search-group">
-                  <div className="input-group-prepend">
-                    <span className="input-group-text">
-                      <i className="fa fa-search text-muted" />
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Search by asset name, ID, QR code"
-                    value={this.state.searchTerm}
-                    onChange={(e) => this.setState({ searchTerm: e.target.value })}
-                  />
-                </div>
-
-                <div className="task-toolbar-actions">
-                  <button
-                    className="btn btn-outline-secondary d-flex align-items-center task-toolbar-btn"
-                    type="button"
-                    onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}
-                  >
-                    <i className="fa fa-sliders mr-1" />
-                    Filter
-                    {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
-                  </button>
-
-                  <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
-
-                  <Button
-                    id="btnNewAsset"
-                    Action={this.Addnew}
-                    ClassName="btn btn-primary d-flex align-items-center px-3 task-toolbar-btn task-add-btn"
-                    Icon={<i className="fa fa-plus mr-1" aria-hidden="true" />}
-                    Text="Create New Asset"
-                  />
-                </div>
-              </div>
-
-              {this.state.showFilterPanel ? (
-                <div className="p-2 mb-2 mt-2 task-filter-panel task-filter-panel-advanced">
-                  <div className="task-filter-head">
-                    <h6>Filters</h6>
-                    <button className="btn btn-link p-0" type="button" onClick={this.resetFilters}>
-                      <i className="fa fa-times mr-1" />
-                      Reset All
-                    </button>
-                  </div>
-
-                  <div className="task-filter-grid asset-filter-grid">
-                    <div className="task-filter-col">
-                      <p className="task-filter-group-title">Asset Type</p>
-                      <select
-                        className="form-control task-filter-select"
-                        value={this.state.filterAssetType}
-                        onChange={(e) => this.setState({ filterAssetType: e.target.value })}
-                      >
-                        <option value="">All Asset Types</option>
-                        <option value="Machine/Equipment">Machine/Equipment</option>
-                        <option value="MeasuringEnquipment">Measuring Equipment</option>
-                        <option value="Facility">Facility</option>
-                      </select>
-
-                      <p className="task-filter-group-title">Status</p>
-                      <select
-                        className="form-control task-filter-select"
-                        value={this.state.filterStatus}
-                        onChange={(e) => this.setState({ filterStatus: e.target.value })}
-                      >
-                        <option value="">All Status</option>
-                        <option value="true">Functional</option>
-                        <option value="false">Non-Functional</option>
-                      </select>
-
-                      <p className="task-filter-group-title">Service Due Date</p>
-                      <div className="row">
-                        <div className="col-md-6 mb-2">
-                          <input
-                            type="date"
-                            className="form-control task-filter-select"
-                            value={this.state.filterDueFrom}
-                            onChange={(e) => this.setState({ filterDueFrom: e.target.value })}
-                          />
-                        </div>
-                        <div className="col-md-6 mb-2">
-                          <input
-                            type="date"
-                            className="form-control task-filter-select"
-                            value={this.state.filterDueTo}
-                            onChange={(e) => this.setState({ filterDueTo: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="task-filter-col">
-                      <p className="task-filter-group-title">Movable</p>
-                      <select
-                        className="form-control task-filter-select"
-                        value={this.state.filterMoveable}
-                        onChange={(e) => this.setState({ filterMoveable: e.target.value })}
-                      >
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-
-                      <p className="task-filter-group-title">Rentable</p>
-                      <select
-                        className="form-control task-filter-select"
-                        value={this.state.filterRentable}
-                        onChange={(e) => this.setState({ filterRentable: e.target.value })}
-                      >
-                        <option value="">All</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-
-                      <p className="task-filter-group-title">Category</p>
-                      <input
-                        type="text"
-                        className="form-control task-filter-select"
-                        placeholder="Category"
-                        value={this.state.filterCategory}
-                        onChange={(e) => this.setState({ filterCategory: e.target.value })}
-                      />
-
-                      <p className="task-filter-group-title">Location</p>
-                      <input
-                        type="text"
-                        className="form-control task-filter-select"
-                        placeholder="Location"
-                        value={this.state.filterLocation}
-                        onChange={(e) => this.setState({ filterLocation: e.target.value })}
-                      />
-
-                      <p className="task-filter-group-title">Capacity</p>
-                      <input
-                        type="text"
-                        className="form-control task-filter-select"
-                        placeholder="e.g. 2 Ton, 500 L"
-                        value={this.state.filterCapacity}
-                        onChange={(e) => this.setState({ filterCapacity: e.target.value })}
-                      />
-                    </div>
-                  </div>
-                </div>
-              ) : null}
-            </div>
-
-            <div className="card-body pt-2 asset-master-table-wrap">
-              <DataGrid
-                Id="grdAssetsMaster"
-                IsPagination={false}
-                ColumnCollection={this.state.gridHeader}
-                Onpageindexchanged={this.onPagechange}
-                onEditMethod={this.ongridedit}
-                onGridDeleteMethod={this.onGridDelete}
-                onGridViewMethod={this.onGridView}
-                DefaultPagination={true}
-                IsSarching="true"
-                GridData={filteredGridData}
-                pageSize="2000"
-              />
-            </div>
-          </div>
+      <div className="asset-master-page">
+        <div className="asset-master-breadcrumb">
+          <i className="fa fa-angle-left" aria-hidden="true" />
+          <span>Asset Master</span>
         </div>
-      </div>
-    );
-  };
-  renderFormView = (readOnly = false) => {
-    const isEditMode = this.state.PageMode === "Edit";
 
-    return (
-      <div className="row">
-        <div className="col-12">
-          <div className="card p-2 task-planner-shell asset-master-shell">
-            <div className="asset-master-form-header">
-              <h4 className="asset-master-form-title mb-0">
-                {readOnly ? "View Asset" : isEditMode ? "Edit Asset" : "Create Asset"}
-              </h4>
-              <button className="btn btn-outline-secondary task-toolbar-btn" onClick={this.handleCancel} type="button">
-                <i className="fa fa-arrow-left mr-1" />
-                Back to List
-              </button>
+        <div className={`asset-master-layout ${hasSidePanel ? "has-side-panel" : ""}`}>
+          <div className="asset-master-main-card">
+            <div className="asset-master-tabs">
+             <button
+  type="button"
+  className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
+  onClick={() => {
+  this.setState({ activeTab: "owned" });
+  this.props.history.push("/Account/App/AssetsMaster");
+}}
+>
+  Owned assets
+</button>
+
+<button
+  type="button"
+  className={`asset-master-tab ${this.state.activeTab === "rented" ? "active" : ""}`}
+  onClick={() => {
+    this.setState({ activeTab: "rented" });
+    this.props.history.push("/Account/App/RentalAssets");
+  }}
+>
+  Rented assets
+</button>
+
+<button
+  type="button"
+  className={`asset-master-tab ${this.state.activeTab === "spare" ? "active" : ""}`}
+  onClick={() => {
+    this.setState({ activeTab: "spare" });
+    this.props.history.push("/Account/App/SpareMaster");
+  }}
+>
+  Spare parts
+</button>
             </div>
 
-            <div className="card-body p-3">
-              <div className="asset-form-section">
-                <h6 className="asset-form-section-title">Asset Type</h6>
-                <div className="asset-type-wrap">
-                  <RadioButtonGroup
-                    options={[
-                      { label: "Machine/Equipment", value: "Machine/Equipment" },
-                      { label: "Measuring Equipment", value: "MeasuringEnquipment" },
-                      { label: "Facility", value: "Facility" },
-                    ]}
-                    name="AssetType"
-                    selectedValue={this.state.AssetType}
-                    onChange={(e) => this.setState({ AssetType: e.target.value })}
-                    disabled={readOnly}
-                  />
-                </div>
+            <div className="asset-master-toolbar">
+              <div className="asset-master-search" onClick={() => this.searchInputRef.current?.focus()}>
+                <i className="fa fa-search" aria-hidden="true" />
+                <input
+                  ref={this.searchInputRef}
+                  type="text"
+                  placeholder="Search by name or ID"
+                  value={this.state.searchTerm}
+                  onChange={(e) => this.setState({ searchTerm: e.target.value })}
+                />
               </div>
 
-              <div className="asset-form-section">
-                <h6 className="asset-form-section-title">Basic Details</h6>
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="manufacturer">Manufacturer</label>
-                      <input
-                        type="text"
-                        id="manufacturer"
-                        placeholder="Manufacturer"
-                        value={this.state.ManufacturerName}
-                        className="form-control"
-                        onChange={(e) => this.setState({ ManufacturerName: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="txtDocumentType">Asset Name</label>
-                      <input
-                        type="text"
-                        id="txtDocumentType"
-                        placeholder="Asset Name"
-                        className="form-control"
-                        value={this.state.Name}
-                        onChange={(e) => this.setState({ Name: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="assetModel">Asset Model</label>
-                      <input
-                        type="text"
-                        id="assetModel"
-                        placeholder="Asset Model"
-                        value={this.state.AssetModel}
-                        className="form-control"
-                        onChange={(e) => this.setState({ AssetModel: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="isMovable">Is Movable</label>
-                      <select
-                        id="isMovable"
-                        className="form-control"
-                        value={this.state.IsMoveable}
-                        onChange={(e) => this.setState({ IsMoveable: e.target.value })}
-                        disabled={readOnly}
-                      >
-                        <option value="">Select an option</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="asset-form-section">
-                <h6 className="asset-form-section-title">Service Details</h6>
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="lastServiceDate">Last Service Date</label>
-                      <input
-                        type="date"
-                        id="lastServiceDate"
-                        className="form-control"
-                        value={this.state.LastServiceDate || ""}
-                        onChange={(e) => this.setState({ LastServiceDate: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="nextServiceDate">Next Service Date</label>
-                      <input
-                        type="date"
-                        id="nextServiceDate"
-                        className="form-control"
-                        value={this.state.NextServiceDate || ""}
-                        onChange={(e) => this.setState({ NextServiceDate: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="IsRentable">Is Rentable?</label>
-                      <select
-                        id="IsRentable"
-                        className="form-control"
-                        value={this.state.IsRentable}
-                        onChange={(e) => this.setState({ IsRentable: e.target.value })}
-                        disabled={readOnly}
-                      >
-                        <option value="">Select an option</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="serviceReminderDay">Asset Service Reminder</label>
-                      <select
-                        id="serviceReminderDay"
-                        className="form-control"
-                        value={this.state.serviceReminderDay}
-                        onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
-                        disabled={readOnly}
-                      >
-                        <option value="">No Reminder</option>
-                        <option value="1">One Day Prior</option>
-                        <option value="7">One Week Prior</option>
-                        <option value="15">15 Days Prior</option>
-                        <option value="30">One Month Prior</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="asset-form-section">
-                <h6 className="asset-form-section-title">Financial & Asset Info</h6>
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="assetValue">Asset Value</label>
-                      <div className="input-group">
-                        <div className="input-group-prepend">
-                          <span className="input-group-text">Rs.</span>
-                        </div>
-                        <input
-                          type="number"
-                          id="assetValue"
-                          className="form-control currency"
-                          value={this.state.AssetValue}
-                          onChange={(e) =>
-                            this.setState({ AssetValue: parseFloat(e.target.value) || 0 })
-                          }
-                          onKeyDown={(e) => e.key === "e" && e.preventDefault()}
-                          readOnly={readOnly}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="capacity">Capacity</label>
-                      <input
-                        type="text"
-                        id="capacity"
-                        placeholder="e.g. 500 L, 2 Ton"
-                        className="form-control"
-                        value={this.state.Capacity}
-                        onChange={(e) => this.setState({ Capacity: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="status">Asset Status</label>
-                      <select
-                        id="status"
-                        className="form-control"
-                        value={this.state.status}
-                        onChange={(e) => this.setState({ status: e.target.value })}
-                        disabled={readOnly}
-                      >
-                        <option value="">Select an option</option>
-                        <option value="true">Functional</option>
-                        <option value="false">Non-Functional</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="category">Asset Category</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="category"
-                        value={this.state.category || ""}
-                        onChange={(e) => this.setState({ category: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="location">Asset Location</label>
-                      <input
-                        type="text"
-                        className="form-control"
-                        id="location"
-                        value={this.state.location || ""}
-                        onChange={(e) => this.setState({ location: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="QRCode">QR Code</label>
-                      <input
-                        type="text"
-                        id="QRCode"
-                        placeholder="QR Code"
-                        value={this.state.QRCode}
-                        className="form-control"
-                        onChange={(e) => this.setState({ QRCode: e.target.value })}
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="row">
-                  <div className="col-md-6">
-                    <div className="form-group">
-                      <label htmlFor="description">Description</label>
-                      <textarea
-                        id="description"
-                        onChange={(e) => this.setState({ Description: e.target.value })}
-                        placeholder="Description"
-                        value={this.state.Description}
-                        className="form-control form-control-sm"
-                        rows="3"
-                        readOnly={readOnly}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="asset-form-section">
-                <h6 className="asset-form-section-title">Documents</h6>
-                {!readOnly ? (
-                  <div className="row">
-                    <div className="col-md-6">
-                      <label>Asset Image</label>
-                      <DocumentUploader
-                        Class="form-control"
-                        id="kycfileUploader"
-                        type="file"
-                        onChange={this.onFileChange.bind(this)}
-                      />
-                    </div>
-                    <div className="col-md-6">
-                      <label>AMC Upload</label>
-                      <DocumentUploader
-                        Class="form-control"
-                        id="AMCfileUploader"
-                        type="file"
-                        onChange={this.onAMCFileChange}
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="row">
-                    <div className="col-md-6">
-                      <label>Asset Image</label>
-                      <div className="asset-preview-box">
-                        {this.state.AssetImage ? (
-                          <img
-                            src={`data:image/png;base64,${this.state.AssetImage}`}
-                            alt="Asset"
-                            className="img-fluid"
-                          />
-                        ) : (
-                          <div className="text-muted">No image</div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="col-md-6">
-                      <label>AMC Contract</label>
-                      <div className="asset-preview-box">
-                        {this.state.AMCimage ? (
-                          <img
-                            src={`data:image/png;base64,${this.state.AMCimage}`}
-                            alt="AMC Document"
-                            className="img-fluid"
-                          />
-                        ) : (
-                          <div className="text-muted">No AMC document</div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
+              <div className="asset-master-toolbar-actions">
+                <button className={`btn asset-toolbar-filter ${this.state.showFilterPanel ? "active" : ""}`} type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
+                  <i className="fa fa-sliders" aria-hidden="true" />
+                  Filter
+                  {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
+                </button>
+                <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
+                <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>
+                  <i className="fa fa-plus" aria-hidden="true" />
+                  Add asset
+                </button>
               </div>
             </div>
 
-            {!readOnly ? (
-              <div className="card-footer d-flex justify-content-end gap-2 asset-form-actions">
-                <Button id="btnSave" Text="Save" Action={this.handleSave} ClassName="btn btn-primary mr-2" />
-                <Button id="btnCancel" Text="Cancel" Action={this.handleCancel} ClassName="btn btn-secondary" />
-              </div>
-            ) : null}
+            {this.renderFilterPopup()}
+
+            {this.renderOwnedAssetsTable(filteredGridData)}
           </div>
-        </div>
-      </div>
-    );
-  };
 
-  render() {
-    return (
-      <div>
-        {this.state.PageMode === "Home" && this.renderHomeView()}
-        {(this.state.PageMode === "Add" || this.state.PageMode === "Edit") && this.renderFormView(false)}
-        {this.state.PageMode === "View" && this.renderFormView(true)}
+          {hasSidePanel ? this.renderSidePanel() : null}
+        </div>
+        {showAssetModal ? this.renderAssetFormModal() : null}
+        {this.renderCancelConfirmModal()}
+        {this.renderDeleteConfirmModal()}
+        {this.renderSuccessModal()}
       </div>
     );
   }
 }
 
 function mapStoreToprops(state) {
-  return {
-    PropertyId: state.Commonreducer.puidn,
-  };
+  return { PropertyId: state.Commonreducer.puidn };
 }
 
 function mapDispatchToProps(dispatch) {
@@ -1133,4 +1503,4 @@ function mapDispatchToProps(dispatch) {
   return { actions };
 }
 
-export default connect(mapStoreToprops, mapDispatchToProps)(AssetsMaster);
+export default withRouter(connect(mapStoreToprops, mapDispatchToProps)(AssetsMaster));

@@ -1,12 +1,12 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 
 const IMAGE_SCALE = 0.5;
 const IMAGE_QUALITY = 0.35;
 
-const CheckOut = ({sendData, close} ) => {
-  const [checkoutType, setCheckoutType] = useState("asset");
+const CheckOut = ({sendData, close, initialType = "asset", hideTypeSwitch = false} ) => {
+  const [checkoutType, setCheckoutType] = useState(initialType);
   const [formData, setFormData] = useState({
     assigneeName: "",
     purpose: "",
@@ -22,6 +22,10 @@ const CheckOut = ({sendData, close} ) => {
     // assetImage:"",
     // flag:"I"
   });
+
+  useEffect(() => {
+    setCheckoutType(initialType);
+  }, [initialType]);
 
   const handleSelectionChange = (event) => {
     setCheckoutType(event.target.value);
@@ -117,26 +121,28 @@ const handleSubmit = (event) => {
 
 
   return (
-    <div className="container mt-4">
+    <div className="transfer-action-form">
       <Form onSubmit={handleSubmit}>
-        <Form.Group  >
-          <Form.Check
-            type="radio"
-            id="check-asset"
-            label="Check Out Asset"
-            value="asset"
-            checked={checkoutType === "asset"}
-            onChange={handleSelectionChange}
-          />
-          <Form.Check
-            type="radio"
-            id="check-spare"
-            label="Check Out Spare"
-            value="spare"
-            checked={checkoutType === "spare"}
-            onChange={handleSelectionChange}
-          />
-        </Form.Group>
+        {!hideTypeSwitch ? (
+          <Form.Group>
+            <Form.Check
+              type="radio"
+              id="check-asset"
+              label="Check Out Asset"
+              value="asset"
+              checked={checkoutType === "asset"}
+              onChange={handleSelectionChange}
+            />
+            <Form.Check
+              type="radio"
+              id="check-spare"
+              label="Check Out Spare"
+              value="spare"
+              checked={checkoutType === "spare"}
+              onChange={handleSelectionChange}
+            />
+          </Form.Group>
+        ) : null}
 
         {checkoutType === "asset" && (
           <div>

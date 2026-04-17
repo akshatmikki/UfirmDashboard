@@ -13,9 +13,7 @@ class AssetsMasterPage extends Component {
             <div className="content-wrapper">
                 <section className="content mt-3">
                     <div className="container-fluid">
-                        <div className="container-fluid">
-                            <AssetsMaster />
-                        </div>
+                        <AssetsMaster />
                     </div>
                 </section>
             </div>

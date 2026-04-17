@@ -118,6 +118,7 @@ import BranchMaster from "../MainComponents/FacilityMember/BranchMaster.jsx";
 import AttendanceBiometricReport from "../MainComponents/Reports/AttendanceBiometricReport.jsx";
 import Designation from "../MainComponents/Payroll/Designation.jsx";
 import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
+import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
 
 var currentpropertyid;
 var currentclientid;
@@ -490,6 +491,7 @@ class MainNav extends React.Component {
       "/Account/App/LabourFund",
       "/Account/App/AD_Percentage",
       "/Account/App/EmployeeShiftMapping",
+      "/Account/App/EmployeeTransfer",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -1265,6 +1267,16 @@ class MainNav extends React.Component {
                             <p>Employee Shift Mapping</p>
                           </Link>
                         </li>
+                        <li className="nav-item">
+
+                          <Link
+                            to="/Account/App/EmployeeTransfer"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Employee Transfer</p>
+                          </Link>
+                        </li>
 
                         {/* <li className="nav-item">
                           <Link to="/Account/App/Formula" className="nav-link">
@@ -2036,8 +2048,9 @@ class MainNav extends React.Component {
             <Route path="/Account/App/ItemAssigned">
               <ItemAssignedPage />
             </Route>
-
-
+            <Route path="/Account/App/EmployeeTransfer">
+              <EmployeeTransfer />
+            </Route>
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
             </Route>
@@ -2045,7 +2058,7 @@ class MainNav extends React.Component {
             {/* <Route path="/AttendanceSummary">
                             <AttendanceSummaryPage />
                         </Route> */}
-          </Switch>
+          </Switch >
           <footer
             className="main-footer"
             style={{
@@ -2072,8 +2085,8 @@ class MainNav extends React.Component {
           </footer>
 
           <aside className="control-sidebar control-sidebar-dark"></aside>
-        </div>
-      </Router>
+        </div >
+      </Router >
     );
   }
 }

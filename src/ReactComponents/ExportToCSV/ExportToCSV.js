@@ -7,15 +7,34 @@ const ExportToCSV = ({ data = [], fileName = "Tasklist.csv" }) => {
     <CSVLink
       data={data}
       filename={fileName}
-      style={{ textDecoration: "none" }} // remove anchor styling
+      style={{ textDecoration: "none" }}
     >
       <Button
         label="Export"
-        icon="pi pi-download"
-        severity="info"
-        size="small"
-        tooltip="Download CSV"
+        icon="fa fa-external-link"
         type="button"
+        className="asset-export-btn"
+        style={{
+          width: "106px",
+          height: "40px",
+          padding: "8px 20px 8px 12px",
+          gap: "2px",
+          borderRadius: "4px",
+          border: "1px solid rgba(19, 23, 32, 0.15)",
+          background: "#ffffff",
+          color: "#1E3143",
+          boxShadow: "none",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "Inter, sans-serif",
+          fontWeight: 500,
+          fontStyle: "normal",
+          fontSize: "14px",
+          lineHeight: "20px",
+          letterSpacing: "-0.15px",
+          textAlign: "center",
+        }}
       />
     </CSVLink>
   );

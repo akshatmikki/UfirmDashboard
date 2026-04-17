@@ -1,9 +1,9 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Form from "react-bootstrap/Form";
 import Button from "react-bootstrap/Button";
 
-const CheckIn = ({sendData , close}) => {
-  const [checkoutType, setCheckoutType] = useState("asset");
+const CheckIn = ({sendData , close, initialType = "asset", hideTypeSwitch = false}) => {
+  const [checkoutType, setCheckoutType] = useState(initialType);
   const [formData, setFormData] = useState({
     returnedBy: "",
     returnDateTime: "",
@@ -11,6 +11,10 @@ const CheckIn = ({sendData , close}) => {
     imageIn: null,
     spareFields: [{ id: 1, spareName: "", returnDateTime: "" }],
   });
+
+  useEffect(() => {
+    setCheckoutType(initialType);
+  }, [initialType]);
 
   // Handle radio button selection change
   const handleSelectionChange = (event) => {
@@ -80,27 +84,29 @@ const CheckIn = ({sendData , close}) => {
   };
 
   return (
-    <div className="container mt-4">
+    <div className="transfer-action-form">
       <Form onSubmit={handleSubmit}>
         {/* Radio buttons to select checkout type */}
-        <Form.Group>
-          <Form.Check
-            type="radio"
-            id="check-asset"
-            label="Check In Asset"
-            value="asset"
-            checked={checkoutType === "asset"}
-            onChange={handleSelectionChange}
-          />
-          <Form.Check
-            type="radio"
-            id="check-spare"
-            label="Check In Spare"
-            value="spare"
-            checked={checkoutType === "spare"}
-            onChange={handleSelectionChange}
-          />
-        </Form.Group>
+        {!hideTypeSwitch ? (
+          <Form.Group>
+            <Form.Check
+              type="radio"
+              id="check-asset"
+              label="Check In Asset"
+              value="asset"
+              checked={checkoutType === "asset"}
+              onChange={handleSelectionChange}
+            />
+            <Form.Check
+              type="radio"
+              id="check-spare"
+              label="Check In Spare"
+              value="spare"
+              checked={checkoutType === "spare"}
+              onChange={handleSelectionChange}
+            />
+          </Form.Group>
+        ) : null}
 
         {/* Asset check-in form */}
         {checkoutType === "asset" && (

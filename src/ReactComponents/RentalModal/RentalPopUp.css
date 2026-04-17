@@ -1,0 +1,257 @@
+.rental-figma-modal {
+  max-width: 636px;
+}
+
+.rental-figma-modal .modal-content {
+  border: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 40px rgba(18, 40, 67, 0.2);
+}
+
+.rental-figma-modal-body {
+  padding: 0;
+  background: #fff;
+}
+
+.rental-figma-shell {
+  background: #fff;
+}
+
+.rental-figma-header {
+  padding: 16px 24px 8px;
+  border-bottom: 1px solid #e5edf5;
+}
+
+.rental-figma-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.rental-figma-title-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: #d9ecff;
+  color: #0f77c6;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+}
+
+.rental-figma-title {
+  margin: 0;
+  color: #1d2733;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.rental-figma-mode-switch {
+  display: flex;
+  gap: 34px;
+  padding: 18px 24px 0;
+}
+
+.rental-figma-radio {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 17px;
+  color: #2b3642;
+  cursor: pointer;
+  background: transparent;
+  border-radius: 6px;
+}
+
+.rental-figma-radio:hover,
+.rental-figma-radio:focus-within {
+  background: rgba(18, 146, 220, 0.08);
+  color: #2b3642;
+}
+
+.rental-figma-radio input {
+  width: 18px;
+  height: 18px;
+  accent-color: #1292dc;
+}
+
+.rental-asset-form {
+  padding: 16px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+}
+
+.rental-asset-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.rental-asset-meta-item {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+}
+
+.rental-asset-meta-id {
+  margin-left: auto;
+}
+
+.rental-asset-meta-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #202a36;
+}
+
+.rental-asset-meta-value {
+  font-size: 15px;
+  color: #6c7683;
+}
+
+.rental-asset-select-wrap {
+  margin-bottom: 14px;
+}
+
+.rental-asset-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.rental-asset-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
+.rental-asset-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 20px;
+}
+
+.rental-asset-label {
+  display: block;
+  margin-bottom: 7px;
+  color: #4a5a70;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.rental-asset-input,
+.rental-asset-upload {
+  width: 100%;
+  height: 38px;
+  border: 1px solid #c9d4df;
+  border-radius: 10px;
+  background: #EDF0F3;
+  padding: 0 14px;
+  color: #5d6875;
+  font-size: 14px;
+  outline: 0;
+}
+
+.rental-asset-input::placeholder {
+  color: #798493;
+}
+
+.rental-asset-select {
+  display: flex;
+  align-items: center;
+}
+
+.rental-asset-upload {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  margin-bottom: 0;
+}
+
+.rental-asset-upload input {
+  display: none;
+}
+
+.rental-asset-upload-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rental-asset-upload i {
+  color: #9db6c8;
+  font-size: 20px;
+}
+
+.rental-asset-actions {
+  display: flex;
+  gap: 18px;
+  padding-top: 18px;
+  margin-top: auto;
+  border-top: 1px solid #e5edf5;
+  flex-shrink: 0;
+}
+
+.rental-asset-submit,
+.rental-asset-cancel {
+  min-width: 128px;
+  height: 36px;
+  border-radius: 4px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.rental-asset-submit {
+  background: #1f4f82;
+  border: 1px solid #1f4f82;
+  color: #fff;
+}
+
+.rental-asset-submit:hover,
+.rental-asset-submit:focus {
+  background: #2a5f94;
+  border-color: #2a5f94;
+  color: #fff;
+}
+
+.rental-asset-cancel {
+  background: #fff;
+  border: 1px solid #d5dde7;
+  color: #232f3a;
+}
+
+.rental-asset-cancel:hover,
+.rental-asset-cancel:focus {
+  background: #f7fafc;
+  border-color: #c8d3df;
+  color: #232f3a;
+}
+
+@media (max-width: 767px) {
+  .rental-figma-modal {
+    max-width: calc(100vw - 18px);
+    margin: 9px auto;
+  }
+
+  .rental-asset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .rental-asset-meta {
+    flex-direction: column;
+  }
+
+  .rental-asset-meta-id {
+    margin-left: 0;
+  }
+
+  .rental-asset-actions {
+    flex-direction: column;
+  }
+}

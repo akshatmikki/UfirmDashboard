@@ -1,115 +1,164 @@
-import React, { useState } from "react";
-import Form from "react-bootstrap/Form";
-import Button from "react-bootstrap/Button";
+import React, { useMemo, useState } from "react";
+import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
+const formatAssetId = (value) => (value || value === 0 ? `#${value}` : "#1234");
 
-const ReturnAsset = ({ Close, setData }) => {
-  const [returnType, setReturnType] = useState("asset");
+const splitDateTime = (value) => {
+  if (!value) return { date: "", time: "" };
+  const [date, time = ""] = String(value).split("T");
+  return { date, time: time.slice(0, 5) };
+};
+
+const joinDateTime = (date, time) => {
+  if (!date) return "";
+  return `${date}T${time || "00:00"}`;
+};
+
+const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
+  const initialDateTime = splitDateTime("");
   const [formData, setFormData] = useState({
     returnedBy: "",
-    returnDateTime: "",
-    returnedFrom: "",
+    rentedFrom: asset?.Vendor || "",
+    returnedFrom: asset?.Location || "",
+    manufacturer: asset?.Manufacturer || "",
+    rentalCharges: "",
+    securityDeposit: "",
+    returnDate: initialDateTime.date,
+    returnTime: initialDateTime.time,
+    tentativeReturnDate: "",
+    approvedBy: "",
     imageIn: null,
+    rentalContractName: "",
+    assetImageName: "",
   });
 
-  
-  const handleInputChange = (index, event) => {
+  const assetName = useMemo(() => asset?.Name || "Generator", [asset]);
+
+  const handleInputChange = (event) => {
     const { name, value } = event.target;
-    if (index !== null) {
-      const updatedSpareFields = [...formData.spareFields];
-      updatedSpareFields[index][name] = value;
-      setFormData({ ...formData, spareFields: updatedSpareFields });
-    } else {
-      setFormData({ ...formData, [name]: value });
-    }
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileChange = (event) => {
+  const handleFileChange = (event, targetField, fileNameField, stripPrefix) => {
     const file = event.target.files[0];
+    if (!file) return;
     const reader = new FileReader();
-  
     reader.onloadend = () => {
-      const imageString = reader.result;
-      const base64String = imageString.split(',')[1]; // remove the "data:image/png;base64," part
-      setFormData({ ...formData, imageIn: base64String });
+      const result = stripPrefix ? String(reader.result).split(",")[1] : reader.result;
+      setFormData((prev) => ({
+        ...prev,
+        [targetField]: result,
+        [fileNameField]: file.name,
+      }));
     };
-  
-    reader.readAsDataURL(file); // start reading the file
+    reader.readAsDataURL(file);
   };
 
-  // Handle form submission
   const handleSubmit = (event) => {
     event.preventDefault();
-    console.log(formData); // Replace with actual form submission logic
-    setData(formData);// Example: Send formData to server, reset form, etc.
-    setFormData({
-      returnedBy: "",
-      returnDateTime: "",
-      returnedFrom: "",
-      imageIn: null,
+    setData({
+      returnedBy: formData.returnedBy,
+      returnDateTime: joinDateTime(formData.returnDate, formData.returnTime),
+      returnedFrom: formData.returnedFrom,
+      imageIn: formData.imageIn,
     });
     if (Close) Close();
   };
 
   return (
-    <div className="container mt-4">
-      <Form onSubmit={handleSubmit}>
-          <div>
-            <Form.Group controlId="returnedBy">
-              <Form.Label>Returned By</Form.Label>
-              <Form.Control
-                type="text"
-                name="returnedBy"
-                value={formData.returnedBy}
-                onChange={(e) => handleInputChange(null, e)}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group controlId="returnDateTime">
-              <Form.Label>Return Date & Time</Form.Label>
-              <Form.Control
-                type="datetime-local"
-                name="returnDateTime"
-                value={formData.returnDateTime}
-                onChange={(e) => handleInputChange(null, e)}
-                required
-              />
-            </Form.Group>
-
-            <Form.Group controlId="returnedFrom">
-              <Form.Label>Returned From</Form.Label>
-              <Form.Control
-                type="text"
-                name="returnedFrom"
-                value={formData.returnedFrom}
-                onChange={(e) => handleInputChange(null, e)}
-              />
-            </Form.Group>
-
-            <Form.Group controlId="imageIn">
-              <Form.Label>Upload Image</Form.Label>
-              <Form.Control
-                type="file"
-                name="imageIn"
-                onChange={handleFileChange}
-                // onChange={(e) =>
-                //   setFormData({ ...formData, imageIn: e.target.files[0] })
-                // }
-                accept="image/*"
-              />
-            </Form.Group>
+    <form className="rental-asset-form" onSubmit={handleSubmit}>
+      <div className="rental-asset-scroll-area">
+        {!showModeToggle ? (
+        <div className="rental-asset-meta">
+          <div className="rental-asset-meta-item">
+            <span className="rental-asset-meta-label">Asset Name</span>
+            <span className="rental-asset-meta-value">{assetName}</span>
           </div>
+          <div className="rental-asset-meta-item rental-asset-meta-id">
+            <span className="rental-asset-meta-label">ID</span>
+            <span className="rental-asset-meta-value">{formatAssetId(asset?.Id)}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="rental-asset-select-wrap rental-asset-select-wrap-full">
+          <label className="rental-asset-label">Asset</label>
+          <div className="rental-asset-input rental-asset-select">{assetName}</div>
+        </div>
+      )}
 
-        <div className="form-footer mt-3 d-flex justify-content-between ">
-      <Button variant="primary" type="submit" className="mt-3 px-4 ">
-         Return
-        </Button>
-        <Button variant="secondary" className="mt-3 px-5" onClick={Close}>
-          Close
-        </Button></div>
+      <div className="rental-asset-grid">
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Received by</label>
+          <input className="rental-asset-input" type="text" name="returnedBy" placeholder="Select name" value={formData.returnedBy} onChange={handleInputChange} required />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Rented from</label>
+          <input className="rental-asset-input" type="text" name="rentedFrom" placeholder="Vendor name" value={formData.rentedFrom} onChange={handleInputChange} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Location</label>
+          <input className="rental-asset-input" type="text" name="returnedFrom" placeholder="Auto populated" value={formData.returnedFrom} onChange={handleInputChange} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Manufacturer</label>
+          <input className="rental-asset-input" type="text" name="manufacturer" placeholder="Auto-populated" value={formData.manufacturer} onChange={handleInputChange} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Rental charges</label>
+          <input className="rental-asset-input" type="number" name="rentalCharges" placeholder="₹" value={formData.rentalCharges} onChange={handleInputChange} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Security deposit</label>
+          <input className="rental-asset-input" type="number" name="securityDeposit" placeholder="₹" value={formData.securityDeposit} onChange={handleInputChange} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Rent-in date</label>
+          <CustomDatePicker value={formData.returnDate} onChange={(e) => handleInputChange({ target: { name: "returnDate", value: e.target.value } })} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Rent -n time</label>
+          <input className="rental-asset-input" type="time" name="returnTime" value={formData.returnTime} onChange={handleInputChange} required />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Tentative date of returning</label>
+          <CustomDatePicker value={formData.tentativeReturnDate} onChange={(e) => handleInputChange({ target: { name: "tentativeReturnDate", value: e.target.value } })} />
+        </div>
+        <div className="rental-asset-field">
+          <label className="rental-asset-label">Approved by</label>
+          <input className="rental-asset-input" type="text" name="approvedBy" placeholder="Enter name" value={formData.approvedBy} onChange={handleInputChange} />
+        </div>
 
-      </Form>
-    </div>
+        {!showModeToggle ? (
+          <>
+            <div className="rental-asset-field">
+              <label className="rental-asset-label">Rental contract</label>
+              <label className="rental-asset-upload">
+                <input type="file" accept="image/*,.pdf" onChange={(event) => handleFileChange(event, "rentalContractData", "rentalContractName", false)} />
+                <span className="rental-asset-upload-name">{formData.rentalContractName || "Upload file"}</span>
+                <i className="fa fa-file-text-o" aria-hidden="true" />
+              </label>
+            </div>
+            <div className="rental-asset-field">
+              <label className="rental-asset-label">Asset image</label>
+              <label className="rental-asset-upload">
+                <input type="file" accept="image/*" onChange={(event) => handleFileChange(event, "imageIn", "assetImageName", true)} />
+                <span className="rental-asset-upload-name">{formData.assetImageName || "Upload file"}</span>
+                <i className="fa fa-picture-o" aria-hidden="true" />
+              </label>
+            </div>
+          </>
+        ) : null}
+        </div>
+      </div>
+
+      <div className="rental-asset-actions">
+        <button type="submit" className="btn rental-asset-submit">
+          Rent-in
+        </button>
+        <button type="button" className="btn rental-asset-cancel" onClick={Close}>
+          Cancel
+        </button>
+      </div>
+    </form>
   );
 };
 
