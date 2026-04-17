@@ -354,7 +354,7 @@ export default function PFReport() {
                                 <tr key={emp.FacilityMemberId}>
                                     <td>{index + 1}</td>
                                     <td>{emp.EmployeeCode || "-"}</td>
-                                    <td>{emp.FacilityMemberName}</td>
+                                    <td>{emp.FacilityMemberName || "-"}</td>
                                     <td>{emp.Designation || "-"}</td>
                                     <td>{emp.WorkingDays}</td>
                                     <td>{emp.ProratedTotalGross}</td>

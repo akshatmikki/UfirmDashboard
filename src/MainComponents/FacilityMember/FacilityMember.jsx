@@ -21,6 +21,7 @@ import { MultiSelect } from "primereact/multiselect";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { OverlayPanel } from "primereact/overlaypanel";
 
 import {
   // getEmployeesByOffice,
@@ -94,6 +95,8 @@ const StaffPage = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editEmployeeId, setEditEmployeeId] = useState(null);
   const [selectedManagers, setSelectedManagers] = useState([]); // FacilityMemberIds[]
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState(null);
+  const [deptSearch, setDeptSearch] = useState("");
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
   const [selectedFacilityMemberId, setSelectedFacilityMemberId] = useState(null);
@@ -192,6 +195,8 @@ const StaffPage = () => {
         value: row.FacilityMember.FacilityMemberId
       }));
   }, [staff, selectedFacilityMemberId]);
+
+  const departmentFilterRef = useRef(null);
 
   const getCurrentOfficeIds = () => {
     let officeIds = [];
@@ -562,6 +567,17 @@ const StaffPage = () => {
       .filter(Boolean);
   };
 
+  const departmentOptions = useMemo(() => {
+    const unique = [...new Set(
+      staff.map(row => row?.Profile?.Department).filter(Boolean)
+    )];
+
+    return unique.map(dep => ({
+      label: dep,
+      value: dep
+    }));
+  }, [staff]);
+
   // Salary & Loan actions
   const openSalaryGroupView = (row) => {
     const memberId = String(row.FacilityMember.FacilityMemberId);
@@ -853,7 +869,11 @@ const StaffPage = () => {
       return;
     }
 
-    const exportData = staff.map((row) => ({
+    const filteredStaff = selectedDepartmentFilter
+      ? staff.filter(row => row?.Profile?.Department === selectedDepartmentFilter)
+      : staff;
+
+    const exportData = filteredStaff.map((row) => ({
       "EMPCODE": row?.Profile?.EmployeeCode || "",
       "EMP NAME": row?.Profile?.EmployeeName || "",
       "F/H NAME": row?.EmployeeList?.FatherName || "",
@@ -926,7 +946,13 @@ const StaffPage = () => {
     if (activePropertyId) {
       fileName = `${propertyList.find(p => Number(p.PropertyId) === Number(activePropertyId))?.PropertyName || propertyName || "Unit"} Export.xlsx`;
     } else if (clientName) {
-      fileName = `${clientName} Export.xlsx`;
+      fileName = `${clientName} All Properties Export.xlsx`;
+    } else {
+      fileName = `All Properties Export.xlsx`;
+    }
+
+    if (selectedDepartmentFilter) {
+      fileName = `${selectedDepartmentFilter} - ${fileName}`;
     }
 
     saveAs(blob, fileName);
@@ -1667,7 +1693,7 @@ const StaffPage = () => {
           label="Export"
           icon="pi pi-download"
           className="p-button-primary"
-          disabled={!activePropertyId || isProcessing}
+          disabled={isProcessing || !staff.length}
           onClick={exportToExcel}
         />
       </div>
@@ -1853,8 +1879,84 @@ const StaffPage = () => {
                     </div>
                   )}
                 </div>
+                <OverlayPanel
+                  ref={departmentFilterRef}
+                  dismissable
+                  style={{ padding: "8px" }}
+                >
+                  <div style={{ width: "180px" }}>
+                    {/* 🔍 Search */}
+                    <InputText
+                      placeholder="Search..."
+                      className="mb-2 w-full"
+                      style={{ height: "30px", fontSize: "13px" }}
+                      onChange={(e) => setDeptSearch(e.target.value)}
+                    />
+
+                    {/* ❌ Clear Filter */}
+                    {selectedDepartmentFilter && (
+                      <div
+                        style={{
+                          padding: "6px",
+                          cursor: "pointer",
+                          color: "#ff4d4f",
+                          fontSize: "13px"
+                        }}
+                        onClick={() => {
+                          setSelectedDepartmentFilter(null);
+                          departmentFilterRef.current.hide();
+                        }}
+                      >
+                        ❌ Clear Filter
+                      </div>
+                    )}
+
+                    {/* 📋 Options */}
+                    <div style={{ maxHeight: "150px", overflowY: "auto" }}>
+                      {departmentOptions
+                        .filter(opt =>
+                          opt.label.toLowerCase().includes((deptSearch || "").toLowerCase())
+                        )
+                        .map((opt, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: "6px 8px",
+                              cursor: "pointer",
+                              borderRadius: "6px",
+                              fontSize: "13px",
+                              background:
+                                selectedDepartmentFilter === opt.value ? "#e6f7ff" : "transparent"
+                            }}
+                            onMouseEnter={(e) => {
+                              if (selectedDepartmentFilter !== opt.value) {
+                                e.currentTarget.style.background = "#f5f5f5";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (selectedDepartmentFilter !== opt.value) {
+                                e.currentTarget.style.background = "transparent";
+                              }
+                            }}
+                            onClick={() => {
+                              setSelectedDepartmentFilter(opt.value);
+                              departmentFilterRef.current.hide();
+                            }}
+                          >
+                            {opt.label}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </OverlayPanel>
                 <DataTable
-                  value={staff}
+                  value={
+                    selectedDepartmentFilter
+                      ? staff.filter(
+                        row => row?.Profile?.Department === selectedDepartmentFilter
+                      )
+                      : staff
+                  }
                   dataKey="FacilityMember.FacilityMemberId"
                   header={header}
                   paginator
@@ -1883,7 +1985,26 @@ const StaffPage = () => {
                   <Column selectionMode="single" headerStyle={{ width: '3em' }} />
                   <Column header="Employee Code" body={(row) => row.Profile?.EmployeeCode || "-"} />
                   <Column header="Name" body={(row) => row.Profile?.EmployeeName || "-"} />
-                  <Column header="Department" body={(row) => row.Profile?.Department || "-"} />
+                  <Column
+                    header={
+                      <div
+                        style={{
+                          cursor: "pointer",
+                          fontWeight: 500,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          color: selectedDepartmentFilter ? "#4CAF50" : "inherit"
+                        }}
+                        onClick={(e) => departmentFilterRef.current.toggle(e)}
+                      >
+                        Department
+                        {selectedDepartmentFilter && ` (${selectedDepartmentFilter})`}
+                        <i className="pi pi-filter" style={{ fontSize: "12px" }}></i>
+                      </div>
+                    }
+                    body={(row) => row.Profile?.Department || "-"}
+                  />
                   <Column header="Designation" body={(row) => row.Profile?.Designation || "-"} />
                   <Column header="Gender" body={(row) => row.Profile?.Gender || "-"} />
                   <Column header="Contact" body={(row) => row.Profile?.PhoneNumber || "-"} />
@@ -1936,7 +2057,7 @@ const StaffPage = () => {
                 label={isProcessing ? "Processing..." : (isEditMode ? "Update" : "Save")}
                 icon={isProcessing ? "pi pi-spin pi-spinner" : "pi pi-check"}
                 onClick={saveStaff}
-                disabled={!activePropertyId || isProcessing}
+                disabled={isProcessing}
               />
             </div>
           }
@@ -2021,6 +2142,7 @@ const StaffPage = () => {
                   className="mb-3"
                   disabled={isLoadingDepartments}
                   emptyMessage="No departments available"
+                  showClear
                 />
 
                 {department === "OTHER" && (
@@ -2039,11 +2161,20 @@ const StaffPage = () => {
                   options={designations || []}
                   onChange={(e) => {
                     setDesignation(e.value);
+
+                    if (!e.value) {
+                      setSalaryGroups([]);
+                      setSelectedSalaryGroup(null);
+                      setSalaryGroupDetails(null);
+                      return;
+                    }
+
                     fetchSalaryGroups(e.value);
                   }}
                   className="mb-3"
                   disabled={isLoadingDesignations}
                   emptyMessage="No designations available"
+                  showClear
                 />
 
                 {designation === "OTHER" && (

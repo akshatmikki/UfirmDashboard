@@ -316,8 +316,8 @@ export default function ESIReport() {
               employees.map((emp, index) => (
                 <tr key={emp.FacilityMemberId}>
                   <td>{index + 1}</td>
-                  <td>{emp.FacilityMemberId}</td>
-                  <td>{emp.FacilityMemberName}</td>
+                  <td>{emp.EmployeeCode || "-"}</td>
+                  <td>{emp.FacilityMemberName || "-"}</td>
                   <td>{emp.WorkingDays}</td>
                   <td>{emp.ProratedTotalGross}</td>
                   <td>{emp.ProratedTotalGross}</td>

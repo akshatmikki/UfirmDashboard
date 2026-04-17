@@ -58,10 +58,6 @@ export default function ClientMaster() {
 
     useEffect(() => {
         loadClients();
-    }, []);
-
-    useEffect(() => {
-        loadClients();
         loadProperties();
     }, []);
 
@@ -194,6 +190,43 @@ export default function ClientMaster() {
         </>
     );
 
+    const exportToExcel = () => {
+        const headers = [
+            "Client Name",
+            "Contact Person",
+            "Email",
+            "Phone",
+            "Address"
+        ];
+
+        const rows = filteredClients.map((c) => [
+            c.clientName ?? "",
+            c.contactPerson ?? "",
+            c.email ?? "",
+            c.phone ? `="${c.phone}"` : "",
+            c.address ?? ""
+        ]);
+
+        const csvContent =
+            "data:text/csv;charset=utf-8," +
+            [headers, ...rows]
+                .map((row) =>
+                    row
+                        .map((value) =>
+                            `"${String(value).replace(/"/g, '""')}"`
+                        )
+                        .join(",")
+                )
+                .join("\n");
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "ClientMaster.csv");
+        document.body.appendChild(link);
+        link.click();
+    };
+
     // UI Layout
     return (
         <div className="content-wrapper" style={{ minHeight: "100vh", padding: 30 }}>
@@ -233,6 +266,20 @@ export default function ClientMaster() {
                             value={searchText}
                             onChange={(e) => setSearchText(e.target.value)}
                         />
+
+                        <button
+                            className="btn btn-outline-primary me-2 d-flex align-items-center justify-content-center shadow-sm"
+                            style={{
+                                height: "38px",
+                                padding: "0 14px",
+                                gap: "6px",
+                                whiteSpace: "nowrap"
+                            }}
+                            onClick={exportToExcel}
+                        >
+                            <i className="fa fa-download"></i>
+                            <span>Export</span>
+                        </button>
 
                         <button
                             className="btn btn-success d-flex align-items-center justify-content-center"
