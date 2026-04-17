@@ -84,6 +84,7 @@ class AssetsMaster extends Component {
       filterCapacity: "",
       filterVendor: "",
       filterManufacturer: "",
+      filterStatus: "",
       filterServiceStatus: "",
       filterType: "",
       selectedRowId: null,
@@ -524,6 +525,7 @@ class AssetsMaster extends Component {
       filterCapacity: "",
       filterVendor: "",
       filterManufacturer: "",
+      filterStatus: "",
       filterServiceStatus: "",
       filterType: "",
     });
