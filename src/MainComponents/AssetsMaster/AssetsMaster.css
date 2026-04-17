@@ -1346,6 +1346,11 @@
   color: #2d5f92 !important;
 }
 
+.asset-success-modal .spare-add-icon .fa {
+  font-size: 18px;
+  line-height: 1;
+}
+
 .asset-success-modal .spare-add-close {
   width: 28px;
   height: 28px;
@@ -2825,6 +2830,27 @@
 
 .asset-owned-table-scroll:not(.has-selection) .asset-owned-table tbody tr:hover td {
   background: #d3e6ff;
+}
+
+.asset-master-table-wrap .custTable tbody tr.asset-overdue-row td,
+.asset-master-table-wrap-owned .asset-owned-table tbody tr.asset-overdue-row td,
+.asset-master-table-wrap-owned .custTable tbody tr.asset-overdue-row td {
+  background: #fff1f1 !important;
+  box-shadow: inset 0 0 0 9999px #fff1f1 !important;
+}
+
+.asset-master-table-wrap .custTable tbody tr.asset-overdue-row:hover td,
+.asset-master-table-wrap-owned .asset-owned-table tbody tr.asset-overdue-row:hover td,
+.asset-master-table-wrap-owned .custTable tbody tr.asset-overdue-row:hover td {
+  background: #ffe5e5 !important;
+  box-shadow: inset 0 0 0 9999px #ffe5e5 !important;
+}
+
+.asset-master-table-wrap .custTable tbody tr.asset-overdue-row.grid-selected-row td,
+.asset-master-table-wrap-owned .asset-owned-table tbody tr.asset-overdue-row.active td,
+.asset-master-table-wrap-owned .custTable tbody tr.asset-overdue-row.grid-selected-row td {
+  background: #ffd9d9 !important;
+  box-shadow: inset 0 0 0 9999px #ffd9d9 !important;
 }
 
 .asset-owned-row-actions {

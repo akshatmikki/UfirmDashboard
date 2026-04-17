@@ -824,9 +824,10 @@ const RentalAssets = ({ propId, history }) => {
                           const statusMeta = getStatusMeta(asset);
                           const leaseMeta = getLeaseMeta(asset);
                           const isReturnFlow = asset.ReturnDate === null && asset.RentedOutDate;
+                          const isOverdueFiltered = filterServiceStatus === "Overdue";
 
                           return (
-                            <tr key={asset.Id} className={Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} onClick={() => handleSelectAsset(asset)}>
+                            <tr key={asset.Id} className={`${Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => handleSelectAsset(asset)}>
                               <td>{asset.Id || "AST-111"}</td>
                               <td>{asset.Name || "Water pump"}</td>
                               <td>{asset.Manufacturer || "-"}</td>

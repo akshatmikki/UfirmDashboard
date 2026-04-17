@@ -804,8 +804,9 @@ const SparePage = () => {
                           const meta = statusMeta(row?.Status);
                           const asset = assetById.get(Number(row.AssetID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
+                          const isOverdueFiltered = filterServiceStatus === "Overdue";
                           return (
-                            <tr key={row.SpareID} className={isActive ? "grid-selected-row" : ""} onClick={() => onRowClick(row)}>
+                            <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
                               <td>{row.AssetID || "AST-111"}</td>
                               <td>{row.SpareType || "-"}</td>
                               <td>{asset?.Name || asset?.name || "Generator"}</td>

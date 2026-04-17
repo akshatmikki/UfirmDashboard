@@ -741,10 +741,11 @@ class AssetsMaster extends Component {
               paginated.rows.map((asset) => {
                 const statusMeta = this.getAssetStatusMeta(asset);
                 const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+                const isOverdueFiltered = this.state.filterServiceStatus === "Overdue";
                 return (
                   <tr
                     key={asset.Id}
-                    className={isSelected ? "grid-selected-row active" : ""}
+                    className={`${isSelected ? "grid-selected-row active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()}
                     onClick={() => this.onGridRowSelect(asset.Id)}
                   >
                     <td className="col-id">{asset.Id || "-"}</td>
@@ -1367,7 +1368,7 @@ class AssetsMaster extends Component {
           <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="spare-add-title">
               <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
-                <i className="fa fa-check" aria-hidden="true" />
+                <i className="fa fa-check-circle-o" aria-hidden="true" />
               </span>
               {title}
             </div>

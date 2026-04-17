@@ -431,6 +431,14 @@
   background: #d3e6ff;
 }
 
+.rental-assets-table tbody tr.asset-overdue-row td {
+  background: #fff1f1 !important;
+}
+
+.rental-assets-table tbody tr.asset-overdue-row:hover td {
+  background: #ffe5e5 !important;
+}
+
 .rental-lease-pill,
 .rental-status-chip {
   display: inline-flex;
