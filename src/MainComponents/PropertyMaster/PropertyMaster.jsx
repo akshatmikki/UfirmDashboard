@@ -512,6 +512,51 @@ export default function PropertyMaster() {
     }
   };
 
+  const exportToExcel = () => {
+    const headers = [
+      "Property Name",
+      "Type",
+      "Contact",
+      "Address",
+      "State",
+      "Pincode",
+      "City",
+      "Client",
+      "Branch"
+    ];
+
+    const rows = filteredData.map((p) => [
+      p.Name ?? "",
+      p.PropertyTypeName ?? "",
+      p.ContactNumber ? `="${p.ContactNumber}"` : "",
+      p.AddressLine1 ?? "",
+      p.State ?? "",
+      p.Pincode ?? "",
+      p.CityName ?? "",
+      p.ClientName ?? "",
+      p.BranchName ?? ""
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers, ...rows]
+        .map((row) =>
+          row
+            .map((value) =>
+              `"${String(value).replace(/"/g, '""')}"`
+            )
+            .join(",")
+        )
+        .join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "PropertyMaster.csv");
+    document.body.appendChild(link);
+    link.click();
+  };
+
   return (
     <div className="content-wrapper" style={{ padding: 30 }}>
       <Toast ref={toast} />
@@ -530,14 +575,31 @@ export default function PropertyMaster() {
               placeholder="Search..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ maxWidth: 240 }}
+              style={{ maxWidth: 240, height: "38px" }}
             />
-            <Button
-              label="Create"
-              icon="pi pi-plus"
-              className="btn btn-success"
+
+            <button
+              className="btn btn-outline-primary me-2 d-flex align-items-center justify-content-center shadow-sm"
+              style={{
+                height: "38px",
+                padding: "0 14px",
+                gap: "6px",
+                whiteSpace: "nowrap"
+              }}
+              onClick={exportToExcel}
+            >
+              <i className="fa fa-download"></i>
+              <span>Export</span>
+            </button>
+
+            <button
+              className="btn btn-success d-flex align-items-center justify-content-center"
+              style={{ height: "38px", padding: "0 18px", gap: "6px" }}
               onClick={openCreateDialog}
-            />
+            >
+              <i className="pi pi-plus"></i>
+              <span>Create</span>
+            </button>
           </div>
         </div>
 

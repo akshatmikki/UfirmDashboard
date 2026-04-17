@@ -857,7 +857,7 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>Leave Wages</td>
-          <td class="v-bold">${row.LEAVEWAGES || 0}</td>
+          <td class="v-bold">${row.LEAVE|| 0}</td>
           <td>IncomeTax</td>
           <td class="v-light">${row.IncomeTax || 0}</td>
           <td>CL</td>
@@ -890,16 +890,10 @@ export default function GenerateSalary() {
           <td>${row.Joiningkits || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td></td>
-          <td></td>
-          <td>Loan EMI</td>
-          <td class="v-light">${row.LoanEMI || 0}</td>
-        </tr>
-        <tr class="no-horiz-border">
           <td>Education Allowance</td>
           <td class="v-bold">${row.EduAll || 0}</td>
-          <td></td>
-          <td></td>
+          <td>Loan EMI</td>
+          <td>${row.LoanEMI || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>Performance Allowance</td>

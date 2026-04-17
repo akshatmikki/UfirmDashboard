@@ -970,9 +970,59 @@ export default function SGNEW() {
     .reduce((sum, key) => sum + Number(allowanceAmounts[key]), 0);
 
   // SUM OF ALL DEDUCTIONS (D + OD)
-  const totalDeduction = Object.values(deductionAmounts)
-    .filter((v) => typeof v === "number" && v > 0)
-    .reduce((a, b) => a + b, 0);
+  const totalDeduction = Object.keys(deductionAmounts).reduce((sum, key) => {
+    let value = deductionAmounts[key] || 0;
+
+    // 🔥 APPLY PF LIMIT
+    if (key === "PF" && pfLimit) {
+      let baseAmount = 0;
+
+      if (deductionAllowanceMap.PF?.BaseSalary) {
+        baseAmount += Number(form.baseSalary) || 0;
+      }
+
+      Object.entries(deductionAllowanceMap.PF || {}).forEach(([k, v]) => {
+        if (k !== "BaseSalary" && v) {
+          baseAmount += Number(allowanceAmounts[k]) || 0;
+        }
+      });
+
+      const limitedBase = Math.min(baseAmount, Number(pfLimit));
+
+      const percent =
+        Number(editablePercentages.PF) ||
+        getEffectivePercentage("PF")?.Percentage ||
+        0;
+
+      value = Math.round(limitedBase * (percent / 100));
+    }
+
+    // 🔥 APPLY ESI LIMIT
+    if (key === "ESI" && esiLimit) {
+      let baseAmount = 0;
+
+      if (deductionAllowanceMap.ESI?.BaseSalary) {
+        baseAmount += Number(form.baseSalary) || 0;
+      }
+
+      Object.entries(deductionAllowanceMap.ESI || {}).forEach(([k, v]) => {
+        if (k !== "BaseSalary" && v) {
+          baseAmount += Number(allowanceAmounts[k]) || 0;
+        }
+      });
+
+      const limitedBase = Math.min(baseAmount, Number(esiLimit));
+
+      const percent =
+        Number(editablePercentages.ESI) ||
+        getEffectivePercentage("ESI")?.Percentage ||
+        0;
+
+      value = Math.round(limitedBase * (percent / 100));
+    }
+
+    return sum + value;
+  }, 0);
 
   // GROSS = BASE + ALLOWANCES
   const totalGross = (Number(form.baseSalary) || 0) + totalAllowance;
