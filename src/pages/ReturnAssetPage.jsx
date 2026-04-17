@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-
+import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
 const formatAssetId = (value) => (value || value === 0 ? `#${value}` : "#1234");
 
 const splitDateTime = (value) => {
@@ -66,7 +66,8 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
 
   return (
     <form className="rental-asset-form" onSubmit={handleSubmit}>
-      {!showModeToggle ? (
+      <div className="rental-asset-scroll-area">
+        {!showModeToggle ? (
         <div className="rental-asset-meta">
           <div className="rental-asset-meta-item">
             <span className="rental-asset-meta-label">Asset Name</span>
@@ -111,7 +112,7 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
         </div>
         <div className="rental-asset-field">
           <label className="rental-asset-label">Rent-in date</label>
-          <input className="rental-asset-input" type="date" name="returnDate" value={formData.returnDate} onChange={handleInputChange} required />
+          <CustomDatePicker value={formData.returnDate} onChange={(e) => handleInputChange({ target: { name: "returnDate", value: e.target.value } })} />
         </div>
         <div className="rental-asset-field">
           <label className="rental-asset-label">Rent -n time</label>
@@ -119,7 +120,7 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
         </div>
         <div className="rental-asset-field">
           <label className="rental-asset-label">Tentative date of returning</label>
-          <input className="rental-asset-input" type="date" name="tentativeReturnDate" value={formData.tentativeReturnDate} onChange={handleInputChange} />
+          <CustomDatePicker value={formData.tentativeReturnDate} onChange={(e) => handleInputChange({ target: { name: "tentativeReturnDate", value: e.target.value } })} />
         </div>
         <div className="rental-asset-field">
           <label className="rental-asset-label">Approved by</label>
@@ -146,6 +147,7 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
             </div>
           </>
         ) : null}
+        </div>
       </div>
 
       <div className="rental-asset-actions">

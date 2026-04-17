@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Toast } from "primereact/toast";
@@ -6,6 +6,8 @@ import { useHistory } from "react-router-dom";
 import { useSelector } from "react-redux";
 import SpareService from "../../Services/SpareService";
 import "./AssetsMaster.css";
+import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
+import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 
 function getEmptySpareRow() {
   return {
@@ -544,11 +546,17 @@ const SparePage = () => {
 
             <div className="asset-form-group-custom">
               <label>Status</label>
-              <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}>
-                <option value="Running">Running</option>
-                <option value="Inactive">Inactive</option>
-                <option value="Servicing">Servicing</option>
-              </select>
+              <CustomDropdown
+                variant="short"
+                value={editForm.Status}
+                onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}
+                placeholder="Select status"
+                options={[
+                  { label: "Running", value: "Running" },
+                  { label: "Inactive", value: "Inactive" },
+                  { label: "Servicing", value: "Servicing" }
+                ]}
+              />
             </div>
 
             <div className="asset-form-group-custom">
@@ -591,11 +599,11 @@ const SparePage = () => {
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
                 <label>Purchase date</label>
-                <input type="date" className="form-control" value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
+                <CustomDatePicker value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
               </div>
               <div className="asset-form-group-custom">
                 <label>Expiry date</label>
-                <input type="date" className="form-control" value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
+                <CustomDatePicker value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
               </div>
             </div>
           </div>
@@ -691,37 +699,34 @@ const SparePage = () => {
                     <div className="asset-filter-grid">
                       <div className="asset-filter-field">
                         <label>Vendor</label>
-                        <select className="form-control" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}>
-                          <option value="">Enter name</option>
-                          {vendorOptions.map((vendor) => (
-                            <option key={vendor} value={vendor}>
-                              {vendor}
-                            </option>
-                          ))}
-                        </select>
+                        <CustomDropdown
+                          variant="long"
+                          value={filterVendor}
+                          onChange={(e) => setFilterVendor(e.target.value)}
+                          placeholder="Enter name"
+                          options={vendorOptions.map(v => ({ label: v, value: v }))}
+                        />
                       </div>
                       <div className="asset-filter-field">
                         <label>Manufacturer</label>
-                        <select className="form-control" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)}>
-                          <option value="">Enter name</option>
-                          {manufacturerOptions.map((manufacturer) => (
-                            <option key={manufacturer} value={manufacturer}>
-                              {manufacturer}
-                            </option>
-                          ))}
-                        </select>
+                        <CustomDropdown
+                          variant="long"
+                          value={filterManufacturer}
+                          onChange={(e) => setFilterManufacturer(e.target.value)}
+                          placeholder="Enter name"
+                          options={manufacturerOptions.map(m => ({ label: m, value: m }))}
+                        />
                       </div>
 
                       <div className="asset-filter-field asset-filter-field-full">
                         <label>Asset</label>
-                        <select className="form-control" value={filterAssetId} onChange={(e) => setFilterAssetId(e.target.value)}>
-                          <option value="">Enter name</option>
-                          {assetOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </option>
-                          ))}
-                        </select>
+                        <CustomDropdown
+                          variant="long"
+                          value={filterAssetId}
+                          onChange={(e) => setFilterAssetId(e.target.value)}
+                          placeholder="Enter name"
+                          options={assetOptions}
+                        />
                       </div>
 
                       <div className="asset-filter-field asset-filter-field-full">
@@ -875,14 +880,13 @@ const SparePage = () => {
                   <div className="spare-add-body">
                     <div className="spare-add-field">
                       <label>Asset</label>
-                      <select className="form-control" value={assetId} onChange={(e) => setAssetId(e.target.value)}>
-                        <option value="">Asset name or ID</option>
-                        {assetOptions.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
-                          </option>
-                        ))}
-                      </select>
+                      <CustomDropdown
+                        variant="long"
+                        value={assetId}
+                        onChange={(e) => setAssetId(e.target.value)}
+                        placeholder="Asset name or ID"
+                        options={assetOptions}
+                      />
                     </div>
 
                     <div className="spare-add-section-header">
@@ -922,11 +926,17 @@ const SparePage = () => {
                           </div>
                           <div className="spare-add-field">
                             <label>Status</label>
-                            <select className="form-control" value={row.Status} onChange={(e) => updateRow(index, "Status", e.target.value)}>
-                              <option value="Running">Running</option>
-                              <option value="Servicing">Servicing</option>
-                              <option value="Inactive">Inactive</option>
-                            </select>
+                            <CustomDropdown
+                              variant="short"
+                              value={row.Status}
+                              onChange={(e) => updateRow(index, "Status", e.target.value)}
+                              placeholder="Select status"
+                              options={[
+                                { label: "Running", value: "Running" },
+                                { label: "Servicing", value: "Servicing" },
+                                { label: "Inactive", value: "Inactive" }
+                              ]}
+                            />
                           </div>
                           <div className="spare-add-field">
                             <label>Quantity</label>
@@ -938,11 +948,11 @@ const SparePage = () => {
                           </div>
                           <div className="spare-add-field">
                             <label>Purchase date</label>
-                            <input className="form-control" type="date" value={normalizeDateOnly(row.PurchaseDate)} onChange={(e) => updateRow(index, "PurchaseDate", e.target.value)} />
+                            <CustomDatePicker value={normalizeDateOnly(row.PurchaseDate)} onChange={(e) => updateRow(index, "PurchaseDate", e.target.value)} />
                           </div>
                           <div className="spare-add-field">
                             <label>Expiry date</label>
-                            <input className="form-control" type="date" value={normalizeDateOnly(row.ExpiryDate)} onChange={(e) => updateRow(index, "ExpiryDate", e.target.value)} />
+                            <CustomDatePicker value={normalizeDateOnly(row.ExpiryDate)} onChange={(e) => updateRow(index, "ExpiryDate", e.target.value)} />
                           </div>
                           <div className="spare-add-field">
                             <label>Add invoice</label>

@@ -1,5 +1,5 @@
 .rental-figma-modal {
-  max-width: 760px;
+  max-width: 636px;
 }
 
 .rental-figma-modal .modal-content {
@@ -71,6 +71,11 @@
 
 .rental-asset-form {
   padding: 16px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
 }
 
 .rental-asset-meta {
@@ -105,6 +110,18 @@
   margin-bottom: 14px;
 }
 
+.rental-asset-scroll-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 12px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.rental-asset-scroll-area::-webkit-scrollbar {
+  display: none;
+}
+
 .rental-asset-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -125,7 +142,7 @@
   height: 38px;
   border: 1px solid #c9d4df;
   border-radius: 10px;
-  background: #eef3f7;
+  background: #EDF0F3;
   padding: 0 14px;
   color: #5d6875;
   font-size: 14px;
@@ -168,8 +185,9 @@
   display: flex;
   gap: 18px;
   padding-top: 18px;
-  margin-top: 18px;
+  margin-top: auto;
   border-top: 1px solid #e5edf5;
+  flex-shrink: 0;
 }
 
 .rental-asset-submit,

@@ -8,6 +8,8 @@ import RentalPopUp from "../ReactComponents/RentalModal/RentalPopUp";
 import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets";
 import "../MainComponents/AssetsMaster/AssetsMaster.css";
 import "./RentalAssets.css";
+import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
+import CustomDropdown from "../ReactComponents/CustomDropdown/CustomDropdown";
 
 const statusOptions = {
   running: { label: "Running", key: "running" },
@@ -285,9 +287,9 @@ const RentalAssets = ({ propId, history }) => {
         prev.map((item) =>
           Number(item.Id) === Number(asset.Id)
             ? {
-                ...item,
-                history: Array.isArray(historyData) ? historyData : [],
-              }
+              ...item,
+              history: Array.isArray(historyData) ? historyData : [],
+            }
             : item
         )
       );
@@ -333,23 +335,23 @@ const RentalAssets = ({ propId, history }) => {
       prev.map((item) =>
         Number(item.Id) === Number(selectedAssetId)
           ? {
-              ...item,
-              Name: editForm.Name,
-              Status: editForm.Status,
-              Description: editForm.Description,
-              Vendor: editForm.Vendor,
-              LeaseType: editForm.LeaseType,
-              Manufacturer: editForm.Manufacturer,
-              AssetModel: editForm.Model,
-              Model: editForm.Model,
-              MonthlyRent: editForm.Cost,
-              Cost: editForm.Cost,
-              SecurityDeposit: editForm.SecurityDeposit,
-              ExpiryDate: editForm.ExpiryDate,
-              Location: editForm.Location,
-              RentalContract: editForm.RentalContract,
-              Contract: editForm.RentalContract,
-            }
+            ...item,
+            Name: editForm.Name,
+            Status: editForm.Status,
+            Description: editForm.Description,
+            Vendor: editForm.Vendor,
+            LeaseType: editForm.LeaseType,
+            Manufacturer: editForm.Manufacturer,
+            AssetModel: editForm.Model,
+            Model: editForm.Model,
+            MonthlyRent: editForm.Cost,
+            Cost: editForm.Cost,
+            SecurityDeposit: editForm.SecurityDeposit,
+            ExpiryDate: editForm.ExpiryDate,
+            Location: editForm.Location,
+            RentalContract: editForm.RentalContract,
+            Contract: editForm.RentalContract,
+          }
           : item
       )
     );
@@ -399,9 +401,9 @@ const RentalAssets = ({ propId, history }) => {
         prev.map((item) =>
           Number(item.Id) === Number(asset.Id)
             ? {
-                ...item,
-                history: normalizedHistory,
-              }
+              ...item,
+              history: normalizedHistory,
+            }
             : item
         )
       );
@@ -416,13 +418,13 @@ const RentalAssets = ({ propId, history }) => {
     if (!selectedAsset) return;
     const contract = selectedAsset.ImageOut || selectedAsset.RentalContract || selectedAsset.Contract || selectedAsset.Image || "";
     if (!contract) return;
-    
+
     const raw = String(contract);
     if (raw.startsWith("http://") || raw.startsWith("https://")) {
       window.open(raw, "_blank", "noopener,noreferrer");
       return;
     }
-    
+
     const win = window.open("", "_blank");
     if (!win) return;
     if (raw.startsWith("data:application/pdf")) {
@@ -561,11 +563,17 @@ const RentalAssets = ({ propId, history }) => {
 
           <div className="form-group asset-form-group-custom">
             <label>Status</label>
-            <select className="form-control" value={editForm.Status} onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}>
-              <option value="Running">Running</option>
-              <option value="Inactive">Inactive</option>
-              <option value="Servicing">Servicing</option>
-            </select>
+            <CustomDropdown
+              variant="short"
+              value={editForm.Status}
+              onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
+              placeholder="Select status"
+              options={[
+                { label: "Running", value: "Running" },
+                { label: "Inactive", value: "Inactive" },
+                { label: "Servicing", value: "Servicing" }
+              ]}
+            />
           </div>
 
           <div className="form-group asset-form-group-custom">
@@ -580,11 +588,17 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="form-group asset-form-group-custom">
               <label>Lease type</label>
-              <select className="form-control" value={editForm.LeaseType} onChange={(e) => setEditForm({ ...editForm, LeaseType: e.target.value })}>
-                <option value="Outbound">Outbound</option>
-                <option value="Inbound">Inbound</option>
-                <option value="Open">Open</option>
-              </select>
+              <CustomDropdown
+                variant="short"
+                value={editForm.LeaseType}
+                onChange={(e) => setEditForm({ ...editForm, LeaseType: e.target.value })}
+                placeholder="Select lease type"
+                options={[
+                  { label: "Outbound", value: "Outbound" },
+                  { label: "Inbound", value: "Inbound" },
+                  { label: "Open", value: "Open" }
+                ]}
+              />
             </div>
           </div>
 
@@ -613,17 +627,17 @@ const RentalAssets = ({ propId, history }) => {
           <div className="asset-form-row-two-col">
             <div className="form-group asset-form-group-custom">
               <label>Expiry date</label>
-              <input type="date" className="form-control" value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
+              <CustomDatePicker value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
             </div>
             <div className="form-group asset-form-group-custom">
               <label>Location</label>
-              <select className="form-control" value={editForm.Location} onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}>
-                <option value={editForm.Location}>{editForm.Location}</option>
-                <option value="Building A">Building A</option>
-                <option value="Building-A">Building-A</option>
-                <option value="Basement">Basement</option>
-                <option value="Gate no-07">Gate no-07</option>
-              </select>
+              <CustomDropdown
+                variant="short"
+                value={editForm.Location}
+                onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
+                placeholder="Select location"
+                options={Array.from(new Set([editForm.Location, "Building A", "Building-A", "Basement", "Gate no-07"])).filter(Boolean).map(v => ({ label: v, value: v }))}
+              />
             </div>
           </div>
 
@@ -711,25 +725,23 @@ const RentalAssets = ({ propId, history }) => {
                     <div className="asset-filter-grid">
                       <div className="asset-filter-field">
                         <label>Vendor</label>
-                        <select className="form-control" value={filterVendor} onChange={(e) => setFilterVendor(e.target.value)}>
-                          <option value="">Enter name</option>
-                          {vendorOptions.map((vendor) => (
-                            <option key={vendor} value={vendor}>
-                              {vendor}
-                            </option>
-                          ))}
-                        </select>
+                        <CustomDropdown
+                          variant="long"
+                          value={filterVendor}
+                          onChange={(e) => setFilterVendor(e.target.value)}
+                          placeholder="Enter name"
+                          options={vendorOptions.map(v => ({ label: v, value: v }))}
+                        />
                       </div>
                       <div className="asset-filter-field">
                         <label>Manufacturer</label>
-                        <select className="form-control" value={filterManufacturer} onChange={(e) => setFilterManufacturer(e.target.value)}>
-                          <option value="">Enter name</option>
-                          {manufacturerOptions.map((manufacturer) => (
-                            <option key={manufacturer} value={manufacturer}>
-                              {manufacturer}
-                            </option>
-                          ))}
-                        </select>
+                        <CustomDropdown
+                          variant="long"
+                          value={filterManufacturer}
+                          onChange={(e) => setFilterManufacturer(e.target.value)}
+                          placeholder="Enter name"
+                          options={manufacturerOptions.map(m => ({ label: m, value: m }))}
+                        />
                       </div>
 
                       <div className="asset-filter-field asset-filter-field-full">
@@ -795,7 +807,7 @@ const RentalAssets = ({ propId, history }) => {
                       <thead>
                         <tr>
                           <th>ID</th>
-                          <th>Lease</th>
+                          <th>Asset Name</th>
                           <th>Manufacturer</th>
                           <th>Lease</th>
                           <th>Expiry date</th>
@@ -992,8 +1004,8 @@ const RentalAssets = ({ propId, history }) => {
                       <div className="rental-history-empty">Loading history...</div>
                     ) : buildHistoryEntries(historyAsset?.history).length > 0 ? (
                       buildHistoryEntries(historyAsset?.history).map((item) => {
-                          const isExpanded = expandedHistoryId === item.id;
-                          return (
+                        const isExpanded = expandedHistoryId === item.id;
+                        return (
                           <div
                             key={item.id}
                             className={`rental-history-item ${isExpanded ? "expanded" : ""}`}

@@ -12,6 +12,8 @@ import ExportToCSV from "../../ReactComponents/ExportToCSV/ExportToCSV.js";
 import "../Calendar/Tasks/taskList/components/TaskListView.css";
 import "./AssetsMaster.css";
 import { withRouter } from "react-router-dom";
+import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
+import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -545,25 +547,23 @@ class AssetsMaster extends Component {
         <div className="asset-filter-grid">
           <div className="asset-filter-field">
             <label>Vendor</label>
-            <select className="form-control" value={this.state.filterVendor} onChange={(e) => this.setState({ filterVendor: e.target.value })}>
-              <option value="">Enter name</option>
-              {this.getVendorOptions().map((vendor) => (
-                <option key={vendor} value={vendor}>
-                  {vendor}
-                </option>
-              ))}
-            </select>
+            <CustomDropdown 
+              variant="long" 
+              value={this.state.filterVendor} 
+              onChange={(e) => this.setState({ filterVendor: e.target.value })} 
+              placeholder="Enter name" 
+              options={this.getVendorOptions().map(v => ({ label: v, value: v }))} 
+            />
           </div>
           <div className="asset-filter-field">
             <label>Manufacturer</label>
-            <select className="form-control" value={this.state.filterManufacturer} onChange={(e) => this.setState({ filterManufacturer: e.target.value })}>
-              <option value="">Enter name</option>
-              {this.getManufacturerOptions().map((manufacturer) => (
-                <option key={manufacturer} value={manufacturer}>
-                  {manufacturer}
-                </option>
-              ))}
-            </select>
+            <CustomDropdown 
+              variant="long" 
+              value={this.state.filterManufacturer} 
+              onChange={(e) => this.setState({ filterManufacturer: e.target.value })} 
+              placeholder="Enter name" 
+              options={this.getManufacturerOptions().map(m => ({ label: m, value: m }))} 
+            />
           </div>
 
           <div className="asset-filter-field asset-filter-field-full">
@@ -947,12 +947,17 @@ class AssetsMaster extends Component {
 
             <div className="form-group asset-form-group-custom">
               <label>Status</label>
-              <select className="form-control" value={this.state.status} onChange={(e) => this.setState({ status: e.target.value })}>
-                <option value="">Select status</option>
-                <option value="true">Running</option>
-                <option value="false">Inactive</option>
-                <option value="Servicing">Servicing</option>
-              </select>
+              <CustomDropdown
+                variant="short"
+                value={this.state.status}
+                onChange={(e) => this.setState({ status: e.target.value })}
+                placeholder="Select status"
+                options={[
+                  { label: "Running", value: "true" },
+                  { label: "Inactive", value: "false" },
+                  { label: "Servicing", value: "Servicing" }
+                ]}
+              />
             </div>
 
             <div className="form-group asset-form-group-custom">
@@ -974,11 +979,11 @@ class AssetsMaster extends Component {
             <div className="asset-form-row-two-col">
               <div className="form-group asset-form-group-custom">
                 <label>Last serviced</label>
-                <input type="date" className="form-control" value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
+                <CustomDatePicker value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
               </div>
               <div className="form-group asset-form-group-custom">
                 <label>Next service</label>
-                <input type="date" className="form-control" value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
               </div>
             </div>
 
@@ -1094,12 +1099,17 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Status</label>
-                <select className="form-control" value={this.state.status} onChange={(e) => this.setState({ status: e.target.value })}>
-                  <option value="">Input status</option>
-                  <option value="true">Running</option>
-                  <option value="false">Inactive</option>
-                  <option value="Servicing">Servicing</option>
-                </select>
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.status}
+                  onChange={(e) => this.setState({ status: e.target.value })}
+                  placeholder="Input status"
+                  options={[
+                    { label: "Running", value: "true" },
+                    { label: "Inactive", value: "false" },
+                    { label: "Servicing", value: "Servicing" }
+                  ]}
+                />
               </div>
 
               <div className="form-group asset-form-group-custom asset-add-span-2">
@@ -1137,22 +1147,12 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Last service</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  value={this.state.LastServiceDate} 
-                  onChange={(e) => this.setState({ LastServiceDate: e.target.value })} 
-                />
+                <CustomDatePicker value={this.state.LastServiceDate} onChange={(e) => this.setState({ LastServiceDate: e.target.value })} />
               </div>
 
               <div className="form-group asset-form-group-custom">
                 <label>Next service</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  value={this.state.NextServiceDate} 
-                  onChange={(e) => this.setState({ NextServiceDate: e.target.value })} 
-                />
+                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
               </div>
 
               <div className="form-group asset-form-group-custom">
@@ -1183,13 +1183,18 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Service reminder</label>
-                <select className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}>
-                  <option value="">Select reminder</option>
-                  <option value="1">One Day Prior</option>
-                  <option value="7">One Week Prior</option>
-                  <option value="15">15 Days Prior</option>
-                  <option value="30">One Month Prior</option>
-                </select>
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.serviceReminderDay}
+                  onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
+                  placeholder="Select reminder"
+                  options={[
+                    { label: "One Day Prior", value: "1" },
+                    { label: "One Week Prior", value: "7" },
+                    { label: "15 Days Prior", value: "15" },
+                    { label: "One Month Prior", value: "30" }
+                  ]}
+                />
               </div>
 
               <div className="form-group asset-form-group-custom">
@@ -1205,12 +1210,7 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Date of Purchase</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  value={this.state.PurchaseDate} 
-                  onChange={(e) => this.setState({ PurchaseDate: e.target.value })} 
-                />
+                <CustomDatePicker value={this.state.PurchaseDate} onChange={(e) => this.setState({ PurchaseDate: e.target.value })} />
               </div>
 
               <div className="form-group asset-form-group-custom">
@@ -1229,12 +1229,7 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Warranty date</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  value={this.state.WarrantyDate} 
-                  onChange={(e) => this.setState({ WarrantyDate: e.target.value })} 
-                />
+                <CustomDatePicker value={this.state.WarrantyDate} onChange={(e) => this.setState({ WarrantyDate: e.target.value })} />
               </div>
 
               <div className="form-group asset-form-group-custom">

@@ -4,6 +4,7 @@ import { PropagateLoader } from "react-spinners";
 import { connect } from "react-redux";
 import ExportToCSV from "../ReactComponents/ExportToCSV/ExportToCSV";
 import PopUp from "../ReactComponents/CheckIn&OutModal/PopUp";
+import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
 import SpareService from "../Services/SpareService";
 import { getAssetCheckInOutHistoryByAssetId } from "../Services/CheckInCheckOut";
 import "../MainComponents/AssetsMaster/AssetsMaster.css";
@@ -811,7 +812,7 @@ const CheckInCheckOut = ({ propId }) => {
           <div className="asset-form-row-two-col">
             <div className="form-group asset-form-group-custom">
               <label>Expiry date</label>
-              <input type="date" className="form-control" value={assetEditForm.ExpiryDate} onChange={(e) => setAssetEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
+              <CustomDatePicker value={assetEditForm.ExpiryDate} onChange={(e) => setAssetEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
             </div>
             <div className="form-group asset-form-group-custom">
               <label>Location</label>
@@ -894,11 +895,11 @@ const CheckInCheckOut = ({ propId }) => {
           <div className="asset-form-row-two-col">
             <div className="form-group asset-form-group-custom">
               <label>Purchase date</label>
-              <input type="date" className="form-control" value={spareEditForm.PurchaseDate} onChange={(e) => setSpareEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
+              <CustomDatePicker value={spareEditForm.PurchaseDate} onChange={(e) => setSpareEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
             </div>
             <div className="form-group asset-form-group-custom">
               <label>Expiry date</label>
-              <input type="date" className="form-control" value={spareEditForm.ExpiryDate} onChange={(e) => setSpareEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
+              <CustomDatePicker value={spareEditForm.ExpiryDate} onChange={(e) => setSpareEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
             </div>
           </div>
         </div>
