@@ -3,13 +3,12 @@
 }
 
 .ppm-card {
-  width: 90vw !important;
+  max-width: 1450px;
   margin: 0 auto;
   border: 1px solid #d7e0ea;
   border-radius: 12px;
   box-shadow: 0 4px 14px rgba(20, 51, 84, 0.07);
   overflow: hidden;
-  zoom: 0.9;
 }
 
 .ppm-header {

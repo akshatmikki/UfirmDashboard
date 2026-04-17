@@ -1,7 +1,7 @@
-﻿import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const taskPageCss = `
-.task-page-shell{position:fixed;inset:0;z-index:1050;background:rgba(244,246,249,.95);padding:40px 0 0;overflow:hidden;display:flex;align-items:flex-start;justify-content:center;}
+.task-page-shell{position:fixed;inset:0;z-index:1050;background:rgba(244,246,249,.95);padding:40px 0 0;overflow:hidden;display:flex;align-items:flex-start;justify-content:center;zoom: 0.9;}
 .task-page-shell--one-third{justify-content:flex-end;}
 .task-page-shell--one-third .task-page-content{width:min(560px,33vw);min-width:460px;}
 .task-page-content{width:min(1260px,96vw);height:min(720px,92vh);margin-top:0;}

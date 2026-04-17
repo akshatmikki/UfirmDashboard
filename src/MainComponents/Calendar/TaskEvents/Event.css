@@ -4,13 +4,12 @@
 
 .task-calendar-shell {
   font-family: 'Inter', sans-serif;
-  width: 90vw !important;
+  width: 98% !important;
   margin: 0 auto !important;
   border-radius: 12px;
   border: 1px solid #d8e0e8;
   background: #ffffff;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08); /* Added shadow for premium look */
-  zoom: 0.9; /* Added to simulate 90% browser zoom */
 }
 

@@ -17,7 +17,7 @@ class PlannerTaskPage extends Component {
     const priority = new URLSearchParams(location.search).get('priority');
     const subCatId = new URLSearchParams(location.search).get('subCat');
     return (
-      <div className='content-wrapper'>
+      <div className='content-wrapper' style={{ zoom: 0.9 }}>
         <section className="content mt-4">
           <TaskList status={status} priority={priority} subCatId={subCatId} />
 

@@ -154,7 +154,7 @@ class MainNav extends React.Component {
             if (this.isHrRole()) {
               this.loadClient();
             } else if (this.isManagerRole()) {
-              this.loadAllProperties();
+              this.loadProperty();
             } else {
               this.loadProperty();
             }
@@ -319,8 +319,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc1NTQzMTg0LCJleHAiOjE4MDcwNzkxODQsImlhdCI6MTc3NTU0MzE4NH0.YNQA02o286DQvl5N1SLgIvTneu9Oy-0UHi4_BKJworU";
-    var token = window.sessionStorage.getItem("userinfo_key")
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc1NTQzMTg0LCJleHAiOjE4MDcwNzkxODQsImlhdCI6MTc3NTU0MzE4NH0.YNQA02o286DQvl5N1SLgIvTneu9Oy-0UHi4_BKJworU";
+    //var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {

@@ -2,13 +2,12 @@
 
 .task-planner-shell {
   font-family: 'Inter', sans-serif;
-  width: 90vw !important; /* Fixed 90% of screen width */
+  width: 98% !important;
   margin: 0 auto !important;
   border-radius: 12px;
   border: 1px solid #d8e0e8;
   background: #ffffff;
   overflow: hidden;
-  zoom: 0.9; /* Added to simulate 90% browser zoom */
 }
 
 .task-summary-grid {
@@ -618,12 +617,12 @@
 }
 
 .task-line-item.overdue {
-  background: #fff2f2;
+  background: #ffffff;
   border-color: #ebc8c8;
 }
 
 .task-line-item.pending {
-  background: #fff1f1;
+  background: #ffffff;
   border-color: #f0cccc;
 }
 
@@ -635,7 +634,7 @@
 
 .task-line-item.actionable,
 .task-line-item.in-progress {
-  background: #fff9e8;
+  background: #ffffff;
   border-color: #f0dfac;
 }
 
@@ -786,10 +785,14 @@
   color: #179c52;
 }
 
-.task-chip-status.in-progress,
-.task-chip-status.actionable {
+.task-chip-status.in-progress {
   background: #e8efff;
   color: #3f6cf4;
+}
+
+.task-chip-status.actionable {
+  background: #fff7ed;
+  color: #ea580c;
 }
 
 .task-chip-status.overdue {
@@ -927,12 +930,12 @@
 }
 
 .task-card.overdue {
-  background: #fffafa;
+  background: #ffffff;
   border-color: #ffccd1;
 }
 
 .task-card.pending {
-  background: #fff2f2;
+  background: #ffffff;
   border-color: #ebc8c8;
 }
 

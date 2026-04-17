@@ -61,9 +61,9 @@ export function TaskQuestionsViewSection({ taskName, location, questions }) {
     <div className="add-task-form">
       {(questions || []).length === 0 ? <p className="text-muted">No questions available.</p> : null}
 
-      {(questions || []).map((q) => (
-        <div key={q.QuesId} className="task-procedure-row">
-          <div className="task-procedure-index">{q.QuesId}.</div>
+      {(questions || []).map((q, index) => (
+        <div key={q.QuesId || index} className="task-procedure-row">
+          <div className="task-procedure-index">{index + 1}.</div>
           <input className="form-control task-procedure-input" value={q.QuesName || q.QuestionName || ""} disabled />
           <div className="task-procedure-actions" />
         </div>
