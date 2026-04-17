@@ -19,7 +19,7 @@
 }
 
 .rental-figma-header {
-  padding: 22px 24px 10px;
+  padding: 16px 24px 8px;
   border-bottom: 1px solid #e5edf5;
 }
 
@@ -30,8 +30,8 @@
 }
 
 .rental-figma-title-icon {
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   background: #d9ecff;
   color: #0f77c6;
@@ -61,6 +61,14 @@
   font-size: 17px;
   color: #2b3642;
   cursor: pointer;
+  background: transparent;
+  border-radius: 6px;
+}
+
+.rental-figma-radio:hover,
+.rental-figma-radio:focus-within {
+  background: rgba(18, 146, 220, 0.08);
+  color: #2b3642;
 }
 
 .rental-figma-radio input {
@@ -207,12 +215,21 @@
 
 .rental-asset-submit:hover,
 .rental-asset-submit:focus {
+  background: #2a5f94;
+  border-color: #2a5f94;
   color: #fff;
 }
 
 .rental-asset-cancel {
   background: #fff;
   border: 1px solid #d5dde7;
+  color: #232f3a;
+}
+
+.rental-asset-cancel:hover,
+.rental-asset-cancel:focus {
+  background: #f7fafc;
+  border-color: #c8d3df;
   color: #232f3a;
 }
 

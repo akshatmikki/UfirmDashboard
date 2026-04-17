@@ -1573,6 +1573,13 @@
   letter-spacing: 0;
 }
 
+.asset-add-btn-save:hover,
+.asset-add-btn-save:focus {
+  background: #2a5f94;
+  border-color: #2a5f94;
+  color: #fafafa;
+}
+
 .asset-add-btn-cancel {
   width: 120px;
   min-width: 120px;
@@ -1587,6 +1594,13 @@
   line-height: 1;
   font-weight: 400;
   letter-spacing: 0;
+}
+
+.asset-add-btn-cancel:hover,
+.asset-add-btn-cancel:focus {
+  background: #f7fafc;
+  border-color: rgba(19, 23, 32, 0.2);
+  color: #131720;
 }
 
 .spare-add-modal {
