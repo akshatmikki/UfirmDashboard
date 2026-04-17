@@ -43,7 +43,7 @@ function statusMeta(value) {
   const raw = String(value || "").trim().toLowerCase();
   if (raw.includes("inactive")) return { label: "Inactive", key: "inactive" };
   if (raw.includes("servic")) return { label: "Servicing", key: "servicing" };
-  return { label: "Running", key: "running" };
+  return { label: "Active", key: "running" };
 }
 
 function getServiceStatus(row = {}) {
@@ -323,7 +323,7 @@ const SparePage = () => {
       AssetID: selectedRow.AssetID,
       AssetName: asset.Name || asset.name || "",
       SpareType: selectedRow.SpareType || "",
-      Status: selectedRow.Status || "Running",
+      Status: selectedRow.Status || "Active",
       Remarks: selectedRow.Remarks || "",
       SerialNumber: selectedRow.SerialNumber || "",
       Manufacturer: asset.Manufacturer || asset.manufacturer || "",
@@ -552,7 +552,7 @@ const SparePage = () => {
                 onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}
                 placeholder="Select status"
                 options={[
-                  { label: "Running", value: "Running" },
+                  { label: "Active", value: "Running" },
                   { label: "Inactive", value: "Inactive" },
                   { label: "Servicing", value: "Servicing" }
                 ]}
@@ -748,7 +748,7 @@ const SparePage = () => {
                       <div className="asset-filter-field asset-filter-field-full">
                         <label>Status</label>
                         <div className="asset-filter-chip-row">
-                          {["Running", "Servicing", "Inactive"].map((item) => (
+                          {["Active", "Servicing", "Inactive"].map((item) => (
                             <button
                               key={item}
                               type="button"
@@ -932,7 +932,7 @@ const SparePage = () => {
                               onChange={(e) => updateRow(index, "Status", e.target.value)}
                               placeholder="Select status"
                               options={[
-                                { label: "Running", value: "Running" },
+                                { label: "Active", value: "Running" },
                                 { label: "Servicing", value: "Servicing" },
                                 { label: "Inactive", value: "Inactive" }
                               ]}

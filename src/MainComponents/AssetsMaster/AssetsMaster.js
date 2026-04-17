@@ -194,7 +194,7 @@ class AssetsMaster extends Component {
     }
     const boolStatus = this.normalizeBoolean(rawStatus);
     if (boolStatus === false) return { label: "Inactive", key: "inactive", serviceStatus };
-    if (boolStatus === true) return { label: "Running", key: "running", serviceStatus };
+    if (boolStatus === true) return { label: "Active", key: "running", serviceStatus };
     return { label: "-", key: "inactive", serviceStatus };
   };
 
@@ -585,7 +585,7 @@ class AssetsMaster extends Component {
           <div className="asset-filter-field asset-filter-field-full">
             <label>Status</label>
             <div className="asset-filter-chip-row">
-              {["Running", "Servicing", "Inactive"].map((item) => (
+              {["Active", "Servicing", "Inactive"].map((item) => (
                 <button
                   key={item}
                   type="button"
@@ -953,7 +953,7 @@ class AssetsMaster extends Component {
                 onChange={(e) => this.setState({ status: e.target.value })}
                 placeholder="Select status"
                 options={[
-                  { label: "Running", value: "true" },
+                  { label: "Active", value: "true" },
                   { label: "Inactive", value: "false" },
                   { label: "Servicing", value: "Servicing" }
                 ]}
@@ -1105,7 +1105,7 @@ class AssetsMaster extends Component {
                   onChange={(e) => this.setState({ status: e.target.value })}
                   placeholder="Input status"
                   options={[
-                    { label: "Running", value: "true" },
+                    { label: "Active", value: "true" },
                     { label: "Inactive", value: "false" },
                     { label: "Servicing", value: "Servicing" }
                   ]}
