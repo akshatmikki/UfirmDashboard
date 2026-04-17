@@ -20,8 +20,10 @@ function getEmptySpareRow() {
     ExpiryDate: "",
     SerialNumber: "",
     VendorName: "",
-    InvoiceNo: "",
-    Warranty: "",
+    InvoiceNo: null,
+    InvoiceFileName: "",
+    Warranty: null,
+    WarrantyFileName: "",
     Remarks: "",
   };
 }
@@ -225,8 +227,16 @@ const SparePage = () => {
         formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
         formData.append("SerialNumber", row.SerialNumber);
         formData.append("VendorName", row.VendorName);
-        formData.append("InvoiceNo", row.InvoiceNo);
-        formData.append("Warranty", row.Warranty);
+        if (row.InvoiceNo instanceof File) {
+          formData.append("InvoiceNo", row.InvoiceNo);
+        } else {
+          formData.append("InvoiceNo", "");
+        }
+        if (row.Warranty instanceof File) {
+          formData.append("Warranty", row.Warranty);
+        } else {
+          formData.append("Warranty", "");
+        }
         formData.append("Remarks", row.Remarks);
         formData.append("Reusable", 0);
         await SpareService.create(formData);
@@ -923,7 +933,7 @@ const SparePage = () => {
                           </div>
                           <div className="spare-add-field">
                             <label>Back-up time</label>
-                            <input className="form-control" placeholder="--:--:--" value={row.BackupTime} onChange={(e) => updateRow(index, "BackupTime", e.target.value)} />
+                            <input type="time" step="1" className="form-control" value={row.BackupTime || ""} onChange={(e) => updateRow(index, "BackupTime", e.target.value)} />
                           </div>
                           <div className="spare-add-field">
                             <label>Status</label>
@@ -957,11 +967,37 @@ const SparePage = () => {
                           </div>
                           <div className="spare-add-field">
                             <label>Add invoice</label>
-                            <input className="form-control" placeholder="Invoice no" value={row.InvoiceNo} onChange={(e) => updateRow(index, "InvoiceNo", e.target.value)} />
+                            <div className="asset-file-input-wrapper">
+                              <input type="text" className="form-control" placeholder="Upload file" value={row.InvoiceFileName || ""} readOnly />
+                              <i className="fa fa-file-text-o asset-file-icon" />
+                              <input
+                                type="file"
+                                className="asset-file-hidden"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] || null;
+                                  updateRow(index, "InvoiceNo", file);
+                                  updateRow(index, "InvoiceFileName", file?.name || "");
+                                }}
+                              />
+                            </div>
                           </div>
                           <div className="spare-add-field">
                             <label>Add warranty</label>
-                            <input className="form-control" placeholder="Warranty" value={row.Warranty} onChange={(e) => updateRow(index, "Warranty", e.target.value)} />
+                            <div className="asset-file-input-wrapper">
+                              <input type="text" className="form-control" placeholder="Upload file" value={row.WarrantyFileName || ""} readOnly />
+                              <i className="fa fa-file-text-o asset-file-icon" />
+                              <input
+                                type="file"
+                                className="asset-file-hidden"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] || null;
+                                  updateRow(index, "Warranty", file);
+                                  updateRow(index, "WarrantyFileName", file?.name || "");
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
