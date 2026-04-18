@@ -488,7 +488,7 @@ export async function restructureLoan(loanId, newTenure) {
 
 
 //Generate Salary API Calls
-const EMPLOYEE_API_BASE_URL = "https://api.urest.in:8096/api/employee";
+const EMPLOYEE_API_BASE_URL = "http://localhost:62929/api/employee";
 
 export const getEmployeesByOffice = async (officeId) => {
   try {

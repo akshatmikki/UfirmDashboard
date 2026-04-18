@@ -493,6 +493,22 @@ const StaffPage = () => {
     loadClient();
   }, [reduxClientId, propertyId]);
 
+  useEffect(() => {
+    if (!staff || staff.length === 0) {
+      setManagerOptions([]);
+      return;
+    }
+
+    const options = staff
+      .filter(row => row?.FacilityMember?.FacilityMemberId) // valid only
+      .map(row => ({
+        label: `${row?.Profile?.EmployeeName} (${row?.Profile?.EmployeeCode})`,
+        value: row?.FacilityMember?.FacilityMemberId
+      }));
+
+    setManagerOptions(options);
+  }, [staff]);
+
   const addDocument = (type, file) => {
     if (!file) return;
 
@@ -720,8 +736,8 @@ const StaffPage = () => {
     setIsEditMode(true);
     const employeeId = row?.FacilityMember?.FacilityMemberId || "";
     setEditEmployeeId(employeeId);
-    const latestRow = await loadEmployeeForDialogs(employeeId, row);
-    setEditDocumentEmployeeId(getDocumentEmployeeId(latestRow) || getDocumentEmployeeId(row));
+    const latestRow = row;
+    setEditDocumentEmployeeId(getDocumentEmployeeId(row));
 
     // Profile Info
     const profile = latestRow?.Profile || {};

@@ -1009,6 +1009,15 @@ class MainNav extends React.Component {
                           </Link>
                         </li>
                         <li className="nav-item">
+                          <Link
+                            to="/Account/App/EmployeeTransfer"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Emp Search & Transfer</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
                           <Link to="/Account/App/Facility" className="nav-link">
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Facility Latlong </p>
@@ -1266,18 +1275,7 @@ class MainNav extends React.Component {
                             <i className="fas fa-caret-right nav-icon"></i>
                             <p>Employee Shift Mapping</p>
                           </Link>
-                        </li>
-                        <li className="nav-item">
-
-                          <Link
-                            to="/Account/App/EmployeeTransfer"
-                            className="nav-link"
-                          >
-                            <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Employee Transfer</p>
-                          </Link>
-                        </li>
-
+                        </li>                     
                         {/* <li className="nav-item">
                           <Link to="/Account/App/Formula" className="nav-link">
                             <i className="fas fa-caret-right nav-icon"></i>
