@@ -743,7 +743,7 @@ export const getGeneratedSalaryByProperties = async (
 };
 
 // Attendance Summary API Calls
-const BASE_URL = 'http://localhost:62929/api/attendance-summary';
+const BASE_URL = 'https://api.urest.in:8096/api/attendance-summary';
 
 export const getAttendanceByProperty = async (propertyId) => {
   try {
@@ -817,7 +817,7 @@ export const uploadAttendance = async (
     }
 
     const response = await axios.post(
-      `http://localhost:62929/api/attendance-summary/UploadAttendance`,
+      `https://api.urest.in:8096/api/attendance-summary/UploadAttendance`,
       formData,
       {
         responseType: "blob", // 🔥 THIS IS THE KEY

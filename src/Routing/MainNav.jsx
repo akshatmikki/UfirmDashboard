@@ -327,7 +327,7 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc2NDA1NjM0LCJleHAiOjE4MDc5NDE2MzQsImlhdCI6MTc3NjQwNTYzNH0.61rRiuwuhJmbvVRQjGFO9XSYRugajVLxZaS2omKb_P0";
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJTaGl2IFByYXNhZCIsImxhc3RuYW1lIjoiR3VydW5nIiwiaW5mb190IjoiWExuQTRwZ2NmN2Z6TmY5SzFaR0hsWDlxaC8wQXFIa3VkdEVQLzg4bGlsRFFJV3J3VzE0QkZwVnRLOWlDUmFqSFZ6OTI0K1VVZTFiSVErWENOL3VxZXp2YXA5dGdVclVvM3FTdnUwcmRJR1VoUlNxQTI2bWxhWEIvSW82STFJU0FRRENZUFg0RnZkTDYyUGcwSUExOXAxaDYySWUvd1BCQUdickpqVmlqVEluV2drWm1VanJ2czVlR0FjWkdDTjVSbVVYMmRTRWxJcVl2T3hxd1k5cStjaFUrTStMbHpnRm1nYnU4aTduTmdVQXdzVURVNWdpSm5EQ3FobnJvdXVQOGd3YW9ESmY3cHYycDRjYk5IRjJUanc9PSIsIm5iZiI6MTc3NjQ5MDU5MiwiZXhwIjoxODA4MDI2NTkyLCJpYXQiOjE3NzY0OTA1OTJ9.KvBSLG04IRG7gAQxthmvaQRyZ18DuKIRpknanoERF6o";
     //var token = window.sessionStorage.getItem("userinfo_key")
 
 
@@ -468,7 +468,13 @@ class MainNav extends React.Component {
     const canAccessCompOff =
       ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles);
 
-    const isHrRestricted = isHrRole && !canSeeAllPages;
+    // Restrict "HR-only" users to a safe allow-list. If the user has HR plus another
+    // functional role (ex: HR + Manager), don't apply the HR-only restriction.
+    const isHrRestricted =
+      isHrRole &&
+      !canSeeAllPages &&
+      !ROLE_RULES.isManagerRole(roles) &&
+      !ROLE_RULES.isPropertyManagerRole(roles);
     const hrAllowedExactPaths = new Set([
       "/Account/App/UserProfile",
       "/Account/App/ChangePassword",
