@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ApiProvider from "../../DataProvider";
-import { getFrequencyList } from "../../../../Services/masterService";
+import { getFrequencyList, getShiftList } from "../../../../Services/masterService";
 
 export default function useAddTaskLookups({ PropertyId, selectedCategory, updateForm }) {
   const apiRef = useRef(null);
@@ -12,6 +12,7 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
   const [propertyData, setPropertyData] = useState([]);
   const [frequencyData, setFrequencyData] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [shifts, setShifts] = useState([]);
 
   const occurrenceOptions = useMemo(() => {
     return (frequencyData || []).map((e) => ({ value: e.Occurence, label: e.Name }));
@@ -72,6 +73,16 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
     }
   }, [PropertyId]);
 
+  const loadShifts = useCallback(async () => {
+    try {
+      const data = await getShiftList(PropertyId ? Number(PropertyId) : null);
+      setShifts(data || []);
+    } catch (error) {
+      console.error("Error fetching shifts:", error);
+      setShifts([]);
+    }
+  }, [PropertyId]);
+
   const loadAssets = useCallback(async (propertyId) => {
     if (!propertyId) return;
     try {
@@ -125,7 +136,8 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
   useEffect(() => {
     loadAssign();
     loadAssets(PropertyId);
-  }, [PropertyId, loadAssign, loadAssets]);
+    loadShifts();
+  }, [PropertyId, loadAssign, loadAssets, loadShifts]);
 
   useEffect(() => {
     loadProperties();
@@ -136,5 +148,5 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
     if (selectedCategory) loadSubCategory(selectedCategory);
   }, [loadSubCategory, selectedCategory]);
 
-  return { subCategory, assign, propertyData, assets, occurrenceOptions, onAssetChange };
+  return { subCategory, assign, propertyData, assets, shifts, occurrenceOptions, onAssetChange };
 }

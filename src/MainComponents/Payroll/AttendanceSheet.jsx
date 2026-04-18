@@ -49,23 +49,103 @@ function parsePositiveNumber(value) {
   return Number.isFinite(num) && num > 0 ? num : 0;
 }
 
-function getComputedDivideByDays(config, month, year) {
-  const monthDaysValue = parsePositiveNumber(config?.MonthDays);
-  if (monthDaysValue > 0) return monthDaysValue;
+function parseMonthYear(monthyear) {
+  if (!monthyear || typeof monthyear !== "string") return null;
+  const [y, m] = monthyear.split("-").map((v) => Number(v));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
+  return { year: y, month: m };
+}
 
-  const totalWorkingDaysValue = parsePositiveNumber(config?.TotalWorkingDays);
+function safeDate(year, month, day) {
+  const daysInTargetMonth = getDaysInMonth(month, year);
+  const clampedDay = Math.min(Math.max(1, Number(day) || 1), daysInTargetMonth);
+  return new Date(Date.UTC(year, month - 1, clampedDay));
+}
+
+function countSundaysInRange(startDate, endDate) {
+  if (!(startDate instanceof Date) || !(endDate instanceof Date)) return 0;
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()))
+    return 0;
+  if (startDate > endDate) return 0;
+
+  let count = 0;
+  for (
+    let d = new Date(startDate);
+    d <= endDate;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
+    if (d.getUTCDay() === 0) count += 1;
+  }
+  return count;
+}
+
+function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear) {
+  const totalWorkingDaysValue = parsePositiveNumber(
+    config?.TotalWorkingDays ?? config?.totalWorkingDays ?? config?.totalworkingdays
+  );
   if (totalWorkingDaysValue > 0) return totalWorkingDaysValue;
 
-  let divideByDays = getDaysInMonth(month, year);
-  const monthSundaysValue = parsePositiveNumber(config?.MonthSundays);
+  const monthDaysValue = parsePositiveNumber(
+    config?.MonthDays ?? config?.monthDays ?? config?.monthdays
+  );
+  if (monthDaysValue > 0) return monthDaysValue;
 
-  if (monthSundaysValue > 0) {
-    divideByDays -= monthSundaysValue;
-  } else if (config?.ExcludeSunday) {
-    divideByDays -= getSundaysInMonth(month, year);
+  const parsed = parseMonthYear(monthyear);
+  const year = parsed?.year ?? fallbackYear;
+  const month = parsed?.month ?? fallbackMonth;
+  if (!year || !month) return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
+
+  const excludeSundaysRaw =
+    config?.ExcludeSunday ??
+    config?.excludeSundays ??
+    config?.excludesundays;
+  const excludeSundays =
+    excludeSundaysRaw === true ||
+    excludeSundaysRaw === 1 ||
+    excludeSundaysRaw === "1" ||
+    String(excludeSundaysRaw).toLowerCase() === "true";
+
+  const monthSundaysValue = parsePositiveNumber(
+    config?.MonthSundays ?? config?.monthSundays ?? config?.monthsundays
+  );
+
+  const salaryStartFromRaw =
+    config?.SalaryStartFrom ??
+    config?.salaryStartFrom ??
+    config?.salarystartfrom ??
+    1;
+  const salaryEndToRaw =
+    config?.SalaryEndTo ??
+    config?.salaryEndTo ??
+    config?.salaryendto ??
+    30;
+
+  const salaryStartFrom = Number(salaryStartFromRaw) || 1;
+  const salaryEndTo = Number(salaryEndToRaw) || 30;
+
+  let startDate;
+  if (salaryStartFrom <= salaryEndTo) {
+    startDate = safeDate(year, month, salaryStartFrom);
+  } else {
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    startDate = safeDate(prevYear, prevMonth, salaryStartFrom);
+  }
+  const endDate = safeDate(year, month, salaryEndTo);
+
+  const totalDays = Math.max(
+    1,
+    Math.round((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1
+  );
+
+  let sundayCount = 0;
+  if (excludeSundays) {
+    sundayCount = countSundaysInRange(startDate, endDate);
+  } else if (monthSundaysValue > 0) {
+    sundayCount = Math.floor(monthSundaysValue);
   }
 
-  return Math.max(1, divideByDays);
+  return Math.max(1, totalDays - sundayCount);
 }
 
 function clampWorkingDaysToMonth(value, month, year) {
@@ -752,12 +832,27 @@ export default function AttendanceSheet() {
             const fmId = cfg?.FacilityMemberId;
             if (!fmId) return;
 
+            const normalizedConfig = {
+              TotalWorkingDays:
+                cfg?.TotalWorkingDays ?? cfg?.totalWorkingDays ?? cfg?.totalworkingdays ?? null,
+              MonthDays: cfg?.MonthDays ?? cfg?.monthDays ?? cfg?.monthdays ?? null,
+              ExcludeSunday:
+                cfg?.ExcludeSunday ?? cfg?.excludeSundays ?? cfg?.excludesundays ?? false,
+              MonthSundays:
+                cfg?.MonthSundays ?? cfg?.monthSundays ?? cfg?.monthsundays ?? null,
+              SalaryStartFrom:
+                cfg?.SalaryStartFrom ?? cfg?.salaryStartFrom ?? cfg?.salarystartfrom ?? null,
+              SalaryEndTo: cfg?.SalaryEndTo ?? cfg?.salaryEndTo ?? cfg?.salaryendto ?? null,
+            };
+
             map[fmId] = {
-              divideByDays: getComputedDivideByDays(cfg, month, year),
-              monthDays: cfg?.MonthDays ?? null,
-              totalWorkingDays: cfg?.TotalWorkingDays ?? null,
-              excludeSunday: !!cfg?.ExcludeSunday,
-              monthSundays: cfg?.MonthSundays ?? null,
+              ...normalizedConfig,
+              divideByDays: getComputedDivideByDays(
+                normalizedConfig,
+                getMonthYearString(month, year),
+                month,
+                year
+              ),
             };
           });
         } catch (err) {
@@ -968,6 +1063,24 @@ export default function AttendanceSheet() {
         updated.manualTotalDays = true; // user override!
       }
 
+      if (field === "divideByDays") {
+        if (value !== "") {
+          const inputNum = Number(value);
+          if (!Number.isFinite(inputNum) || inputNum < 1) return prev;
+
+          const expected = getComputedDivideByDays(
+            employeeSGMap?.[empId] || null,
+            getMonthYearString(month, year),
+            month,
+            year
+          );
+
+          if (Number.isFinite(expected) && expected > 0 && inputNum > expected) {
+            return prev;
+          }
+        }
+      }
+
       const totalDays =
         field === "totalDays"
           ? parseFloat(value) || 0
@@ -1046,6 +1159,23 @@ export default function AttendanceSheet() {
         const CL = n(inp.CL);
         const SL = n(inp.SL);
 
+        const expectedDivideByDays = getComputedDivideByDays(
+          employeeSGMap?.[empId] || null,
+          currMonthYear,
+          month,
+          year
+        );
+        const fallbackDivideByDays =
+          Number.isFinite(expectedDivideByDays) && expectedDivideByDays > 0
+            ? expectedDivideByDays
+            : globalTotalDays;
+
+        const inputDivideByDays = n(inp.divideByDays);
+        const divideByDaysToSave =
+          inputDivideByDays > 0
+            ? Math.min(inputDivideByDays, fallbackDivideByDays)
+            : fallbackDivideByDays;
+
         const model = {
           EmpID: empId,
           EmployeeName: empName,
@@ -1065,7 +1195,7 @@ export default function AttendanceSheet() {
           NHDays: n(inp.nhDays),
           FHDays: n(inp.fhDays),
           Holidays: n(inp.holidays),
-          DivideByDays: n(inp.divideByDays),
+          DivideByDays: divideByDaysToSave,
           OtMonthDays: n(inp.otMonthDays),
 
           PFArrear: n(inp.pfArrear),
@@ -1097,7 +1227,14 @@ export default function AttendanceSheet() {
         if (existing) {
           // 🔹 UPDATE using PUT
           updatePromises.push(
-            updateAttendance(empId, currMonthYear, model)
+            updateAttendance(empId, currMonthYear, model).catch((err) => {
+              const status = err?.response?.status;
+              if (status === 404) {
+                newEmployees.push(model);
+                return null;
+              }
+              throw err;
+            })
           );
         } else {
           // 🔹 CREATE using batch

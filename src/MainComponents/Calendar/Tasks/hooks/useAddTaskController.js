@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import moment from "moment";
 import * as appCommon from "../../../../Common/AppCommon.js";
 import { createTaskWithQuestions } from "../../../../Services/notificationService";
+import { replaceTaskFrequencyMappings } from "../../../../Services/taskFrequencyMappingService";
 import useAddTaskLookups from "./useAddTaskLookups";
 
 const emptyQuestion = { QuestionName: "" };
@@ -70,6 +71,26 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
 
   const [quesValues, setQuesValues] = useState([emptyQuestion]);
   const [isSaving, setIsSaving] = useState(false);
+  const [schedule, setSchedule] = useState({ dirty: false, mappings: [] });
+
+  const getCreatedTaskId = useCallback((data) => {
+    if (!data) return 0;
+    if (typeof data === "number") return Number.isFinite(data) ? data : 0;
+    if (typeof data === "string") {
+      const n = Number(data);
+      return Number.isFinite(n) ? n : 0;
+    }
+    const candidate =
+      data.TaskId ??
+      data.taskId ??
+      data.Id ??
+      data.id ??
+      data?.Task?.TaskId ??
+      data?.Task?.Id ??
+      0;
+    const n = Number(candidate);
+    return Number.isFinite(n) ? n : 0;
+  }, []);
 
   const onQuestionNameChange = useCallback((index, value) => {
     setQuesValues((prev) => {
@@ -156,7 +177,28 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
         .filter((q) => q.QuestionName?.trim())
         .map((q) => ({ QuestionName: q.QuestionName.trim() }));
 
-      await createTaskWithQuestions({ Task: taskPayload, Questions: questionsPayload });
+      const created = await createTaskWithQuestions({ Task: taskPayload, Questions: questionsPayload });
+      const createdTaskId = getCreatedTaskId(created);
+
+      if (schedule?.dirty) {
+        if (!createdTaskId) {
+          appCommon.showtextalert(
+            "Task created, but schedule not saved",
+            "TaskId not returned by CreateTask API.",
+            "warning",
+          );
+        } else {
+          try {
+            await replaceTaskFrequencyMappings(createdTaskId, schedule?.mappings || []);
+          } catch (e) {
+            appCommon.showtextalert(
+              "Task created, but schedule not saved",
+              e?.message || "TaskFrequencyMapping save failed",
+              "warning",
+            );
+          }
+        }
+      }
       return { ok: true, message: "Task created successfully" };
     } catch (err) {
       console.error(err);
@@ -165,7 +207,7 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
     } finally {
       setIsSaving(false);
     }
-  }, [form, hasAtLeastOneQuestion, isDateRangeValid, isSaving, isTimeRangeValid, quesValues, type]);
+  }, [form, getCreatedTaskId, hasAtLeastOneQuestion, isDateRangeValid, isSaving, isTimeRangeValid, quesValues, schedule, type]);
 
   return {
     form,
@@ -175,12 +217,15 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
     assign: lookups.assign,
     propertyData: lookups.propertyData,
     assets: lookups.assets,
+    shifts: lookups.shifts,
     occurrenceOptions: lookups.occurrenceOptions,
     quesValues,
     isSaving,
     isTaskValid,
     hasAtLeastOneQuestion,
     onAssetChange: lookups.onAssetChange,
+    schedule,
+    setSchedule,
     onQuestionNameChange,
     addQuestion,
     removeQuestion,

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useViewTaskController, useTaskFmRemarks } from "../../taskHooks";
 import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection } from "../TaskPageLayout";
 import TaskDetailsForm from "../TaskDetailsForm";
@@ -8,9 +8,9 @@ import { TaskQuestionsViewSection } from "../TaskQuestionsSections";
 
 export default function ViewTaskPage(props) {
   const { visible, closeModal, rowData, onTaskUpdated } = props;
-  const { openSection, toggleSection } = useSingleOpenSection("details");
+  const { openSection, toggleSection } = useSingleOpenSection(null);
   const ctrl = useViewTaskController({ rowData });
-
+  const questions = ctrl.questions || [];
   const fmCtrl = useTaskFmRemarks({
     taskId: rowData?.TaskId,
     taskName: rowData?.Name,
@@ -19,7 +19,20 @@ export default function ViewTaskPage(props) {
     onTaskUpdated,
   });
 
-  const isActionable = String(rowData?.TaskStatus || "").toLowerCase() === "actionable";
+  const isActionable = String(rowData?.TaskStatus || "").toLowerCase().includes("actionable");
+
+  const fmQuestions = useMemo(
+    () =>
+      (questions || [])
+        .filter((item) => item?.QuesId || item?.id || item?.QuestID)
+        .map((item) => ({
+          id: Number(item.QuesId ?? item.QuestID ?? item.id),
+          name: String(item.QuestionName ?? item.QuesName ?? item.QuesName ?? item.name ?? ""),
+        }))
+        .filter((item) => Number.isFinite(item.id) && item.name.trim()),
+    [questions],
+  );
+  
 
   const footer = (
     <button className="btn btn-secondary" type="button" onClick={closeModal}>
@@ -30,7 +43,7 @@ export default function ViewTaskPage(props) {
   return (
     <div>
       <TaskShell visible={visible} title="View Task" onClose={closeModal} footer={footer}>
-        <TaskSection title="Task Details" isOpen={openSection === "details"} onToggle={() => toggleSection("details")}>
+        <TaskSection title="Task Details" isOpen>
           <TaskDetailsForm
             readOnly
             showTaskId
@@ -76,10 +89,10 @@ export default function ViewTaskPage(props) {
             <TaskFmRemarksSection
               taskName={rowData?.Name}
               location={rowData?.Location}
-              questions={ctrl.questions || []}
+              questions={fmQuestions}
               selectedQuestionId={fmCtrl.selectedQuestionId}
               onSelectQuestion={fmCtrl.onSelectQuestion}
-              onViewImage={(qid) => ctrl.openViewImage?.(qid)}
+              onViewImage={(qid) => ctrl.openViewImage?.({ QuesId: qid, TaskId: rowData?.TaskId })}
               fmSelectedDate={fmCtrl.fmSelectedDate}
               onDateChange={fmCtrl.onDateChange}
               loading={fmCtrl.loading}

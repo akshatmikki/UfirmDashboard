@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import moment from "moment";
 import ApiProvider from "../../DataProvider";
 
 export default function useEditTaskQuestions({ rowData }) {
@@ -14,8 +15,14 @@ export default function useEditTaskQuestions({ rowData }) {
 
   const getQuestionsModel = useCallback(
     (type, Id) => {
-      const date = rowData?.UpdatedOn ? rowData.UpdatedOn.split("-") : null;
-      const updatedOn = date ? `${date[2]}-${date[1]}-${date[0]}` : null;
+      const parsed = rowData?.UpdatedOn
+        ? moment(
+            rowData.UpdatedOn,
+            ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+            true,
+          )
+        : null;
+      const updatedOn = parsed?.isValid() ? parsed.format("YYYY-MM-DD") : null;
       return [{ CmdType: type, Id, date: updatedOn }];
     },
     [rowData?.UpdatedOn],
@@ -71,7 +78,8 @@ export default function useEditTaskQuestions({ rowData }) {
 
   const openViewImage = useCallback(
     (q) => {
-      setSelectedQuestion({ QuesId: q.QuesId, TaskId: rowData?.TaskId });
+      const quesId = q && typeof q === "object" ? q.QuesId : q;
+      setSelectedQuestion({ QuesId: quesId, TaskId: rowData?.TaskId });
       setShowViewQuestionImgModal(true);
     },
     [rowData?.TaskId],

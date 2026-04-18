@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import ApiProvider from "../../DataProvider";
-import { getFrequencyList } from "../../../../Services/masterService";
+import { getFrequencyList, getShiftList } from "../../../../Services/masterService";
 
 export default function useEditTaskLookups({
   propertyId,
@@ -17,6 +17,7 @@ export default function useEditTaskLookups({
   const [propertyData, setPropertyData] = useState([]);
   const [assets, setAssets] = useState([]);
   const [frequencyData, setFrequencyData] = useState([]);
+  const [shifts, setShifts] = useState([]);
 
   const occurrenceOptions = (frequencyData || []).map((e) => ({
     value: e.Occurence,
@@ -103,6 +104,16 @@ export default function useEditTaskLookups({
     }
   }, [propertyId]);
 
+  const loadShifts = useCallback(async () => {
+    try {
+      const data = await getShiftList(propertyId ? Number(propertyId) : null);
+      setShifts(data || []);
+    } catch (error) {
+      console.error("Error fetching shifts:", error);
+      setShifts([]);
+    }
+  }, [propertyId]);
+
   const populateAssetDetails = useCallback(
     (id) => {
       if (!id || !(assets || []).length) return;
@@ -146,7 +157,8 @@ export default function useEditTaskLookups({
     manageAssign();
     manageProperties();
     loadFrequency();
-  }, [loadFrequency, manageAssign, manageProperties]);
+    loadShifts();
+  }, [loadFrequency, loadShifts, manageAssign, manageProperties]);
 
   useEffect(() => {
     if (propertyId) manageAssets(propertyId);
@@ -156,5 +168,5 @@ export default function useEditTaskLookups({
     if (assetId) populateAssetDetails(assetId);
   }, [assetId, populateAssetDetails]);
 
-  return { subCategory, assign, propertyData, assets, occurrenceOptions, onAssetChange };
+  return { subCategory, assign, propertyData, assets, shifts, occurrenceOptions, onAssetChange };
 }

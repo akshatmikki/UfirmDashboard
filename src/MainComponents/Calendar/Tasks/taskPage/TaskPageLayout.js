@@ -100,6 +100,39 @@ const taskPageCss = `
   .task-section-title{width:100%;min-width:0;}
   .task-page-content{height:min(760px,94vh);}
 }
+
+/* Schedule section */
+.task-schedule-wrap{padding:6px 0 0;}
+.task-schedule-topbar{display:flex;align-items:center;justify-content:space-between;margin:0 0 10px;}
+.task-schedule-title{font-weight:700;color:#25518b;font-size:18px;}
+.task-schedule-remove{border:0;background:transparent;color:#25518b;font-weight:600;display:inline-flex;align-items:center;gap:8px;padding:0;}
+.task-schedule-remove i{font-size:14px;opacity:.85;}
+.task-schedule-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;}
+@media (max-width:991.98px){.task-schedule-grid{grid-template-columns:1fr;}}
+.task-schedule-card{border:1px solid #d2dae6;border-radius:8px;background:#f7fafc;padding:14px;min-height:176px;}
+.task-schedule-card-title{font-weight:700;color:#1f3d5a;margin:0 0 10px;}
+.task-schedule-radio{display:flex;gap:10px;align-items:flex-start;margin:0 0 8px;cursor:pointer;}
+.task-schedule-radio input{margin-top:4px;}
+.task-schedule-radio-text{display:flex;flex-direction:column;gap:2px;}
+.task-schedule-radio-head{font-weight:700;color:#1f3d5a;font-size:14px;}
+.task-schedule-radio-sub{font-size:12px;color:#64748b;}
+.task-shift-pill-row{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 6px;}
+.task-shift-pill{border:1px solid #cdd7e3;background:#fff;border-radius:999px;padding:6px 12px;font-weight:700;color:#334155;font-size:13px;}
+.task-shift-pill.is-selected{background:#e6f2ff;border-color:#b8d6f3;color:#25518b;}
+.task-schedule-muted{font-size:12px;color:#8aa0b5;padding-left:2px;}
+.task-custom-time-row{display:flex;align-items:center;gap:10px;margin-top:8px;}
+.task-time-input{position:relative;flex:1;min-width:0;}
+.task-time-input input{width:100%;height:38px;border:1px solid #cdd7e3;border-radius:8px;padding:8px 34px 8px 12px;background:#fff;}
+.task-time-input i{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#9fb3c6;}
+.task-time-dash{color:#64748b;font-weight:700;}
+.task-schedule-field-label{font-weight:700;color:#1f3d5a;font-size:13px;}
+.task-schedule-field-sub{font-size:12px;color:#64748b;margin-bottom:6px;}
+.task-schedule-interval-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.task-schedule-preview{font-size:12px;color:#475569;line-height:1.4;}
+.task-schedule-preview-empty{color:#64748b;}
+.task-schedule-preview-list{margin:0;padding-left:18px;}
+.task-schedule-error{margin-top:12px;padding:10px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:600;}
+.task-schedule-actions{display:flex;justify-content:flex-end;margin-top:12px;}
 `;
 
 export function useSingleOpenSection(defaultKey = "details") {

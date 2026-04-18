@@ -5,6 +5,7 @@ import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection } from 
 import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import { TaskQuestionsCreateSection } from "../TaskQuestionsSections";
+import TaskScheduleSection from "../TaskScheduleSection";
 
 export default function CreateTaskPage(props) {
   const { visible, closeModal, categoryData, onTaskAdded, type, PropertyId } = props;
@@ -114,8 +115,10 @@ export default function CreateTaskPage(props) {
         />
       </TaskSection>
 
+      
+
       <TaskInlineSection
-        title="Checklist (Optional)"
+        title="Checklist "
         actionLabel="Add procedure"
         onAction={ctrl.addQuestion}
       >
@@ -143,6 +146,17 @@ export default function CreateTaskPage(props) {
           nextServiceDate={ctrl.form.nextServiceDate}
           assetPhoto={ctrl.form.assetPhoto}
           QRCode={ctrl.form.QRCode}
+        />
+      </TaskInlineSection>
+      <TaskInlineSection title="Schedule (Optional)">
+        <TaskScheduleSection
+          embedded
+          shifts={ctrl.shifts}
+          baseDate={ctrl.form.startDate}
+          onAssignTimes={({ startTime, endTime }) => {
+            ctrl.updateForm({ startTime, endTime });
+          }}
+          onScheduleUpdate={(s) => ctrl.setSchedule?.(s)}
         />
       </TaskInlineSection>
 

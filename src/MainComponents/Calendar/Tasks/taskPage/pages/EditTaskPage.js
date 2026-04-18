@@ -6,12 +6,13 @@ import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import TaskFmRemarksSection from "../TaskFmRemarksSection";
 import { TaskQuestionsEditSection } from "../TaskQuestionsSections";
+import TaskScheduleSection from "../TaskScheduleSection";
 import ViewQuestionImg from "../../ViewQuestionImg";
 import EditQuestion from "../../EditQuestion";
 
 export default function EditTaskPage(props) {
   const { visible, closeModal, rowData, categoryData, onTaskUpdated } = props;
-  const { openSection, toggleSection } = useSingleOpenSection("details");
+  const { openSection, toggleSection } = useSingleOpenSection(null);
   const ctrl = useEditTaskController({ rowData, categoryData });
   
   const fmCtrl = useTaskFmRemarks({
@@ -22,7 +23,7 @@ export default function EditTaskPage(props) {
     onTaskUpdated,
   });
 
-  const isActionable = String(rowData?.TaskStatus || "").toLowerCase() === "actionable";
+  const isActionable = String(rowData?.TaskStatus || "").toLowerCase().includes("actionable");
   const [invalidField, setInvalidField] = useState("");
   const [inlineError, setInlineError] = useState("");
   const [successInfo, setSuccessInfo] = useState(null);
@@ -93,11 +94,22 @@ export default function EditTaskPage(props) {
   );
 
   const questions = q.questions || [];
+  const fmQuestions = useMemo(
+    () =>
+      (questions || [])
+        .filter((item) => item?.QuesId || item?.id)
+        .map((item) => ({
+          id: Number(item.QuesId ?? item.id),
+          name: String(item.QuestionName ?? item.name ?? ""),
+        }))
+        .filter((item) => Number.isFinite(item.id) && item.name.trim()),
+    [questions],
+  );
 
   return (
     <div>
       <TaskShell visible={visible} title="Edit Task" onClose={closeModal} footer={footer}>
-        <TaskSection title="Task Details" isOpen={openSection === "details"} onToggle={() => toggleSection("details")}>
+        <TaskSection title="Task Details" isOpen>
           <TaskDetailsForm
             showTaskId
             taskId={rowData?.TaskId}
@@ -146,8 +158,10 @@ export default function EditTaskPage(props) {
           />
         </TaskSection>
 
+        
+
         <TaskInlineSection
-          title="Checklist (Optional)"
+          title="Checklist"
           actionLabel="Add procedure"
           onAction={q.openAddQuestion}
         >
@@ -177,13 +191,23 @@ export default function EditTaskPage(props) {
             QRCode={ctrl.form.QRCode}
           />
         </TaskInlineSection>
-
+        <TaskInlineSection title="Schedule (Optional)">
+          <TaskScheduleSection
+            embedded
+            shifts={ctrl.lookups?.shifts}
+            baseDate={ctrl.form.startDate}
+            onAssignTimes={({ startTime, endTime }) => {
+              ctrl.updateForm({ startTime, endTime });
+            }}
+            onScheduleUpdate={(s) => ctrl.setSchedule?.(s)}
+          />
+        </TaskInlineSection>
         {isActionable && (
           <TaskSection title="Fm Remarks" isOpen={openSection === "fmRemarks"} onToggle={() => toggleSection("fmRemarks")}>
             <TaskFmRemarksSection
               taskName={rowData?.Name || ctrl.form.taskName}
               location={rowData?.Location || ctrl.form.location}
-              questions={questions}
+              questions={fmQuestions}
               selectedQuestionId={fmCtrl.selectedQuestionId}
               onSelectQuestion={fmCtrl.onSelectQuestion}
               onViewImage={(qid) => q.openViewImage?.(qid)}

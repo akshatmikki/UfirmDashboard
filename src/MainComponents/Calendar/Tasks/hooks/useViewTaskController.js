@@ -57,8 +57,15 @@ export default function useViewTaskController({ rowData }) {
   const check = rowData?.AllDay === "Y";
 
   const initialTaskDate = useMemo(() => {
-    return rowData?.DateFrom ? moment(rowData.DateFrom).format("YYYY-MM-DD") : "";
-  }, [rowData?.DateFrom]);
+    const raw = rowData?.UpdatedOn || rowData?.DateFrom || "";
+    if (!raw) return "";
+    const parsed = moment(
+      raw,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+      true,
+    );
+    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
+  }, [rowData?.DateFrom, rowData?.UpdatedOn]);
 
   const getAllProperties = useCallback(() => {
     const model = [{ CmdType: "R" }];
@@ -146,8 +153,14 @@ export default function useViewTaskController({ rowData }) {
     const type = "R";
     const taskId = rowData?.TaskId;
     if (!taskId) return;
-    const dateParts = rowData?.UpdatedOn ? rowData.UpdatedOn.split("-") : null;
-    const updatedOn = dateParts ? `${dateParts[2]}-${dateParts[1]}-${dateParts[0]}` : null;
+    const parsed = rowData?.UpdatedOn
+      ? moment(
+          rowData.UpdatedOn,
+          ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+          true,
+        )
+      : null;
+    const updatedOn = parsed?.isValid() ? parsed.format("YYYY-MM-DD") : null;
     const model = [{ CmdType: type, Id: taskId, date: updatedOn }];
 
     Api.manageQues(model, type).then((resp) => {
