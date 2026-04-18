@@ -1904,11 +1904,11 @@
   }
 
   .asset-master-table-wrap-owned .asset-owned-table-scroll {
-    overflow-x: auto;
+    overflow-x: hidden;
   }
 
   .asset-master-table-wrap-owned .asset-owned-table {
-    min-width: 800px;
+    min-width: 0;
   }
 
   .asset-master-table-wrap .custTable {
@@ -2037,6 +2037,35 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+.asset-add-qr-block {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.asset-add-view-qr {
+  padding: 8px 10px;
+  border-radius: 8px;
+}
+
+.asset-add-view-qr.active {
+  background: rgba(31, 79, 130, 0.12);
+}
+
+.asset-add-qr-preview {
+  width: 96px;
+  height: 96px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
 }
 
 .asset-doc-icon-wrapper {
@@ -2719,48 +2748,49 @@
 .asset-master-table-wrap-owned .table-responsive {
   height: auto;
   max-height: none;
-  overflow-x: auto;
+  overflow-x: hidden;
   overflow-y: hidden;
 }
 
 .asset-master-table-wrap-owned .custTable {
   width: 100% !important;
-  min-width: 800px;
-  table-layout: auto !important;
+  min-width: 0;
+  table-layout: fixed !important;
 }
 
 .asset-master-table-wrap-owned .custTable thead th:nth-child(1),
 .asset-master-table-wrap-owned .custTable tbody td:nth-child(1) {
-  width: 110px;
+  width: 12%;
 }
 
 .asset-master-table-wrap-owned .custTable thead th:nth-child(2),
 .asset-master-table-wrap-owned .custTable tbody td:nth-child(2) {
-  width: 270px;
+  width: 24%;
 }
 
 .asset-master-table-wrap-owned .custTable thead th:nth-child(3),
 .asset-master-table-wrap-owned .custTable tbody td:nth-child(3) {
-  width: 270px;
+  width: 24%;
 }
 
 .asset-master-table-wrap-owned .custTable thead th:nth-child(4),
 .asset-master-table-wrap-owned .custTable tbody td:nth-child(4) {
-  width: 180px;
+  width: 18%;
 }
 
 .asset-master-table-wrap-owned .custTable thead th:nth-child(5),
 .asset-master-table-wrap-owned .custTable tbody td:nth-child(5) {
-  width: 160px;
+  width: 12%;
 }
 
 .asset-master-table-wrap-owned .custTable thead th:nth-child(6),
 .asset-master-table-wrap-owned .custTable tbody td:nth-child(6) {
-  width: 140px;
+  width: 10%;
 }
 
 .asset-master-table-wrap-owned .custTable tbody td {
   background: #fafafa !important;
+  overflow-wrap: anywhere;
 }
 
 .asset-master-table-wrap-owned:not(.has-selection) .custTable tbody tr:hover td {
@@ -2780,6 +2810,7 @@
 
 .asset-master-table-wrap-owned .custTable tbody td:last-child {
   white-space: nowrap;
+  text-align: center;
 }
 
 .asset-master-table-wrap-owned .custTable tbody td:last-child .btn {
@@ -3189,6 +3220,87 @@
   border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+}
+
+@media (max-width: 1440px) {
+  .asset-master-layout-owned.has-side-panel .asset-master-main-card {
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-toolbar {
+    flex-wrap: wrap !important;
+    align-items: center !important;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-search {
+    flex: 1 1 320px;
+    width: auto;
+    min-width: 260px;
+    max-width: 400px;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-toolbar-actions {
+    flex: 0 0 auto;
+    width: auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: 16px;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-toolbar-actions > * {
+    flex: 0 0 auto;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-toolbar-filter,
+  .asset-master-layout-owned.has-side-panel .asset-export-btn,
+  .asset-master-layout-owned.has-side-panel .asset-toolbar-add {
+    min-width: fit-content !important;
+    white-space: nowrap;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-toolbar-add {
+    padding-left: 18px !important;
+    padding-right: 18px !important;
+    line-height: 1 !important;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th,
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td {
+    padding-left: 10px !important;
+    padding-right: 10px !important;
+    font-size: 14px;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th:nth-child(1),
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td:nth-child(1) {
+    width: 10%;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th:nth-child(2),
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td:nth-child(2) {
+    width: 24%;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th:nth-child(3),
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td:nth-child(3) {
+    width: 21%;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th:nth-child(4),
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td:nth-child(4) {
+    width: 19%;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th:nth-child(5),
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td:nth-child(5) {
+    width: 14%;
+  }
+
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable thead th:nth-child(6),
+  .asset-master-layout-owned.has-side-panel .asset-master-table-wrap-owned .custTable tbody td:nth-child(6) {
+    width: 12%;
+  }
 }
 
 @media (max-width: 767px) {

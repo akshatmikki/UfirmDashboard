@@ -8,6 +8,7 @@ import SpareService from "../../Services/SpareService";
 import "./AssetsMaster.css";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
+import QRCode from "react-qr-code";
 
 function getEmptySpareRow() {
   return {
@@ -62,19 +63,6 @@ function matchesServiceStatus(row = {}, selectedStatus = "") {
   const current = String(getServiceStatus(row) || "").trim().toLowerCase();
   const selected = String(selectedStatus || "").trim().toLowerCase();
   return current === selected;
-}
-
-function buildPseudoQrCells(value) {
-  const seed = String(value || "QR").split("").reduce((acc, char, index) => acc + char.charCodeAt(0) * (index + 1), 0);
-  return Array.from({ length: 144 }, (_, index) => {
-    const row = Math.floor(index / 12);
-    const col = index % 12;
-    const inTopLeft = row < 3 && col < 3;
-    const inTopRight = row < 3 && col > 8;
-    const inBottomLeft = row > 8 && col < 3;
-    if (inTopLeft || inTopRight || inBottomLeft) return true;
-    return ((seed + row * 17 + col * 29 + row * col) % 5) < 2;
-  });
 }
 
 const ROWS_PER_PAGE = 15;
@@ -415,7 +403,7 @@ const SparePage = () => {
 
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
-  const selectedQrCells = useMemo(() => buildPseudoQrCells(selectedRow?.SerialNumber || selectedRow?.SpareID || "QR"), [selectedRow]);
+  const selectedQrValue = useMemo(() => String(selectedRow?.SpareID || "").trim(), [selectedRow]);
 
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
@@ -488,9 +476,7 @@ const SparePage = () => {
 
           <div className="asset-doc-strip spare-doc-strip">
             <div className="spare-qr-code" aria-label="QR code preview">
-              {selectedQrCells.map((filled, index) => (
-                <span key={index} className={filled ? "filled" : ""} />
-              ))}
+              {selectedQrValue ? <QRCode value={selectedQrValue} size={72} /> : null}
             </div>
             {(() => {
               const photoSrc = selectedRow?.Image || selectedRow?.Photo || selectedRow?.AssetImage || selectedRow?.ImageUrl || "";
@@ -540,9 +526,7 @@ const SparePage = () => {
         <div className="asset-side-panel-body spare-side-panel-body">
           <div className="asset-qr-preview spare-edit-qr-preview">
             <div className="spare-qr-code spare-qr-code-large" aria-label="QR code preview">
-              {selectedQrCells.map((filled, index) => (
-                <span key={index} className={filled ? "filled" : ""} />
-              ))}
+              {selectedQrValue ? <QRCode value={selectedQrValue} size={120} /> : null}
             </div>
           </div>
 
