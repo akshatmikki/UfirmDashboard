@@ -1016,17 +1016,26 @@ class MainNav extends React.Component {
                           <i className="right fas fa-angle-left"></i>
                         </p>
                       </a>
-	                      <ul className="nav nav-treeview">
-	                        <li className="nav-item">
-	                          <Link
-	                            to="/Account/App/FacilityMember"
-	                            className="nav-link"
-	                          >
-	                            <i className=" fas fa-caret-right nav-icon"></i>
-	                            <p>Facility Member </p>
-	                          </Link>
-	                        </li>
-	                        {!isManagerOnly && (
+                      <ul className="nav nav-treeview">
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/FacilityMember"
+                            className="nav-link"
+                          >
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Facility Member </p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/EmployeeTransfer"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Emp Search & Transfer</p>
+                          </Link>
+                        </li>
+                       {!isManagerOnly && (
 	                          <li className="nav-item">
 	                            <Link to="/Account/App/Facility" className="nav-link">
 	                              <i className=" fas fa-caret-right nav-icon"></i>
