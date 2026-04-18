@@ -106,6 +106,7 @@ const SparePage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successType, setSuccessType] = useState("U");
   const [currentPage, setCurrentPage] = useState(1);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -242,9 +243,10 @@ const SparePage = () => {
         await SpareService.create(formData);
       }
 
-      toast.current?.show({ severity: "success", summary: "Saved", detail: "All spares saved successfully" });
       setShowAddModal(false);
       resetAddForm();
+      setSuccessType("I");
+      setShowSuccessModal(true);
       loadSpares();
     } catch {
       toast.current?.show({ severity: "error", summary: "Error", detail: "Failed to save spares" });
@@ -391,6 +393,7 @@ const SparePage = () => {
       formData.append("Reusable", 0);
 
       await SpareService.update(formData);
+      setSuccessType("U");
       setShowSuccessModal(true);
       setSideMode("details");
       loadSpares();
@@ -1106,13 +1109,15 @@ const SparePage = () => {
                       <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
                         <i className="fa fa-check" aria-hidden="true" />
                       </span>
-                      Changes updated successfully
+                      {successType === "U" ? "Changes updated successfully" : "Item created successfully"}
                     </div>
                     <button type="button" className="spare-add-close" onClick={() => setShowSuccessModal(false)}>
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="asset-side-panel-body">The item has been updated.</div>
+                  <div className="asset-side-panel-body">
+                    {successType === "U" ? "The item has been updated." : "The item is ready. You can now monitor its progress."}
+                  </div>
                   <div className="asset-dialog-actions asset-dialog-actions-right">
                     <button type="button" className="btn btn-primary" onClick={() => setShowSuccessModal(false)}>
                       Done

@@ -43,9 +43,12 @@
 
 .rental-figma-title {
   margin: 0;
-  color: #1d2733;
-  font-size: 16px;
-  font-weight: 600;
+  font-family: Inter, sans-serif;
+  color: #131720;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 500;
+  letter-spacing: -0.45px;
 }
 
 .rental-figma-mode-switch {

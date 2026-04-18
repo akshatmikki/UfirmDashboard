@@ -12,7 +12,7 @@ import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePick
 import CustomDropdown from "../ReactComponents/CustomDropdown/CustomDropdown";
 
 const statusOptions = {
-  running: { label: "Running", key: "running" },
+  running: { label: "Active", key: "running" },
   inactive: { label: "Inactive", key: "inactive" },
   servicing: { label: "Servicing", key: "servicing" },
 };
@@ -47,6 +47,60 @@ const formatTime = (value) => {
     hour12: true,
   });
 };
+
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+const getRentalContractSource = (asset = {}) =>
+  asset.ImageOut || asset.RentalContract || asset.Contract || asset.Image || "";
+
+const getRentalContractFileName = (asset = {}) => {
+  const raw = getRentalContractSource(asset);
+  const explicitName = asset.RentalContractFileName || asset.ContractFileName || "";
+  if (explicitName) return explicitName;
+  if (!raw) return "";
+  if (typeof raw !== "string") return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    const path = raw.split("?")[0];
+    return path.substring(path.lastIndexOf("/") + 1);
+  }
+  if (raw.startsWith("data:")) return "Uploaded file";
+  if (raw.includes(".")) return raw;
+  return "";
+};
+
+const getContractPreviewSrc = (contract, fileName = "") => {
+  if (!contract) return "";
+  const raw = String(contract);
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) {
+    return raw;
+  }
+
+  const extension = String(fileName || "").split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return `data:application/pdf;base64,${raw}`;
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension || "")) {
+    const mime = extension === "jpg" ? "jpeg" : extension;
+    return `data:image/${mime};base64,${raw}`;
+  }
+
+  return `data:image/png;base64,${raw}`;
+};
+
+const toBase64Payload = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",")[1] : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
 const buildHistoryEntries = (history = []) =>
   (Array.isArray(history) ? history : [])
@@ -141,7 +195,8 @@ const buildEditForm = (asset = {}) => ({
   SecurityDeposit: asset.SecurityDeposit || "",
   ExpiryDate: normalizeDate(asset.ExpiryDate || asset.ReturnDate || ""),
   Location: asset.Location || asset.OutFrom || "Building-A",
-  RentalContract: asset.RentalContract || asset.Contract || "1234.jpeg",
+  RentalContract: getRentalContractSource(asset),
+  RentalContractFileName: getRentalContractFileName(asset),
 });
 
 const RentalAssets = ({ propId, history }) => {
@@ -330,33 +385,69 @@ const RentalAssets = ({ propId, history }) => {
     setDeleteTarget(null);
   };
 
-  const handleSaveEdit = () => {
-    setRentalAssets((prev) =>
-      prev.map((item) =>
-        Number(item.Id) === Number(selectedAssetId)
-          ? {
-            ...item,
-            Name: editForm.Name,
-            Status: editForm.Status,
-            Description: editForm.Description,
-            Vendor: editForm.Vendor,
-            LeaseType: editForm.LeaseType,
-            Manufacturer: editForm.Manufacturer,
-            AssetModel: editForm.Model,
-            Model: editForm.Model,
-            MonthlyRent: editForm.Cost,
-            Cost: editForm.Cost,
-            SecurityDeposit: editForm.SecurityDeposit,
-            ExpiryDate: editForm.ExpiryDate,
-            Location: editForm.Location,
-            RentalContract: editForm.RentalContract,
-            Contract: editForm.RentalContract,
-          }
-          : item
-      )
-    );
-    setPanelMode("details");
-    setShowSuccessModal(true);
+  const handleSaveEdit = async () => {
+    if (!selectedAsset) return;
+    try {
+      let rentalContractValue = editForm.RentalContract;
+      let rentalContractFileName = editForm.RentalContractFileName || "";
+
+      if (editForm.RentalContract instanceof File) {
+        rentalContractValue = await toBase64Payload(editForm.RentalContract);
+        rentalContractFileName = editForm.RentalContract.name;
+      }
+
+      const payload = {
+        Id: selectedAsset.Id,
+        Name: editForm.Name,
+        Description: editForm.Description,
+        QRCode: selectedAsset.QRCode || "",
+        AssetType: selectedAsset.AssetType || selectedAsset.Type || editForm.LeaseType || "",
+        Manufacturer: editForm.Manufacturer,
+        AssetModel: editForm.Model,
+        IsMoveable: selectedAsset.IsMoveable ?? false,
+        Flag: "U",
+        AssetImage: selectedAsset.AssetImage || selectedAsset.Image || "",
+        LastServiceDate: normalizeDate(selectedAsset.LastServiceDate || ""),
+        NextServiceDate: normalizeDate(selectedAsset.NextServiceDate || ""),
+        IsRentable: selectedAsset.IsRentable ?? true,
+        AssetValue: editForm.Cost || selectedAsset.AssetValue || 0,
+        Capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
+        capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
+        AMCdoc: rentalContractValue || "",
+        status: editForm.Status,
+        category: selectedAsset.Category || selectedAsset.category || "",
+        location: editForm.Location,
+        serviceReminderDay: selectedAsset.serviceReminderDay || "",
+        propertyId: propId,
+        PurchaseDate: normalizeDate(selectedAsset.PurchaseDate || ""),
+        WarrantyDate: normalizeDate(selectedAsset.WarrantyDate || selectedAsset.ExpiryDate || selectedAsset.ReturnDate || ""),
+      };
+
+      const resp = await fetch("https://api.urest.in:8096/ManageAssets", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to update rental asset");
+      }
+
+      await fetchRentalAssets();
+      setSelectedAssetId(selectedAsset.Id);
+      setPanelMode("details");
+      setEditForm((prev) => ({
+        ...prev,
+        RentalContract: rentalContractValue,
+        RentalContractFileName: rentalContractFileName,
+      }));
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -369,7 +460,28 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
+    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "http://localhost:62929/ManageRentOutAsset";
+    const payload = isReturnMode
+      ? {
+        assetId: selectedAsset.Id,
+        assetName: selectedAsset.Name,
+        ...formData,
+      }
+      : {
+        AssetId: selectedAsset.Id || 0,
+        AssetName: selectedAsset.Name || "",
+        AssigneeName: formData.assigneeName || "",
+        RentOutDateTime: formData.rentOutDateTime || "",
+        TentativeReturnDate: formData.tentativeReturnDate || "",
+        RentedTo: formData.rentedTo || "",
+        OutFrom: formData.outFrom || "",
+        RentalCharges: Number(formData.rentalCharges) || 0,
+        ImageOut: formData.imageOut || "",
+        SecurityDeposit: Number(formData.securityDeposit) || 0,
+        RentOutTime: formData.rentOutTime || formData.rentOutDateTime || "",
+        RentalContract: formData.rentalContract || "",
+        ApprovedBy: formData.approvedBy || "",
+      };
 
     await fetch(url, {
       method: isReturnMode ? "PUT" : "POST",
@@ -377,11 +489,7 @@ const RentalAssets = ({ propId, history }) => {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        assetId: selectedAsset.Id,
-        assetName: selectedAsset.Name,
-        ...formData,
-      }),
+      body: JSON.stringify(payload),
     });
 
     setShowActionModal(false);
@@ -416,25 +524,27 @@ const RentalAssets = ({ propId, history }) => {
 
   const handleOpenContract = () => {
     if (!selectedAsset) return;
-    const contract = selectedAsset.ImageOut || selectedAsset.RentalContract || selectedAsset.Contract || selectedAsset.Image || "";
+    const contract = getRentalContractSource(selectedAsset);
+    const contractFileName = getRentalContractFileName(selectedAsset);
     if (!contract) return;
 
-    const raw = String(contract);
-    if (raw.startsWith("http://") || raw.startsWith("https://")) {
-      window.open(raw, "_blank", "noopener,noreferrer");
+    const previewSrc = getContractPreviewSrc(contract, contractFileName);
+    if (!previewSrc) return;
+
+    if (previewSrc.startsWith("http://") || previewSrc.startsWith("https://")) {
+      window.open(previewSrc, "_blank", "noopener,noreferrer");
       return;
     }
 
     const win = window.open("", "_blank");
     if (!win) return;
-    if (raw.startsWith("data:application/pdf")) {
+    if (previewSrc.startsWith("data:application/pdf")) {
       win.document.write(
-        `<html><body style="margin:0;padding:0"><embed src="${raw}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+        `<html><body style="margin:0;padding:0"><embed src="${previewSrc}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
       );
     } else {
-      const imgSrc = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
       win.document.write(
-        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${imgSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
+        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${previewSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
       );
     }
     win.document.close();
@@ -569,7 +679,7 @@ const RentalAssets = ({ propId, history }) => {
               onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
               placeholder="Select status"
               options={[
-                { label: "Running", value: "Running" },
+                { label: "Active", value: "Active" },
                 { label: "Inactive", value: "Inactive" },
                 { label: "Servicing", value: "Servicing" }
               ]}
@@ -644,10 +754,23 @@ const RentalAssets = ({ propId, history }) => {
           <div className="form-group asset-form-group-custom">
             <label>Rental contract</label>
             <div className="rental-upload-field">
-              <input className="form-control" value={editForm.RentalContract} onChange={(e) => setEditForm({ ...editForm, RentalContract: e.target.value })} />
+              <input className="form-control" placeholder="Upload file" value={editForm.RentalContractFileName || ""} readOnly />
               <span className="rental-upload-icon" aria-hidden="true">
                 <i className="fa fa-file-text" />
               </span>
+              <input
+                type="file"
+                className="asset-file-hidden"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setEditForm({
+                    ...editForm,
+                    RentalContract: file,
+                    RentalContractFileName: file?.name || "",
+                  });
+                }}
+              />
             </div>
           </div>
         </div>
@@ -763,7 +886,7 @@ const RentalAssets = ({ propId, history }) => {
                       <div className="asset-filter-field asset-filter-field-full">
                         <label>Status</label>
                         <div className="asset-filter-chip-row">
-                          {["Running", "Servicing", "Inactive"].map((item) => (
+                          {["Active", "Servicing", "Inactive"].map((item) => (
                             <button
                               key={item}
                               type="button"

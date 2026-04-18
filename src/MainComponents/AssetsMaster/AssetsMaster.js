@@ -14,6 +14,7 @@ import "./AssetsMaster.css";
 import { withRouter } from "react-router-dom";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
+import QRCode from "react-qr-code";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -869,10 +870,17 @@ class AssetsMaster extends Component {
             <div className="asset-details-docs-section">
               <div className="asset-qr-preview-box">
                 <div className="asset-qr-wrapper">
-                  <i className="fa fa-qrcode" />
+                  {asset?.Id ? (
+                    <QRCode
+                      value={asset.Id.toString()}
+                      size={72}
+                    />
+                  ) : (
+                    <span>No QR</span>
+                  )}
                 </div>
               </div>
-              <div className="asset-doc-links-stack">
+              <div className="asset-doc-links-stack asset-doc-links-stack-view">
                 <div className="asset-doc-link-item">
                   <div className="asset-doc-icon-wrapper">
                     <i className="fa fa-picture-o" />
