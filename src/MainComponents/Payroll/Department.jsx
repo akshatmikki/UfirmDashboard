@@ -236,7 +236,7 @@ const DepartmentMaster = () => {
                   />
                 </Link>
                 <Link
-                  to="/Account/App/department"
+                  to="/Account/App/Department"
                   className="text-decoration-none"
                 >
                   <Button

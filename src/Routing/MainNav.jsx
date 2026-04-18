@@ -132,6 +132,7 @@ class MainNav extends React.Component {
       PropertyData: [],
       PropertyMultiData: [],
       selectedPropertyOptions: [],
+      selectedPropertyId: 0,
       selectedClientId: 0,
       clientData: [],
       userRoles: [],
@@ -242,7 +243,15 @@ class MainNav extends React.Component {
   loadClient = async () => {
     try {
       const rData = await getAllClients();
-      this.setState({ clientData: rData || [] });
+      const clients = Array.isArray(rData) ? rData : [];
+      this.setState({ clientData: clients }, () => {
+        if (!this.isHrRole()) return;
+        if (this.state.selectedClientId > 0) return;
+        const firstClientId = Number(clients?.[0]?.ClientID || clients?.[0]?.Value || clients?.[0]?.id || 0);
+        if (firstClientId > 0) {
+          this.onClientChanged(firstClientId);
+        }
+      });
     } catch (error) {
       this.setState({ clientData: [] });
     }
@@ -266,15 +275,22 @@ class MainNav extends React.Component {
         PropertyData: propertyList,
         PropertyMultiData: propertyMultiOptions,
         selectedPropertyOptions: [],
+        selectedPropertyId: 0,
+      }, () => {
+        const firstPropertyId = Number(propertyList?.[0]?.Value || 0);
+        if (firstPropertyId > 0) {
+          this.onPropertyChanged(firstPropertyId);
+          return;
+        }
+        this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: propertyIds });
+        currentpropertyid = 0;
       });
-      // No property selected by default for HR: keep client-scope via PropertyIds
-      this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: propertyIds });
-      currentpropertyid = 0;
     } catch (error) {
       this.setState({
         PropertyData: [],
         PropertyMultiData: [],
         selectedPropertyOptions: [],
+        selectedPropertyId: 0,
       });
       this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: [] });
       currentpropertyid = 0;
@@ -314,11 +330,15 @@ class MainNav extends React.Component {
         return resp.json().then((rData) => {
           rData = appCommon.changejsoncolumnname(rData, "id", "Value");
           rData = appCommon.changejsoncolumnname(rData, "text", "Name");
-          this.setState({ PropertyData: rData, PropertyMultiData: [] }, () => {
-            if (rData.length === 1) {
-              this.onPropertyChanged(rData[0].Value);
+          this.setState(
+            { PropertyData: rData, PropertyMultiData: [], selectedPropertyId: 0 },
+            () => {
+              const firstPropertyId = Number(rData?.[0]?.Value || 0);
+              if (firstPropertyId > 0) {
+                this.onPropertyChanged(firstPropertyId);
+              }
             }
-          });
+          );
         });
       }
     });
@@ -327,8 +347,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc2NDk5ODg0LCJleHAiOjE4MDgwMzU4ODQsImlhdCI6MTc3NjQ5OTg4NH0.T42gyC3WTe7lThJGa4agXdhBbMW61cq0l3lVGr4tIe0";
-    //var token = window.sessionStorage.getItem("userinfo_key")
+    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc2NDk5ODg0LCJleHAiOjE4MDgwMzU4ODQsImlhdCI6MTc3NjQ5OTg4NH0.T42gyC3WTe7lThJGa4agXdhBbMW61cq0l3lVGr4tIe0";
+    var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -371,6 +391,7 @@ class MainNav extends React.Component {
     this.setState({
       selectedClientId: clientId,
       selectedPropertyOptions: [],
+      selectedPropertyId: 0,
       PropertyData: [],
       PropertyMultiData: [],
     });
@@ -397,6 +418,7 @@ class MainNav extends React.Component {
 
   onPropertyChanged = (value) => {
     const propertyId = Number(value) || 0;
+    this.setState({ selectedPropertyId: propertyId });
     if (propertyId > 0) {
       this.props.actions.updateproperty({
         CompanyId: propertyId,
@@ -501,7 +523,7 @@ class MainNav extends React.Component {
       "/Account/App/GenerateSalary",
       "/Account/App/AllowanceDeduction",
       "/Account/App/Designation",
-      "/Account/App/department",
+      "/Account/App/Department",
       "/Account/App/Linking",
       "/Account/App/Report",
       "/Account/App/ProfessionalTax",
@@ -557,6 +579,7 @@ class MainNav extends React.Component {
                       Id="ddlClient"
                       Name="Client"
                       Disabled={false}
+                      Value={this.state.selectedClientId}
                       onSelected={this.onClientChanged}
                       Options={(this.state.clientData || []).map((item) => ({
                         Value: item.ClientID || item.Value || item.id || 0,
@@ -570,6 +593,7 @@ class MainNav extends React.Component {
                       Id="ddlProperty"
                       Name="Property"
                       Disabled={disablePropertyDropdownForPayroll || this.state.selectedClientId <= 0}
+                      Value={this.state.selectedPropertyId}
                       onSelected={this.onPropertyChanged.bind(this)}
                       Options={this.state.PropertyData}
                     />
@@ -582,6 +606,7 @@ class MainNav extends React.Component {
                       <DropDownList
                         Id="ddlProperty"
                         Disabled={disablePropertyDropdownForPayroll}
+                        Value={this.state.selectedPropertyId}
                         onSelected={this.onPropertyChanged.bind(this)}
                         Options={this.state.PropertyData}
                       />
@@ -1772,6 +1797,11 @@ class MainNav extends React.Component {
             <Route exact path="/Account/App/ticket">
               <TicketingDashboard />
             </Route>
+            <Route
+              exact
+              path="/Account/App/department"
+              render={() => <Redirect to="/Account/App/Department" />}
+            />
             <Route path="/Account/App/Department">
               <Department />
             </Route>
