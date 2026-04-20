@@ -781,7 +781,7 @@ class MainNav extends React.Component {
                             <p>Assets Master</p>
                           </Link>
                         </li>
-                        <li className="nav-item">
+                        {/* <li className="nav-item">
                           <Link
                             to="/Account/App/SpareMaster"
                             className="nav-link"
@@ -789,7 +789,7 @@ class MainNav extends React.Component {
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Spare Master</p>
                           </Link>
-                        </li>
+                        </li> */}
                         <li className="nav-item">
                           <Link
                             to="/Account/App/CheckIn&CheckOut"
@@ -800,7 +800,7 @@ class MainNav extends React.Component {
                           </Link>
                         </li>
 
-                        <li className="nav-item">
+                        {/* <li className="nav-item">
                           <Link
                             to="/Account/App/RentalAssets"
                             className="nav-link"
@@ -808,7 +808,7 @@ class MainNav extends React.Component {
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Rental Assets</p>
                           </Link>
-                        </li>
+                        </li> */}
 
                         <li className="nav-item">
                           <Link
