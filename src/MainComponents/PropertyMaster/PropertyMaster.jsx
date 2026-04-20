@@ -348,6 +348,28 @@ export default function PropertyMaster() {
       });
       return;
     }
+
+    // 🔥 DUPLICATE PROPERTY NAME CHECK
+    const newNameNormalized = normalizeText(form.Name);
+
+    const isDuplicate = properties.some((p) => {
+      const existingNameNormalized = normalizeText(p.Name);
+
+      // allow same record in edit mode
+      if (editId && p.PropertyId === editId) return false;
+
+      return existingNameNormalized === newNameNormalized;
+    });
+
+    if (isDuplicate) {
+      toast.current.show({
+        severity: "error",
+        summary: "Duplicate Error",
+        detail: "Property with similar name already exists!",
+      });
+      return;
+    }
+
     try {
       let finalCityId = form.CityId;
 
@@ -364,26 +386,27 @@ export default function PropertyMaster() {
           return;
         }
 
-        // ⚠️ You don’t have StateId in dropdown, so FIX THIS later
         const stateId = selectedState?.id;
 
         const res = await createOrGetCity({
-          CityName: form.CityId,
+          CityName: form.CityId.trim(), // 🔥 trim fix
           StateId: stateId,
           CreatedBy: 1,
         });
 
         finalCityId = res.CityId;
 
-        // 🔥 ADD THIS RIGHT HERE
+        // 🔥 update local city list
         setCities(prev => [
           ...prev,
-          { label: form.CityId, value: res.CityId }
+          { label: form.CityId.trim(), value: res.CityId }
         ]);
       }
 
       const finalForm = {
         ...form,
+        Name: form.Name.trim(), // 🔥 trim fix
+        State: form.State.trim(), // 🔥 trim fix
         CityId: finalCityId,
       };
 
@@ -469,6 +492,12 @@ export default function PropertyMaster() {
       document.body.style.overflow = "";
     };
   }, [showForm]);
+
+  const normalizeText = (str) => {
+    return str
+      ?.toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+  };
 
   useEffect(() => {
     const loadLocationData = async () => {

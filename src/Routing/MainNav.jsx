@@ -1321,16 +1321,7 @@ class MainNav extends React.Component {
                             <p>Employee Shift Mapping</p>
                           </Link>
                         </li>
-                        <li className="nav-item">
-
-                          <Link
-                            to="/Account/App/EmployeeTransfer"
-                            className="nav-link"
-                          >
-                            <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Employee Transfer</p>
-                          </Link>
-                        </li>
+                        
                         <li className="nav-item">
                           <Link to="/Account/App/FundsTransfer"
                             className="nav-link"
@@ -1557,7 +1548,7 @@ class MainNav extends React.Component {
                             className="nav-link"
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
-                            <p>Department </p>
+                            <p>Department</p>
                           </Link>
                         </li>
                         <li className="nav-item">
@@ -1797,11 +1788,6 @@ class MainNav extends React.Component {
             <Route exact path="/Account/App/ticket">
               <TicketingDashboard />
             </Route>
-            <Route
-              exact
-              path="/Account/App/department"
-              render={() => <Redirect to="/Account/App/Department" />}
-            />
             <Route path="/Account/App/Department">
               <Department />
             </Route>
