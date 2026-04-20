@@ -607,7 +607,7 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Cost</span>
-              <span className="rental-detail-value">{selectedAsset.MonthlyRent ? `₹${selectedAsset.MonthlyRent}/day` : "₹100/day"}</span>
+              <span className="rental-detail-value">{selectedAsset.MonthlyRent || selectedAsset.Cost ? `₹${selectedAsset.MonthlyRent || selectedAsset.Cost}/day` : "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Security deposit</span>
