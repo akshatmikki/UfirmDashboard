@@ -280,7 +280,7 @@ class AssetsMaster extends Component {
               LastServiceDate: this.normalizeDate(item?.LastServiceDate),
               NextServiceDate: nextServiceDate,
               NextServiceDateDisplay: displayDate,
-              Location: item?.Location || item?.location || "Building-A",
+              Location: item?.Location || item?.location || "",
               StatusDisplay: `<span class="asset-table-status asset-table-status-${statusMeta.key}">${statusMeta.label}</span>`,
             };
           });
