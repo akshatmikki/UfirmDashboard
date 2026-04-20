@@ -1,6 +1,6 @@
 import axios from "axios";
 
-const BASE_URL = "http://localhost:62929/api/employee";
+const BASE_URL = "https://api.urest.in:8096/api/employee";
 
 // 🔹 Axios Instance
 const api = axios.create({

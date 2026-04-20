@@ -207,14 +207,17 @@ const StaffPage = () => {
   const departmentFilterRef = useRef(null);
 
   const getCurrentOfficeIds = () => {
+    // 🚫 NO CLIENT SELECTED → RETURN EMPTY
+    if (!reduxClientId && !reduxPropertyId) {
+      return [];
+    }
+
     let officeIds = [];
 
-    if (Number(reduxPropertyId) > 0) {
-      officeIds = [Number(reduxPropertyId)];
-    } else if (selectedPropertyId.length > 0) {
-      officeIds = selectedPropertyId;
-    } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+    if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
       officeIds = reduxPropertyIds;
+    } else if (Number(reduxPropertyId) > 0) {
+      officeIds = [Number(reduxPropertyId)];
     } else if (clientPropertyIds.length > 0) {
       officeIds = clientPropertyIds;
     }
@@ -245,6 +248,16 @@ const StaffPage = () => {
 
   useEffect(() => {
     const loadUnits = async () => {
+      // 🚫 NO CLIENT SELECTED
+      if (!reduxClientId && !reduxPropertyId) {
+        setUnitList([]);
+        setSelectedUnitId(null);
+        setPropertyList([]);
+        setSelectedPropertyId([]);
+        setClientPropertyIds([]);
+        setStaff([]);
+        return;
+      }
       try {
         if (Number(reduxPropertyId) > 0) {
           setSelectedPropertyId([Number(reduxPropertyId)]);
@@ -310,12 +323,18 @@ const StaffPage = () => {
         } else {
           setSelectedPropertyId([]);
 
-          if (!Array.isArray(reduxPropertyIds) || reduxPropertyIds.length === 0) {
+          // 🔥 ALL PROPERTIES CASE
+          if (
+            (!reduxPropertyIds || reduxPropertyIds.length === 0) &&
+            (!reduxPropertyId || Number(reduxPropertyId) === 0)
+          ) {
             const ids = properties
               .map((p) => Number(p.PropertyId))
               .filter((id) => Number.isFinite(id) && id > 0);
+
             setClientPropertyIds(ids);
-          } else {
+          }
+          else {
             setClientPropertyIds([]);
           }
         }
@@ -394,22 +413,12 @@ const StaffPage = () => {
 
   useEffect(() => {
     const loadEmployees = async () => {
+      if (!reduxClientId && !reduxPropertyId) {
+        setStaff([]);
+        return;
+      }
       try {
-        let officeIds = [];
-
-        if (Number(reduxPropertyId) > 0) {
-          officeIds = [Number(reduxPropertyId)];
-        } else if (selectedPropertyId.length > 0) {
-          officeIds = selectedPropertyId;
-        } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
-          officeIds = reduxPropertyIds;
-        } else if (clientPropertyIds.length > 0) {
-          officeIds = clientPropertyIds;
-        }
-
-        officeIds = officeIds
-          .map((id) => Number(id))
-          .filter((id) => Number.isFinite(id) && id > 0);
+        const officeIds = getCurrentOfficeIds();
 
         if (!officeIds.length) {
           setStaff([]);
