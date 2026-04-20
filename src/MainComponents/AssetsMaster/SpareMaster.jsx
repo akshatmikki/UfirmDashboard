@@ -422,7 +422,7 @@ const SparePage = () => {
             <div className="asset-details-row asset-details-name-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Name</span>
-                <span className="asset-info-value">{selectedRow.SpareType || "Engine filter"}</span>
+                <span className="asset-info-value">{selectedRow.SpareType || "-"}</span>
               </div>
               <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatus.label}</span>
             </div>
@@ -430,7 +430,7 @@ const SparePage = () => {
             <div className="asset-details-row asset-details-desc-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Description</span>
-                <span className="asset-info-value">{selectedRow.Remarks || "Generic engine filter for industrial equipment"}</span>
+                <span className="asset-info-value">{selectedRow.Remarks || "-"}</span>
               </div>
             </div>
 
@@ -441,7 +441,7 @@ const SparePage = () => {
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Asset</span>
-                <span className="asset-info-value">{selectedAsset?.Name || selectedAsset?.name || "Generator"}</span>
+                <span className="asset-info-value">{selectedAsset?.Name || selectedAsset?.name || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Asset ID</span>
@@ -449,19 +449,19 @@ const SparePage = () => {
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Manufacturer</span>
-                <span className="asset-info-value">{selectedAsset?.Manufacturer || selectedAsset?.manufacturer || "Generic"}</span>
+                <span className="asset-info-value">{selectedAsset?.Manufacturer || selectedAsset?.manufacturer || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Model</span>
-                <span className="asset-info-value">{selectedAsset?.AssetModel || selectedAsset?.Model || "Generic model"}</span>
+                <span className="asset-info-value">{selectedAsset?.AssetModel || selectedAsset?.Model || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Vendor</span>
-                <span className="asset-info-value">{selectedRow.VendorName || "Generic vendor"}</span>
+                <span className="asset-info-value">{selectedRow.VendorName || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Purchase price</span>
-                <span className="asset-info-value">{selectedRow.Rating ? `Rs${selectedRow.Rating}` : "Rs1000"}</span>
+                <span className="asset-info-value">{selectedRow.Rating ? `Rs${selectedRow.Rating}` : "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Purchase date</span>
@@ -533,7 +533,7 @@ const SparePage = () => {
           <div className="asset-form-simple-stack spare-form-grid">
             <div className="asset-form-id-row-simple spare-readonly-row">
               <span className="asset-info-label">ID</span>
-              <span className="asset-info-value">{editForm.SpareID || "AST-111"}</span>
+              <span className="asset-info-value">{editForm.SpareID || "-"}</span>
             </div>
 
             <div className="asset-form-group-custom">
@@ -568,17 +568,17 @@ const SparePage = () => {
 
             <div className="asset-form-group-custom">
               <label>Asset</label>
-              <input className="form-control" value={editForm.AssetName || "Generator"} readOnly />
+              <input className="form-control" value={editForm.AssetName || ""} readOnly />
             </div>
 
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
                 <label>Manufacturer</label>
-                <input className="form-control" value={editForm.Manufacturer || "Generic"} readOnly />
+                <input className="form-control" value={editForm.Manufacturer || ""} readOnly />
               </div>
               <div className="asset-form-group-custom">
                 <label>Model</label>
-                <input className="form-control" value={editForm.Model || "Generic model"} readOnly />
+                <input className="form-control" value={editForm.Model || ""} readOnly />
               </div>
             </div>
 
@@ -804,9 +804,9 @@ const SparePage = () => {
                           const isOverdueFiltered = filterServiceStatus === "Overdue";
                           return (
                             <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
-                              <td>{row.AssetID || "AST-111"}</td>
+                              <td>{row.AssetID || "-"}</td>
                               <td>{row.SpareType || "-"}</td>
-                              <td>{asset?.Name || asset?.name || "Generator"}</td>
+                              <td>{asset?.Name || asset?.name || "-"}</td>
                               <td>{formatDisplayDate(row.ExpiryDate)}</td>
                               <td>
                                 <span className={`spare-table-status spare-table-status-${meta.key}`}>{meta.label}</span>
@@ -1069,7 +1069,7 @@ const SparePage = () => {
                       </div>
                       <div className="asset-dialog-assetrow">
                         <span className="asset-dialog-assetlabel">Location:</span>
-                        <span className="asset-dialog-assetvalue">{assetById.get(Number(deleteTarget.AssetID))?.Location || "Building A"}</span>
+                        <span className="asset-dialog-assetvalue">{assetById.get(Number(deleteTarget.AssetID))?.Location || "-"}</span>
                       </div>
                     </div>
                   </div>

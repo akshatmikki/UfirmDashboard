@@ -113,7 +113,7 @@ const buildHistoryEntries = (history = []) =>
           type: "out",
           label: "Rented Out",
           summary: "Asset rented out to customer",
-          byLabel: item?.RentOut?.AssigneeName || "S Kumar",
+          byLabel: item?.RentOut?.AssigneeName || "-",
           dateValue: item.RentOut.RentedOutDate,
           details: [
             { label: "Rented To", value: item?.RentOut?.RentedTo || "-" },
@@ -130,7 +130,7 @@ const buildHistoryEntries = (history = []) =>
           type: "returned",
           label: "Returned",
           summary: "Asset returned by customer",
-          byLabel: item?.Return?.ReturnedBy || "S Kumar",
+          byLabel: item?.Return?.ReturnedBy || "-",
           dateValue: item.Return.ReturnDate,
           details: [
             { label: "Returned By", value: item?.Return?.ReturnedBy || "-" },
@@ -187,14 +187,14 @@ const buildEditForm = (asset = {}) => ({
   Name: asset.Name || "",
   Status: getStatusMeta(asset).label,
   Description: asset.Description || "",
-  Vendor: asset.Vendor || asset.Manufacturer || "ABCD",
-  LeaseType: asset.LeaseType || "Outbound",
-  Manufacturer: asset.Manufacturer || "Generic",
-  Model: asset.AssetModel || asset.Model || "Generic model",
-  Cost: asset.MonthlyRent || asset.Cost || "100",
+  Vendor: asset.Vendor || asset.VendorName || asset.Distributor || asset.Manufacturer || "",
+  LeaseType: asset.LeaseType || asset.Lease || "",
+  Manufacturer: asset.Manufacturer || "",
+  Model: asset.AssetModel || asset.Model || "",
+  Cost: asset.MonthlyRent || asset.Cost || "",
   SecurityDeposit: asset.SecurityDeposit || "",
   ExpiryDate: normalizeDate(asset.ExpiryDate || asset.ReturnDate || ""),
-  Location: asset.Location || asset.OutFrom || "Building-A",
+  Location: asset.Location || asset.OutFrom || "",
   RentalContract: getRentalContractSource(asset),
   RentalContractFileName: getRentalContractFileName(asset),
 });
@@ -300,6 +300,18 @@ const RentalAssets = ({ propId, history }) => {
         new Set(
           rentalAssets
             .map((asset) => String(asset?.Vendor || asset?.VendorName || asset?.Distributor || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [rentalAssets]
+  );
+
+  const locationOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rentalAssets
+            .map((asset) => String(asset?.Location || asset?.OutFrom || "").trim())
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b)),
@@ -564,34 +576,34 @@ const RentalAssets = ({ propId, history }) => {
           <div className="rental-detail-grid">
             <div className="rental-detail-item rental-detail-full rental-readonly-row">
               <span className="rental-detail-label">ID</span>
-              <span className="rental-detail-value rental-readonly-value">{selectedAsset.Id || "AST-111"}</span>
+              <span className="rental-detail-value rental-readonly-value">{selectedAsset.Id || "-"}</span>
             </div>
             <div className="rental-detail-item rental-detail-full">
               <div className="rental-detail-inline-head">
                 <span className="rental-detail-label">Name</span>
                 <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
               </div>
-              <span className="rental-detail-value">{selectedAsset.Name || "Generator"}</span>
+              <span className="rental-detail-value">{selectedAsset.Name || "-"}</span>
             </div>
             <div className="rental-detail-item rental-detail-full">
               <span className="rental-detail-label">Description</span>
-              <span className="rental-detail-value">{selectedAsset.Description || "Generic generator description"}</span>
+              <span className="rental-detail-value">{selectedAsset.Description || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Vendor</span>
-              <span className="rental-detail-value">{selectedAsset.Vendor || selectedAsset.Manufacturer || "Generic vendor"}</span>
+              <span className="rental-detail-value">{selectedAsset.Vendor || selectedAsset.VendorName || selectedAsset.Distributor || selectedAsset.Manufacturer || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Lease type</span>
-              <span className="rental-detail-value">{selectedAsset.LeaseType || "Outbound"}</span>
+              <span className="rental-detail-value">{selectedAsset.LeaseType || selectedAsset.Lease || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Manufacturer</span>
-              <span className="rental-detail-value">{selectedAsset.Manufacturer || "Generic"}</span>
+              <span className="rental-detail-value">{selectedAsset.Manufacturer || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Model</span>
-              <span className="rental-detail-value">{selectedAsset.AssetModel || selectedAsset.Model || "Generic model"}</span>
+              <span className="rental-detail-value">{selectedAsset.AssetModel || selectedAsset.Model || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Cost</span>
@@ -607,7 +619,7 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Location</span>
-              <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "Building A"}</span>
+              <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "-"}</span>
             </div>
           </div>
           <div className="rental-panel-links">
@@ -662,7 +674,7 @@ const RentalAssets = ({ propId, history }) => {
 
         <div className="asset-form-id-row-simple">
           <span className="asset-info-label">ID</span>
-          <span className="asset-info-value">{editForm.Id || "AST-111"}</span>
+          <span className="asset-info-value">{editForm.Id || "-"}</span>
         </div>
 
         <div className="asset-form-simple-stack">
@@ -746,7 +758,7 @@ const RentalAssets = ({ propId, history }) => {
                 value={editForm.Location}
                 onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
                 placeholder="Select location"
-                options={Array.from(new Set([editForm.Location, "Building A", "Building-A", "Basement", "Gate no-07"])).filter(Boolean).map(v => ({ label: v, value: v }))}
+                options={locationOptions.map(v => ({ label: v, value: v }))}
               />
             </div>
           </div>
@@ -951,8 +963,8 @@ const RentalAssets = ({ propId, history }) => {
 
                           return (
                             <tr key={asset.Id} className={`${Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => handleSelectAsset(asset)}>
-                              <td>{asset.Id || "AST-111"}</td>
-                              <td>{asset.Name || "Water pump"}</td>
+                              <td>{asset.Id || "-"}</td>
+                              <td>{asset.Name || "-"}</td>
                               <td>{asset.Manufacturer || "-"}</td>
                               <td>
                                 <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
@@ -1114,8 +1126,8 @@ const RentalAssets = ({ propId, history }) => {
                       </span>
                       <div className="rental-history-title-text">
                         <span className="rental-history-title-main">Rented asset</span>
-                        <span className="rental-history-title-lease">- {historyAsset?.Name || "Generator"}</span>
-                        <span className="rental-history-title-id">({historyAsset?.Id || "AST-111"})</span>
+                        <span className="rental-history-title-lease">- {historyAsset?.Name || "-"}</span>
+                        <span className="rental-history-title-id">({historyAsset?.Id || "-"})</span>
                       </div>
                     </div>
                     <button type="button" className="rental-history-close" onClick={() => setShowHistoryModal(false)}>
