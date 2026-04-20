@@ -49,23 +49,103 @@ function parsePositiveNumber(value) {
   return Number.isFinite(num) && num > 0 ? num : 0;
 }
 
-function getComputedDivideByDays(config, month, year) {
-  const monthDaysValue = parsePositiveNumber(config?.MonthDays);
-  if (monthDaysValue > 0) return monthDaysValue;
+function parseMonthYear(monthyear) {
+  if (!monthyear || typeof monthyear !== "string") return null;
+  const [y, m] = monthyear.split("-").map((v) => Number(v));
+  if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
+  return { year: y, month: m };
+}
 
-  const totalWorkingDaysValue = parsePositiveNumber(config?.TotalWorkingDays);
+function safeDate(year, month, day) {
+  const daysInTargetMonth = getDaysInMonth(month, year);
+  const clampedDay = Math.min(Math.max(1, Number(day) || 1), daysInTargetMonth);
+  return new Date(Date.UTC(year, month - 1, clampedDay));
+}
+
+function countSundaysInRange(startDate, endDate) {
+  if (!(startDate instanceof Date) || !(endDate instanceof Date)) return 0;
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()))
+    return 0;
+  if (startDate > endDate) return 0;
+
+  let count = 0;
+  for (
+    let d = new Date(startDate);
+    d <= endDate;
+    d.setUTCDate(d.getUTCDate() + 1)
+  ) {
+    if (d.getUTCDay() === 0) count += 1;
+  }
+  return count;
+}
+
+function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear) {
+  const totalWorkingDaysValue = parsePositiveNumber(
+    config?.TotalWorkingDays ?? config?.totalWorkingDays ?? config?.totalworkingdays
+  );
   if (totalWorkingDaysValue > 0) return totalWorkingDaysValue;
 
-  let divideByDays = getDaysInMonth(month, year);
-  const monthSundaysValue = parsePositiveNumber(config?.MonthSundays);
+  const monthDaysValue = parsePositiveNumber(
+    config?.MonthDays ?? config?.monthDays ?? config?.monthdays
+  );
+  if (monthDaysValue > 0) return monthDaysValue;
 
-  if (monthSundaysValue > 0) {
-    divideByDays -= monthSundaysValue;
-  } else if (config?.ExcludeSunday) {
-    divideByDays -= getSundaysInMonth(month, year);
+  const parsed = parseMonthYear(monthyear);
+  const year = parsed?.year ?? fallbackYear;
+  const month = parsed?.month ?? fallbackMonth;
+  if (!year || !month) return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
+
+  const excludeSundaysRaw =
+    config?.ExcludeSunday ??
+    config?.excludeSundays ??
+    config?.excludesundays;
+  const excludeSundays =
+    excludeSundaysRaw === true ||
+    excludeSundaysRaw === 1 ||
+    excludeSundaysRaw === "1" ||
+    String(excludeSundaysRaw).toLowerCase() === "true";
+
+  const monthSundaysValue = parsePositiveNumber(
+    config?.MonthSundays ?? config?.monthSundays ?? config?.monthsundays
+  );
+
+  const salaryStartFromRaw =
+    config?.SalaryStartFrom ??
+    config?.salaryStartFrom ??
+    config?.salarystartfrom ??
+    1;
+  const salaryEndToRaw =
+    config?.SalaryEndTo ??
+    config?.salaryEndTo ??
+    config?.salaryendto ??
+    30;
+
+  const salaryStartFrom = Number(salaryStartFromRaw) || 1;
+  const salaryEndTo = Number(salaryEndToRaw) || 30;
+
+  let startDate;
+  if (salaryStartFrom <= salaryEndTo) {
+    startDate = safeDate(year, month, salaryStartFrom);
+  } else {
+    const prevMonth = month === 1 ? 12 : month - 1;
+    const prevYear = month === 1 ? year - 1 : year;
+    startDate = safeDate(prevYear, prevMonth, salaryStartFrom);
+  }
+  const endDate = safeDate(year, month, salaryEndTo);
+
+  const totalDays = Math.max(
+    1,
+    Math.round((endDate - startDate) / (24 * 60 * 60 * 1000)) + 1
+  );
+
+  let sundayCount = 0;
+  if (excludeSundays) {
+    sundayCount = countSundaysInRange(startDate, endDate);
+  } else if (monthSundaysValue > 0) {
+    sundayCount = Math.floor(monthSundaysValue);
   }
 
-  return Math.max(1, divideByDays);
+  return Math.max(1, totalDays - sundayCount);
 }
 
 function clampWorkingDaysToMonth(value, month, year) {
@@ -88,8 +168,8 @@ export default function AttendanceSheet() {
     selectedPropertyId.length > 0
       ? selectedPropertyId
       : Number(reduxPropertyId) > 0
-      ? [Number(reduxPropertyId)]
-      : [];
+        ? [Number(reduxPropertyId)]
+        : [];
   const hasSingleEffectiveProperty = effectivePropertyIds.length === 1;
   const effectiveSinglePropertyId = hasSingleEffectiveProperty
     ? Number(effectivePropertyIds[0])
@@ -130,6 +210,7 @@ export default function AttendanceSheet() {
   const [conflictRecords, setConflictRecords] = useState([]);
   const [salaryGroupOptions, setSalaryGroupOptions] = useState([]);
   const [salaryGroupMap, setSalaryGroupMap] = useState({});
+  const [conflictSalaryOptionsMap, setConflictSalaryOptionsMap] = useState({});
   const [pendingUpload, setPendingUpload] = useState(null);
   const [confirmingUpload, setConfirmingUpload] = useState(false);
 
@@ -245,13 +326,20 @@ export default function AttendanceSheet() {
   const fileInputRef = React.useRef(null);
 
   const getConflictKey = (record, idx = 0) => {
-    const keyPart =
+    const empPart =
       record?.FacilityMemberId ||
       record?.EmpID ||
+      record?.FMId ||
       record?.EmpCode ||
       record?.EmployeeCode ||
-      idx;
-    return String(keyPart);
+      `idx-${idx}`;
+    const designationPart =
+      record?.DesignationId ??
+      record?.Designation_ID ??
+      record?.DesignationMasterId ??
+      "no-designation";
+    const monthPart = record?.MonthYear || record?.monthyear || "no-month";
+    return `${empPart}__${designationPart}__${monthPart}`;
   };
 
   const normalizeSalaryGroupOptions = (rows = []) => {
@@ -323,11 +411,24 @@ export default function AttendanceSheet() {
     }
 
     const defaultMap = {};
+    const optionMap = {};
     safeConflicts.forEach((record, idx) => {
-      defaultMap[getConflictKey(record, idx)] = String(options[0].id);
+      const key = getConflictKey(record, idx);
+      const conflictSpecificOptions = normalizeSalaryGroupOptions(
+        record?.SalaryGroupOptions ||
+        record?.SalaryGroups ||
+        record?.AvailableSalaryGroups ||
+        []
+      );
+      const mergedOptions = conflictSpecificOptions.length
+        ? conflictSpecificOptions
+        : options;
+      optionMap[key] = mergedOptions;
+      defaultMap[key] = mergedOptions.length ? String(mergedOptions[0].id) : "";
     });
 
     setSalaryGroupOptions(options);
+    setConflictSalaryOptionsMap(optionMap);
     setSalaryGroupMap(defaultMap);
     setConflictRecords(safeConflicts);
     setPendingUpload({ file, propertyId, monthyear });
@@ -402,6 +503,7 @@ export default function AttendanceSheet() {
     setConflictRecords([]);
     setSalaryGroupOptions([]);
     setSalaryGroupMap({});
+    setConflictSalaryOptionsMap({});
     setPendingUpload(null);
   };
 
@@ -418,7 +520,7 @@ export default function AttendanceSheet() {
     });
 
     if (missingSelection) {
-      alert("Please select salary group for all cross-property employees.");
+      alert("Please select salary group for all conflict rows.");
       return;
     }
 
@@ -434,6 +536,16 @@ export default function AttendanceSheet() {
           null,
         PropertyId: pendingUpload.propertyId,
         SalaryGroupId: salaryGroupId,
+        DesignationId:
+          record?.DesignationId ??
+          record?.Designation_ID ??
+          record?.DesignationMasterId ??
+          null,
+        MonthYear:
+          pendingUpload.monthyear ||
+          record?.MonthYear ||
+          record?.monthyear ||
+          "",
       };
     });
 
@@ -556,9 +668,9 @@ export default function AttendanceSheet() {
         EL: att.EL ?? "",
         CL: att.CL ?? "",
         SL: att.SL ?? "",
-        weekDaysOff: att.WeekDaysOff,
-        otDays: att.OtDays || "",
-        otHours: att.OtHours || "",
+        weekDaysOff: att.WeekDaysOff ?? "",
+        otDays: att.OtDays ?? "",
+        otHours: att.OtHours ?? "",
         totalDays: att.PayableDays ?? "",
         manualTotalDays: false,
         nhDays: att.NHDays ?? "",
@@ -720,12 +832,27 @@ export default function AttendanceSheet() {
             const fmId = cfg?.FacilityMemberId;
             if (!fmId) return;
 
+            const normalizedConfig = {
+              TotalWorkingDays:
+                cfg?.TotalWorkingDays ?? cfg?.totalWorkingDays ?? cfg?.totalworkingdays ?? null,
+              MonthDays: cfg?.MonthDays ?? cfg?.monthDays ?? cfg?.monthdays ?? null,
+              ExcludeSunday:
+                cfg?.ExcludeSunday ?? cfg?.excludeSundays ?? cfg?.excludesundays ?? false,
+              MonthSundays:
+                cfg?.MonthSundays ?? cfg?.monthSundays ?? cfg?.monthsundays ?? null,
+              SalaryStartFrom:
+                cfg?.SalaryStartFrom ?? cfg?.salaryStartFrom ?? cfg?.salarystartfrom ?? null,
+              SalaryEndTo: cfg?.SalaryEndTo ?? cfg?.salaryEndTo ?? cfg?.salaryendto ?? null,
+            };
+
             map[fmId] = {
-              divideByDays: getComputedDivideByDays(cfg, month, year),
-              monthDays: cfg?.MonthDays ?? null,
-              totalWorkingDays: cfg?.TotalWorkingDays ?? null,
-              excludeSunday: !!cfg?.ExcludeSunday,
-              monthSundays: cfg?.MonthSundays ?? null,
+              ...normalizedConfig,
+              divideByDays: getComputedDivideByDays(
+                normalizedConfig,
+                getMonthYearString(month, year),
+                month,
+                year
+              ),
             };
           });
         } catch (err) {
@@ -936,11 +1063,28 @@ export default function AttendanceSheet() {
         updated.manualTotalDays = true; // user override!
       }
 
+      if (field === "divideByDays") {
+        if (value !== "") {
+          const inputNum = Number(value);
+          if (!Number.isFinite(inputNum) || inputNum < 1) return prev;
+
+          const expected = getComputedDivideByDays(
+            employeeSGMap?.[empId] || null,
+            getMonthYearString(month, year),
+            month,
+            year
+          );
+
+          if (Number.isFinite(expected) && expected > 0 && inputNum > expected) {
+            return prev;
+          }
+        }
+      }
+
       const totalDays =
         field === "totalDays"
           ? parseFloat(value) || 0
-          : parseFloat(current.totalDays) ||
-          globalTotalDays;
+          : parseFloat(current.totalDays) || globalTotalDays;
       const monthDaysLimit = getDaysInMonth(month, year);
 
       const w = parseFloat(updated.workingDays) || 0;
@@ -949,8 +1093,15 @@ export default function AttendanceSheet() {
       const sl = parseFloat(updated.SL) || 0;
       const l = el + cl + sl;
       const wk = parseFloat(updated.weekDaysOff) || 0;
+      const totalAgainstMonthLimit =
+        field === "totalDays" ? parseFloat(value) || 0 : totalDays;
 
-      if (field === "workingDays" && parseFloat(value) > monthDaysLimit) {
+      if (
+        ["workingDays", "EL", "CL", "SL", "weekDaysOff", "totalDays"].includes(
+          field
+        ) &&
+        (parseFloat(value) || 0) > monthDaysLimit
+      ) {
         return prev;
       }
 
@@ -958,9 +1109,11 @@ export default function AttendanceSheet() {
         if (parseFloat(value) > totalDays) return prev;
       }
 
+      if (totalAgainstMonthLimit > monthDaysLimit) return prev;
+
       // Only validate when NOT editing totalDays itself
       if (field !== "totalDays") {
-        if (w + l + wk > totalDays) return prev;
+        if (w + l + wk > totalDays || w + l + wk > monthDaysLimit) return prev;
       }
 
       return { ...prev, [empId]: updated };
@@ -985,6 +1138,7 @@ export default function AttendanceSheet() {
     try {
       const updatePromises = [];
       const newEmployees = [];
+      const savedModelsByEmpId = {};
 
       selectedEmpIds.forEach((empId) => {
         const emp = employees.find(
@@ -1005,6 +1159,23 @@ export default function AttendanceSheet() {
         const CL = n(inp.CL);
         const SL = n(inp.SL);
 
+        const expectedDivideByDays = getComputedDivideByDays(
+          employeeSGMap?.[empId] || null,
+          currMonthYear,
+          month,
+          year
+        );
+        const fallbackDivideByDays =
+          Number.isFinite(expectedDivideByDays) && expectedDivideByDays > 0
+            ? expectedDivideByDays
+            : globalTotalDays;
+
+        const inputDivideByDays = n(inp.divideByDays);
+        const divideByDaysToSave =
+          inputDivideByDays > 0
+            ? Math.min(inputDivideByDays, fallbackDivideByDays)
+            : fallbackDivideByDays;
+
         const model = {
           EmpID: empId,
           EmployeeName: empName,
@@ -1024,7 +1195,7 @@ export default function AttendanceSheet() {
           NHDays: n(inp.nhDays),
           FHDays: n(inp.fhDays),
           Holidays: n(inp.holidays),
-          DivideByDays: n(inp.divideByDays),
+          DivideByDays: divideByDaysToSave,
           OtMonthDays: n(inp.otMonthDays),
 
           PFArrear: n(inp.pfArrear),
@@ -1045,6 +1216,7 @@ export default function AttendanceSheet() {
           PayableDays: n(inp.totalDays),
           Status: inp.status || "",
         };
+        savedModelsByEmpId[empId] = model;
 
         const existing = filteredAttendance.find(
           (a) =>
@@ -1055,7 +1227,14 @@ export default function AttendanceSheet() {
         if (existing) {
           // 🔹 UPDATE using PUT
           updatePromises.push(
-            updateAttendance(empId, currMonthYear, model)
+            updateAttendance(empId, currMonthYear, model).catch((err) => {
+              const status = err?.response?.status;
+              if (status === 404) {
+                newEmployees.push(model);
+                return null;
+              }
+              throw err;
+            })
           );
         } else {
           // 🔹 CREATE using batch
@@ -1073,9 +1252,92 @@ export default function AttendanceSheet() {
         await saveAttendanceBatch(currMonthYear, newEmployees);
       }
 
-      alert("Attendance saved successfully!");
+      // Keep UI in sync immediately (without needing full page refresh)
+      setFilteredAttendance((prev) => {
+        const merged = [...(Array.isArray(prev) ? prev : [])];
+        Object.values(savedModelsByEmpId).forEach((m) => {
+          const idx = merged.findIndex(
+            (a) =>
+              String(a.EmpID) === String(m.EmpID) &&
+              String(a.monthyear) === String(m.monthyear)
+          );
 
-      await reloadAttendanceData();
+          const normalized = {
+            ...(idx >= 0 ? merged[idx] : {}),
+            EmpID: m.EmpID,
+            monthyear: m.monthyear,
+            WorkingDays: m.WorkingDays,
+            EL: m.EL,
+            CL: m.CL,
+            SL: m.SL,
+            WeekDaysOff: m.WeekDaysOff,
+            OtDays: m.OtDays,
+            OtHours: m.OtHours,
+            PayableDays: m.PayableDays,
+            NHDays: m.NHDays,
+            FHDays: m.FHDays,
+            Holidays: m.Holidays,
+            DivideByDays: m.DivideByDays,
+            OtMonthDays: m.OtMonthDays,
+            PFArrear: m.PFArrear,
+            OtherArrear: m.OtherArrear,
+            Incentive: m.Incentive,
+            AdvanceDed: m.AdvanceDed,
+            UniformDed: m.UniformDed,
+            BGVDed: m.BGVDed,
+            RoomDed: m.RoomDed,
+            FineDed: m.FineDed,
+            JoiningKits: m.JoiningKits,
+            OtherDed: m.OtherDed,
+            FoodDed: m.FoodDed,
+            Status: m.Status,
+          };
+
+          if (idx >= 0) merged[idx] = normalized;
+          else merged.push(normalized);
+        });
+        return merged;
+      });
+
+      setDayInputs((prev) => {
+        const next = { ...prev };
+        Object.values(savedModelsByEmpId).forEach((m) => {
+          const existing = next[m.EmpID] || {};
+          next[m.EmpID] = {
+            ...existing,
+            workingDays: m.WorkingDays ?? "",
+            EL: m.EL ?? "",
+            CL: m.CL ?? "",
+            SL: m.SL ?? "",
+            weekDaysOff: m.WeekDaysOff ?? "",
+            otDays: m.OtDays ?? "",
+            otHours: m.OtHours ?? "",
+            totalDays: m.PayableDays ?? "",
+            nhDays: m.NHDays ?? "",
+            fhDays: m.FHDays ?? "",
+            holidays: m.Holidays ?? "",
+            divideByDays: m.DivideByDays ?? existing.divideByDays ?? globalTotalDays,
+            otMonthDays: m.OtMonthDays ?? "",
+            pfArrear: m.PFArrear ?? "",
+            otherArrear: m.OtherArrear ?? "",
+            incentive: m.Incentive ?? "",
+            advanceDed: m.AdvanceDed ?? "",
+            uniformDed: m.UniformDed ?? "",
+            bgvDed: m.BGVDed ?? "",
+            roomDed: m.RoomDed ?? "",
+            fineDed: m.FineDed ?? "",
+            joiningKits: m.JoiningKits ?? "",
+            otherDed: m.OtherDed ?? "",
+            foodDed: m.FoodDed ?? "",
+            status: m.Status ?? "",
+            manualTotalDays: existing.manualTotalDays ?? false,
+          };
+        });
+        return next;
+      });
+      setSelectedEmpIds(new Set());
+
+      alert("Attendance saved successfully!");
 
     } catch (err) {
       console.error("Batch save failed:", err);
@@ -1191,7 +1453,38 @@ export default function AttendanceSheet() {
     });
 
     const headers = Object.keys(data[0]);
-    const worksheet = XLSX.utils.json_to_sheet(data, { header: headers });
+    // 1. Create worksheet WITHOUT data first
+    const worksheet = XLSX.utils.aoa_to_sheet([]);
+
+    // 2. Get names (IMPORTANT)
+    const selectedProperty = propertyList.find(
+      (p) => p.PropertyId === effectiveSinglePropertyId
+    );
+
+    const propertyName = selectedProperty?.PropertyName || "N/A";
+
+    const selectedClient = unitList.find(
+      (u) => u.ClientID === selectedUnitId
+    );
+
+    const clientName = selectedClient?.ClientName || "N/A";
+
+    // 3. Month-Year display
+    const monthYearDisplay = `${monthNames[month - 1]} ${year}`;
+
+    // 4. Add TOP INFO rows
+    XLSX.utils.sheet_add_aoa(worksheet, [
+      [`Client: ${clientName}`],
+      [`Property: ${propertyName}`],
+      [`Month: ${monthYearDisplay}`],
+      [] // empty row for spacing
+    ], { origin: "A1" });
+
+    // 5. Add actual table (IMPORTANT OFFSET)
+    XLSX.utils.sheet_add_json(worksheet, data, {
+      origin: "A5", // 👈 data starts from row 5
+      header: headers,
+    });
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
@@ -2147,10 +2440,10 @@ export default function AttendanceSheet() {
             }}
           >
             <h4 style={{ marginTop: 0, marginBottom: 10 }}>
-              Cross-Property Employees Found
+              Attendance Conflicts Found
             </h4>
             <p style={{ marginTop: 0, color: "#444", fontSize: 14 }}>
-              These employees belong to another property. Confirm to continue and choose salary group for each employee.
+              Please select salary group for each employee/designation row before continuing.
             </p>
 
             <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 6 }}>
@@ -2176,23 +2469,29 @@ export default function AttendanceSheet() {
                           {record?.Error || "Employee belongs to another property"}
                         </td>
                         <td style={tdStyle}>
-                          <select
-                            value={salaryGroupMap[key] || ""}
-                            onChange={(e) =>
-                              setSalaryGroupMap((prev) => ({
-                                ...prev,
-                                [key]: e.target.value,
-                              }))
-                            }
-                            style={{ minWidth: 220, padding: "5px 7px" }}
-                          >
-                            <option value="">Select Salary Group</option>
-                            {salaryGroupOptions.map((sg) => (
-                              <option key={sg.id} value={String(sg.id)}>
-                                {sg.name}
-                              </option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const rowOptions =
+                              conflictSalaryOptionsMap[key] || salaryGroupOptions;
+                            return (
+                              <select
+                                value={salaryGroupMap[key] || ""}
+                                onChange={(e) =>
+                                  setSalaryGroupMap((prev) => ({
+                                    ...prev,
+                                    [key]: e.target.value,
+                                  }))
+                                }
+                                style={{ minWidth: 220, padding: "5px 7px" }}
+                              >
+                                <option value="">Select Salary Group</option>
+                                {rowOptions.map((sg) => (
+                                  <option key={sg.id} value={String(sg.id)}>
+                                    {sg.name}
+                                  </option>
+                                ))}
+                              </select>
+                            );
+                          })()}
                         </td>
                       </tr>
                     );

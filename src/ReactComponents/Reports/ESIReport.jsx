@@ -97,19 +97,15 @@ export default function ESIReport() {
           { month: "long" }
         );
 
-        const results = await Promise.all(
-          propertyIds.map((pid) =>
-            getFacilityMemberSalaryDetailsByClientBranch(
-              selectedUnitId,
-              pid,
-              monthName,
-              year
-            )
-          )
-        );
+        const data = await getFacilityMemberSalaryDetailsByClientBranch({
+          clientId: selectedUnitId,
+          propertyIds: propertyIds.join(","),
+          month: monthName,
+          year: Number(year),
+          requireGeneratedSalary: true,
+        });
 
-        const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
-        setEmployees(flat);
+        setEmployees(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("ESI report fetch failed", error);
         setEmployees([]);
@@ -150,14 +146,14 @@ export default function ESIReport() {
     employees.forEach((emp, index) => {
       const row = [
         index + 1,
-        emp?.Profile?.EmployeeCode || "-",
-        emp?.Profile?.EmployeeName || "-",
-        "", // Working Days
-        "", // Gross
-        "", // ESI Wage
-        "", // 0.75%
-        "", // 3.25%
-        "", // LWF
+        emp.EmployeeCode || "-",
+        emp.FacilityMemberName || "-",
+        emp.WorkingDays || 0,
+        emp.ProratedTotalGross || 0,
+        emp.ProratedTotalGross || 0,
+        Math.ceil((emp.ProratedTotalGross || 0) * 0.0075),
+        Math.ceil((emp.ProratedTotalGross || 0) * 0.0325),
+        emp.LwfEmployeeAmount || 0,
       ];
 
       csvContent += row.join(",") + "\n";
@@ -320,8 +316,8 @@ export default function ESIReport() {
               employees.map((emp, index) => (
                 <tr key={emp.FacilityMemberId}>
                   <td>{index + 1}</td>
-                  <td>{emp.FacilityMemberId}</td>
-                  <td>{emp.FacilityMemberName}</td>
+                  <td>{emp.EmployeeCode || "-"}</td>
+                  <td>{emp.FacilityMemberName || "-"}</td>
                   <td>{emp.WorkingDays}</td>
                   <td>{emp.ProratedTotalGross}</td>
                   <td>{emp.ProratedTotalGross}</td>
@@ -339,3 +335,4 @@ export default function ESIReport() {
     </div>
   );
 }
+

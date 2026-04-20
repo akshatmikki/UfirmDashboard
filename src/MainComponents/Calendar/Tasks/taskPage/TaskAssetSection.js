@@ -1,11 +1,9 @@
 import React from "react";
-import ReactDatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
 
 function ReadonlyDate({ value }) {
   if (!value) return <input className="form-control" value="" disabled />;
   if (typeof value === "string") return <input className="form-control" value={value} disabled />;
-  return <ReactDatePicker className="form-control" selected={value} dateFormat="dd/MM/yyyy" readOnly />;
+  return <input className="form-control" value={value.toLocaleDateString()} disabled />;
 }
 
 export default function TaskAssetSection({
@@ -25,17 +23,6 @@ export default function TaskAssetSection({
   const isView = mode === "view";
   return (
     <div className="add-task-form">
-      <div className="row mb-3">
-        <div className="col-md-6">
-          <label>Task Name</label>
-          <input className="form-control" value={taskName || ""} disabled />
-        </div>
-        <div className="col-md-6">
-          <label>Location</label>
-          <input className="form-control" value={location || ""} disabled />
-        </div>
-      </div>
-
       {isView ? (
         <div className="row mb-3 align-items-center">
           <div className="col-md-2">

@@ -413,7 +413,9 @@ export default function TaskListView({ ctx }) {
 
                 <div className="card-body pt-2">
                   <LoadingOverlay active={ctx.state.dataLoading} spinner={<PropagateLoader color="#336B93" size={30} />}>
-                    <div style={{ minHeight: "400px" }}>{ctx.state.viewMode === "card" ? ctx.renderTaskCards() : ctx.renderTaskTable()}</div>
+                    <div className="task-main-content-area">
+                      {ctx.state.viewMode === "card" ? ctx.renderTaskCards() : ctx.renderTaskTable()}
+                    </div>
                   </LoadingOverlay>
                 </div>
               </div>

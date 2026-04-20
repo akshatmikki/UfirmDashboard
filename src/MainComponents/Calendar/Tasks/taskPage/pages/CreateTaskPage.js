@@ -1,14 +1,15 @@
 import React, { useCallback, useState } from "react";
 import moment from "moment";
 import { useAddTaskController } from "../../taskHooks";
-import { TaskShell, TaskSection, useMultiOpenSections } from "../TaskPageLayout";
+import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection } from "../TaskPageLayout";
 import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import { TaskQuestionsCreateSection } from "../TaskQuestionsSections";
+import TaskScheduleSection from "../TaskScheduleSection";
 
 export default function CreateTaskPage(props) {
   const { visible, closeModal, categoryData, onTaskAdded, type, PropertyId } = props;
-  const { isOpen, toggleSection } = useMultiOpenSections(["details", "questions", "asset"]);
+  const { openSection, toggleSection } = useSingleOpenSection("details");
   const ctrl = useAddTaskController({ PropertyId, categoryData, type });
   const [invalidField, setInvalidField] = useState("");
   const [inlineError, setInlineError] = useState("");
@@ -69,11 +70,13 @@ export default function CreateTaskPage(props) {
 
   return (
     <TaskShell visible={visible} title="Add Task" onClose={closeModal} footer={footer}>
-      <TaskSection title="Task Details" isOpen={isOpen("details")} onToggle={() => toggleSection("details")}>
+      <TaskSection title="Task Details" isOpen={openSection === "details"} onToggle={() => toggleSection("details")}>
         <TaskDetailsForm
           showTaskId={false}
           taskName={ctrl.form.taskName}
           onTaskNameChange={(v) => { setInvalidField(""); setInlineError(""); ctrl.updateForm({ taskName: v }); }}
+          description={ctrl.form.description}
+          onDescriptionChange={(v) => ctrl.updateForm({ description: v })}
           propertyId={PropertyId}
           propertyOptions={ctrl.propertyData}
           location={ctrl.form.location}
@@ -112,18 +115,25 @@ export default function CreateTaskPage(props) {
         />
       </TaskSection>
 
-      <TaskSection title="Questionnaire (Checklist)" isOpen={isOpen("questions")} onToggle={() => toggleSection("questions")}>
+      
+
+      <TaskInlineSection
+        title="Checklist "
+        actionLabel="Add procedure"
+        onAction={ctrl.addQuestion}
+      >
         <TaskQuestionsCreateSection
-          taskName={ctrl.form.taskName}
-          location={ctrl.form.location}
           quesValues={ctrl.quesValues}
-          onAddQuestion={ctrl.addQuestion}
           onRemoveQuestion={ctrl.removeQuestion}
           onQuestionNameChange={ctrl.onQuestionNameChange}
         />
-      </TaskSection>
+      </TaskInlineSection>
 
-      <TaskSection title="Asset" isOpen={isOpen("asset")} onToggle={() => toggleSection("asset")}>
+      <TaskInlineSection
+        title="Assets (Optional)"
+        actionLabel="Add asset"
+        onAction={() => ctrl.onAssetChange?.(ctrl.form.assetId || "")}
+      >
         <TaskAssetSection
           taskName={ctrl.form.taskName}
           location={ctrl.form.location}
@@ -137,7 +147,18 @@ export default function CreateTaskPage(props) {
           assetPhoto={ctrl.form.assetPhoto}
           QRCode={ctrl.form.QRCode}
         />
-      </TaskSection>
+      </TaskInlineSection>
+      <TaskInlineSection title="Schedule (Optional)">
+        <TaskScheduleSection
+          embedded
+          shifts={ctrl.shifts}
+          baseDate={ctrl.form.startDate}
+          onAssignTimes={({ startTime, endTime }) => {
+            ctrl.updateForm({ startTime, endTime });
+          }}
+          onScheduleUpdate={(s) => ctrl.setSchedule?.(s)}
+        />
+      </TaskInlineSection>
 
       {inlineError ? (
         <div className="task-inline-error-pop">

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import moment from "moment";
 import swal from "sweetalert";
 import {
   emitTaskNotificationRefresh,
@@ -23,12 +24,19 @@ export default function useTaskFmRemarks({
 
   const normalizeDateOnly = useCallback((value) => {
     if (!value) return "";
-    const d = new Date(value);
-    if (Number.isNaN(d.getTime())) return "";
-    const yyyy = d.getFullYear();
-    const mm = String(d.getMonth() + 1).padStart(2, "0");
-    const dd = String(d.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return moment(value).format("YYYY-MM-DD");
+    }
+
+    const parsed = moment(
+      value,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+      true,
+    );
+    if (parsed.isValid()) return parsed.format("YYYY-MM-DD");
+
+    const loose = moment(value);
+    return loose.isValid() ? loose.format("YYYY-MM-DD") : "";
   }, []);
 
   const getInitialIsoDate = useCallback(() => {
@@ -56,7 +64,14 @@ export default function useTaskFmRemarks({
       if (!taskId || !questionId || !taskDate) return;
       setLoading(true);
       try {
-        const data = await getTaskRemarks(taskId, questionId, taskDate);
+        const iso = normalizeDateOnly(taskDate);
+        let data = await getTaskRemarks(taskId, questionId, iso || taskDate);
+
+        if (Array.isArray(data) && data.length === 0 && iso && /^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+          const alt = moment(iso, "YYYY-MM-DD").format("DD-MM-YYYY");
+          data = await getTaskRemarks(taskId, questionId, alt);
+        }
+
         setRemarks(data || []);
       } catch {
         setRemarks([]);
@@ -64,7 +79,7 @@ export default function useTaskFmRemarks({
         setLoading(false);
       }
     },
-    [taskId],
+    [normalizeDateOnly, taskId],
   );
 
   const loadQuestionStatuses = useCallback(

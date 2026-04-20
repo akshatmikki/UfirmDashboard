@@ -310,31 +310,40 @@ export async function createEmployeeLoan(requestData) {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Accept: "application/json"
+        Accept: "application/json",
       },
-      body: JSON.stringify(requestData)
+      body: JSON.stringify(requestData),
     });
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
-    // returns {} on success
-    return await response.json();
+    const text = await response.text();
+    return parseJsonOrText(text);
   } catch (error) {
     console.error("Failed to create loan:", error);
     throw error;
   }
 }
 
+const LOAN_API_BASE_URL = "https://api.urest.in:8096/api/loan";
+const parseJsonOrText = (text) => {
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { message: text };
+  }
+};
 
 // Get loan details for a specific employee
 export async function getEmployeeLoan(employeeId) {
-  const url = `https://api.urest.in:8096/api/loan/get/${employeeId}`;
+  const url = `${LOAN_API_BASE_URL}/get/${employeeId}`;
   try {
     const response = await fetch(url, {
       method: "GET",
       headers: {
-        Accept: "application/json"
-      }
+        Accept: "application/json",
+      },
     });
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
@@ -346,9 +355,140 @@ export async function getEmployeeLoan(employeeId) {
   }
 }
 
+export async function getLoanDetails(loanId) {
+  const url = `${LOAN_API_BASE_URL}/details/${loanId}`;
+  try {
+    const response = await fetch(url, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error("Failed to fetch loan details:", error);
+    throw error;
+  }
+}
+
+export async function approveLoan(loanId, approvedBy) {
+  const url = `${LOAN_API_BASE_URL}/approve/${loanId}/${approvedBy}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseJsonOrText(text);
+  } catch (error) {
+    console.error("Failed to approve loan:", error);
+    throw error;
+  }
+}
+
+export async function payLoanEmi(emiId) {
+  const url = `${LOAN_API_BASE_URL}/pay-emi/${emiId}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseJsonOrText(text);
+  } catch (error) {
+    console.error("Failed to pay EMI:", error);
+    throw error;
+  }
+}
+
+export async function rejectLoan(loanId) {
+  const url = `${LOAN_API_BASE_URL}/reject/${loanId}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseJsonOrText(text);
+  } catch (error) {
+    console.error("Failed to reject loan:", error);
+    throw error;
+  }
+}
+
+export async function payFullLoan(loanId) {
+  const url = `${LOAN_API_BASE_URL}/pay-full/${loanId}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseJsonOrText(text);
+  } catch (error) {
+    console.error("Failed to pay full loan:", error);
+    throw error;
+  }
+}
+
+export async function updateLoanEmi(payload) {
+  const url = `${LOAN_API_BASE_URL}/update-emi`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseJsonOrText(text);
+  } catch (error) {
+    console.error("Failed to update EMI:", error);
+    throw error;
+  }
+}
+
+export async function restructureLoan(loanId, newTenure) {
+  const url = `${LOAN_API_BASE_URL}/restructure?loanId=${encodeURIComponent(
+    loanId
+  )}&newTenure=${encodeURIComponent(newTenure)}`;
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
+    const text = await response.text();
+    return parseJsonOrText(text);
+  } catch (error) {
+    console.error("Failed to restructure loan:", error);
+    throw error;
+  }
+}
+
 
 //Generate Salary API Calls
-const EMPLOYEE_API_BASE_URL = "https://api.urest.in:8096/api/employee";
+const EMPLOYEE_API_BASE_URL = "http://localhost:62929/api/employee";
 
 export const getEmployeesByOffice = async (officeId) => {
   try {
@@ -481,7 +621,7 @@ export async function getEmployeeGeneratedSalaries(officeId) {
 // POST to create generated salary entry
 export async function createGeneratedSalary(employees) {
   const response = await fetch(
-       "https://api.urest.in:8096/api/employee/generatedSalary",
+    "https://api.urest.in:8096/api/employee/generatedSalary",
     {
       method: "POST",
       headers: {
@@ -534,9 +674,13 @@ export const getUngeneratedSalaryByProperties = async (
   if (!propertyIds.length) return [];
 
   const ids = propertyIds.join(",");
+  const query = `propertyIds=${encodeURIComponent(ids)}&month=${encodeURIComponent(
+    month
+  )}&year=${encodeURIComponent(year)}`;
 
-  const response = await fetch(
-    `https://api.urest.in:8096/ungeneratedSalary?propertyIds=${ids}&month=${month}&year=${year}`,
+  // Prefer controller route with RoutePrefix; keep a fallback for legacy deployments.
+  let response = await fetch(
+    `https://api.urest.in:8096/api/employee/ungeneratedSalary?${query}`,
     {
       method: "GET",
       headers: { Accept: "application/json" },
@@ -544,10 +688,33 @@ export const getUngeneratedSalaryByProperties = async (
   );
 
   if (!response.ok) {
+    response = await fetch(
+      `https://api.urest.in:8096/ungeneratedSalary?${query}`,
+      {
+        method: "GET",
+        headers: { Accept: "application/json" },
+      }
+    );
+  }
+
+  if (!response.ok) {
     throw new Error("Failed to fetch ungenerated salary");
   }
 
-  return response.json();
+  const data = await response.json();
+  const list = Array.isArray(data) ? data : [];
+
+  // Safety net: dedupe by employee + property in case API sends repeated rows.
+  const unique = [];
+  const seen = new Set();
+  for (const emp of list) {
+    const key = `${Number(emp?.EmployeeId || 0)}-${Number(emp?.PropertyId || 0)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    unique.push(emp);
+  }
+
+  return unique;
 };
 
 // ------------------------------
@@ -650,7 +817,7 @@ export const uploadAttendance = async (
     }
 
     const response = await axios.post(
-      `${BASE_URL}/UploadAttendance`,
+      `https://api.urest.in:8096/api/attendance-summary/UploadAttendance`,
       formData,
       {
         responseType: "blob", // 🔥 THIS IS THE KEY
@@ -1116,7 +1283,7 @@ export const getEmployeesByOfficesWithAttendance = async (
 
   try {
     const response = await axios.post(
-      `${EMPLOYEE_API_BASE_URL}/getByOfficesWithAttendance`,
+      `https://api.urest.in:8096/api/employee/getByOfficesWithAttendance`,
       {
         OfficeIds: officeIds,
         MonthYear: monthYear || null,
@@ -1142,7 +1309,7 @@ export const getAttendanceByProperties = async (
 
   try {
     const response = await axios.post(
-      `${APIBASE_URL}/attendance-summary/by-properties`,
+      `https://api.urest.in:8096/api/attendance-summary/by-properties`,
       {
         PropertyIds: propertyIds,
         MonthYear: monthYear,
@@ -1187,25 +1354,58 @@ export const saveAttendanceBatch = async (monthyear, employees = []) => {
 // GET PF REPORT DATA BY CLIENT + PROPERTY
 // ==========================================
 export const getFacilityMemberSalaryDetailsByClientBranch = async (
-  clientId,
-  propertyId,
-  month,
-  year
+  arg1,
+  arg2,
+  arg3,
+  arg4
 ) => {
+  // Backward compatible:
+  // old: (clientId, propertyId, month, year)
+  // new: ({ facilityMemberIds, branchId, clientId, propertyIds, month, year, requireGeneratedSalary })
+  const options =
+    arg1 && typeof arg1 === "object" && !Array.isArray(arg1)
+      ? arg1
+      : {
+        clientId: arg1 ?? null,
+        propertyIds: arg2 ?? null,
+        month: arg3 ?? null,
+        year: arg4 ?? null,
+      };
+
+  const {
+    facilityMemberIds = null,
+    branchId = null,
+    clientId = null,
+    propertyIds = null,
+    propertyId = null, // fallback for older object calls
+    month,
+    year,
+    requireGeneratedSalary = false,
+  } = options;
+
+  const resolvedPropertyIds = Array.isArray(propertyIds)
+    ? propertyIds.join(",")
+    : (propertyIds ?? propertyId ?? null);
+
   try {
     const response = await axios.get(
       "https://api.urest.in:8096/get-facilitymember-salary-details-byclient-branch",
       {
         params: {
-          clientId: clientId,
-          propertyId: propertyId,
-          Month: month,
-          Year: year
+          facilityMemberIds: Array.isArray(facilityMemberIds)
+            ? facilityMemberIds.join(",")
+            : facilityMemberIds,
+          branchId,
+          clientId,
+          propertyIds: resolvedPropertyIds,
+          month,
+          year,
+          requireGeneratedSalary,
         },
         headers: {
-          Accept: "application/json"
+          Accept: "application/json",
         },
-        withCredentials: false
+        withCredentials: false,
       }
     );
 

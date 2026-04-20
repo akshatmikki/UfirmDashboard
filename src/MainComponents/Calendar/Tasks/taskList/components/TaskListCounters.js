@@ -30,7 +30,7 @@ export default function TaskListCounters({ tasks = [], completedTasks, pendingTa
       </div>
       <div className="task-summary-card task-summary-overdue">
         <p className="task-summary-value">{overdue}</p>
-        <p className="task-summary-label">Overdue</p>
+        <p className="task-summary-label">Completed</p>
       </div>
     </div>
   );

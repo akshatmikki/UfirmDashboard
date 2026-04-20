@@ -10,6 +10,7 @@ import { MultiSelect } from "primereact/multiselect";
 import { Dropdown } from "primereact/dropdown";
 import { InputText } from "primereact/inputtext";
 import { Toast } from "primereact/toast";
+import { AutoComplete } from "primereact/autocomplete";
 
 // Services
 import {
@@ -25,6 +26,9 @@ import { getAllServices } from "../../Services/ServiceService";
 import { getAllPropertyTypes } from "../../Services/PropertyTypeService";
 import { getAllCities } from "../../Services/CityService";
 import { getAllBranches } from "../../Services/BranchMaster";
+import { createOrGetCity } from "../../Services/CityService";
+import { getCountries, getStatesByCountry } from "../../Services/PayrollService";
+
 
 export default function PropertyMaster() {
   const toast = useRef(null);
@@ -46,13 +50,16 @@ export default function PropertyMaster() {
   const [cities, setCities] = useState([]);
   const [overlayOpen, setOverlayOpen] = useState(false);
 
+  const [countries, setCountries] = useState([]);
+  const [states, setStates] = useState([]);
+
   const [form, setForm] = useState({
     PropertyId: 0,
     PropertyTypeId: 0,
     Name: "",
     AddressLine1: "",
     AddressLine12: "",
-    CityId: 0,
+    CityId: null,
     ContactNumber: "",
     Landmark: "",
     Pincode: "",
@@ -75,6 +82,16 @@ export default function PropertyMaster() {
     IsActive: 1,
   });
   const [showForm, setShowForm] = useState(false);
+  const [filteredCities, setFilteredCities] = useState([]);
+  const searchCity = (event) => {
+    const query = event.query.toLowerCase();
+
+    const filtered = cities.filter(city =>
+      city.label.toLowerCase().includes(query)
+    );
+
+    setFilteredCities(filtered);
+  };
 
   // ---------------------------------------------------------
   // LOAD DATA
@@ -196,7 +213,7 @@ export default function PropertyMaster() {
       Name: "",
       AddressLine1: "",
       AddressLine12: "",
-      CityId: 0,
+      CityId: null,
       ContactNumber: "",
       Landmark: "",
       Pincode: "",
@@ -304,16 +321,81 @@ export default function PropertyMaster() {
   // SAVE
   // ---------------------------------------------------------
   const handleSave = async () => {
+    if (!form.Name || form.Name.trim() === "") {
+      toast.current.show({
+        severity: "error",
+        summary: "Validation Error",
+        detail: "Property Name is required",
+      });
+      return;
+    }
+
+    if (!form.State || form.State.trim() === "") {
+      toast.current.show({
+        severity: "error",
+        summary: "Validation Error",
+        detail: "State is required",
+      });
+      return;
+    }
+
+    // City check (handles both select + typed)
+    if (!form.CityId || form.CityId === "" || form.CityId === 0) {
+      toast.current.show({
+        severity: "error",
+        summary: "Validation Error",
+        detail: "City is required",
+      });
+      return;
+    }
     try {
+      let finalCityId = form.CityId;
+
+      // 🔥 If user typed a city (string instead of number)
+      if (typeof form.CityId === "string") {
+        const selectedState = states.find(s => s.value === form.State);
+
+        if (!selectedState) {
+          toast.current.show({
+            severity: "error",
+            summary: "Error",
+            detail: "Please select state before city",
+          });
+          return;
+        }
+
+        // ⚠️ You don’t have StateId in dropdown, so FIX THIS later
+        const stateId = selectedState?.id;
+
+        const res = await createOrGetCity({
+          CityName: form.CityId,
+          StateId: stateId,
+          CreatedBy: 1,
+        });
+
+        finalCityId = res.CityId;
+
+        // 🔥 ADD THIS RIGHT HERE
+        setCities(prev => [
+          ...prev,
+          { label: form.CityId, value: res.CityId }
+        ]);
+      }
+
+      const finalForm = {
+        ...form,
+        CityId: finalCityId,
+      };
+
       if (editId) {
-        await updateProperty(editId, form);
+        await updateProperty(editId, finalForm);
         toast.current.show({
           severity: "success",
           summary: "Updated",
           detail: "Property updated",
         });
       } else {
-        await createProperty(form);
+        await createProperty(finalForm);
         toast.current.show({
           severity: "success",
           summary: "Created",
@@ -322,9 +404,9 @@ export default function PropertyMaster() {
       }
 
       setShowForm(false);
-
       loadData();
-    } catch {
+
+    } catch (err) {
       toast.current.show({
         severity: "error",
         summary: "Error",
@@ -388,6 +470,93 @@ export default function PropertyMaster() {
     };
   }, [showForm]);
 
+  useEffect(() => {
+    const loadLocationData = async () => {
+      try {
+        const countryData = await getCountries();
+
+        const mappedCountries = countryData.map(c => ({
+          label: c.Name,
+          value: c.CountryId
+        }));
+
+        setCountries(mappedCountries);
+
+        // Auto load India states (since only India exists)
+        if (mappedCountries.length > 0) {
+          loadStates(mappedCountries[0].value);
+        }
+
+      } catch (err) {
+        console.log("Country fetch failed", err);
+      }
+    };
+
+    loadLocationData();
+  }, []);
+
+  const loadStates = async (countryId) => {
+    try {
+      const stateData = await getStatesByCountry(countryId);
+
+      const mappedStates = stateData.map(s => ({
+        label: s.StateName,
+        value: s.StateName,
+        id: s.StateId,  // IMPORTANT: you are storing string in DB
+      }));
+
+      setStates(mappedStates);
+
+    } catch (err) {
+      console.log("State fetch failed", err);
+    }
+  };
+
+  const exportToExcel = () => {
+    const headers = [
+      "Property Name",
+      "Type",
+      "Contact",
+      "Address",
+      "State",
+      "Pincode",
+      "City",
+      "Client",
+      "Branch"
+    ];
+
+    const rows = filteredData.map((p) => [
+      p.Name ?? "",
+      p.PropertyTypeName ?? "",
+      p.ContactNumber ? `="${p.ContactNumber}"` : "",
+      p.AddressLine1 ?? "",
+      p.State ?? "",
+      p.Pincode ?? "",
+      p.CityName ?? "",
+      p.ClientName ?? "",
+      p.BranchName ?? ""
+    ]);
+
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers, ...rows]
+        .map((row) =>
+          row
+            .map((value) =>
+              `"${String(value).replace(/"/g, '""')}"`
+            )
+            .join(",")
+        )
+        .join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", "PropertyMaster.csv");
+    document.body.appendChild(link);
+    link.click();
+  };
+
   return (
     <div className="content-wrapper" style={{ padding: 30 }}>
       <Toast ref={toast} />
@@ -406,14 +575,31 @@ export default function PropertyMaster() {
               placeholder="Search..."
               value={searchText}
               onChange={(e) => setSearchText(e.target.value)}
-              style={{ maxWidth: 240 }}
+              style={{ maxWidth: 240, height: "38px" }}
             />
-            <Button
-              label="Create"
-              icon="pi pi-plus"
-              className="btn btn-success"
+
+            <button
+              className="btn btn-outline-primary me-2 d-flex align-items-center justify-content-center shadow-sm"
+              style={{
+                height: "38px",
+                padding: "0 14px",
+                gap: "6px",
+                whiteSpace: "nowrap"
+              }}
+              onClick={exportToExcel}
+            >
+              <i className="fa fa-download"></i>
+              <span>Export</span>
+            </button>
+
+            <button
+              className="btn btn-success d-flex align-items-center justify-content-center"
+              style={{ height: "38px", padding: "0 18px", gap: "6px" }}
               onClick={openCreateDialog}
-            />
+            >
+              <i className="pi pi-plus"></i>
+              <span>Create</span>
+            </button>
           </div>
         </div>
 
@@ -491,7 +677,7 @@ export default function PropertyMaster() {
                   }
                 />
 
-                <label>Property Name</label>
+                <label>Property Name*</label>
                 <InputText
                   className="w-100 mb-2"
                   value={form.Name}
@@ -516,15 +702,21 @@ export default function PropertyMaster() {
                   }
                 />
 
-                <label>City</label>
-                <Dropdown
-                  value={form.CityId}
-                  options={cities}
-                  filter
-                  onShow={() => setOverlayOpen(true)}
-                  onHide={() => setOverlayOpen(false)}
+                <label>City*</label>
+                <AutoComplete
+                  value={
+                    typeof form.CityId === "number"
+                      ? cities.find(c => c.value === form.CityId)
+                      : form.CityId
+                  }
+                  suggestions={filteredCities}
+                  completeMethod={searchCity}
+                  field="label"
+                  dropdown
                   className="w-100 mb-2"
+                  placeholder="Type or select city"
                   onChange={(e) => setForm({ ...form, CityId: e.value })}
+                  onSelect={(e) => setForm({ ...form, CityId: e.value.value })}
                 />
 
                 <label>Contact Number</label>
@@ -554,11 +746,24 @@ export default function PropertyMaster() {
                   }
                 />
 
-                <label>State</label>
-                <InputText
+                <label>State*</label>
+                <Dropdown
                   className="w-100 mb-2"
                   value={form.State}
-                  onChange={(e) => setForm({ ...form, State: e.target.value })}
+                  options={states}
+                  placeholder="Select State"
+                  filter
+                  onShow={() => setOverlayOpen(true)}
+                  onHide={() => setOverlayOpen(false)}
+                  onChange={(e) => setForm({ ...form, State: e.value })}
+                />
+
+                <label>Country</label>
+                <Dropdown
+                  value={1}
+                  options={countries}
+                  disabled   // since only India
+                  className="w-100 mb-2"
                 />
               </div>
             </div>
@@ -672,7 +877,7 @@ export default function PropertyMaster() {
                   }
                 /> */}
 
-                <div className="mb-2">
+                {/* <div className="mb-2">
                   <input
                     type="checkbox"
                     checked={form.ExcludeSunday}
@@ -681,7 +886,7 @@ export default function PropertyMaster() {
                     }
                   />
                   <span className="ms-2">Exclude Sundays</span>
-                </div>
+                </div> */}
 
                 {/* <label>Monthly Sundays</label>
                 <InputText
@@ -716,113 +921,105 @@ export default function PropertyMaster() {
           header="Property Details"
           visible={viewDialogVisible}
           modal
-          style={{ width: "850px" }}
+          style={{ width: "900px" }}
           onHide={() => setViewDialogVisible(false)}
         >
           {viewData && (
-            <div className="p-fluid">
-              {/* BASIC DETAILS */}
-              <h6 className="mb-2">Basic Details</h6>
-              <div className="row">
-                <div className="col-md-6 mb-2">
-                  <b>Property Name:</b> {viewData.Name}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Type:</b>{" "}
-                  {
-                    propertyTypes.find(
-                      (pt) => pt.value === viewData.PropertyTypeId
-                    )?.label
-                  }
+            <div className="container-fluid">
+
+              {/* 🔹 BASIC */}
+              <div className="card p-3 mb-3 shadow-sm">
+                <h5 className="mb-3 text-primary">Basic Details</h5>
+                <div className="row">
+                  <div className="col-md-6"><strong>Name:</strong> {viewData.Name}</div>
+                  <div className="col-md-6"><strong>Type:</strong> {
+                    propertyTypes.find(pt => pt.value === viewData.PropertyTypeId)?.label
+                  }</div>
                 </div>
               </div>
 
-              {/* ADDRESS */}
-              <h6 className="mt-3 mb-2">Address</h6>
-              <div className="row">
-                <div className="col-md-6 mb-2">
-                  <b>Address Line 1:</b> {viewData.AddressLine1}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Address Line 2:</b> {viewData.AddressLine12}
-                </div>
-                <div className="col-md-4 mb-2">
-                  <b>City:</b> {viewData.CityName}
-                </div>
-                <div className="col-md-4 mb-2">
-                  <b>State:</b> {viewData.State}
-                </div>
-                <div className="col-md-4 mb-2">
-                  <b>Pincode:</b> {viewData.Pincode}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Landmark:</b> {viewData.Landmark}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Contact:</b> {viewData.ContactNumber}
+              {/* 🔹 ADDRESS */}
+              <div className="card p-3 mb-3 shadow-sm">
+                <h5 className="mb-3 text-primary">Address</h5>
+                <div className="row">
+                  <div className="col-md-6"><strong>Address 1:</strong> {viewData.AddressLine1}</div>
+                  <div className="col-md-6"><strong>Address 2:</strong> {viewData.AddressLine12}</div>
+                  <div className="col-md-4"><strong>City:</strong> {viewData.CityName}</div>
+                  <div className="col-md-4"><strong>State:</strong> {viewData.State}</div>
+                  <div className="col-md-4"><strong>Country:</strong> India</div>
+                  <div className="col-md-4"><strong>Pincode:</strong> {viewData.Pincode}</div>
+                  <div className="col-md-4"><strong>Landmark:</strong> {viewData.Landmark}</div>
+                  <div className="col-md-4"><strong>Contact:</strong> {viewData.ContactNumber}</div>
                 </div>
               </div>
 
-              {/* LOCATION */}
-              <h6 className="mt-3 mb-2">Location</h6>
-              <div className="row">
-                <div className="col-md-6 mb-2">
-                  <b>Latitude:</b> {viewData.Latitude}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Longitude:</b> {viewData.Longitude}
+              {/* 🔹 LOCATION */}
+              <div className="card p-3 mb-3 shadow-sm">
+                <h5 className="mb-3 text-primary">Location</h5>
+                <div className="row">
+                  <div className="col-md-6"><strong>Latitude:</strong> {viewData.Latitude}</div>
+                  <div className="col-md-6"><strong>Longitude:</strong> {viewData.Longitude}</div>
                 </div>
               </div>
 
-              {/* OPERATIONAL */}
-              <h6 className="mt-3 mb-2">Operational Details</h6>
-              <div className="row">
-                <div className="col-md-6 mb-2">
-                  <b>Shift Hours:</b> {viewData.ShiftHours}
+              {/* 🔹 OPERATIONAL DETAILS */}
+              {/* 
+<div className="card p-3 mb-3 shadow-sm">
+  <h5 className="mb-3 text-primary">Operational Details</h5>
+  <div className="row">
+    <div className="col-md-6">
+      <strong>Shift Hours:</strong> {viewData.ShiftHours || "—"}
+    </div>
+    <div className="col-md-6">
+      <strong>Total Working Days:</strong> {viewData.TotalWorkingDays || "—"}
+    </div>
+  </div>
+</div>
+*/}
+
+              {/* 🔹 PAYROLL SETTINGS */}
+              {/*
+<div className="card p-3 mb-3 shadow-sm">
+  <h5 className="mb-3 text-primary">Payroll Settings</h5>
+  <div className="row">
+    <div className="col-md-6">
+      <strong>Salary Cycle From:</strong> {viewData.SalaryCycleDayFrom || "—"}
+    </div>
+    <div className="col-md-6">
+      <strong>Salary Cycle To:</strong> {viewData.SalaryCycleDayTo || "—"}
+    </div>
+    <div className="col-md-6">
+      <strong>Exclude Sundays:</strong> {viewData.ExcludeSunday ? "Yes" : "No"}
+    </div>
+    <div className="col-md-6">
+      <strong>Monthly Sundays:</strong> {viewData.MonthSundays || "—"}
+    </div>
+  </div>
+</div>
+*/}
+
+              {/* 🔹 CLIENT & SERVICES */}
+              <div className="card p-3 shadow-sm">
+                <h5 className="mb-3 text-primary">Client & Services</h5>
+
+                <div className="mb-2">
+                  <strong>Client:</strong> {clients.find(c => c.value === viewData.ClientID)?.label}
                 </div>
-                <div className="col-md-6 mb-2">
-                  <b>Total Working Days:</b> {viewData.TotalWorkingDays}
+
+                <div className="mb-2">
+                  <strong>Branch:</strong> {branches.find(b => b.value === viewData.BranchCode)?.label || "—"}
+                </div>
+
+                <div>
+                  <strong>Services:</strong>{" "}
+                  {viewData.ServiceIds?.length
+                    ? viewData.ServiceIds.map(id =>
+                      services.find(s => s.value === id)?.label
+                    ).join(", ")
+                    : "—"}
                 </div>
               </div>
 
-              {/* PAYROLL (NEW FIELDS) */}
-              <h6 className="mt-3 mb-2">Payroll Settings</h6>
-              <div className="row">
-                <div className="col-md-6 mb-2">
-                  <b>Salary Cycle From:</b> {viewData.SalaryCycleDayFrom}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Salary Cycle To:</b> {viewData.SalaryCycleDayTo}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Exclude Sundays:</b>{" "}
-                  {viewData.ExcludeSunday ? "Yes" : "No"}
-                </div>
-                <div className="col-md-6 mb-2">
-                  <b>Monthly Sundays:</b> {viewData.MonthSundays}
-                </div>
-              </div>
-
-              {/* CLIENT & BRANCH & SERVICES */}
-              <h6 className="mt-3 mb-2">Client & Services</h6>
-              <div className="mb-2">
-                <b>Client:</b>{" "}
-                {clients.find((c) => c.value === viewData.ClientID)?.label}
-              </div>
-
-              <div className="mb-2">
-                <b>Branch:</b>{" "}
-                {branches.find((b) => b.value === viewData.BranchCode)?.label || "—"}
-              </div>
-
-              <div className="mb-2">
-                <b>Services:</b>{" "}
-                {viewData.ServiceIds?.length === 0
-                  ? "—"
-                  : viewData.ServiceIds.map(
-                    (id) => services.find((s) => s.value === id)?.label
-                  ).join(", ")}
-              </div>
             </div>
           )}
         </Dialog>

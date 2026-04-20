@@ -970,9 +970,59 @@ export default function SGNEW() {
     .reduce((sum, key) => sum + Number(allowanceAmounts[key]), 0);
 
   // SUM OF ALL DEDUCTIONS (D + OD)
-  const totalDeduction = Object.values(deductionAmounts)
-    .filter((v) => typeof v === "number" && v > 0)
-    .reduce((a, b) => a + b, 0);
+  const totalDeduction = Object.keys(deductionAmounts).reduce((sum, key) => {
+    let value = deductionAmounts[key] || 0;
+
+    // 🔥 APPLY PF LIMIT
+    if (key === "PF" && pfLimit) {
+      let baseAmount = 0;
+
+      if (deductionAllowanceMap.PF?.BaseSalary) {
+        baseAmount += Number(form.baseSalary) || 0;
+      }
+
+      Object.entries(deductionAllowanceMap.PF || {}).forEach(([k, v]) => {
+        if (k !== "BaseSalary" && v) {
+          baseAmount += Number(allowanceAmounts[k]) || 0;
+        }
+      });
+
+      const limitedBase = Math.min(baseAmount, Number(pfLimit));
+
+      const percent =
+        Number(editablePercentages.PF) ||
+        getEffectivePercentage("PF")?.Percentage ||
+        0;
+
+      value = Math.round(limitedBase * (percent / 100));
+    }
+
+    // 🔥 APPLY ESI LIMIT
+    if (key === "ESI" && esiLimit) {
+      let baseAmount = 0;
+
+      if (deductionAllowanceMap.ESI?.BaseSalary) {
+        baseAmount += Number(form.baseSalary) || 0;
+      }
+
+      Object.entries(deductionAllowanceMap.ESI || {}).forEach(([k, v]) => {
+        if (k !== "BaseSalary" && v) {
+          baseAmount += Number(allowanceAmounts[k]) || 0;
+        }
+      });
+
+      const limitedBase = Math.min(baseAmount, Number(esiLimit));
+
+      const percent =
+        Number(editablePercentages.ESI) ||
+        getEffectivePercentage("ESI")?.Percentage ||
+        0;
+
+      value = Math.round(limitedBase * (percent / 100));
+    }
+
+    return sum + value;
+  }, 0);
 
   // GROSS = BASE + ALLOWANCES
   const totalGross = (Number(form.baseSalary) || 0) + totalAllowance;
@@ -1460,7 +1510,7 @@ export default function SGNEW() {
 
           {/* TOP RIGHT SAVE BUTTON */}
           <div style={{ marginLeft: "auto", marginTop: "-15px", display: "flex", gap: 8 }}>
-            
+
             <button
               className="btn btn-sm btn-primary"
               onClick={handleSave}
@@ -2102,6 +2152,7 @@ export default function SGNEW() {
                   key={a.ID}
                   style={{
                     display: "grid",
+                    // gridTemplateColumns: "1fr 40px 40px 60px",
                     gridTemplateColumns: "30px 1fr 40px 40px 60px",
                     alignItems: "center",
                     marginBottom: 8,
@@ -2111,6 +2162,9 @@ export default function SGNEW() {
                   {/* Checkbox */}
                   <input
                     type="checkbox"
+                    // style={{ display: "none" }}
+                    disabled
+                    style={{ pointerEvents: "none", opacity: 0.7 }}
                     checked={!!allowanceSelected[a.Name]}
                     onChange={(e) => {
                       if (!activeDeduction) {
@@ -2134,7 +2188,7 @@ export default function SGNEW() {
                         [a.Name]: checked,
                       }));
                     }}
-                    style={{ transform: "scale(1.1)" }}
+                  // style={{ transform: "scale(1.1)" }}
                   />
 
                   {/* Name + Amount */}
@@ -2420,6 +2474,7 @@ export default function SGNEW() {
                   key={a.ID}
                   style={{
                     display: "grid",
+                    // gridTemplateColumns: "1fr 40px 40px 60px",
                     gridTemplateColumns: "30px 1fr 40px 40px 60px",
                     alignItems: "center",
                     marginBottom: 8,
@@ -2429,6 +2484,9 @@ export default function SGNEW() {
                   {/* MAIN checkbox (select OTAmount allowance) */}
                   <input
                     type="checkbox"
+                    // style={{ display: "none" }}
+                    disabled
+                    style={{ pointerEvents: "none", opacity: 0.7 }}
                     checked={!!allowanceSelected[a.Name]}
                     onChange={(e) => {
                       if (a.Name === "OTAmount" && otStandalone) {
@@ -2456,7 +2514,7 @@ export default function SGNEW() {
                         [a.Name]: checked,
                       }));
                     }}
-                    style={{ transform: "scale(1.1)" }}
+                  // style={{ transform: "scale(1.1)" }}
                   />
 
                   {/* UI BLOCK (special for OTAmount) */}
@@ -2592,12 +2650,12 @@ export default function SGNEW() {
                             fontWeight: 600,
                             cursor:
                               deductionAllowanceMap.PF?.OTAmount ||
-                              deductionAllowanceMap.ESI?.OTAmount
+                                deductionAllowanceMap.ESI?.OTAmount
                                 ? "not-allowed"
                                 : "pointer",
                             opacity:
                               deductionAllowanceMap.PF?.OTAmount ||
-                              deductionAllowanceMap.ESI?.OTAmount
+                                deductionAllowanceMap.ESI?.OTAmount
                                 ? 0.6
                                 : 1,
                             fontSize: 12
@@ -2998,6 +3056,58 @@ export default function SGNEW() {
 
               const isPercentage = valueType === "PERCENT";
 
+              const rawValue = deductionAmounts[d.Name] ?? 0;
+
+              let displayValue = rawValue;
+
+              // 👇 ONLY FOR PF UI LIMIT
+              if (d.Name === "PF" && pfLimit) {
+                let baseAmount = 0;
+
+                if (deductionAllowanceMap.PF?.BaseSalary) {
+                  baseAmount += Number(form.baseSalary) || 0;
+                }
+
+                Object.entries(deductionAllowanceMap.PF || {}).forEach(([k, v]) => {
+                  if (k !== "BaseSalary" && v) {
+                    baseAmount += Number(allowanceAmounts[k]) || 0;
+                  }
+                });
+
+                const limitedBase = Math.min(baseAmount, Number(pfLimit));
+
+                const percent =
+                  Number(editablePercentages.PF) ||
+                  getEffectivePercentage("PF")?.Percentage ||
+                  0;
+
+                displayValue = Math.round(limitedBase * (percent / 100));
+              }
+
+              // 👇 ONLY FOR ESI UI LIMIT
+              if (d.Name === "ESI" && esiLimit) {
+                let baseAmount = 0;
+
+                if (deductionAllowanceMap.ESI?.BaseSalary) {
+                  baseAmount += Number(form.baseSalary) || 0;
+                }
+
+                Object.entries(deductionAllowanceMap.ESI || {}).forEach(([k, v]) => {
+                  if (k !== "BaseSalary" && v) {
+                    baseAmount += Number(allowanceAmounts[k]) || 0;
+                  }
+                });
+
+                const limitedBase = Math.min(baseAmount, Number(esiLimit));
+
+                const percent =
+                  Number(editablePercentages.ESI) ||
+                  getEffectivePercentage("ESI")?.Percentage ||
+                  0;
+
+                displayValue = Math.round(limitedBase * (percent / 100));
+              }
+
               return (
                 <div
                   key={d.ID}
@@ -3013,6 +3123,8 @@ export default function SGNEW() {
                   {d.Name === "PF" || d.Name === "ESI" ? (
                     <input
                       type="checkbox"
+                      disabled
+                      style={{ pointerEvents: "none", opacity: 0.7 }}
                       checked={
                         Object.values(deductionAllowanceMap[d.Name] || {}).some(v => v === true)
                       }
@@ -3040,6 +3152,8 @@ export default function SGNEW() {
                     <input
                       type="radio"
                       name="deductionMain"
+                      disabled
+                      style={{ pointerEvents: "none", opacity: 0.7 }}
                       value={d.Name}
                       checked={activeDeduction === d.Name}
                       onChange={(e) => {
@@ -3065,7 +3179,7 @@ export default function SGNEW() {
                           [name]: prev[name] || 0,
                         }));
                       }}
-                      style={{ transform: "scale(1.1)" }}
+                    // style={{ transform: "scale(1.1)" }}
                     />
                   )}
 
@@ -3126,6 +3240,7 @@ export default function SGNEW() {
                     <input
                       type="number"
                       className="form-control"
+                      disabled={isPercentage}
                       style={{
                         width: 120,
                         height: "28px",
@@ -3138,7 +3253,7 @@ export default function SGNEW() {
 
                         color: "#000",
                       }}
-                      value={deductionAmounts[d.Name] ?? ""}
+                      value={displayValue}
                       onChange={(e) =>
                         setDeductionAmounts((prev) => ({
                           ...prev,
@@ -3307,6 +3422,8 @@ export default function SGNEW() {
                   <input
                     type="radio"
                     name="deductionOther"
+                    disabled
+                    style={{ pointerEvents: "none", opacity: 0.7 }}
                     value={d.Name}
                     checked={activeDeduction === d.Name}
                     onChange={(e) => {
@@ -3327,7 +3444,7 @@ export default function SGNEW() {
                         [name]: "PERCENT",
                       }));
                     }}
-                    style={{ transform: "scale(1.1)" }}
+                  // style={{ transform: "scale(1.1)" }}
                   />
 
                   <div

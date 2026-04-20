@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useMemo } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Button } from "primereact/button";
@@ -21,6 +21,7 @@ import { MultiSelect } from "primereact/multiselect";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
+import { OverlayPanel } from "primereact/overlaypanel";
 
 import {
   // getEmployeesByOffice,
@@ -41,7 +42,7 @@ import {
 } from "../../Services/ClientService";
 
 import { getPropertyById } from "../../Services/PropertyService";
-import { getBranchById } from "../../Services/BranchMaster";
+import { getAllBranches } from "../../Services/BranchMaster";
 
 // Import existing components from old project
 import SalaryGroupView from "../../ReactComponents/DataGrid/SalaryGroupView.jsx";
@@ -68,6 +69,7 @@ const StaffPage = () => {
     : propertyId;
 
   const [branchName, setBranchName] = useState("");
+  const [branches, setBranches] = useState([]);
   const [clientName, setClientName] = useState("");
   const [propertyName, setPropertyName] = useState("");
   const [customDepartment, setCustomDepartment] = useState("");
@@ -95,6 +97,8 @@ const StaffPage = () => {
   const [editDocumentEmployeeId, setEditDocumentEmployeeId] = useState(null);
   const [managerOptions, setManagerOptions] = useState([]);
   const [selectedManagers, setSelectedManagers] = useState([]); // FacilityMemberIds[]
+  const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState(null);
+  const [deptSearch, setDeptSearch] = useState("");
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
   const [selectedFacilityMemberId, setSelectedFacilityMemberId] = useState(null);
@@ -168,7 +172,10 @@ const StaffPage = () => {
 
   const employmentTypes = [
     { label: "Permanent", value: "Permanent" },
-    { label: "Contractual", value: "Contractual" }
+    { label: "Contractual", value: "Contractual" },
+    { label: "Casual", value: "Casual" },
+    { label: "Trainee", value: "Trainee" },
+    { label: "Provisional", value: "Provisional" },
   ];
 
   const mapRowDocuments = (row) => ({
@@ -178,6 +185,7 @@ const StaffPage = () => {
     bankPassbook: Array.isArray(row?.FinancialInfo?.BankPassbookImageUrl) ? row.FinancialInfo.BankPassbookImageUrl : [],
     others: Array.isArray(row?.FinancialInfo?.OtherDocImageUrl) ? row.FinancialInfo.OtherDocImageUrl : []
   });
+
 
   const getDocumentEmployeeId = (row) =>
     row?.EmployeeID ||
@@ -195,6 +203,8 @@ const StaffPage = () => {
     const match = documentUrl.match(/\/EmployeesDoc\/(\d+)\//i);
     return match?.[1] || null;
   };
+
+  const departmentFilterRef = useRef(null);
 
   const getCurrentOfficeIds = () => {
     let officeIds = [];
@@ -214,25 +224,24 @@ const StaffPage = () => {
       .filter((id) => Number.isFinite(id) && id > 0);
   };
 
-  const loadEmployeeForDialogs = async (employeeId, fallbackRow) => {
-    if (!employeeId) return fallbackRow;
+  useEffect(() => {
+    const loadProperty = async () => {
+      if (!propertyId) return;
 
-    try {
-      const officeIds = getCurrentOfficeIds();
-      if (!officeIds.length) return fallbackRow;
+      const property = await getPropertyById(propertyId);
+      setPropertyName(property?.PropertyName || "");
+    };
 
-      const data = await getEmployeesByOffices(officeIds);
-      return (
-        (data || []).find(
-          (item) =>
-            Number(item?.FacilityMember?.FacilityMemberId) === Number(employeeId)
-        ) || fallbackRow
-      );
-    } catch (error) {
-      console.error("Failed to load employee details:", error);
-      return fallbackRow;
-    }
-  };
+    loadProperty();
+  }, [propertyId]);
+
+  useEffect(() => {
+    const loadBranches = async () => {
+      const data = await getAllBranches();
+      setBranches(data || []);
+    };
+    loadBranches();
+  }, []);
 
   useEffect(() => {
     const loadUnits = async () => {
@@ -427,33 +436,31 @@ const StaffPage = () => {
     const loadBranch = async () => {
       if (!propertyId) {
         setBranchName("");
-        setPropertyName("");
         return;
       }
 
       try {
-        // 1️⃣ Get property
         const property = await getPropertyById(propertyId);
-        setPropertyName(property?.PropertyName || property?.Name || "");
 
         if (!property?.BranchCode) {
           setBranchName("");
           return;
         }
 
-        // 2️⃣ Get branch by BranchCode
-        const branch = await getBranchById(property.BranchCode);
+        const matchedBranch = branches.find(
+          (b) => Number(b.BranchCode) === Number(property.BranchCode)
+        );
 
-        setBranchName(branch?.BranchName || "");
+        setBranchName(matchedBranch?.BranchName || "");
+
       } catch (err) {
         console.error("Branch load failed:", err);
         setBranchName("");
-        setPropertyName("");
       }
     };
 
     loadBranch();
-  }, [propertyId]);
+  }, [propertyId, branches]);
 
   useEffect(() => {
     const loadClient = async () => {
@@ -487,18 +494,20 @@ const StaffPage = () => {
   }, [reduxClientId, propertyId]);
 
   useEffect(() => {
-    const managers = staff
-      .filter(row =>
-        row?.FacilityMember?.FacilityMemberId &&
-        row?.FacilityMember?.FacilityMemberId !== selectedFacilityMemberId
-      )
+    if (!staff || staff.length === 0) {
+      setManagerOptions([]);
+      return;
+    }
+
+    const options = staff
+      .filter(row => row?.FacilityMember?.FacilityMemberId) // valid only
       .map(row => ({
-        label: row?.Profile?.EmployeeName || "Unknown",
-        value: row.FacilityMember.FacilityMemberId
+        label: `${row?.Profile?.EmployeeName} (${row?.Profile?.EmployeeCode})`,
+        value: row?.FacilityMember?.FacilityMemberId
       }));
 
-    setManagerOptions(managers);
-  }, [staff, selectedFacilityMemberId]);
+    setManagerOptions(options);
+  }, [staff]);
 
   const addDocument = (type, file) => {
     if (!file) return;
@@ -604,6 +613,17 @@ const StaffPage = () => {
       .filter(Boolean);
   };
 
+  const departmentOptions = useMemo(() => {
+    const unique = [...new Set(
+      staff.map(row => row?.Profile?.Department).filter(Boolean)
+    )];
+
+    return unique.map(dep => ({
+      label: dep,
+      value: dep
+    }));
+  }, [staff]);
+
   // Salary & Loan actions
   const openSalaryGroupView = (row) => {
     const memberId = String(row.FacilityMember.FacilityMemberId);
@@ -638,10 +658,8 @@ const StaffPage = () => {
   };
 
   const viewStaff = async (row) => {
-    const employeeId = row?.FacilityMember?.FacilityMemberId;
-    const latestRow = await loadEmployeeForDialogs(employeeId, row);
-    setViewData(latestRow);
-    setViewDocuments(mapRowDocuments(latestRow));
+    setViewData(row);
+    setViewDocuments(mapRowDocuments(row));
     setViewDialogVisible(true);
   };
 
@@ -718,8 +736,8 @@ const StaffPage = () => {
     setIsEditMode(true);
     const employeeId = row?.FacilityMember?.FacilityMemberId || "";
     setEditEmployeeId(employeeId);
-    const latestRow = await loadEmployeeForDialogs(employeeId, row);
-    setEditDocumentEmployeeId(getDocumentEmployeeId(latestRow) || getDocumentEmployeeId(row));
+    const latestRow = row;
+    setEditDocumentEmployeeId(getDocumentEmployeeId(row));
 
     // Profile Info
     const profile = latestRow?.Profile || {};
@@ -838,25 +856,29 @@ const StaffPage = () => {
     .slice(0, 11);
 
   const downloadSampleTemplate = () => {
+    const note = [
+      "Fields marked with * are mandatory"
+    ];
+
     const headers = [
-      "EMPCODE",
-      "EMP NAME",
+      "EMPCODE *",
+      "EMP NAME *",
       "F/H NAME",
       "DOB",
-      "DOJ",
-      "GENDER",
+      "DOJ *",
+      "GENDER *",
       "MOBILE",
       "EMAIL",
       "JOB TYPE",
       "BANK NAME",
       "ACCOUNT NO",
       "IFSC CODE",
-      "AADHAAR NO",
+      "AADHAAR NO *",
       "PF NUMBER",
       "ESI NO",
-      "PAN NO",
+      "PAN NO *",
       "UAN NO",
-      "DESIGNATION CODE",
+      "DESIGNATION CODE *",
       "DEPT CODE",
       "ADDRESS LINE 1",
       "ADDRESS LINE 2",
@@ -865,7 +887,10 @@ const StaffPage = () => {
     ];
 
     // 👇 create empty row just to generate headers
-    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+    const worksheet = XLSX.utils.aoa_to_sheet([
+      note,
+      headers
+    ]);
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Template");
@@ -892,7 +917,11 @@ const StaffPage = () => {
       return;
     }
 
-    const exportData = staff.map((row) => ({
+    const filteredStaff = selectedDepartmentFilter
+      ? staff.filter(row => row?.Profile?.Department === selectedDepartmentFilter)
+      : staff;
+
+    const exportData = filteredStaff.map((row) => ({
       "EMPCODE": row?.Profile?.EmployeeCode || "",
       "EMP NAME": row?.Profile?.EmployeeName || "",
       "F/H NAME": row?.EmployeeList?.FatherName || "",
@@ -965,7 +994,13 @@ const StaffPage = () => {
     if (activePropertyId) {
       fileName = `${propertyList.find(p => Number(p.PropertyId) === Number(activePropertyId))?.PropertyName || propertyName || "Unit"} Export.xlsx`;
     } else if (clientName) {
-      fileName = `${clientName} Export.xlsx`;
+      fileName = `${clientName} All Properties Export.xlsx`;
+    } else {
+      fileName = `All Properties Export.xlsx`;
+    }
+
+    if (selectedDepartmentFilter) {
+      fileName = `${selectedDepartmentFilter} - ${fileName}`;
     }
 
     saveAs(blob, fileName);
@@ -1093,8 +1128,8 @@ const StaffPage = () => {
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "UAN must be 12 digits" });
     }
 
-    // ESI (10–17 digits)
-    if (esiNumber && !/^\d{10,17}$/.test(esiNumber)) {
+    // ESI (10 digits)
+    if (esiNumber && !/^\d{10}$/.test(esiNumber)) {
       setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Invalid ESI Number" });
     }
@@ -1390,13 +1425,27 @@ const StaffPage = () => {
       setSelectedRow(null);
     } catch (error) {
       console.error(error);
+
+      let errorMessage = "Something went wrong";
+
+      if (typeof error === "string") {
+        errorMessage = error;
+      } else if (Array.isArray(error?.message)) {
+        errorMessage = error.message.join(", ");
+      } else {
+        errorMessage =
+          error?.message ||
+          error?.Message ||
+          "Something went wrong";
+      }
+
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: isEditMode ? "Failed to update employee" : "Failed to create employee",
+        detail: errorMessage,
       });
     } finally {
-      setIsProcessing(false); // 🔥 THIS LINE SAVES YOUR LIFE
+      setIsProcessing(false);
     }
   };
 
@@ -1437,7 +1486,7 @@ const StaffPage = () => {
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Failed to delete staff"
+        detail: error?.message || "Failed to delete staff"
       });
     }
   };
@@ -1692,7 +1741,7 @@ const StaffPage = () => {
           label="Export"
           icon="pi pi-download"
           className="p-button-primary"
-          disabled={!activePropertyId || isProcessing}
+          disabled={isProcessing || !staff.length}
           onClick={exportToExcel}
         />
       </div>
@@ -1878,8 +1927,84 @@ const StaffPage = () => {
                     </div>
                   )}
                 </div>
+                <OverlayPanel
+                  ref={departmentFilterRef}
+                  dismissable
+                  style={{ padding: "8px" }}
+                >
+                  <div style={{ width: "180px" }}>
+                    {/* 🔍 Search */}
+                    <InputText
+                      placeholder="Search..."
+                      className="mb-2 w-full"
+                      style={{ height: "30px", fontSize: "13px" }}
+                      onChange={(e) => setDeptSearch(e.target.value)}
+                    />
+
+                    {/* ❌ Clear Filter */}
+                    {selectedDepartmentFilter && (
+                      <div
+                        style={{
+                          padding: "6px",
+                          cursor: "pointer",
+                          color: "#ff4d4f",
+                          fontSize: "13px"
+                        }}
+                        onClick={() => {
+                          setSelectedDepartmentFilter(null);
+                          departmentFilterRef.current.hide();
+                        }}
+                      >
+                        ❌ Clear Filter
+                      </div>
+                    )}
+
+                    {/* 📋 Options */}
+                    <div style={{ maxHeight: "150px", overflowY: "auto" }}>
+                      {departmentOptions
+                        .filter(opt =>
+                          opt.label.toLowerCase().includes((deptSearch || "").toLowerCase())
+                        )
+                        .map((opt, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              padding: "6px 8px",
+                              cursor: "pointer",
+                              borderRadius: "6px",
+                              fontSize: "13px",
+                              background:
+                                selectedDepartmentFilter === opt.value ? "#e6f7ff" : "transparent"
+                            }}
+                            onMouseEnter={(e) => {
+                              if (selectedDepartmentFilter !== opt.value) {
+                                e.currentTarget.style.background = "#f5f5f5";
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (selectedDepartmentFilter !== opt.value) {
+                                e.currentTarget.style.background = "transparent";
+                              }
+                            }}
+                            onClick={() => {
+                              setSelectedDepartmentFilter(opt.value);
+                              departmentFilterRef.current.hide();
+                            }}
+                          >
+                            {opt.label}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                </OverlayPanel>
                 <DataTable
-                  value={staff}
+                  value={
+                    selectedDepartmentFilter
+                      ? staff.filter(
+                        row => row?.Profile?.Department === selectedDepartmentFilter
+                      )
+                      : staff
+                  }
                   dataKey="FacilityMember.FacilityMemberId"
                   header={header}
                   paginator
@@ -1898,6 +2023,7 @@ const StaffPage = () => {
                     "Profile.Gender",
                     "Profile.PhoneNumber",
                     "Profile.AadharCard",
+                    "Profile.PanCard",
                     "FinancialInfo.UANNumber",
                     "FinancialInfo.PFNumber",
                     "FinancialInfo.ESINumber",
@@ -1907,7 +2033,26 @@ const StaffPage = () => {
                   <Column selectionMode="single" headerStyle={{ width: '3em' }} />
                   <Column header="Employee Code" body={(row) => row.Profile?.EmployeeCode || "-"} />
                   <Column header="Name" body={(row) => row.Profile?.EmployeeName || "-"} />
-                  <Column header="Department" body={(row) => row.Profile?.Department || "-"} />
+                  <Column
+                    header={
+                      <div
+                        style={{
+                          cursor: "pointer",
+                          fontWeight: 500,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          color: selectedDepartmentFilter ? "#4CAF50" : "inherit"
+                        }}
+                        onClick={(e) => departmentFilterRef.current.toggle(e)}
+                      >
+                        Department
+                        {selectedDepartmentFilter && ` (${selectedDepartmentFilter})`}
+                        <i className="pi pi-filter" style={{ fontSize: "12px" }}></i>
+                      </div>
+                    }
+                    body={(row) => row.Profile?.Department || "-"}
+                  />
                   <Column header="Designation" body={(row) => row.Profile?.Designation || "-"} />
                   <Column header="Gender" body={(row) => row.Profile?.Gender || "-"} />
                   <Column header="Contact" body={(row) => row.Profile?.PhoneNumber || "-"} />
@@ -1929,6 +2074,7 @@ const StaffPage = () => {
                   show={showLoanAdvanceDialog}
                   onClose={closeLoanAdvanceDialog}
                   facilityMemberId={selectedLoanAdvanceId}
+                  employeeName={selectedRow?.Profile?.EmployeeName}
                 />
               )}
             </div>
@@ -1959,7 +2105,7 @@ const StaffPage = () => {
                 label={isProcessing ? "Processing..." : (isEditMode ? "Update" : "Save")}
                 icon={isProcessing ? "pi pi-spin pi-spinner" : "pi pi-check"}
                 onClick={saveStaff}
-                disabled={!activePropertyId || isProcessing}
+                disabled={isProcessing}
               />
             </div>
           }
@@ -1988,9 +2134,9 @@ const StaffPage = () => {
                   value={employeeCode}
                   onChange={(e) => {
                     const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                      if (val.length <= 13) {
-                    setEmployeeCode(val);
-                      }
+                    if (val.length <= 13) {
+                      setEmployeeCode(val);
+                    }
                   }}
                   className="mb-3"
                 />
@@ -2044,6 +2190,7 @@ const StaffPage = () => {
                   className="mb-3"
                   disabled={isLoadingDepartments}
                   emptyMessage="No departments available"
+                  showClear
                 />
 
                 {department === "OTHER" && (
@@ -2062,11 +2209,20 @@ const StaffPage = () => {
                   options={designations || []}
                   onChange={(e) => {
                     setDesignation(e.value);
+
+                    if (!e.value) {
+                      setSalaryGroups([]);
+                      setSelectedSalaryGroup(null);
+                      setSalaryGroupDetails(null);
+                      return;
+                    }
+
                     fetchSalaryGroups(e.value);
                   }}
                   className="mb-3"
                   disabled={isLoadingDesignations}
                   emptyMessage="No designations available"
+                  showClear
                 />
 
                 {designation === "OTHER" && (
@@ -2277,12 +2433,12 @@ const StaffPage = () => {
 
                 <label>ESI Number</label>
                 <InputText
-                  placeholder="10–17 digit ESI"
+                  placeholder="10 digit ESIC IP Number"
                   className="mb-3 pan-placeholder-light"
                   value={esiNumber}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, "");
-                    if (val.length <= 17) setEsiNumber(val);
+                    if (val.length <= 10) setEsiNumber(val);
                   }}
                 />
               </div>
@@ -2713,25 +2869,25 @@ const StaffPage = () => {
                   <div className="mb-3">
                     <h6>Aadhaar Card</h6>
                     {viewDocuments?.aadhaar?.length > 0 ? (
-                      viewDocuments.aadhaar.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Aadhaar {i+1}</a></div>)
+                      viewDocuments.aadhaar.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Aadhaar {i + 1}</a></div>)
                     ) : <p className="text-muted">No Aadhaar document uploaded.</p>}
                   </div>
                   <div className="mb-3">
                     <h6>Pan Card</h6>
                     {viewDocuments?.pan?.length > 0 ? (
-                      viewDocuments.pan.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View PAN {i+1}</a></div>)
+                      viewDocuments.pan.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View PAN {i + 1}</a></div>)
                     ) : <p className="text-muted">No PAN document uploaded.</p>}
                   </div>
                   <div className="mb-3">
                     <h6>Bank Passbook</h6>
                     {viewDocuments?.bankPassbook?.length > 0 ? (
-                      viewDocuments.bankPassbook.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Bank Passbook {i+1}</a></div>)
+                      viewDocuments.bankPassbook.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Bank Passbook {i + 1}</a></div>)
                     ) : <p className="text-muted">No Bank Passbook uploaded.</p>}
                   </div>
                   <div className="mb-3">
                     <h6>Others</h6>
                     {viewDocuments?.others?.length > 0 ? (
-                      viewDocuments.others.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Other Document {i+1}</a></div>)
+                      viewDocuments.others.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Other Document {i + 1}</a></div>)
                     ) : <p className="text-muted">No other documents uploaded.</p>}
                   </div>
                 </div>

@@ -6,7 +6,7 @@ import {
   // getUngeneratedSalaryByOffice,
   createGeneratedSalary,
   // getEmployeeGeneratedSalaries,
-  getFacilityMemberSalaryDetails,
+  getFacilityMemberSalaryDetailsByClientBranch,
   deleteGeneratedSalary,
   regenerateEmployeeSalary,
   updateGeneratedSalary,
@@ -62,6 +62,7 @@ const displayNameMap = {
   PerfAll: "Performance Allowance",
   SplAll: "Special Allowance",
   Wash: "Washing Allowance",
+  LoanEMI: "Loan EMI",
 };
 
 const boxStyle = {
@@ -100,6 +101,10 @@ export default function GenerateSalary() {
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
 
   const officeId =
+    selectedPropertyId.length === 1
+      ? selectedPropertyId[0]
+      : reduxPropertyId || null;
+  const effectivePropertyId =
     selectedPropertyId.length === 1
       ? selectedPropertyId[0]
       : reduxPropertyId || null;
@@ -452,18 +457,7 @@ export default function GenerateSalary() {
     setLoadingSalaryData(true);
     try {
       const facilityMemberIds = specificIds && specificIds.length ? specificIds : generatedEmployees.map((emp) => emp.EmployeeId);
-      let apiMonth = selectedMonth;
-      let apiYear = selectedYear;
-
-      // move to next month
-      if (apiMonth === 12) {
-        apiMonth = 1;
-        apiYear = apiYear + 1;
-      } else {
-        apiMonth = apiMonth + 1;
-      }
-
-      const monthName = apiMonth ? monthNames[apiMonth - 1] : null;
+      const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
 
       if (!monthName) {
         setSalaryData([]);
@@ -471,7 +465,21 @@ export default function GenerateSalary() {
         return;
       }
 
-      const data = await getFacilityMemberSalaryDetails(facilityMemberIds, monthName.toLowerCase(), apiYear);
+      if (!effectivePropertyId) {
+        setSalaryData([]);
+        setShowGrid(false);
+        return;
+      }
+
+      const data = await getFacilityMemberSalaryDetailsByClientBranch({
+        facilityMemberIds,
+        branchId: null,
+        clientId: selectedUnitId || reduxClientId || null,
+        propertyIds: String(effectivePropertyId),
+        month: monthName,
+        year: selectedYear,
+        requireGeneratedSalary: false,
+      });
       setSalaryData(data || []);
       if ((data || []).length === 0) setShowGrid(false);
     } catch (error) {
@@ -531,7 +539,7 @@ export default function GenerateSalary() {
 
     // Also include numeric keys present in row that look like deductions but not already included
     // Common deduction candidates by key substring
-    const deductionCandidates = ["PF", "ESI", "PFT", "LWF", "FOOD", "ACCOMMODATION", "UNIFORM", "ABC"]; // substring hints
+    const deductionCandidates = ["PF", "ESI", "PFT", "LWF", "FOOD", "ACCOMMODATION", "UNIFORM", "ABC", "LOAN", "EMI"]; // substring hints
     for (const k of rowKeys) {
       if (found.includes(k)) continue;
 
@@ -849,7 +857,7 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>Leave Wages</td>
-          <td class="v-bold">${row.LEAVEWAGES || 0}</td>
+          <td class="v-bold">${row.LEAVE|| 0}</td>
           <td>IncomeTax</td>
           <td class="v-light">${row.IncomeTax || 0}</td>
           <td>CL</td>
@@ -884,8 +892,8 @@ export default function GenerateSalary() {
         <tr class="no-horiz-border">
           <td>Education Allowance</td>
           <td class="v-bold">${row.EduAll || 0}</td>
-          <td></td>
-          <td></td>
+          <td>Loan EMI</td>
+          <td>${row.LoanEMI || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>Performance Allowance</td>
@@ -972,7 +980,7 @@ export default function GenerateSalary() {
       const payload = selectedEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
-        OfficeId: emp.PropertyId, // ✅ ALWAYS use employee's own property
+        OfficeId: effectivePropertyId || emp.PropertyId,
         CreatedOn: new Date().toISOString(),
         Month: monthValue,
         Year: yearValue,
@@ -1029,7 +1037,7 @@ export default function GenerateSalary() {
       const payload = employeesToRegenerate.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
-        OfficeId: emp.PropertyId, // ✅ ALWAYS use employee's own property
+        OfficeId: effectivePropertyId || emp.PropertyId,
         CreatedOn: new Date().toISOString(),
         Month: monthValue,
         Year: yearValue,
@@ -1826,3 +1834,4 @@ export default function GenerateSalary() {
     </div>
   );
 }
+

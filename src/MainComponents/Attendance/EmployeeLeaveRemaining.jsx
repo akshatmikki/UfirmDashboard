@@ -9,7 +9,9 @@ import { Card } from "primereact/card"
 import { Button } from "primereact/button"
 import { Toast } from "primereact/toast"
 import { FilterMatchMode } from "primereact/api"
+import { useSelector } from "react-redux"
 import * as XLSX from "xlsx";
+import { ROLE_RULES } from "../../Common/roleAccess"
 import "primereact/resources/themes/lara-light-blue/theme.css"
 import "primereact/resources/primereact.min.css"
 import "primeicons/primeicons.css"
@@ -23,6 +25,52 @@ const LeaveDashboard = () => {
     })
 
     const toast = useRef(null)
+
+    const userRole = useSelector((state) => state.Commonreducer.entrolval)
+    const managedEmployees = useSelector((state) => state.Commonreducer.managedEmployees)
+    const managedEmployeeIds = useSelector((state) => state.Commonreducer.managedEmployeeIds)
+    const managedEmployeesIsAdmin = useSelector((state) => state.Commonreducer.managedEmployeesIsAdmin)
+    const managedEmployeesLoaded = useSelector((state) => state.Commonreducer.managedEmployeesLoaded)
+    const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId)
+
+    const roleSource = React.useMemo(() => {
+        if (typeof document === "undefined") return userRole
+        const appElement = document.getElementById("app")
+        return appElement?.getAttribute("userrole") || userRole
+    }, [userRole])
+
+    const isManagerRole = React.useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource])
+    const isAdminRole = React.useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource])
+    const isHrRole = React.useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource])
+    const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole && !managedEmployeesIsAdmin
+
+    const managedEmployeeIdSet = React.useMemo(() => {
+        const idSet = new Set()
+        if (Array.isArray(managedEmployeeIds) && managedEmployeeIds.length > 0) {
+            managedEmployeeIds.forEach((id) => {
+                const num = Number(id)
+                if (Number.isFinite(num)) idSet.add(num)
+            })
+        } else {
+            (managedEmployees || []).forEach((emp) => {
+                const id = Number(emp.FacilityMemberId)
+                if (Number.isFinite(id)) idSet.add(id)
+            })
+        }
+        if (managerFacilityMemberId) {
+            idSet.delete(Number(managerFacilityMemberId))
+        }
+        return idSet
+    }, [managedEmployeeIds, managedEmployees, managerFacilityMemberId])
+
+    const visibleEmployees = React.useMemo(() => {
+        if (!applyManagerFilter) return employees
+        if (!managedEmployeesLoaded) return []
+        if (managedEmployeeIdSet.size === 0) return []
+        return (employees || []).filter((row) =>
+            managedEmployeeIdSet.has(Number(row?.EmployeeId))
+        )
+    }, [applyManagerFilter, employees, managedEmployeesLoaded, managedEmployeeIdSet])
 
     useEffect(() => {
         fetchLeaveData()
@@ -84,7 +132,7 @@ const LeaveDashboard = () => {
         }
     };
     const downloadExcel = () => {
-        if (!employees || employees.length === 0) {
+        if (!visibleEmployees || visibleEmployees.length === 0) {
             toast.current?.show({
                 severity: "warn",
                 summary: "No Data",
@@ -95,7 +143,7 @@ const LeaveDashboard = () => {
 
         const wb = XLSX.utils.book_new();
 
-        const exportData = employees.map((e) => ({
+        const exportData = visibleEmployees.map((e) => ({
             "Employee Name": e.Name,
             "CL Remaining": e.CL,
             "SL Remaining": e.SL,
@@ -179,7 +227,7 @@ const LeaveDashboard = () => {
                     icon="pi pi-file-excel"
                     className="p-button-success"
                     onClick={downloadExcel}
-                    disabled={employees.length === 0}
+                    disabled={visibleEmployees.length === 0}
                 />
 
             </div>
@@ -190,7 +238,7 @@ const LeaveDashboard = () => {
                         <div className="card-body">
 
                             <DataTable
-                                value={employees}
+                                value={visibleEmployees}
                                 paginator
                                 rows={10}
                                 filters={filters}

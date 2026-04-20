@@ -3,6 +3,7 @@ import moment from "moment";
 import swal from "sweetalert";
 import * as appCommon from "../../../../Common/AppCommon.js";
 import { createTaskWithQuestions } from "../../../../Services/notificationService";
+import { replaceTaskFrequencyMappings } from "../../../../Services/taskFrequencyMappingService";
 import useEditTaskLookups from "./useEditTaskLookups";
 import useEditTaskQuestions from "./useEditTaskQuestions";
 
@@ -40,6 +41,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
 
   const [form, setForm] = useState(() => ({
     taskName: rowData?.Name || "",
+    description: rowData?.Description || "",
     location: rowData?.Location || "",
     selectedCategory: rowData?.TaskCategoryId || "",
     selectedSubCategory: rowData?.TaskSubCategoryId || "",
@@ -73,10 +75,18 @@ export default function useEditTaskController({ rowData, categoryData }) {
   });
 
   const q = useEditTaskQuestions({ rowData });
+  const [schedule, setSchedule] = useState({ dirty: false, mappings: [] });
 
   const initialTaskDate = useMemo(() => {
-    return rowData?.DateFrom ? moment(rowData.DateFrom).format("YYYY-MM-DD") : "";
-  }, [rowData?.DateFrom]);
+    const raw = rowData?.UpdatedOn || rowData?.DateFrom || "";
+    if (!raw) return "";
+    const parsed = moment(
+      raw,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+      true,
+    );
+    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
+  }, [rowData?.DateFrom, rowData?.UpdatedOn]);
 
   const isEditTaskValid = useMemo(() => {
     return (
@@ -130,7 +140,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
         CategoryId: parseInt(form.selectedCategory),
         SubCategoryId: parseInt(form.selectedSubCategory),
         Name: form.taskName,
-        Description: "Desc",
+        Description: form.description,
         DateFrom: form.startDate,
         DateTo: form.endDate,
         TimeFrom: form.startTime,
@@ -150,6 +160,18 @@ export default function useEditTaskController({ rowData, categoryData }) {
       const questionsPayload = (q.questions || []).map((item) => ({ QuestionName: item.QuestionName }));
 
       await createTaskWithQuestions({ Task: taskPayload, Questions: questionsPayload });
+
+      if (schedule?.dirty && rowData?.TaskId) {
+        try {
+          await replaceTaskFrequencyMappings(rowData.TaskId, schedule?.mappings || []);
+        } catch (e) {
+          appCommon.showtextalert(
+            "Task updated, but schedule not saved",
+            e?.message || "TaskFrequencyMapping save failed",
+            "warning",
+          );
+        }
+      }
       return { ok: true, message: "Task updated successfully" };
     } catch (err) {
       console.error("Edit task failed:", err);
@@ -158,7 +180,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
     } finally {
       setSaving(false);
     }
-  }, [form, q, rowData?.TaskId, saving]);
+  }, [form, q, rowData?.TaskId, saving, schedule]);
 
   return {
     form,
@@ -169,6 +191,8 @@ export default function useEditTaskController({ rowData, categoryData }) {
     initialTaskDate,
     isEditTaskValid,
     saving,
+    schedule,
+    setSchedule,
     requestDeleteQuestion,
     save,
   };

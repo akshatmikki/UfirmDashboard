@@ -44,6 +44,14 @@ const Leaves = () => {
     const managerFacilityMemberId = useSelector((state) => state.Commonreducer.managerFacilityMemberId);
     const toast = useRef(null);
 
+    const actionBy = React.useMemo(() => {
+        if (typeof document === "undefined") return userId || 0;
+        const app = document.getElementById("app");
+        const appUserId = Number(app?.getAttribute("userid"));
+        if (Number.isFinite(appUserId) && appUserId > 0) return appUserId;
+        return userId || 0;
+    }, [userId]);
+
     const [filters, setFilters] = useState({
         global: { value: null, matchMode: FilterMatchMode.CONTAINS },
     });
@@ -237,7 +245,15 @@ const Leaves = () => {
     };
 
     const approveLeave = async (data) => {
-        const payload = { ...data, IsApproved: true, IsRejected: false, Status: "Approved" };
+        const payload = {
+            ...data,
+            IsApproved: true,
+            IsRejected: false,
+            Status: "Approved",
+            ActionBy: actionBy || 0,
+            ActionOn: new Date().toISOString(),
+            ActionRemarks: data?.ActionRemarks || "",
+        };
         await updateAllLeaveRequests(payload);
         await loadLeaves();
 
@@ -276,7 +292,9 @@ const Leaves = () => {
             IsRejected: true,
             IsApproved: false,
             Status: "Rejected",
-            ActionRemarks: rejectRemark
+            ActionRemarks: rejectRemark,
+            ActionBy: actionBy || 0,
+            ActionOn: new Date().toISOString(),
         };
 
         await updateAllLeaveRequests(payload);
@@ -349,25 +367,51 @@ const Leaves = () => {
         </div>
     );
 
-    const actionBodyTemplate = (rowData) => (
-        <>
-            <Button
-                icon="fa fa-check"
-                className="p-button-success p-button-sm mr-2 attendance-task-btn"
-                onClick={() => approveLeave(rowData)}
-                disabled={rowData.IsRejected}
-            />
-            <Button
-                icon="fa fa-times"
-                className="p-button-danger p-button-sm attendance-task-btn"
-                onClick={() => {
-                    setSelectedLeave(rowData);
-                    setRejectDialogVisible(true);
-                }}
-                disabled={rowData.IsApproved}
-            />
-        </>
-    );
+    const statusBadge = (rowData) => {
+        if (rowData?.IsApproved) {
+            return (
+                <span className="badge badge-success">
+                    Approved
+                </span>
+            );
+        }
+        if (rowData?.IsRejected) {
+            return (
+                <span className="badge badge-danger">
+                    Rejected
+                </span>
+            );
+        }
+        return (
+            <span className="badge badge-warning">
+                Pending
+            </span>
+        );
+    };
+
+    const actionBodyTemplate = (rowData) => {
+        if (rowData?.IsApproved || rowData?.IsRejected) {
+            return statusBadge(rowData);
+        }
+
+        return (
+            <>
+                <Button
+                    icon="fa fa-check"
+                    className="p-button-success p-button-sm mr-2 attendance-task-btn"
+                    onClick={() => approveLeave(rowData)}
+                />
+                <Button
+                    icon="fa fa-times"
+                    className="p-button-danger p-button-sm attendance-task-btn"
+                    onClick={() => {
+                        setSelectedLeave(rowData);
+                        setRejectDialogVisible(true);
+                    }}
+                />
+            </>
+        );
+    };
 
     const saveLeave = async () => {
         if (!employeeName || !fromDate || !toDate || !reason || !leaveType) {
@@ -527,24 +571,43 @@ const Leaves = () => {
                                                 : ""
                                         }
                                     />
-                                    <Column
-                                        field="ToDate"
-                                        header="To Date"
-                                        body={(rowData) =>
-                                            rowData.ToDate ? rowData.ToDate.split("T")[0] : ""
-                                        }
-                                    />
-                                    <Column field="Reason" header="Reason" />
-                                    <Column body={(rowData) => {
-                                        const typeId = rowData.LeaveTypeId ;
-                                        const type = leaveTypes.find((lt) => lt.value === typeId);
-                                        return type ? type.label : "N/A";
-                                    }} header="Leave Type" />
-                                    {filteredGridData.some((row) => row.ActionRemarks && row.ActionRemarks.trim() !== "") && (
-                                        <Column field="ActionRemarks" header="Rejection Remark" />
-                                    )}
-                                    <Column header="Action" body={actionBodyTemplate} />
-                                </DataTable>
+	                                    <Column
+	                                        field="ToDate"
+	                                        header="To Date"
+	                                        body={(rowData) =>
+	                                            rowData.ToDate ? rowData.ToDate.split("T")[0] : ""
+	                                        }
+	                                    />
+	                                    <Column
+	                                        header="Status"
+	                                        body={(rowData) => statusBadge(rowData)}
+	                                    />
+	                                    <Column field="Reason" header="Reason" />
+	                                    <Column body={(rowData) => {
+	                                        const typeId = rowData.LeaveTypeId ;
+	                                        const type = leaveTypes.find((lt) => lt.value === typeId);
+	                                        return type ? type.label : "N/A";
+	                                    }} header="Leave Type" />
+	                                    <Column
+	                                        field="ActionBy"
+	                                        header="Processed By"
+	                                        body={(rowData) => rowData?.ActionBy ?? ""}
+	                                    />
+	                                    <Column
+	                                        field="ActionOn"
+	                                        header="Processed On"
+	                                        body={(rowData) => {
+	                                            const raw = rowData?.ActionOn;
+	                                            if (!raw) return "";
+	                                            const d = new Date(raw);
+	                                            return Number.isNaN(d.getTime()) ? String(raw) : d.toLocaleString();
+	                                        }}
+	                                    />
+	                                    {filteredGridData.some((row) => row.ActionRemarks && row.ActionRemarks.trim() !== "") && (
+	                                        <Column field="ActionRemarks" header="Rejection Remark" />
+	                                    )}
+	                                    <Column header="Action" body={actionBodyTemplate} />
+	                                </DataTable>
                             )}
                         </div>
                     </div>

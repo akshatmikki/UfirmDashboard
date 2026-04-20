@@ -1,13 +1,24 @@
 import React, { useEffect, useState } from "react";
 import { Dialog } from "primereact/dialog";
 import { useSelector } from "react-redux";
-import { getTaskSummary, getTaskDetails } from "../Services/PPMSpreadsheet";
+import {
+  getTaskSummary,
+  getTaskDetails,
+  getTaskMonthlySummary,
+} from "../Services/PPMSpreadsheet";
+import "../Style/PPMSpreadsheet.css";
 
 export default function PPMCalendar() {
   const propertyId = useSelector((s) => s.Commonreducer.puidn);
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [summaryByDate, setSummaryByDate] = useState({});
+  const [monthlySummary, setMonthlySummary] = useState({
+    totalTasks: 0,
+    completedTasks: 0,
+    pendingTasks: 0,
+    actionableTasks: 0,
+  });
   const [dialogVisible, setDialogVisible] = useState(false);
   const [dialogData, setDialogData] = useState({
     memberName: "",
@@ -15,13 +26,21 @@ export default function PPMCalendar() {
   });
 
   const monthNames = [
-    "January","February","March","April","May","June",
-    "July","August","September","October","November","December",
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
   ];
 
   const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-
-  /* ================= FETCH SUMMARY ================= */
 
   useEffect(() => {
     if (!propertyId) return;
@@ -30,57 +49,64 @@ export default function PPMCalendar() {
       const month = currentDate.getMonth() + 1;
       const year = currentDate.getFullYear();
 
-      const data = await getTaskSummary(propertyId, month, year);
+      const [dailyData, monthlyData] = await Promise.all([
+        getTaskSummary(propertyId, month, year),
+        getTaskMonthlySummary(propertyId, month, year),
+      ]);
 
       const grouped = {};
-      data.forEach((item) => {
-        const dateKey = item.TaskDate.slice(0, 10);
+      dailyData.forEach((item) => {
+        const dateKey = item.TaskDate?.slice(0, 10);
+        if (!dateKey) return;
         if (!grouped[dateKey]) grouped[dateKey] = [];
         grouped[dateKey].push(item);
       });
 
+      const totals = monthlyData.reduce(
+        (acc, item) => ({
+          totalTasks: acc.totalTasks + (item.TotalTasks || 0),
+          completedTasks: acc.completedTasks + (item.CompletedTasks || 0),
+          pendingTasks: acc.pendingTasks + (item.PendingTasks || 0),
+          actionableTasks: acc.actionableTasks + (item.ActionableTasks || 0),
+        }),
+        { totalTasks: 0, completedTasks: 0, pendingTasks: 0, actionableTasks: 0 }
+      );
+
       setSummaryByDate(grouped);
+      setMonthlySummary(totals);
     };
 
     fetchSummary();
   }, [propertyId, currentDate]);
 
-  /* ================= HELPERS ================= */
-
   const getDaysInMonth = (date) =>
     new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 
-  const getFirstDayOfMonth = (date) =>
-    new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+  const getFirstDayOfMonth = (date) => {
+    const jsDay = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
+    return (jsDay + 6) % 7;
+  };
 
   const generateCalendarDays = () => {
     const days = [];
     const firstDay = getFirstDayOfMonth(currentDate);
     const total = getDaysInMonth(currentDate);
 
-    for (let i = 1; i < firstDay; i++) days.push(null);
+    for (let i = 0; i < firstDay; i++) days.push(null);
     for (let i = 1; i <= total; i++) days.push(i);
 
     return days;
   };
 
-  /* ================= MEMBER CLICK ================= */
-
   const handleMemberClick = async (member, dateKey) => {
-    const taskIds = member.TaskIds.split(",");
+    const taskIds = (member.TaskIds || "").split(",").filter(Boolean);
     const taskMap = {};
 
     for (const taskId of taskIds) {
-      const details = await getTaskDetails(
-        taskId,
-        dateKey,
-        member.FacilityMemberId
-      );
+      const details = await getTaskDetails(taskId, dateKey, member.FacilityMemberId);
 
       details.forEach((d) => {
-        if (!taskMap[d.TaskName]) {
-          taskMap[d.TaskName] = [];
-        }
+        if (!taskMap[d.TaskName]) taskMap[d.TaskName] = [];
         taskMap[d.TaskName].push(d);
       });
     }
@@ -102,135 +128,117 @@ export default function PPMCalendar() {
 
   const calendarDays = generateCalendarDays();
 
-  /* ================= UI ================= */
-
   return (
-    <div className="content-wrapper">
-      <div className="card" style={{ maxWidth: 1300, margin: "0 auto" }}>
+    <div className="content-wrapper ppm-wrapper">
+      <div className="card ppm-card">
+        <div className="card-header ppm-header">
+          <div className="ppm-filters">
+            <select
+              className="form-select ppm-select"
+              value={currentDate.getMonth()}
+              onChange={(e) =>
+                setCurrentDate(new Date(currentDate.getFullYear(), +e.target.value, 1))
+              }
+            >
+              {monthNames.map((m, i) => (
+                <option key={m} value={i}>
+                  {m}
+                </option>
+              ))}
+            </select>
 
-        {/* ===== HEADER ===== */}
-        <div className="card-header d-flex justify-content-center gap-2">
-          <select
-            className="form-select"
-            style={{ width: 160 }}
-            value={currentDate.getMonth()}
-            onChange={(e) =>
-              setCurrentDate(
-                new Date(currentDate.getFullYear(), +e.target.value, 1)
-              )
-            }
-          >
-            {monthNames.map((m, i) => (
-              <option key={m} value={i}>{m}</option>
-            ))}
-          </select>
+            <select
+              className="form-select ppm-select ppm-select-year"
+              value={currentDate.getFullYear()}
+              onChange={(e) => setCurrentDate(new Date(+e.target.value, currentDate.getMonth(), 1))}
+            >
+              {Array.from({ length: 8 }, (_, i) => 2024 + i).map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          </div>
 
-          <select
-            className="form-select"
-            style={{ width: 120 }}
-            value={currentDate.getFullYear()}
-            onChange={(e) =>
-              setCurrentDate(
-                new Date(+e.target.value, currentDate.getMonth(), 1)
-              )
-            }
-          >
-            {Array.from({ length: 8 }, (_, i) => 2024 + i).map((y) => (
-              <option key={y} value={y}>{y}</option>
-            ))}
-          </select>
+          <div className="ppm-summary-row">
+            <div className="ppm-stat-card ppm-stat-total">
+              <div className="ppm-stat-value">{monthlySummary.totalTasks}</div>
+              <div className="ppm-stat-label">Total Tasks</div>
+            </div>
+            <div className="ppm-stat-card ppm-stat-completed">
+              <div className="ppm-stat-value">{monthlySummary.completedTasks}</div>
+              <div className="ppm-stat-label">Completed</div>
+            </div>
+            <div className="ppm-stat-card ppm-stat-pending">
+              <div className="ppm-stat-value">{monthlySummary.pendingTasks}</div>
+              <div className="ppm-stat-label">Pending</div>
+            </div>
+            <div className="ppm-stat-card ppm-stat-actionable">
+              <div className="ppm-stat-value">{monthlySummary.actionableTasks}</div>
+              <div className="ppm-stat-label">Actionable</div>
+            </div>
+          </div>
         </div>
 
-        {/* ===== CALENDAR ===== */}
         <div className="card-body p-0">
-          <table
-            className="table table-bordered mb-0"
-            style={{ tableLayout: "fixed", width: "100%" }}
-          >
-            <thead className="table-light">
+          <table className="table table-bordered mb-0 ppm-calendar-table">
+            <thead>
               <tr>
                 {dayNames.map((d) => (
-                  <th key={d} className="text-center">{d}</th>
+                  <th key={d} className="text-center">
+                    {d}
+                  </th>
                 ))}
               </tr>
             </thead>
 
             <tbody>
-              {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map(
-                (_, w) => (
-                  <tr key={w}>
-                    {Array.from({ length: 7 }).map((_, d) => {
-                      const day = calendarDays[w * 7 + d];
-                      const dateKey = day
-                        ? `${currentDate.getFullYear()}-${String(
-                            currentDate.getMonth() + 1
-                          ).padStart(2, "0")}-${String(day).padStart(2, "0")}`
-                        : null;
+              {Array.from({ length: Math.ceil(calendarDays.length / 7) }).map((_, w) => (
+                <tr key={w}>
+                  {Array.from({ length: 7 }).map((_, d) => {
+                    const day = calendarDays[w * 7 + d];
+                    const dateKey = day
+                      ? `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`
+                      : null;
 
-                      const members = dateKey
-                        ? summaryByDate[dateKey]
-                        : null;
+                    const members = dateKey ? summaryByDate[dateKey] : null;
 
-                      return (
-                        <td
-  key={d}
-  style={{
-    height: members && members.length > 1 ? 160 : "auto",
-    minHeight: 90,                 // 👈 keeps UI neat for 1 item
-    verticalAlign: "top",
-    padding: 6,
-  }}
->
+                    return (
+                      <td key={d} className="ppm-day-cell">
+                        {day && (
+                          <>
+                            <div className="ppm-day-number">{day}</div>
 
-                          {day && (
-                            <>
-                              <div style={{ fontWeight: 700, marginBottom: 4 }}>
-                                {day}
-                              </div>
-
-                              {/* 🔥 EXACT 2nd IMAGE STYLE SCROLL */}
-                              <div
-  style={{
-    height: members && members.length > 1 ? 115 : "auto",
-    overflowY: members && members.length > 1 ? "auto" : "visible",
-    paddingRight: members && members.length > 1 ? 4 : 0,
-  }}
->
-
-                                {members?.map((m, i) => (
-                                  <div
-                                    key={i}
-                                    onClick={() =>
-                                      handleMemberClick(m, dateKey)
-                                    }
-                                    style={{
-                                      background: "#f7f8fd",
-                                      borderRadius: 6,
-                                      padding: 8,
-                                      marginBottom: 6,
-                                      cursor: "pointer",
-                                      fontSize: "0.8rem",
-                                    }}
-                                  >
-                                    👷 {m.FacilityMemberName}<br />
-                                    📝 Tasks: {m.TaskCount}
-                                  </div>
-                                ))}
-                              </div>
-                            </>
-                          )}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                )
-              )}
+                            <div className="ppm-member-list">
+                              {members?.map((m, i) => (
+                                <div
+                                  key={i}
+                                  onClick={() => handleMemberClick(m, dateKey)}
+                                  className="ppm-member-card"
+                                >
+                                  <span className="ppm-member-name">
+                                    {(m.FacilityMemberName || "").trim()}
+                                  </span>
+                                  <span className="ppm-count-wrap">
+                                    <span className="ppm-count-pending">{m.PendingTaskCount || 0}</span>
+                                    <span className="ppm-count-sep">/</span>
+                                    <span className="ppm-count-total">{m.TaskCount || 0}</span>
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* ===== TASK DETAILS DIALOG ===== */}
       <Dialog
         header="Task Details"
         visible={dialogVisible}
@@ -240,34 +248,30 @@ export default function PPMCalendar() {
       >
         <h5>Facility Member: {dialogData.memberName}</h5>
 
-        {Object.entries(dialogData.tasksByName).map(
-          ([taskName, rows], idx) => (
-            <div key={idx} style={{ marginBottom: 24 }}>
-              <h6>Task Name: {taskName}</h6>
+        {Object.entries(dialogData.tasksByName).map(([taskName, rows], idx) => (
+          <div key={idx} style={{ marginBottom: 24 }}>
+            <h6>Task Name: {taskName}</h6>
 
-              <table className="table table-bordered table-striped">
-                <thead>
-                  <tr>
-                    <th>Question</th>
-                    <th>Remarks</th>
-                    <th>Status</th>
+            <table className="table table-bordered table-striped">
+              <thead>
+                <tr>
+                  <th>Question</th>
+                  <th>Remarks</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.QuestionName}</td>
+                    <td>{r.Remarks || "-"}</td>
+                    <td className={getStatusColor(r.Action)}>{r.Action}</td>
                   </tr>
-                </thead>
-                <tbody>
-                  {rows.map((r, i) => (
-                    <tr key={i}>
-                      <td>{r.QuestionName}</td>
-                      <td>{r.Remarks || "-"}</td>
-                      <td className={getStatusColor(r.Action)}>
-                        {r.Action}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </Dialog>
     </div>
   );

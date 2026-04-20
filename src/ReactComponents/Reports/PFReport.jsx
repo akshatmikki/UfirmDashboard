@@ -116,19 +116,15 @@ export default function PFReport() {
                     { month: "long" }
                 );
 
-                const results = await Promise.all(
-                    propertyIds.map((pid) =>
-                        getFacilityMemberSalaryDetailsByClientBranch(
-                            selectedUnitId,
-                            pid,
-                            monthName,
-                            year
-                        )
-                    )
-                );
+                const data = await getFacilityMemberSalaryDetailsByClientBranch({
+                    clientId: selectedUnitId,
+                    propertyIds: propertyIds.join(","),
+                    month: monthName,
+                    year: Number(year),
+                    requireGeneratedSalary: true,
+                });
 
-                const flat = results.flatMap((r) => (Array.isArray(r) ? r : []));
-                setEmployees(flat);
+                setEmployees(Array.isArray(data) ? data : []);
             } catch (error) {
                 console.error("PF report fetch failed", error);
                 setEmployees([]);
@@ -177,19 +173,19 @@ export default function PFReport() {
         employees.forEach((emp, index) => {
             const row = [
                 index + 1,
-                emp?.Profile?.EmployeeCode || "-",
-                emp?.Profile?.EmployeeName || "-",
-                emp?.Profile?.Designation || "-",
-                "", // Working Days
-                "", // Total Gross
-                "", // PF Wage
-                "", // Pension Wage
-                "", // EDLI Wage
-                "", // 12%
-                "", // 3.67%
-                "", // 8.33%
-                "", // 13%
-                "", // LWF
+                emp.EmployeeCode || "-",
+                emp.FacilityMemberName || "-",
+                emp.Designation || "-",
+                emp.WorkingDays || 0,
+                emp.ProratedTotalGross || 0,
+                emp.Basic || 0,
+                emp.Basic || 0,
+                emp.Basic || 0,
+                Math.round((emp.Basic || 0) * 0.12),
+                Math.round((emp.Basic || 0) * 0.0367),
+                Math.round((emp.Basic || 0) * 0.0833),
+                Math.round((emp.Basic || 0) * 0.13),
+                emp.LwfEmployeeAmount || 0,
             ];
 
             csvContent += row.join(",") + "\n";
@@ -357,8 +353,8 @@ export default function PFReport() {
                             employees.map((emp, index) => (
                                 <tr key={emp.FacilityMemberId}>
                                     <td>{index + 1}</td>
-                                    <td>{emp.FacilityMemberId}</td>
-                                    <td>{emp.FacilityMemberName}</td>
+                                    <td>{emp.EmployeeCode || "-"}</td>
+                                    <td>{emp.FacilityMemberName || "-"}</td>
                                     <td>{emp.Designation || "-"}</td>
                                     <td>{emp.WorkingDays}</td>
                                     <td>{emp.ProratedTotalGross}</td>
@@ -379,3 +375,4 @@ export default function PFReport() {
         </div>
     );
 }
+

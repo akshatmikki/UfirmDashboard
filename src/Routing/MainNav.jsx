@@ -31,7 +31,7 @@ import EmergencyContactPage from "../pages/EmergencyContactPage";
 import LayoutDataProvider from "./LayoutDataProvider.js";
 import * as appCommon from "../Common/AppCommon.js";
 import Notification from "../MainComponents/Notification Center/Notification.jsx";
-import LeaveDashboard  from "../MainComponents/Attendance/EmployeeLeaveRemaining.jsx";
+import LeaveDashboard from "../MainComponents/Attendance/EmployeeLeaveRemaining.jsx";
 import ApiService from "../apiService";
 import { getConfig } from "../utility/apiConfig";
 import { getManagedEmployeesByIdentity } from "../Services/UserAccessService";
@@ -89,7 +89,6 @@ import AttendanceMaster from "../MainComponents/Attendance/attendance.jsx";
 import Leave from "../MainComponents/Attendance/Leaves.jsx";
 import Compoff from "../MainComponents/Attendance/Compoff.jsx";
 import Visitor from "../MainComponents/Visitor/Visitor.jsx";
-import FacilityLatlong from "../MainComponents/FacilityMember/FacilityLatlong.jsx";
 import LeaveMaster from "../MainComponents/Attendance/LeaveMaster.jsx";
 import EmployeeLeave from "../MainComponents/FacilityMember/EmployeeLeave.jsx";
 import SparePage from "../MainComponents/AssetsMaster/SpareMaster.jsx";
@@ -117,7 +116,9 @@ import Report from "../MainComponents/Payroll/Report.jsx";
 import BranchMaster from "../MainComponents/FacilityMember/BranchMaster.jsx";
 import AttendanceBiometricReport from "../MainComponents/Reports/AttendanceBiometricReport.jsx";
 import Designation from "../MainComponents/Payroll/Designation.jsx";
+import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
+import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx"
 
 var currentpropertyid;
 var currentclientid;
@@ -131,6 +132,7 @@ class MainNav extends React.Component {
       PropertyData: [],
       PropertyMultiData: [],
       selectedPropertyOptions: [],
+      selectedPropertyId: 0,
       selectedClientId: 0,
       clientData: [],
       userRoles: [],
@@ -154,7 +156,7 @@ class MainNav extends React.Component {
             if (this.isHrRole()) {
               this.loadClient();
             } else if (this.isManagerRole()) {
-              this.loadAllProperties();
+              this.loadProperty();
             } else {
               this.loadProperty();
             }
@@ -202,7 +204,14 @@ class MainNav extends React.Component {
     const userRole = appElement?.getAttribute("userrole");
     if (!userName || !userRole) return;
     this.managedEmployeesRequested = true;
-    this.loadManagedEmployees(userName, userRole);
+
+    // The EmployeeAccess API expects a single role value. When the user has multiple
+    // roles (ex: Admin + Property Manager), pass the effective identity role.
+    const effectiveRole = ROLE_RULES.getEmployeeAccessIdentityRole(
+      normalizeRoles(userRole)
+    );
+
+    this.loadManagedEmployees(userName, effectiveRole || userRole);
   };
 
   loadManagedEmployees = async (userName, userRole) => {
@@ -234,7 +243,15 @@ class MainNav extends React.Component {
   loadClient = async () => {
     try {
       const rData = await getAllClients();
-      this.setState({ clientData: rData || [] });
+      const clients = Array.isArray(rData) ? rData : [];
+      this.setState({ clientData: clients }, () => {
+        if (!this.isHrRole()) return;
+        if (this.state.selectedClientId > 0) return;
+        const firstClientId = Number(clients?.[0]?.ClientID || clients?.[0]?.Value || clients?.[0]?.id || 0);
+        if (firstClientId > 0) {
+          this.onClientChanged(firstClientId);
+        }
+      });
     } catch (error) {
       this.setState({ clientData: [] });
     }
@@ -258,15 +275,22 @@ class MainNav extends React.Component {
         PropertyData: propertyList,
         PropertyMultiData: propertyMultiOptions,
         selectedPropertyOptions: [],
+        selectedPropertyId: 0,
+      }, () => {
+        const firstPropertyId = Number(propertyList?.[0]?.Value || 0);
+        if (firstPropertyId > 0) {
+          this.onPropertyChanged(firstPropertyId);
+          return;
+        }
+        this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: propertyIds });
+        currentpropertyid = 0;
       });
-      // No property selected by default for HR: keep client-scope via PropertyIds
-      this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: propertyIds });
-      currentpropertyid = 0;
     } catch (error) {
       this.setState({
         PropertyData: [],
         PropertyMultiData: [],
         selectedPropertyOptions: [],
+        selectedPropertyId: 0,
       });
       this.props.actions.updateproperty({ CompanyId: 0, PropertyIds: [] });
       currentpropertyid = 0;
@@ -306,11 +330,15 @@ class MainNav extends React.Component {
         return resp.json().then((rData) => {
           rData = appCommon.changejsoncolumnname(rData, "id", "Value");
           rData = appCommon.changejsoncolumnname(rData, "text", "Name");
-          this.setState({ PropertyData: rData, PropertyMultiData: [] }, () => {
-            if (rData.length === 1) {
-              this.onPropertyChanged(rData[0].Value);
+          this.setState(
+            { PropertyData: rData, PropertyMultiData: [], selectedPropertyId: 0 },
+            () => {
+              const firstPropertyId = Number(rData?.[0]?.Value || 0);
+              if (firstPropertyId > 0) {
+                this.onPropertyChanged(firstPropertyId);
+              }
             }
-          });
+          );
         });
       }
     });
@@ -319,8 +347,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc1NTQzMTg0LCJleHAiOjE4MDcwNzkxODQsImlhdCI6MTc3NTU0MzE4NH0.YNQA02o286DQvl5N1SLgIvTneu9Oy-0UHi4_BKJworU";
-    //var token = window.sessionStorage.getItem("userinfo_key")
+    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc2NDk5ODg0LCJleHAiOjE4MDgwMzU4ODQsImlhdCI6MTc3NjQ5OTg4NH0.T42gyC3WTe7lThJGa4agXdhBbMW61cq0l3lVGr4tIe0";
+    var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -363,6 +391,7 @@ class MainNav extends React.Component {
     this.setState({
       selectedClientId: clientId,
       selectedPropertyOptions: [],
+      selectedPropertyId: 0,
       PropertyData: [],
       PropertyMultiData: [],
     });
@@ -389,6 +418,7 @@ class MainNav extends React.Component {
 
   onPropertyChanged = (value) => {
     const propertyId = Number(value) || 0;
+    this.setState({ selectedPropertyId: propertyId });
     if (propertyId > 0) {
       this.props.actions.updateproperty({
         CompanyId: propertyId,
@@ -430,6 +460,10 @@ class MainNav extends React.Component {
   render() {
     const roles = this.state.userRoles;
     const isHrRole = this.isHrRole();
+    const isManagerOnly =
+      ROLE_RULES.isManagerRole(roles) &&
+      !ROLE_RULES.isAdminRole(roles) &&
+      !ROLE_RULES.isHrRole(roles);
     const pathname =
       typeof window !== "undefined" ? window.location.pathname : "";
     const disablePropertyDropdownForPayroll =
@@ -456,7 +490,13 @@ class MainNav extends React.Component {
     const canAccessCompOff =
       ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles);
 
-    const isHrRestricted = isHrRole && !canSeeAllPages;
+    // Restrict "HR-only" users to a safe allow-list. If the user has HR plus another
+    // functional role (ex: HR + Manager), don't apply the HR-only restriction.
+    const isHrRestricted =
+      isHrRole &&
+      !canSeeAllPages &&
+      !ROLE_RULES.isManagerRole(roles) &&
+      !ROLE_RULES.isPropertyManagerRole(roles);
     const hrAllowedExactPaths = new Set([
       "/Account/App/UserProfile",
       "/Account/App/ChangePassword",
@@ -483,12 +523,15 @@ class MainNav extends React.Component {
       "/Account/App/GenerateSalary",
       "/Account/App/AllowanceDeduction",
       "/Account/App/Designation",
+      "/Account/App/Department",
       "/Account/App/Linking",
       "/Account/App/Report",
       "/Account/App/ProfessionalTax",
       "/Account/App/LabourFund",
       "/Account/App/AD_Percentage",
+      "/Account/App/EmployeeShiftMapping",
       "/Account/App/EmployeeTransfer",
+      "/Account/App/FundsApproval",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -536,6 +579,7 @@ class MainNav extends React.Component {
                       Id="ddlClient"
                       Name="Client"
                       Disabled={false}
+                      Value={this.state.selectedClientId}
                       onSelected={this.onClientChanged}
                       Options={(this.state.clientData || []).map((item) => ({
                         Value: item.ClientID || item.Value || item.id || 0,
@@ -549,6 +593,7 @@ class MainNav extends React.Component {
                       Id="ddlProperty"
                       Name="Property"
                       Disabled={disablePropertyDropdownForPayroll || this.state.selectedClientId <= 0}
+                      Value={this.state.selectedPropertyId}
                       onSelected={this.onPropertyChanged.bind(this)}
                       Options={this.state.PropertyData}
                     />
@@ -561,6 +606,7 @@ class MainNav extends React.Component {
                       <DropDownList
                         Id="ddlProperty"
                         Disabled={disablePropertyDropdownForPayroll}
+                        Value={this.state.selectedPropertyId}
                         onSelected={this.onPropertyChanged.bind(this)}
                         Options={this.state.PropertyData}
                       />
@@ -986,8 +1032,8 @@ class MainNav extends React.Component {
                     </li>
                   ) : null}
 
-                  {canAccessFacilityManagement ? (
-                    <li className="nav-item has-treeview">
+	                  {canAccessFacilityManagement ? (
+	                    <li className="nav-item has-treeview">
                       <a href="#" className="nav-link">
                         <i className="nav-icon fas fa-address-book"></i>
                         <p>
@@ -1006,11 +1052,22 @@ class MainNav extends React.Component {
                           </Link>
                         </li>
                         <li className="nav-item">
-                          <Link to="/Account/App/Facility" className="nav-link">
-                            <i className=" fas fa-caret-right nav-icon"></i>
-                            <p>Facility Latlong </p>
+                          <Link
+                            to="/Account/App/EmployeeTransfer"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Emp Search & Transfer</p>
                           </Link>
                         </li>
+                       {!isManagerOnly && (
+	                          <li className="nav-item">
+	                            <Link to="/Account/App/Facility" className="nav-link">
+	                              <i className=" fas fa-caret-right nav-icon"></i>
+	                              <p>Facility Latlong </p>
+	                            </Link>
+	                          </li>
+	                        )}
 
                         {canSeeAllPages ? (
                           <li className="nav-item">
@@ -1048,28 +1105,28 @@ class MainNav extends React.Component {
                           </li>
                         )}
 
-                        {!hideAttendanceForPropertyManager && (
-                          <li className="nav-item">
-                            <Link
-                              to="/Account/App/leavemaster"
-                              className="nav-link"
-                            >
-                              <i className=" fas fa-caret-right nav-icon"></i>
-                              <p>Leave Master </p>
-                            </Link>
-                          </li>
-                        )}
-                        {!hideAttendanceForPropertyManager && (
-                          <li className="nav-item">
-                            <Link
-                              to="/Account/App/EmployeeLeave"
-                              className="nav-link"
-                            >
-                              <i className=" fas fa-caret-right nav-icon"></i>
-                              <p>Employee Leave </p>
-                            </Link>
-                          </li>
-                        )}
+		                        {!hideAttendanceForPropertyManager && !isManagerOnly && (
+		                          <li className="nav-item">
+		                            <Link
+		                              to="/Account/App/leavemaster"
+	                              className="nav-link"
+	                            >
+	                              <i className=" fas fa-caret-right nav-icon"></i>
+	                              <p>Leave Master </p>
+	                            </Link>
+	                          </li>
+	                        )}
+	                        {!hideAttendanceForPropertyManager && !isManagerOnly && (
+	                          <li className="nav-item">
+	                            <Link
+	                              to="/Account/App/EmployeeLeave"
+	                              className="nav-link"
+	                            >
+	                              <i className=" fas fa-caret-right nav-icon"></i>
+	                              <p>Employee Leave </p>
+	                            </Link>
+	                          </li>
+	                        )}
 
                         {!hideAttendanceForPropertyManager && (
                           <li className="nav-item">
@@ -1151,7 +1208,7 @@ class MainNav extends React.Component {
                       </a>
                       <ul className="nav nav-treeview">
 
-                        
+
                         <li className="nav-item">
                           <Link
                             to="/Account/App/SGNEW"
@@ -1192,7 +1249,7 @@ class MainNav extends React.Component {
                             <p>Allowance Deduction</p>
                           </Link>
                         </li>
-                         <li className="nav-item">
+                        <li className="nav-item">
                           <Link
                             to="/Account/App/Designation"
                             className="nav-link"
@@ -1257,11 +1314,29 @@ class MainNav extends React.Component {
 
                         <li className="nav-item">
                           <Link
+                            to="/Account/App/EmployeeShiftMapping"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Employee Shift Mapping</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+
+                          <Link
                             to="/Account/App/EmployeeTransfer"
                             className="nav-link"
                           >
                             <i className="fas fa-caret-right nav-icon"></i>
                             <p>Employee Transfer</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link to="/Account/App/FundsTransfer"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Funds Transfer</p>
                           </Link>
                         </li>
 
@@ -1478,7 +1553,7 @@ class MainNav extends React.Component {
                         </li>
                         <li className="nav-item">
                           <Link
-                            to="/Account/App/department"
+                            to="/Account/App/Department"
                             className="nav-link"
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
@@ -1529,7 +1604,7 @@ class MainNav extends React.Component {
                         className="nav nav-treeview"
                         style={{ display: "none" }}
                       >
-                        
+
                         <li className="nav-item">
                           <Link
                             to="/Account/App/BranchMaster"
@@ -1711,7 +1786,7 @@ class MainNav extends React.Component {
               }}
             />
           )}
-          <Switch>
+	          <Switch>
             <Route
               exact
               path="/"
@@ -1722,7 +1797,12 @@ class MainNav extends React.Component {
             <Route exact path="/Account/App/ticket">
               <TicketingDashboard />
             </Route>
-            <Route path="/Account/App/department">
+            <Route
+              exact
+              path="/Account/App/department"
+              render={() => <Redirect to="/Account/App/Department" />}
+            />
+            <Route path="/Account/App/Department">
               <Department />
             </Route>
             <Route path="/Account/App/ChangePassword">
@@ -1738,37 +1818,39 @@ class MainNav extends React.Component {
             <Route path="/Account/App/UserProfile">
               <UserProfile />
             </Route>
-            <Route path="/Account/App/FacilityMember">
-              <FacilityMember />
-            </Route>
-            <Route path="/Account/App/CreateNewUser">
-              <CreateNewUser />
-            </Route>
-            <Route path="/Account/App/AddNewUser">
-              <AddNewUser />
-            </Route>
-            <Route path="/Account/App/Facility">
-              <FacilityLatlong />
-            </Route>
-
-            <Route path="/Account/App/CreateNewUser">
-              <CreateNewUser />
-            </Route>
-            <Route path="/Account/App/AddNewUser">
-              <AddNewUser />
-            </Route>
-            <Route path="/Account/App/CreateNewUser">
-              <CreateNewUser />
-            </Route>
-            <Route path="/Account/App/AddNewUser">
-              <AddNewUser />
-            </Route>
-            <Route path="/Account/App/CreateNewUser">
-              <CreateNewUser />
-            </Route>
-            <Route path="/Account/App/AddNewUser">
-              <AddNewUser />
-            </Route>
+	            <Route path="/Account/App/FacilityMember">
+	              <FacilityMember />
+	            </Route>
+	            <Route
+	              path="/Account/App/CreateNewUser"
+	              render={() =>
+	                ROLE_RULES.isAdminRole(roles) ? (
+	                  <CreateNewUser />
+	                ) : (
+	                  <Redirect to="/Account/App" />
+	                )
+	              }
+	            />
+	            <Route
+	              path="/Account/App/AddNewUser"
+	              render={() =>
+	                ROLE_RULES.isAdminRole(roles) ? (
+	                  <AddNewUser />
+	                ) : (
+	                  <Redirect to="/Account/App" />
+	                )
+	              }
+	            />
+	            <Route
+	              path="/Account/App/Facility"
+	              render={() => {
+	                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
+	                  return <Redirect to="/Account/App" />;
+	                }
+	                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
+	                return <FacilityLatlongPage />;
+	              }}
+	            />
             <Route path="/Account/App/PropertyMember">
               <PropertyMember />
             </Route>
@@ -1797,6 +1879,9 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/SpareMaster">
               <SparePage />
+            </Route>
+            <Route path="/Account/App/FundsApproval">
+              <FundsApproval />
             </Route>
             <Route path="/Account/App/ParkingDetails">
               <ParkingDetailsPage />
@@ -1978,6 +2063,10 @@ class MainNav extends React.Component {
               component={AD_Percentage}
             />
             <Route
+              path="/Account/App/EmployeeShiftMapping"
+              component={EmployeeShiftMapping}
+            />
+            <Route
               path="/Account/App/GenerateSalary"
               component={GenerateSalary}
             />
@@ -2012,18 +2101,29 @@ class MainNav extends React.Component {
               path="/Account/App/ExpenseMaster"
               component={ExpenseMaster}
             />
-            <Route path="/Account/App/leave" component={Leave} />
-            <Route path="/Account/App/leavemaster" component={LeaveMaster} />
-            <Route
-              path="/Account/App/Facility"
-              component={FacilityLatlongPage}
-            />
-            <Route path="/Account/App/DMRReport" component={DMRReport} />
-            <Route path="/Account/App/AttendanceBiometricReport" component={AttendanceBiometricReport} />
-            <Route
-              path="/Account/App/EmployeeLeave"
-              component={EmployeeLeave}
-            />
+	            <Route path="/Account/App/leave" component={Leave} />
+	            <Route
+	              path="/Account/App/leavemaster"
+	              render={() => {
+	                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
+	                  return <Redirect to="/Account/App" />;
+	                }
+	                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
+	                return <LeaveMaster />;
+	              }}
+	            />
+	            <Route path="/Account/App/DMRReport" component={DMRReport} />
+	            <Route path="/Account/App/AttendanceBiometricReport" component={AttendanceBiometricReport} />
+	            <Route
+	              path="/Account/App/EmployeeLeave"
+	              render={() => {
+	                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
+	                  return <Redirect to="/Account/App" />;
+	                }
+	                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
+	                return <EmployeeLeave />;
+	              }}
+	            />
             <Route path="/Account/App/EmployeeLeaveRemaining" component={LeaveDashboard} />
             <Route path="/Account/App/ItemSpecification">
               <ItemSpecificationPage />
@@ -2041,7 +2141,7 @@ class MainNav extends React.Component {
             {/* <Route path="/AttendanceSummary">
                             <AttendanceSummaryPage />
                         </Route> */}
-          </Switch>
+          </Switch >
           <footer
             className="main-footer"
             style={{
@@ -2068,8 +2168,8 @@ class MainNav extends React.Component {
           </footer>
 
           <aside className="control-sidebar control-sidebar-dark"></aside>
-        </div>
-      </Router>
+        </div >
+      </Router >
     );
   }
 }
