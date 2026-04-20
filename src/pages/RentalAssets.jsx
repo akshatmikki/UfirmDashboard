@@ -472,7 +472,7 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "http://localhost:62929/ManageRentOutAsset";
+    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
     const payload = isReturnMode
       ? {
         assetId: selectedAsset.Id,
