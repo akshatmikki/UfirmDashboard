@@ -428,12 +428,12 @@ const SparePage = () => {
               <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatusLabel}</span>
             </div>
 
-            <div className="asset-details-row asset-details-desc-row">
+            {/* <div className="asset-details-row asset-details-desc-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Description</span>
                 <span className="asset-info-value">{selectedRow.Description || selectedRow.description || "-"}</span>
               </div>
-            </div>
+            </div> */}
 
             <div className="asset-details-grid spare-details-grid">
               <div className="asset-info-item asset-info-full">
@@ -449,20 +449,20 @@ const SparePage = () => {
                 <span className="asset-info-value">{selectedRow.AssetID || "-"}</span>
               </div>
               <div className="asset-info-item">
-                <span className="asset-info-label">Manufacturer</span>
-                <span className="asset-info-value">{selectedAsset?.Manufacturer || selectedAsset?.manufacturer || "-"}</span>
-              </div>
-              <div className="asset-info-item">
-                <span className="asset-info-label">Model</span>
-                <span className="asset-info-value">{selectedAsset?.AssetModel || selectedAsset?.Model || "-"}</span>
-              </div>
-              <div className="asset-info-item">
                 <span className="asset-info-label">Vendor</span>
                 <span className="asset-info-value">{selectedRow.VendorName || "-"}</span>
               </div>
               <div className="asset-info-item">
-                <span className="asset-info-label">Purchase price</span>
-                <span className="asset-info-value">{selectedRow.PurchasePrice || selectedRow.AssetValue || "-"}</span>
+                <span className="asset-info-label">Quantity</span>
+                <span className="asset-info-value">{selectedRow.Quantity ?? "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Type</span>
+                <span className="asset-info-value">{selectedRow.SpareType || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Back up time</span>
+                <span className="asset-info-value">{selectedRow.BackupTime || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Purchase date</span>
@@ -471,6 +471,10 @@ const SparePage = () => {
               <div className="asset-info-item">
                 <span className="asset-info-label">Expiry date</span>
                 <span className="asset-info-value">{formatDisplayDate(selectedRow.ExpiryDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Value</span>
+                <span className="asset-info-value">{selectedRow.Value || selectedRow.AssetValue || "-"}</span>
               </div>
             </div>
           </div>

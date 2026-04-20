@@ -12,6 +12,7 @@
   margin-bottom: 18px;
 }
 
+
 .asset-master-breadcrumb span {
   font-size: 16px;
 }
@@ -1118,6 +1119,10 @@
   align-items: center;
   gap: 8px;
   font-weight: 400;
+}
+
+.asset-radio-option input[type="radio"] {
+  margin: 0 4px 0 0;
 }
 
 .asset-dialog-backdrop {

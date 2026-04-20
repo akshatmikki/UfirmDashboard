@@ -1317,6 +1317,14 @@ class AssetsMaster extends Component {
                   <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
                 </div>
               </div>
+              <div className="form-group asset-form-group-custom">
+                <label>AMC Contract</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
+                  <i className="fa fa-file-text-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+                </div>
+              </div>
             </div>
           </div>
 
