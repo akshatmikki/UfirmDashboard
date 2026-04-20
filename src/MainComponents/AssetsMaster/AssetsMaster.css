@@ -2811,6 +2811,26 @@
   box-shadow: none !important;
 }
 
+.asset-master-table-wrap-spare .custTable tbody tr.grid-selected-row td {
+  background: #d3e6ff !important;
+  box-shadow: none !important;
+}
+
+.asset-master-table-wrap-spare:not(.has-selection) .custTable tbody tr:hover td {
+  background: #d3e6ff !important;
+  box-shadow: none !important;
+}
+
+.asset-master-table-wrap-spare.has-selection .custTable tbody tr:hover td {
+  background: #eaf3ff !important;
+  box-shadow: none !important;
+}
+
+.asset-master-table-wrap-spare.has-selection .custTable tbody tr.grid-selected-row:hover td {
+  background: #d3e6ff !important;
+  box-shadow: none !important;
+}
+
 .asset-master-table-wrap-owned .custTable tbody td:last-child {
   white-space: nowrap;
   text-align: center;
