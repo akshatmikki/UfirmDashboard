@@ -350,24 +350,51 @@ export default function PropertyMaster() {
     }
 
     // 🔥 DUPLICATE PROPERTY NAME CHECK
-    const newNameNormalized = normalizeText(form.Name);
+    // 🔥 CLEAN + NORMALIZE INPUT
+    const cleanedName = form.Name?.trim();
+    const newNameNormalized = normalizeText(cleanedName);
 
-    const isDuplicate = properties.some((p) => {
-      const existingNameNormalized = normalizeText(p.Name);
+    // 🔥 SKIP duplicate check if same name in edit
+    if (editId) {
+      const current = properties.find(p => p.PropertyId === editId);
+      const currentNormalized = normalizeText(current?.Name?.trim() || "");
 
-      // allow same record in edit mode
-      if (editId && p.PropertyId === editId) return false;
+      if (currentNormalized !== newNameNormalized) {
+        const isDuplicate = properties.some((p) => {
+          const existingName = p.Name?.trim();
+          const existingNameNormalized = normalizeText(existingName);
 
-      return existingNameNormalized === newNameNormalized;
-    });
+          if (p.PropertyId === editId) return false;
 
-    if (isDuplicate) {
-      toast.current.show({
-        severity: "error",
-        summary: "Duplicate Error",
-        detail: "Property with similar name already exists!",
+          return existingNameNormalized === newNameNormalized;
+        });
+
+        if (isDuplicate) {
+          toast.current.show({
+            severity: "error",
+            summary: "Duplicate Error",
+            detail: `"${form.Name}" already exists (similar name detected)`,
+          });
+          return;
+        }
+      }
+    } else {
+      // CREATE MODE
+      const isDuplicate = properties.some((p) => {
+        const existingName = p.Name?.trim();
+        const existingNameNormalized = normalizeText(existingName);
+
+        return existingNameNormalized === newNameNormalized;
       });
-      return;
+
+      if (isDuplicate) {
+        toast.current.show({
+          severity: "error",
+          summary: "Duplicate Error",
+          detail: `"${form.Name}" already exists (similar name detected)`,
+        });
+        return;
+      }
     }
 
     try {
@@ -430,10 +457,28 @@ export default function PropertyMaster() {
       loadData();
 
     } catch (err) {
+      let message = "Save failed";
+
+      // 🔥 HANDLE FETCH ERRORS (this is your case)
+      if (err?.message) {
+        message = err.message;
+      }
+
+      // 🔥 HANDLE AXIOS (future-proof)
+      else if (err?.response) {
+        if (typeof err.response.data === "string" && err.response.data) {
+          message = err.response.data;
+        } else if (err.response.data?.Message) {
+          message = err.response.data.Message;
+        } else if (err.response.status === 400) {
+          message = "Duplicate or invalid data.";
+        }
+      }
+
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Save failed",
+        detail: message,
       });
     }
   };
@@ -496,7 +541,9 @@ export default function PropertyMaster() {
   const normalizeText = (str) => {
     return str
       ?.toLowerCase()
-      .replace(/[^a-z0-9]/g, "");
+      .trim()
+      .replace(/\s+/g, "")        // remove multiple spaces
+      .replace(/[^a-z0-9]/g, ""); // remove symbols
   };
 
   useEffect(() => {

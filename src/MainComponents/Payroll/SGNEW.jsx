@@ -810,6 +810,14 @@ export default function SGNEW() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    if (name === "salaryGroupName") {
+      setForm((prev) => ({
+        ...prev,
+        salaryGroupName: value.replace(/\s+/g, " "),
+      }));
+      return;
+    }
+
     // 🔥 NEW LOGIC (ADD THIS HERE)
     if (name === "salaryCycleFrom" || name === "salaryCycleTo") {
       const from = name === "salaryCycleFrom" ? value : form.salaryCycleFrom;
@@ -845,6 +853,18 @@ export default function SGNEW() {
       (!selectedSG || selectedSG.trim() === "")
     ) {
       alert("Please enter Salary Group Name or select an existing SG");
+      return;
+    }
+
+    const enteredName = form.salaryGroupName?.trim().toLowerCase();
+
+    const isDuplicate = salaryGroups.some(
+      (sg) => sg.SalaryGroup?.trim().toLowerCase() === enteredName
+    );
+
+    // ❌ BLOCK CREATION (ONLY when creating new)
+    if (!selectedSG && isDuplicate) {
+      alert("Salary Group with this name already exists!");
       return;
     }
 
