@@ -9,6 +9,37 @@
   max-width: calc(100% - 336px);
 }
 
+.transfer-page .rental-assets-card.with-side-panel .asset-master-toolbar {
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+}
+
+.transfer-page .rental-assets-card.with-side-panel .asset-master-search {
+  flex: 0 1 280px;
+  width: auto;
+  min-width: 220px;
+  max-width: 280px;
+}
+
+.transfer-page .rental-assets-card.with-side-panel .asset-master-toolbar-actions {
+  flex: 1 0 auto;
+  width: auto;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 12px;
+}
+
+.transfer-page .rental-assets-card.with-side-panel .asset-master-toolbar-actions > * {
+  flex: 0 0 auto;
+}
+
+.transfer-page .rental-assets-card.with-side-panel .asset-toolbar-filter,
+.transfer-page .rental-assets-card.with-side-panel .asset-export-btn,
+.transfer-page .rental-assets-card.with-side-panel .asset-toolbar-add {
+  min-width: fit-content !important;
+  white-space: nowrap;
+}
+
 .transfer-page .rental-assets-main-card {
   overflow: hidden;
   flex: 1 1 auto;

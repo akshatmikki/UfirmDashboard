@@ -945,15 +945,6 @@ const CheckInCheckOut = ({ propId }) => {
 
             <div className={`rental-assets-card ${activeSelection ? "with-side-panel" : ""}`.trim()}>
               <div className="rental-assets-main-card">
-                <div className="asset-master-tabs">
-                  <button type="button" className={`asset-master-tab ${activeTab === "assets" ? "active" : ""}`.trim()} onClick={() => handleTabChange("assets")}>
-                    Assets
-                  </button>
-                  <button type="button" className={`asset-master-tab ${activeTab === "spares" ? "active" : ""}`.trim()} onClick={() => handleTabChange("spares")}>
-                    Spare parts
-                  </button>
-                </div>
-
                 <div className="asset-master-toolbar">
                   <div className="asset-master-search" onClick={() => searchInputRef.current?.focus()}>
                     <i className="fa fa-search" aria-hidden="true" />

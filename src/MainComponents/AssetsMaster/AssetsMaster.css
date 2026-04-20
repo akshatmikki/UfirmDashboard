@@ -2041,9 +2041,7 @@
 
 .asset-add-qr-block {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-end;
   margin-bottom: 12px;
 }
 

@@ -36,6 +36,7 @@ const Home = ({ PropertyId }) => {
 
   const [initialDate, setInitialDate] = useState("");
   const [finalDate, setFinalDate] = useState("");
+  const filteredAssets = assetCount.filter(a => a.Value > 0);
 
   const [subCategoryCards] = useState([
     { name: "Lift", id: 4 },
@@ -232,8 +233,8 @@ const Home = ({ PropertyId }) => {
       if (resp && resp.ok && resp.status === 200) {
         const data = await resp.json();
         const assetStatus = [
+          { Title: "Total Assets", Value: data.TotalAsset || 0 },
           { Title: "Service Overdue", Value: data.ServiceOverdueAssets || 0 },
-          { Title: "Upcoming Services", Value: data.UpcomingServices || 0 },
           { Title: "Rented-Out Assets", Value: data.RentedOutAsset || 0 },
           { Title: "Checked-Out Assets", Value: data.CheckedOutAssets || 0 },
         ];
@@ -626,23 +627,23 @@ const Home = ({ PropertyId }) => {
                     {chartLoading.assets ? (
                       <CardLoader />
                     ) : hasData(assetCount) ? (
-                      <Chart
-                        type="bar"
-                        data={{
-                          labels: assetCount.map((a) => a.Title),
-                          datasets: [
-                            {
-                              label: "Assets",
-                              data: assetCount.map((a) => a.Value),
-                              backgroundColor: [
-                                "#42A5F5",
-                                "#66BB6A",
-                                "#FFA726",
-                                "#AB47BC",
-                              ],
-                            },
-                          ],
-                        }}
+                     <Chart
+                      type="bar"
+                      data={{
+                        labels: filteredAssets.map((a) => a.Title),
+                        datasets: [
+                          {
+                            label: "Assets",
+                            data: filteredAssets.map((a) => a.Value),
+                            backgroundColor: [
+                              "#42A5F5",
+                              "#EF5350",
+                              "#FFA726",
+                              "#AB47BC",
+                            ],
+                          },
+                        ],
+                      }}
                         options={{
                           responsive: true,
                           maintainAspectRatio: false,

@@ -98,6 +98,7 @@ class AssetsMaster extends Component {
       PurchaseDate: "",
       WarrantyDate: "",
       currentPage: 1,
+      nextAddAssetId: 0,
       showAddQrPreview: false,
     };
     this.ApiProviderr = new ApiProvider();
@@ -256,7 +257,7 @@ class AssetsMaster extends Component {
   loadHomagePageData = () => {
     const propertyId = Number(this.props.PropertyId);
     if (!(propertyId > 0)) {
-      this.setState({ GridData: [], DueGridData: [], isLoading: false, selectedRowId: null, PageMode: "Home" });
+      this.setState({ GridData: [], DueGridData: [], isLoading: false, selectedRowId: null, PageMode: "Home", nextAddAssetId: 0 });
       return;
     }
 
@@ -299,7 +300,7 @@ class AssetsMaster extends Component {
              return dateA.localeCompare(dateB);
            });
 
-          this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false });
+          this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false, nextAddAssetId: this.getNextAssetId(merged) });
         });
       })
       .catch(() => this.setState({ isLoading: false }));
@@ -309,20 +310,20 @@ class AssetsMaster extends Component {
 
   findItem = (id) => this.state.GridData.find((item) => String(item.Id) === String(id)) || null;
 
-  getNextAssetId = () => {
-    const ids = this.state.GridData.map((item) => Number(item?.Id)).filter((id) => Number.isFinite(id));
+  getNextAssetId = (rows = this.state.GridData) => {
+    const ids = (rows || []).map((item) => Number(item?.Id)).filter((id) => Number.isFinite(id));
     const maxId = ids.length ? Math.max(...ids) : 0;
     return maxId + 1;
   };
 
   generateAddAssetQr = () => {
-    const nextId = this.state.Id || this.getNextAssetId();
+    const nextId = this.state.Id || this.state.nextAddAssetId || this.getNextAssetId();
     const qrValue = String(nextId || "").trim();
     if (!qrValue) return;
     this.setState({
       Id: nextId,
       QRCode: qrValue,
-      showAddQrPreview: true,
+      showAddQrPreview: false,
     });
   };
 
@@ -331,7 +332,7 @@ class AssetsMaster extends Component {
       {
         PageMode: "Add",
         selectedRowId: null,
-        Id: 0,
+        Id: this.state.nextAddAssetId || this.getNextAssetId(),
         AssetType: "",
         ManufacturerName: "",
         AssetModel: "",
@@ -1104,7 +1105,7 @@ class AssetsMaster extends Component {
   renderAssetFormModal = () => {
     const isEditMode = this.state.PageMode === "Edit";
     const title = isEditMode ? "Edit Asset" : "Add Asset";
-    const nextAssetId = this.state.Id || this.getNextAssetId();
+    const nextAssetId = this.state.Id || this.state.nextAddAssetId || this.getNextAssetId();
     const addAssetQrValue = String(this.state.QRCode || "").trim();
     const canViewAddQr = Boolean(addAssetQrValue);
 
@@ -1126,22 +1127,24 @@ class AssetsMaster extends Component {
                 <span className="asset-add-id-label">ID</span>
                 <span className="asset-add-id-value">{nextAssetId ? `#${nextAssetId}` : "-"}</span>
               </div>
-              <button type="button" className="asset-add-generate" onClick={this.generateAddAssetQr}>
+              <button
+                type="button"
+                className="asset-add-generate"
+                onClick={() => {
+                  if (!canViewAddQr) {
+                    this.generateAddAssetQr();
+                    return;
+                  }
+                  this.setState((prev) => ({ showAddQrPreview: !prev.showAddQrPreview }));
+                }}
+              >
                 <i className="fa fa-qrcode" aria-hidden="true" />
-                {this.state.showAddQrPreview ? "Regenerate QR code" : "Generate QR code"}
+                {!canViewAddQr ? "Generate QR code" : this.state.showAddQrPreview ? "Hide QR code" : "View QR code"}
               </button>
             </div>
 
             {canViewAddQr ? (
               <div className="asset-add-qr-block">
-                <button
-                  type="button"
-                  className={`asset-add-generate asset-add-view-qr ${this.state.showAddQrPreview ? "active" : ""}`.trim()}
-                  onClick={() => this.setState((prev) => ({ showAddQrPreview: !prev.showAddQrPreview }))}
-                >
-                  <i className="fa fa-qrcode" aria-hidden="true" />
-                  {this.state.showAddQrPreview ? "Hide QR code" : "View QR code"}
-                </button>
                 {this.state.showAddQrPreview ? (
                   <div className="asset-add-qr-preview">
                     <QRCode value={addAssetQrValue} size={84} />
