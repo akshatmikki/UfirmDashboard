@@ -403,6 +403,7 @@ const SparePage = () => {
 
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
+  const selectedStatusLabel = String(selectedRow?.Status || "").trim() || selectedStatus.label;
   const selectedQrValue = useMemo(() => String(selectedRow?.SpareID || "").trim(), [selectedRow]);
 
   const renderDetailsPanel = () => {
@@ -424,20 +425,20 @@ const SparePage = () => {
                 <span className="asset-info-label">Name</span>
                 <span className="asset-info-value">{selectedRow.SpareType || "-"}</span>
               </div>
-              <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatus.label}</span>
+              <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatusLabel}</span>
             </div>
 
             <div className="asset-details-row asset-details-desc-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Description</span>
-                <span className="asset-info-value">{selectedRow.Remarks || "-"}</span>
+                <span className="asset-info-value">{selectedRow.Description || selectedRow.description || "-"}</span>
               </div>
             </div>
 
             <div className="asset-details-grid spare-details-grid">
               <div className="asset-info-item asset-info-full">
                 <span className="asset-info-label">Serial number</span>
-                <span className="asset-info-value">{selectedRow.SerialNumber || "1234567890"}</span>
+                <span className="asset-info-value">{selectedRow.SerialNumber || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Asset</span>
@@ -461,7 +462,7 @@ const SparePage = () => {
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Purchase price</span>
-                <span className="asset-info-value">{selectedRow.Rating ? `Rs${selectedRow.Rating}` : "-"}</span>
+                <span className="asset-info-value">{selectedRow.PurchasePrice || selectedRow.AssetValue || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Purchase date</span>
@@ -791,7 +792,7 @@ const SparePage = () => {
                           <th>ID</th>
                           <th>Name</th>
                           <th>Asset</th>
-                          <th>Service due</th>
+                          <th>Expiry date</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
