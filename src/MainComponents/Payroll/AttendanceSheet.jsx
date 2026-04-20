@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
+import * as appCommon from "../../Common/AppCommon";
 import {
   getAttendanceByProperties,
   saveAttendanceBatch,
@@ -80,6 +81,10 @@ function countSundaysInRange(startDate, endDate) {
 }
 
 function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear) {
+  const parsed = parseMonthYear(monthyear);
+  const year = parsed?.year ?? fallbackYear;
+  const month = parsed?.month ?? fallbackMonth;
+
   const totalWorkingDaysValue = parsePositiveNumber(
     config?.TotalWorkingDays ?? config?.totalWorkingDays ?? config?.totalworkingdays
   );
@@ -90,10 +95,9 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
   );
   if (monthDaysValue > 0) return monthDaysValue;
 
-  const parsed = parseMonthYear(monthyear);
-  const year = parsed?.year ?? fallbackYear;
-  const month = parsed?.month ?? fallbackMonth;
-  if (!year || !month) return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
+  if (!year || !month) {
+    return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
+  }
 
   const excludeSundaysRaw =
     config?.ExcludeSunday ??
@@ -118,10 +122,17 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
     config?.SalaryEndTo ??
     config?.salaryEndTo ??
     config?.salaryendto ??
-    30;
+    getDaysInMonth(month, year);
 
-  const salaryStartFrom = Number(salaryStartFromRaw) || 1;
-  const salaryEndTo = Number(salaryEndToRaw) || 30;
+  let salaryStartFrom = Number(salaryStartFromRaw) || 0;
+  let salaryEndTo = Number(salaryEndToRaw) || 0;
+
+  // Match backend behavior:
+  // If both are <=0, default to full month.
+  if (salaryStartFrom <= 0 && salaryEndTo <= 0) {
+    salaryStartFrom = 1;
+    salaryEndTo = getDaysInMonth(month, year);
+  }
 
   let startDate;
   if (salaryStartFrom <= salaryEndTo) {
@@ -131,7 +142,7 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
     const prevYear = month === 1 ? year - 1 : year;
     startDate = safeDate(prevYear, prevMonth, salaryStartFrom);
   }
-  const endDate = safeDate(year, month, salaryEndTo);
+  const endDate = safeDate(year, month, salaryEndTo || getDaysInMonth(month, year));
 
   const totalDays = Math.max(
     1,
@@ -213,6 +224,22 @@ export default function AttendanceSheet() {
   const [conflictSalaryOptionsMap, setConflictSalaryOptionsMap] = useState({});
   const [pendingUpload, setPendingUpload] = useState(null);
   const [confirmingUpload, setConfirmingUpload] = useState(false);
+
+  const lastValidationToastAtRef = useRef({});
+  const notifyValidation = (key, message) => {
+    const now = Date.now();
+    const last = Number(lastValidationToastAtRef.current?.[key]) || 0;
+    if (now - last < 1200) return; // throttle to avoid popup spam while typing
+    lastValidationToastAtRef.current = {
+      ...(lastValidationToastAtRef.current || {}),
+      [key]: now,
+    };
+    try {
+      appCommon.ShownotifyError(message);
+    } catch {
+      alert(message);
+    }
+  };
 
   useEffect(() => {
     const days = getDaysInMonth(month, year);
@@ -1019,15 +1046,14 @@ export default function AttendanceSheet() {
           setDayInputs((old) => ({
             ...old,
             [empId]: {
+              ...baseExtraFields,
               workingDays: "",
-              EL: "",
-              CL: "",
-              SL: "",
               weekDaysOff: "",
               otDays: "",
               otHours: "",
               totalDays: "",
               manualTotalDays: false,
+              divideByDays: employeeSGMap[empId]?.divideByDays ?? globalTotalDays,
             },
           }));
         }
@@ -1045,16 +1071,14 @@ export default function AttendanceSheet() {
 
     setDayInputs((prev) => {
       const current = prev[empId] || {
+        ...baseExtraFields,
         workingDays: "",
-        EL: "",
-        CL: "",
-        SL: "",
         weekDaysOff: "",
         otDays: "",
         otHours: "",
         totalDays: globalTotalDays,
         manualTotalDays: false,
-        ...baseExtraFields,
+        divideByDays: employeeSGMap[empId]?.divideByDays ?? globalTotalDays,
       };
 
       const updated = { ...current, [field]: value };
@@ -1066,7 +1090,13 @@ export default function AttendanceSheet() {
       if (field === "divideByDays") {
         if (value !== "") {
           const inputNum = Number(value);
-          if (!Number.isFinite(inputNum) || inputNum < 1) return prev;
+          if (!Number.isFinite(inputNum) || inputNum < 1) {
+            notifyValidation(
+              `divideByDays:min:${empId}`,
+              "Divide By Days must be at least 1."
+            );
+            updated.divideByDays = "1";
+          }
 
           const expected = getComputedDivideByDays(
             employeeSGMap?.[empId] || null,
@@ -1076,16 +1106,34 @@ export default function AttendanceSheet() {
           );
 
           if (Number.isFinite(expected) && expected > 0 && inputNum > expected) {
-            return prev;
+            notifyValidation(
+              `divideByDays:max:${empId}`,
+              `Divide By Days cannot be greater than ${expected} for the selected month.`
+            );
+            updated.divideByDays = String(expected);
           }
         }
       }
 
-      const totalDays =
-        field === "totalDays"
-          ? parseFloat(value) || 0
-          : parseFloat(current.totalDays) || globalTotalDays;
       const monthDaysLimit = getDaysInMonth(month, year);
+
+      // Resolve totalDays for validation/clamping
+      const totalDaysInputNum =
+        field === "totalDays" ? Number(value) : Number(updated.totalDays);
+      let totalDaysResolved = Number.isFinite(totalDaysInputNum) && totalDaysInputNum > 0
+        ? totalDaysInputNum
+        : Number(current.totalDays) || globalTotalDays;
+      if (!Number.isFinite(totalDaysResolved) || totalDaysResolved <= 0) {
+        totalDaysResolved = globalTotalDays;
+      }
+      if (totalDaysResolved > monthDaysLimit) {
+        notifyValidation(
+          `totalDays:max:${empId}`,
+          `Total Days cannot be more than ${monthDaysLimit} for this month.`
+        );
+        totalDaysResolved = monthDaysLimit;
+        if (field === "totalDays") updated.totalDays = String(monthDaysLimit);
+      }
 
       const w = parseFloat(updated.workingDays) || 0;
       const el = parseFloat(updated.EL) || 0;
@@ -1093,28 +1141,76 @@ export default function AttendanceSheet() {
       const sl = parseFloat(updated.SL) || 0;
       const l = el + cl + sl;
       const wk = parseFloat(updated.weekDaysOff) || 0;
-      const totalAgainstMonthLimit =
-        field === "totalDays" ? parseFloat(value) || 0 : totalDays;
+
+      const clampFieldTo = (fieldName, maxValue, reasonKey, reasonMsg) => {
+        const currVal = Number(updated[fieldName] ?? 0);
+        if (!Number.isFinite(currVal)) return;
+        if (currVal > maxValue) {
+          notifyValidation(reasonKey, reasonMsg);
+          updated[fieldName] = String(Math.max(0, maxValue));
+        }
+      };
 
       if (
         ["workingDays", "EL", "CL", "SL", "weekDaysOff", "totalDays"].includes(
           field
         ) &&
-        (parseFloat(value) || 0) > monthDaysLimit
+        (Number(value) || 0) > monthDaysLimit
       ) {
-        return prev;
+        notifyValidation(
+          `${field}:monthLimit:${empId}`,
+          `${field} cannot be more than ${monthDaysLimit} for this month.`
+        );
+        updated[field] = String(monthDaysLimit);
       }
 
       if (["workingDays", "EL", "CL", "SL", "weekDaysOff"].includes(field)) {
-        if (parseFloat(value) > totalDays) return prev;
+        const v = Number(updated[field]) || 0;
+        if (v > totalDaysResolved) {
+          notifyValidation(
+            `${field}:totalDays:${empId}`,
+            `${field} cannot be more than Total Days (${totalDaysResolved}).`
+          );
+          updated[field] = String(totalDaysResolved);
+        }
       }
 
-      if (totalAgainstMonthLimit > monthDaysLimit) return prev;
+      // Ensure the sum of (WorkingDays + Leaves + WeekOff) doesn't exceed totalDaysResolved
+      if (["workingDays", "EL", "CL", "SL", "weekDaysOff"].includes(field)) {
+        const w2 = parseFloat(updated.workingDays) || 0;
+        const el2 = parseFloat(updated.EL) || 0;
+        const cl2 = parseFloat(updated.CL) || 0;
+        const sl2 = parseFloat(updated.SL) || 0;
+        const wk2 = parseFloat(updated.weekDaysOff) || 0;
+        const total2 = w2 + el2 + cl2 + sl2 + wk2;
 
-      // Only validate when NOT editing totalDays itself
-      if (field !== "totalDays") {
-        if (w + l + wk > totalDays || w + l + wk > monthDaysLimit) return prev;
+        if (total2 > totalDaysResolved) {
+          // Reduce the current field to fit within totalDaysResolved
+          const sumOther =
+            total2 - (Number(updated[field]) || 0);
+          const remaining = Math.max(0, totalDaysResolved - sumOther);
+
+          notifyValidation(
+            `sum:totalDays:${empId}`,
+            `Total (Working + Leave + WeekOff) cannot be more than Total Days (${totalDaysResolved}).`
+          );
+          updated[field] = String(remaining);
+        }
       }
+
+      // Final clamp: if someone typed huge values quickly, keep each field within month limit
+      clampFieldTo(
+        "workingDays",
+        monthDaysLimit,
+        `workingDays:monthLimit2:${empId}`,
+        `Working Days cannot be more than ${monthDaysLimit}.`
+      );
+      clampFieldTo(
+        "weekDaysOff",
+        monthDaysLimit,
+        `weekDaysOff:monthLimit2:${empId}`,
+        `Week Days Off cannot be more than ${monthDaysLimit}.`
+      );
 
       return { ...prev, [empId]: updated };
     });

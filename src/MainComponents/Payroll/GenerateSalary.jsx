@@ -462,13 +462,13 @@ export default function GenerateSalary() {
       if (!monthName) {
         setSalaryData([]);
         setLoadingSalaryData(false);
-        return;
+        return [];
       }
 
       if (!effectivePropertyId) {
         setSalaryData([]);
         setShowGrid(false);
-        return;
+        return [];
       }
 
       const data = await getFacilityMemberSalaryDetailsByClientBranch({
@@ -482,11 +482,48 @@ export default function GenerateSalary() {
       });
       setSalaryData(data || []);
       if ((data || []).length === 0) setShowGrid(false);
+      return data || [];
     } catch (error) {
       console.error("Failed to fetch salary details:", error);
       setSalaryData([]);
+      return [];
     } finally {
       setLoadingSalaryData(false);
+    }
+  };
+
+  const buildNetSalaryMap = async (facilityMemberIds = []) => {
+    const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
+    if (!monthName || !effectivePropertyId || !facilityMemberIds.length) return new Map();
+
+    try {
+      const data = await getFacilityMemberSalaryDetailsByClientBranch({
+        facilityMemberIds,
+        branchId: null,
+        clientId: selectedUnitId || reduxClientId || null,
+        propertyIds: String(effectivePropertyId),
+        month: monthName,
+        year: selectedYear,
+        requireGeneratedSalary: false,
+      });
+
+      const map = new Map();
+      for (const row of Array.isArray(data) ? data : []) {
+        const id = Number(row?.FacilityMemberId ?? row?.EmployeeId ?? 0);
+        if (!id) continue;
+
+        const allowanceKeys = getRowAllowanceKeys(row);
+        const deductionKeys = getRowDeductionKeys(row);
+        const totalAllowance = computeTotalAllowance(row, allowanceKeys);
+        const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
+        const net = row.NetSalary ?? (totalAllowance - totalDeduction);
+
+        map.set(id, Number(net) || 0);
+      }
+      return map;
+    } catch (error) {
+      console.error("Failed to compute net salary amount:", error);
+      return new Map();
     }
   };
 
@@ -977,6 +1014,9 @@ export default function GenerateSalary() {
       const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : null;
       const yearValue = selectedYear;
 
+      const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
+      const netMap = await buildNetSalaryMap(idsForNet);
+
       const payload = selectedEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
@@ -985,6 +1025,8 @@ export default function GenerateSalary() {
         Month: monthValue,
         Year: yearValue,
         is_active: true,
+        IsFreezed: false,
+        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
       await createGeneratedSalary(payload);
@@ -1034,6 +1076,9 @@ export default function GenerateSalary() {
       const monthValue = monthNames[selectedMonth - 1];
       const yearValue = selectedYear;
 
+      const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
+      const netMap = await buildNetSalaryMap(idsForNet);
+
       const payload = employeesToRegenerate.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
@@ -1042,6 +1087,8 @@ export default function GenerateSalary() {
         Month: monthValue,
         Year: yearValue,
         is_active: true,
+        IsFreezed: false,
+        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
       await regenerateEmployeeSalary(payload);

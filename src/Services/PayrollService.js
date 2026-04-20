@@ -621,7 +621,7 @@ export async function getEmployeeGeneratedSalaries(officeId) {
 // POST to create generated salary entry
 export async function createGeneratedSalary(employees) {
   const response = await fetch(
-    "https://api.urest.in:8096/api/employee/generatedSalary",
+    "http://localhost:62929/api/employee/generatedSalary",
     {
       method: "POST",
       headers: {
@@ -740,6 +740,125 @@ export const getGeneratedSalaryByProperties = async (
   }
 
   return response.json();
+};
+
+const MONTH_NAMES = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
+
+function normalizeMonthName(month) {
+  if (!month) return null;
+  const m = String(month).trim();
+  if (!m) return null;
+
+  const idx = MONTH_NAMES.findIndex(
+    (x) => x.toLowerCase() === m.toLowerCase()
+  );
+  if (idx >= 0) return MONTH_NAMES[idx];
+  return m;
+}
+
+function getPreviousMonthYear(monthName, year) {
+  const normalized = normalizeMonthName(monthName);
+  const y = Number(year) || 0;
+  const idx = MONTH_NAMES.findIndex(
+    (x) => x.toLowerCase() === String(normalized || "").toLowerCase()
+  );
+  if (idx < 0) return { monthName: null, year: y };
+
+  const prevIdx = (idx + 11) % 12;
+  const prevYear = idx === 0 ? y - 1 : y;
+  return { monthName: MONTH_NAMES[prevIdx], year: prevYear };
+}
+
+function isFreezedRecord(r) {
+  const v = r?.IsFreezed;
+  return v === true || v === 1 || v === "1";
+}
+
+function getGeneratedAmount(r) {
+  const v = r?.GeneratedAmount ?? r?.generated_amount ?? r?.generatedAmount;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+function getOfficeId(r) {
+  const v = r?.OfficeId ?? r?.Office_id ?? r?.OfficeID;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Property-wise summary for freezed employees:
+ * - current month total
+ * - previous month total
+ *
+ * Uses: GET /api/employee/generatedSalary?propertyIds=1,2,3
+ * Then aggregates in frontend (no backend change required).
+ */
+export const getFreezedAmountSummaryByPropertiesWithPreviousMonth = async (
+  propertyIds = [],
+  monthName,
+  year
+) => {
+  if (!propertyIds.length) return [];
+
+  const currentMonthName = normalizeMonthName(monthName);
+  const currentYear = Number(year) || 0;
+  const prev = getPreviousMonthYear(currentMonthName, currentYear);
+
+  const data = await getGeneratedSalaryByProperties(propertyIds);
+  const list = Array.isArray(data) ? data : [];
+  const requestedIds = new Set(propertyIds.map((x) => Number(x)).filter(Boolean));
+
+  const agg = new Map(); // officeId -> summary
+
+  for (const r of list) {
+    const officeId = getOfficeId(r);
+    if (!officeId || !requestedIds.has(officeId)) continue;
+    if (!isFreezedRecord(r)) continue;
+
+    const rMonth = normalizeMonthName(r?.Month);
+    const rYear = Number(r?.Year) || 0;
+    const amount = getGeneratedAmount(r);
+
+    if (!agg.has(officeId)) {
+      agg.set(officeId, {
+        OfficeId: officeId,
+        CurrentMonth: currentMonthName,
+        CurrentYear: currentYear,
+        CurrentFreezedEmployees: 0,
+        CurrentFreezedAmount: 0,
+        PreviousMonth: prev.monthName,
+        PreviousYear: prev.year,
+        PreviousFreezedEmployees: 0,
+        PreviousFreezedAmount: 0,
+      });
+    }
+
+    const s = agg.get(officeId);
+    if (currentMonthName && rMonth === currentMonthName && rYear === currentYear) {
+      s.CurrentFreezedEmployees += 1;
+      s.CurrentFreezedAmount += amount;
+    }
+    if (prev.monthName && rMonth === prev.monthName && rYear === prev.year) {
+      s.PreviousFreezedEmployees += 1;
+      s.PreviousFreezedAmount += amount;
+    }
+  }
+
+  return Array.from(agg.values()).sort((a, b) => a.OfficeId - b.OfficeId);
 };
 
 // Attendance Summary API Calls
@@ -892,7 +1011,7 @@ export const getFacilityMemberSalaryDetails = async (facilityMemberIds, month, y
 // Regenerate employee salary entry (POST)
 export async function regenerateEmployeeSalary(employees) {
   const response = await fetch(
-    "https://api.urest.in:8096/api/employee/regeneratedSalary",
+    "http://localhost:62929/api/employee/regeneratedSalary",
     {
       method: "POST",
       headers: {
