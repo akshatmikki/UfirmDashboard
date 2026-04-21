@@ -2545,6 +2545,17 @@
   align-items: center;
 }
 
+.spare-doc-qr-block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.spare-doc-links-view {
+  justify-content: center;
+}
+
 .spare-photo-link {
   color: #1b86d1;
   font-size: 13px;

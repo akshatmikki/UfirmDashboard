@@ -480,27 +480,63 @@ const SparePage = () => {
           </div>
 
           <div className="asset-doc-strip spare-doc-strip">
-            <div className="spare-qr-code" aria-label="QR code preview">
-              {selectedQrValue ? <QRCode value={selectedQrValue} size={72} /> : null}
+            <div className="spare-doc-qr-block">
+              <div className="spare-qr-code" aria-label="QR code preview">
+                {selectedQrValue ? <QRCode value={selectedQrValue} size={72} /> : null}
+              </div>
             </div>
             {(() => {
-              const photoSrc = selectedRow?.Image || selectedRow?.Photo || selectedRow?.AssetImage || selectedRow?.ImageUrl || "";
-              if (photoSrc) {
-                const openPhoto = () => {
-                  const raw = String(photoSrc);
-                  if (raw.startsWith("http://") || raw.startsWith("https://")) {
-                    window.open(raw, "_blank", "noopener,noreferrer");
-                    return;
-                  }
-                  const imgSrc = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
-                  const win = window.open("", "_blank");
-                  if (!win) return;
-                  win.document.write(`<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${imgSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
-                  win.document.close();
-                };
-                return (<button type="button" className="asset-link-btn spare-photo-link" onClick={openPhoto}><i className="fa fa-file-image-o mr-1" aria-hidden="true" />Spare-part photo</button>);
-              }
-              return (<span className="asset-link-btn spare-photo-link" style={{ opacity: 0.45, cursor: "default" }}><i className="fa fa-file-image-o mr-1" aria-hidden="true" />Spare-part photo</span>);
+              const openDocument = (docSrc) => {
+                const raw = String(docSrc || "");
+                if (!raw) return;
+                if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) {
+                  window.open(raw, "_blank", "noopener,noreferrer");
+                  return;
+                }
+                const extension = raw.split(".").pop()?.toLowerCase();
+                const isPdf = extension === "pdf";
+                const docPreviewSrc = isPdf ? `data:application/pdf;base64,${raw}` : `data:image/png;base64,${raw}`;
+                const win = window.open("", "_blank");
+                if (!win) return;
+                if (isPdf) {
+                  win.document.write(`<html><body style="margin:0;padding:0"><embed src="${docPreviewSrc}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`);
+                } else {
+                  win.document.write(`<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${docPreviewSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
+                }
+                win.document.close();
+              };
+
+              const invoiceSrc = selectedRow?.InvoiceNo || selectedRow?.Invoice || "";
+              const warrantySrc = selectedRow?.Warranty || "";
+
+              return (
+                <div className="asset-doc-links-stack asset-doc-links-stack-view spare-doc-links-view">
+                  <div className="asset-doc-link-item">
+                    <div className="asset-doc-icon-wrapper">
+                      <i className="fa fa-file-text" aria-hidden="true" />
+                    </div>
+                    {invoiceSrc ? (
+                      <button type="button" className="asset-doc-link-text" onClick={() => openDocument(invoiceSrc)}>
+                        Invoice
+                      </button>
+                    ) : (
+                      <span className="asset-doc-link-text disabled">Invoice</span>
+                    )}
+                  </div>
+                  <div className="asset-doc-link-item">
+                    <div className="asset-doc-icon-wrapper">
+                      <i className="fa fa-file-text" aria-hidden="true" />
+                    </div>
+                    {warrantySrc ? (
+                      <button type="button" className="asset-doc-link-text" onClick={() => openDocument(warrantySrc)}>
+                        Warranty card
+                      </button>
+                    ) : (
+                      <span className="asset-doc-link-text disabled">Warranty card</span>
+                    )}
+                  </div>
+                </div>
+              );
             })()}
           </div>
         </div>
@@ -794,7 +830,7 @@ const SparePage = () => {
                       <thead>
                         <tr>
                           <th>ID</th>
-                          <th>Name</th>
+                          <th>Type</th>
                           <th>Asset</th>
                           <th>Expiry date</th>
                           <th>Status</th>

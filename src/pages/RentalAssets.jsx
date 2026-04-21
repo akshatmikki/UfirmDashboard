@@ -108,6 +108,9 @@ const buildHistoryEntries = (history = []) =>
       const entries = [];
 
       if (item?.RentOut?.RentedOutDate) {
+        const contractSource = getRentalContractSource(item.RentOut);
+        const contractFileName = getRentalContractFileName(item.RentOut);
+        const contractPreviewSrc = getContractPreviewSrc(contractSource, contractFileName);
         entries.push({
           id: `rentout-${index}-${item.RentOut.RentedOutDate}`,
           type: "out",
@@ -121,6 +124,8 @@ const buildHistoryEntries = (history = []) =>
             { label: "Approved By", value: item?.RentOut?.ApprovedBy || "-" },
             { label: "Tentative Date", value: formatDate(item?.RentOut?.TentativeDate) || "-" },
           ],
+          mediaSrc: contractPreviewSrc,
+          mediaName: contractFileName || "Asset document",
         });
       }
 
@@ -1168,12 +1173,51 @@ const RentalAssets = ({ propId, history }) => {
                             <i className={`fa ${isExpanded ? "fa-angle-up" : "fa-angle-down"} rental-history-row-icon`} aria-hidden="true" />
                             {isExpanded ? (
                               <div className="rental-history-details">
-                                {item.details.map((detail, detailIndex) => (
-                                  <div key={`${item.id}-detail-${detailIndex}`} className="rental-history-detail-item">
-                                    <span className="rental-history-detail-label">{detail.label}</span>
-                                    <span className="rental-history-detail-value">{detail.value}</span>
+                                <div className="rental-history-details-grid">
+                                  <div className="rental-history-details-list">
+                                    {item.details.map((detail, detailIndex) => (
+                                      <div key={`${item.id}-detail-${detailIndex}`} className="rental-history-detail-item">
+                                        <span className="rental-history-detail-label">{detail.label}</span>
+                                        <span className="rental-history-detail-value">{detail.value}</span>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                  {item.mediaSrc ? (
+                                    <div className="rental-history-media-card">
+                                      {item.mediaSrc.startsWith("data:application/pdf") ? (
+                                        <button
+                                          type="button"
+                                          className="rental-history-media-link"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const win = window.open("", "_blank");
+                                            if (!win) return;
+                                            win.document.write(
+                                              `<html><body style="margin:0;padding:0"><embed src="${item.mediaSrc}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+                                            );
+                                            win.document.close();
+                                          }}
+                                        >
+                                          {item.mediaName}
+                                        </button>
+                                      ) : (
+                                        <>
+                                          <img src={item.mediaSrc} alt={item.mediaName || "Asset document"} className="rental-history-media-preview" />
+                                          <button
+                                            type="button"
+                                            className="rental-history-media-link"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              window.open(item.mediaSrc, "_blank", "noopener,noreferrer");
+                                            }}
+                                          >
+                                            {item.mediaName}
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </div>
                               </div>
                             ) : null}
                           </div>
