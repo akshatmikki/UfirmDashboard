@@ -5,7 +5,7 @@ import { MasterConfigCommon } from "../../ReactComponents/MasterConfig";
 import { getAllClients } from "../../Services/ClientService";
 import { getAllProperties } from "../../Services/PropertyService";
 
-const API_BASE = "http://localhost:62929/api/Agreement";
+const API_BASE = "https://api.urest.in:8096/api/Agreement";
 
 const AgreementMaster = () => {
   const propertyId = useSelector((state) => state.Commonreducer.puidn);
