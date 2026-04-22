@@ -1592,6 +1592,7 @@ export default function SGNEW() {
           <input
             name="totalWorkingDays"
             value={form.totalWorkingDays}
+            disabled
             onChange={allowOnlyNumbers}
             className="form-control"
             style={{
@@ -1723,6 +1724,48 @@ export default function SGNEW() {
                     fontSize: 12
                   }}
                 />
+                <div
+                  style={{
+                    marginBottom: 8,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    background: "#f1f5f9", // light grey background
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 13,
+                      fontWeight: 700, // 🔥 bold
+                      color: "#1e293b", // darker text
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredEmployees.length > 0 &&
+                        filteredEmployees.every(emp =>
+                          excludedEmployeeIds.includes(emp.FacilityMember?.FacilityMemberId)
+                        )
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          const allIds = filteredEmployees.map(
+                            (emp) => emp.FacilityMember?.FacilityMemberId
+                          );
+                          setExcludedEmployeeIds(allIds);
+                        } else {
+                          setExcludedEmployeeIds([]);
+                        }
+                      }}
+                    />
+                    Select All Employees
+                  </label>
+                </div>
                 {loadingEmployees ? (
                   <div style={{ fontSize: 12, color: "#555" }}>Loading...</div>
                 ) : employees.length === 0 ? (
