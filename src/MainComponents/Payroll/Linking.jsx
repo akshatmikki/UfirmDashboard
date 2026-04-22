@@ -235,6 +235,8 @@ export default function DesignationLinking() {
     SAVE LOGIC
   ------------------------------------------------------*/
   const handleSave = async () => {
+    if (isSaving) return;
+
     if (!salaryGroup || selectedEmployees.length === 0) {
       alert("Please select Salary Group and at least one employee.");
       return;
@@ -243,6 +245,7 @@ export default function DesignationLinking() {
     const payload = {
       FacilityMemberIds: selectedEmployees.join(","),
       SalaryGroup_ID: parseInt(salaryGroup),
+      PropertyID: selectedPropertyId[0] || reduxPropertyId,
     };
 
     try {
@@ -711,6 +714,7 @@ export default function DesignationLinking() {
                           <label>
                             <input
                               type="checkbox"
+                              disabled={isSaving || isAssignedToCurrent}
                               value={emp.FacilityMemberId}
                               checked={
                                 selectedEmployees.includes(
@@ -767,7 +771,7 @@ export default function DesignationLinking() {
               cursor: "pointer",
             }}
           >
-            {isSaving ? "Saving..." : "Save"}
+            {isSaving ? "Processing..." : "Save"}
           </button>
         </div>
       </div>
