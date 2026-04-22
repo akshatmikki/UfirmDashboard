@@ -58,6 +58,7 @@ export default function SGNEW() {
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [otStandalone, setOtStandalone] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [form, setForm] = useState({
     salaryGroupName: "",
@@ -114,11 +115,11 @@ export default function SGNEW() {
       try {
         if (!selectedUnitId) {
           setPropertyList([]);
-          setSelectedPropertyId([]);
+          // setSelectedPropertyId([]);
           return;
         }
 
-        setSelectedPropertyId([]);
+        // setSelectedPropertyId([]);
 
         const res = await getPropertiesByClientId(selectedUnitId);
         const list = res || [];
@@ -1137,7 +1138,7 @@ export default function SGNEW() {
     setPreviewSG(null);
 
     // Only reset PROPERTY, not client
-    setSelectedPropertyId([]);
+    // setSelectedPropertyId([]);
     setShowPropertyDropdown(false);
 
     // ❌ REMOVE THIS LINE COMPLETELY
@@ -1201,9 +1202,19 @@ export default function SGNEW() {
     }
   };
 
-  const filteredEmployees = designation
-    ? employees.filter((e) => (e.Designation || e.Profile?.Designation) === designation)
-    : [];
+  const filteredEmployees = employees
+    .filter((e) =>
+      designation
+        ? (e.Designation || e.Profile?.Designation) === designation
+        : true
+    )
+    .filter((e) => {
+      const text = searchTerm.toLowerCase();
+      return (
+        e.Profile?.EmployeeName?.toLowerCase().includes(text) ||
+        e.Profile?.EmployeeCode?.toLowerCase().includes(text)
+      );
+    });
 
   const getEmployeeSalaryGroupName = (emp) => {
     const sgId = Number(emp.FacilityMember?.SG_Link_ID);
@@ -1698,7 +1709,20 @@ export default function SGNEW() {
                 >
                   Exclude Employees
                 </div>
-
+                <input
+                  type="text"
+                  placeholder="Search employee..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px",
+                    marginBottom: 8,
+                    border: "1px solid #ccc",
+                    borderRadius: 6,
+                    fontSize: 12
+                  }}
+                />
                 {loadingEmployees ? (
                   <div style={{ fontSize: 12, color: "#555" }}>Loading...</div>
                 ) : employees.length === 0 ? (

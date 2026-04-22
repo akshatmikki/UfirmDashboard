@@ -506,6 +506,7 @@ export default function PropertyMaster() {
   const filteredData = properties.filter((p) => {
     const k = searchText.toLowerCase();
     return (
+      p.PropertyId?.toString().includes(k) ||
       p.Name?.toLowerCase().includes(k) ||
       p.State?.toLowerCase().includes(k) ||
       p.Pincode?.toLowerCase().includes(k)
@@ -590,6 +591,7 @@ export default function PropertyMaster() {
 
   const exportToExcel = () => {
     const headers = [
+      "Property ID",
       "Property Name",
       "Type",
       "Contact",
@@ -602,6 +604,7 @@ export default function PropertyMaster() {
     ];
 
     const rows = filteredData.map((p) => [
+      p.PropertyId ?? "",
       p.Name ?? "",
       p.PropertyTypeName ?? "",
       p.ContactNumber ? `="${p.ContactNumber}"` : "",
@@ -688,6 +691,7 @@ export default function PropertyMaster() {
             rows={8}
             stripedRows
           >
+            <Column field="PropertyId" header="Property ID" sortable />
             <Column field="Name" header="Property Name" sortable />
             <Column field="PropertyTypeName" header="Type" />
             <Column field="ContactNumber" header="Contact" />
@@ -740,6 +744,13 @@ export default function PropertyMaster() {
             <div className="col-md-6">
               <div className="card p-3 shadow-sm">
                 <h5 className="mb-3">Property Details</h5>
+
+                <label>Property ID</label>
+                <InputText
+                  className="w-100 mb-2"
+                  value={form.PropertyId}
+                  disabled
+                />
 
                 <label>Property Type</label>
                 <Dropdown
@@ -1007,6 +1018,7 @@ export default function PropertyMaster() {
               <div className="card p-3 mb-3 shadow-sm">
                 <h5 className="mb-3 text-primary">Basic Details</h5>
                 <div className="row">
+                  <div className="col-md-6"><strong>Property ID:</strong> {viewData.PropertyId}</div>
                   <div className="col-md-6"><strong>Name:</strong> {viewData.Name}</div>
                   <div className="col-md-6"><strong>Type:</strong> {
                     propertyTypes.find(pt => pt.value === viewData.PropertyTypeId)?.label
