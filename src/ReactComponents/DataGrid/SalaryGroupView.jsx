@@ -16,6 +16,7 @@ export default function SalaryGroupView({
   const [selectedGroupData, setSelectedGroupData] = useState(null);
   const [finalAddedGroups, setFinalAddedGroups] = useState([]);
   const [facilityMemberSalaryData, setFacilityMemberSalaryData] = useState([]);
+  const [isAssigning, setIsAssigning] = useState(false);
 
   /* -------------------------
      Type helpers
@@ -74,8 +75,8 @@ export default function SalaryGroupView({
     finalAddedGroups.length > 0
       ? [finalAddedGroups[finalAddedGroups.length - 1]]
       : existingGroups.length > 0
-      ? [existingGroups[existingGroups.length - 1]]
-      : [];
+        ? [existingGroups[existingGroups.length - 1]]
+        : [];
 
   const handleAdd = async () => {
     if (!selectedGroupData) return;
@@ -89,9 +90,11 @@ export default function SalaryGroupView({
     }
 
     try {
+      setIsAssigning(true);
       await assignSalaryGroupToFacilityMember({
         FacilityMemberIds: facilityMemberId,
         SalaryGroup_ID: selectedGroupData.SalaryGroup_ID,
+        PropertyID: propertyId
       });
 
       alert(
@@ -106,6 +109,8 @@ export default function SalaryGroupView({
       setSelectedGroupId(selectedGroupData.SalaryGroup_ID);
     } catch {
       alert("Failed to add salary group. Please try again.");
+    } finally {
+      setIsAssigning(false); // 🔥 STOP LOADING
     }
   };
 
@@ -136,9 +141,9 @@ export default function SalaryGroupView({
 
   const selectedTotals = selectedGroupData
     ? getTotals(
-        selectedGroupData.AllowancesDeductions || [],
-        Number(selectedGroupData.FixedSalary) > 0 ? Number(selectedGroupData.FixedSalary) : Number(selectedGroupData.BaseSalary || 0)
-      )
+      selectedGroupData.AllowancesDeductions || [],
+      Number(selectedGroupData.FixedSalary) > 0 ? Number(selectedGroupData.FixedSalary) : Number(selectedGroupData.BaseSalary || 0)
+    )
     : { totalAllowance: 0, totalDeduction: 0 };
 
   const selectedTotalSalary = selectedGroupData
@@ -310,18 +315,24 @@ export default function SalaryGroupView({
         <button
           onClick={handleAdd}
           disabled={
+            isAssigning ||
             !selectedGroupData ||
             facilityMemberSalaryData.some((g) => g.SalaryGroup_ID === selectedGroupData.SalaryGroup_ID)
           }
           style={{
             ...styles.button,
-            ...(!selectedGroupData ||
-            facilityMemberSalaryData.some((g) => g.SalaryGroup_ID === selectedGroupData.SalaryGroup_ID)
+            ...(isAssigning ||
+              !selectedGroupData ||
+              facilityMemberSalaryData.some((g) => g.SalaryGroup_ID === selectedGroupData.SalaryGroup_ID)
               ? styles.buttonDisabled
               : {}),
           }}
         >
-          {facilityMemberSalaryData.length > 0 ? "Modify" : "Add"}
+          {isAssigning
+            ? "Processing..."
+            : facilityMemberSalaryData.length > 0
+              ? "Modify"
+              : "Add"}
         </button>
 
         {combinedSalaryGroups.length > 0 && (
