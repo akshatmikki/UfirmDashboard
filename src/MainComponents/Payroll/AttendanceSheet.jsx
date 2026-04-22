@@ -288,6 +288,8 @@ const finalEmployees = Object.values(allEmployeesMap);
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const attendanceLoadSeqRef = useRef(0);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -687,71 +689,84 @@ const finalEmployees = Object.values(allEmployeesMap);
     }
   }
   async function reloadAttendanceData() {
-    const currMonthYear = getMonthYearString(month, year);
+    const seq = (attendanceLoadSeqRef.current || 0) + 1;
+    attendanceLoadSeqRef.current = seq;
+    setAttendanceLoading(true);
 
-    let propertyIds =
-      selectedPropertyId.length > 0
-        ? selectedPropertyId
-        : reduxPropertyId
-          ? [reduxPropertyId]
-          : [];
+    try {
+      const currMonthYear = getMonthYearString(month, year);
 
-    if (!propertyIds.length) {
-      console.warn("No property selected for reload");
-      return;
+      const propertyIds =
+        selectedPropertyId.length > 0
+          ? selectedPropertyId
+          : reduxPropertyId
+            ? [reduxPropertyId]
+            : [];
+
+      if (!propertyIds.length) {
+        console.warn("No property selected for reload");
+        return;
+      }
+
+      const response = await getAttendanceByProperties(propertyIds, currMonthYear);
+      const flat = response?.flatMap((p) => p.Employees || []) || [];
+
+      setFilteredAttendance(flat);
+
+      const mappedInputs = {};
+      flat.forEach((att) => {
+        const configDivideByDays =
+          employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
+
+        const key = `${att.EmpID}_${att.AttendanceID}`;
+
+        mappedInputs[key] = {
+          workingDays: clampWorkingDaysToMonth(att.WorkingDays, month, year),
+          EL: att.EL ?? "",
+          CL: att.CL ?? "",
+          SL: att.SL ?? "",
+          weekDaysOff: att.WeekDaysOff ?? "",
+          otDays: att.OtDays ?? "",
+          otHours: att.OtHours ?? "",
+          totalDays: att.PayableDays ?? "",
+          manualTotalDays: false,
+          nhDays: att.NHDays ?? "",
+          fhDays: att.FHDays ?? "",
+          holidays: att.Holidays ?? "",
+          divideByDays:
+            att.DivideByDays ??
+            configDivideByDays ??
+            globalTotalDays,
+          otMonthDays: att.OtMonthDays ?? "",
+          pfArrear: att.PFArrear ?? "",
+          otherArrear: att.OtherArrear ?? "",
+          incentive: att.Incentive ?? "",
+          advanceDed: att.AdvanceDed ?? "",
+          uniformDed: att.UniformDed ?? "",
+          bgvDed: att.BGVDed ?? "",
+          roomDed: att.RoomDed ?? "",
+          fineDed: att.FineDed ?? "",
+          joiningKits: att.JoiningKits ?? "",
+          otherDed: att.OtherDed ?? "",
+          foodDed: att.FoodDed ?? "",
+          status: att.Status ?? "",
+        };
+      });
+
+      setDayInputs(mappedInputs);
+      setSelectedEmpIds(new Set());
+    } catch (err) {
+      console.error("Attendance refresh failed:", err);
+      try {
+        appCommon.ShownotifyError("Failed to refresh attendance.");
+      } catch {
+        alert("Failed to refresh attendance.");
+      }
+    } finally {
+      if (seq === attendanceLoadSeqRef.current) {
+        setAttendanceLoading(false);
+      }
     }
-
-    const response = await getAttendanceByProperties(
-      propertyIds,
-      currMonthYear
-    );
-
-    const flat = response?.flatMap((p) => p.Employees || []) || [];
-
-    setFilteredAttendance(flat);
-
-    const mappedInputs = {};
-    flat.forEach((att) => {
-      const configDivideByDays =
-        employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
-
-     const key = `${att.EmpID}_${att.AttendanceID}`;
-
-mappedInputs[key] = {
-  workingDays: clampWorkingDaysToMonth(att.WorkingDays, month, year),
-  EL: att.EL ?? "",
-  CL: att.CL ?? "",
-  SL: att.SL ?? "",
-  weekDaysOff: att.WeekDaysOff ?? "",
-  otDays: att.OtDays ?? "",
-  otHours: att.OtHours ?? "",
-  totalDays: att.PayableDays ?? "",
-  manualTotalDays: false,
-  nhDays: att.NHDays ?? "",
-  fhDays: att.FHDays ?? "",
-  holidays: att.Holidays ?? "",
-  divideByDays:
-    att.DivideByDays ??
-    employeeSGMap[att.EmpID]?.divideByDays ??
-    globalTotalDays,
-  otMonthDays: att.OtMonthDays ?? "",
-  pfArrear: att.PFArrear ?? "",
-  otherArrear: att.OtherArrear ?? "",
-  incentive: att.Incentive ?? "",
-  advanceDed: att.AdvanceDed ?? "",
-  uniformDed: att.UniformDed ?? "",
-  bgvDed: att.BGVDed ?? "",
-  roomDed: att.RoomDed ?? "",
-  fineDed: att.FineDed ?? "",
-  joiningKits: att.JoiningKits ?? "",
-  otherDed: att.OtherDed ?? "",
-  foodDed: att.FoodDed ?? "",
-  status: att.Status ?? "",
-};
-    });
-
-    setDayInputs(mappedInputs);
-    setSelectedEmpIds(new Set());
   }
 
   useEffect(() => {
@@ -938,6 +953,7 @@ mappedInputs[key] = {
 
     async function loadAttendance() {
       if (!employees.length) return;
+      let seq = 0;
       try {
         // 🔹 Decide which properties to use
         const propertyIds =
@@ -948,6 +964,10 @@ mappedInputs[key] = {
               : [];
 
         if (!propertyIds.length) return;
+
+        seq = (attendanceLoadSeqRef.current || 0) + 1;
+        attendanceLoadSeqRef.current = seq;
+        setAttendanceLoading(true);
 
         const currMonthYear = getMonthYearString(month, year);
 
@@ -1042,6 +1062,10 @@ filtered.forEach((att) => {
           setSelectedEmpIds(new Set());
         } else {
           console.error("Attendance load failed:", err);
+        }
+      } finally {
+        if (seq && seq === attendanceLoadSeqRef.current) {
+          setAttendanceLoading(false);
         }
       }
     }
@@ -1643,6 +1667,40 @@ filtered.forEach((att) => {
           </div>
         </div>
       )}
+      {attendanceLoading && !importing && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(255,255,255,0.2)",
+            backdropFilter: "blur(6px)",
+            zIndex: 9998,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.85)",
+              padding: "26px 30px",
+              borderRadius: "12px",
+              boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              color: "#111827",
+              fontWeight: 700,
+            }}
+          >
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: "2.25rem" }} />
+            Refreshing attendance...
+          </div>
+        </div>
+      )}
       {/* ===== Attendance Scope Selection ===== */}
       <div
         style={{
@@ -1808,12 +1866,16 @@ filtered.forEach((att) => {
 
           <button
             onClick={exportToExcel}
-            disabled={!hasSingleEffectiveProperty}
+            disabled={!hasSingleEffectiveProperty || attendanceLoading}
             style={{
-              background: !hasSingleEffectiveProperty ? "#ccc" : "#3182ce",
+              background:
+                !hasSingleEffectiveProperty || attendanceLoading ? "#ccc" : "#3182ce",
               color: "#fff",
               padding: "6px 14px",
-              cursor: !hasSingleEffectiveProperty ? "not-allowed" : "pointer"
+              cursor:
+                !hasSingleEffectiveProperty || attendanceLoading
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             Export CSV
@@ -1920,14 +1982,14 @@ filtered.forEach((att) => {
 
           <button
             onClick={handleImportClick}
-            disabled={importing}
+            disabled={importing || attendanceLoading}
             style={{
-              background: importing ? "#9f7aea" : "#6b46c1",
-              color: "#fff",
+              background: importing || attendanceLoading ? "#cbd5e0" : "#6b46c1",
+              color: importing || attendanceLoading ? "#4a5568" : "#fff",
               padding: "8px 20px",
               borderRadius: 6,
               border: "none",
-              cursor: importing ? "not-allowed" : "pointer",
+              cursor: importing || attendanceLoading ? "not-allowed" : "pointer",
               transition: "all 0.2s ease",
             }}
           >
@@ -1935,10 +1997,13 @@ filtered.forEach((att) => {
           </button>
 
           <button
-            disabled={selectedEmpIds.size === 0 || saving}
+            disabled={selectedEmpIds.size === 0 || saving || attendanceLoading}
             onClick={handleSaveAttendance}
             style={{
-              background: selectedEmpIds.size === 0 ? "#ccc" : "#48bb78",
+              background:
+                selectedEmpIds.size === 0 || saving || attendanceLoading
+                  ? "#ccc"
+                  : "#48bb78",
               color: "#fff",
               padding: "8px 20px",
               borderRadius: 6,
@@ -1954,16 +2019,19 @@ filtered.forEach((att) => {
             disabled={
               selectedEmpIds.size === 0 ||
               deleting ||
+              attendanceLoading ||
               !hasSingleEffectiveProperty
             }
             style={{
               background:
-                selectedEmpIds.size === 0 || deleting ? "#ccc" : "#e53e3e",
+                selectedEmpIds.size === 0 || deleting || attendanceLoading
+                  ? "#ccc"
+                  : "#e53e3e",
               color: "#fff",
               padding: "8px 20px",
               borderRadius: 6,
               cursor:
-                selectedEmpIds.size === 0 || deleting
+                selectedEmpIds.size === 0 || deleting || attendanceLoading
                   ? "not-allowed"
                   : "pointer",
             }}

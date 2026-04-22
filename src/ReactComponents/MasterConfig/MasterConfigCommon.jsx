@@ -164,7 +164,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
     if (!tab) return;
     setLoading(true);
     try {
-      const data = await tab.load({ context, meta });
+      const data = await tab.load({ context });
       if (Array.isArray(data)) {
         setRows(data);
         setMeta({});
@@ -180,7 +180,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
     } finally {
       setLoading(false);
     }
-  }, [context, doNotify, meta, tab]);
+  }, [context, doNotify, tab]);
 
   useEffect(() => {
     setTabId(defaultTabId);
@@ -221,7 +221,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
           : tab?.fields?.reduce((acc, f) => ({ ...acc, [f.key]: getByPath(row, f.key) ?? "" }), {});
       setForm(next || {});
     },
-    [context, tab]
+    [context, meta, tab]
   );
 
   const onEdit = useCallback(
@@ -277,7 +277,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
         setLoading(false);
       }
     },
-    [context, doNotify, refresh, tab, validateRequired]
+    [context, doNotify, meta, refresh, tab, validateRequired]
   );
 
   const remove = useCallback(async () => {
