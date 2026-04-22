@@ -621,7 +621,7 @@ export async function getEmployeeGeneratedSalaries(officeId) {
 // POST to create generated salary entry
 export async function createGeneratedSalary(employees) {
   const response = await fetch(
-    "http://localhost:62929/api/employee/generatedSalary",
+    "https://api.urest.in:8096/api/employee/generatedSalary",
     {
       method: "POST",
       headers: {
@@ -862,7 +862,7 @@ export const getFreezedAmountSummaryByPropertiesWithPreviousMonth = async (
 };
 
 // Attendance Summary API Calls
-const BASE_URL = 'https://api.urest.in:8096/api/attendance-summary';
+const BASE_URL = 'http://localhost:62929/api/attendance-summary';
 
 export const getAttendanceByProperty = async (propertyId) => {
   try {
@@ -936,7 +936,7 @@ export const uploadAttendance = async (
     }
 
     const response = await axios.post(
-      `https://api.urest.in:8096/api/attendance-summary/UploadAttendance`,
+      `http://localhost:62929/api/attendance-summary/UploadAttendance`,
       formData,
       {
         responseType: "blob", // 🔥 THIS IS THE KEY
@@ -1011,7 +1011,7 @@ export const getFacilityMemberSalaryDetails = async (facilityMemberIds, month, y
 // Regenerate employee salary entry (POST)
 export async function regenerateEmployeeSalary(employees) {
   const response = await fetch(
-    "http://localhost:62929/api/employee/regeneratedSalary",
+    "https://api.urest.in:8096/api/employee/regeneratedSalary",
     {
       method: "POST",
       headers: {
@@ -1428,7 +1428,7 @@ export const getAttendanceByProperties = async (
 
   try {
     const response = await axios.post(
-      `https://api.urest.in:8096/api/attendance-summary/by-properties`,
+      `http://localhost:62929/api/attendance-summary/by-properties`,
       {
         PropertyIds: propertyIds,
         MonthYear: monthYear,

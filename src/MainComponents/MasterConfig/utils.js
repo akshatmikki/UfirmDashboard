@@ -21,4 +21,3 @@ export const normalizeCategory = (row = {}) => ({
   description: row.description ?? row.Description ?? "",
   isActive: row.isActive ?? row.IsActive ?? true,
 });
-
