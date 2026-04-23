@@ -204,31 +204,37 @@ const SparePage = () => {
 
     try {
       for (const row of spareRows) {
-        const formData = new FormData();
-        formData.append("PropertyID", propertyId);
-        formData.append("AssetID", assetId);
-        formData.append("SpareType", row.SpareType);
-        formData.append("Rating", row.Rating);
-        formData.append("BackupTime", row.BackupTime);
-        formData.append("Status", row.Status);
-        formData.append("Quantity", row.Quantity);
-        formData.append("PurchaseDate", toIsoOrEmpty(row.PurchaseDate));
-        formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
-        formData.append("SerialNumber", row.SerialNumber);
-        formData.append("VendorName", row.VendorName);
-        if (row.InvoiceNo instanceof File) {
-          formData.append("InvoiceNo", row.InvoiceNo);
-        } else {
-          formData.append("InvoiceNo", "");
-        }
-        if (row.Warranty instanceof File) {
-          formData.append("Warranty", row.Warranty);
-        } else {
-          formData.append("Warranty", "");
-        }
-        formData.append("Remarks", row.Remarks);
-        formData.append("Reusable", 0);
-        await SpareService.create(formData);
+       const formData = new FormData();
+
+formData.append("PropertyID", propertyId);
+formData.append("AssetID", assetId);
+formData.append("SpareType", row.SpareType);
+formData.append("Rating", row.Rating);
+formData.append("BackupTime", row.BackupTime);
+formData.append("Status", row.Status);
+formData.append("Quantity", row.Quantity);
+formData.append("PurchaseDate", toIsoOrEmpty(row.PurchaseDate));
+formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
+formData.append("SerialNumber", row.SerialNumber);
+formData.append("VendorName", row.VendorName);
+
+// 🔥 CHANGE 1: KEY NAME FIX
+if (row.InvoiceNo instanceof File) {
+  formData.append("InvoiceFile", row.InvoiceNo);  // ✅ FIXED
+}
+
+// 🔥 CHANGE 2: KEY NAME FIX
+if (row.Warranty instanceof File) {
+  formData.append("WarrantyFile", row.Warranty);  // ✅ FIXED
+}
+
+formData.append("InvoiceNo", "");   // optional text field
+formData.append("Warranty", "");    // optional text field
+
+formData.append("Remarks", row.Remarks);
+formData.append("Reusable", 0);
+
+await SpareService.create(formData);
       }
 
       setShowAddModal(false);
@@ -375,8 +381,16 @@ const SparePage = () => {
       formData.append("ExpiryDate", toIsoOrEmpty(editForm.ExpiryDate));
       formData.append("SerialNumber", editForm.SerialNumber);
       formData.append("VendorName", editForm.VendorName || "");
-      formData.append("InvoiceNo", existing.InvoiceNo || "");
-      formData.append("Warranty", existing.Warranty || "");
+      if (editForm.InvoiceFile instanceof File) {
+  formData.append("InvoiceFile", editForm.InvoiceFile);
+}
+
+if (editForm.WarrantyFile instanceof File) {
+  formData.append("WarrantyFile", editForm.WarrantyFile);
+}
+
+formData.append("InvoiceFilePath", selectedRow?.InvoiceFilePath || "");
+formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
       formData.append("Remarks", editForm.Remarks);
       formData.append("Reusable", 0);
 
@@ -486,28 +500,18 @@ const SparePage = () => {
               </div>
             </div>
             {(() => {
-              const openDocument = (docSrc) => {
-                const raw = String(docSrc || "");
-                if (!raw) return;
-                if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) {
-                  window.open(raw, "_blank", "noopener,noreferrer");
-                  return;
-                }
-                const extension = raw.split(".").pop()?.toLowerCase();
-                const isPdf = extension === "pdf";
-                const docPreviewSrc = isPdf ? `data:application/pdf;base64,${raw}` : `data:image/png;base64,${raw}`;
-                const win = window.open("", "_blank");
-                if (!win) return;
-                if (isPdf) {
-                  win.document.write(`<html><body style="margin:0;padding:0"><embed src="${docPreviewSrc}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`);
-                } else {
-                  win.document.write(`<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${docPreviewSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
-                }
-                win.document.close();
-              };
+             const openDocument = (filePath) => {
+  if (!filePath) return;
 
-              const invoiceSrc = selectedRow?.InvoiceNo || selectedRow?.Invoice || "";
-              const warrantySrc = selectedRow?.Warranty || "";
+  const baseUrl = "http://localhost:62929/"; // ⚠️ apna backend URL
+
+  const fullUrl = baseUrl + filePath.replace(/\\/g, "/");
+
+  window.open(fullUrl, "_blank");
+};
+
+              const invoiceSrc = selectedRow?.InvoiceFilePath || "";
+const warrantySrc = selectedRow?.WarrantyFilePath || "";
 
               return (
                 <div className="asset-doc-links-stack asset-doc-links-stack-view spare-doc-links-view">
@@ -516,9 +520,9 @@ const SparePage = () => {
                       <i className="fa fa-file-text" aria-hidden="true" />
                     </div>
                     {invoiceSrc ? (
-                      <button type="button" className="asset-doc-link-text" onClick={() => openDocument(invoiceSrc)}>
-                        Invoice
-                      </button>
+                      <button onClick={() => openDocument(invoiceSrc)}>
+                      Invoice
+                    </button>
                     ) : (
                       <span className="asset-doc-link-text disabled">Invoice</span>
                     )}
@@ -636,13 +640,30 @@ const SparePage = () => {
 
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
-                <label>Purchase date</label>
-                <CustomDatePicker value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
-              </div>
-              <div className="asset-form-group-custom">
-                <label>Expiry date</label>
-                <CustomDatePicker value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
-              </div>
+  <label>Update Invoice</label>
+  <input
+    type="file"
+    onChange={(e) =>
+      setEditForm((prev) => ({
+        ...prev,
+        InvoiceFile: e.target.files[0]
+      }))
+    }
+  />
+</div>
+
+<div className="asset-form-group-custom">
+  <label>Update Warranty</label>
+  <input
+    type="file"
+    onChange={(e) =>
+      setEditForm((prev) => ({
+        ...prev,
+        WarrantyFile: e.target.files[0]
+      }))
+    }
+  />
+</div>
             </div>
           </div>
         </div>

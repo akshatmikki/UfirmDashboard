@@ -57,7 +57,22 @@ const fileToDataUrl = (file) =>
   });
 
 const getRentalContractSource = (asset = {}) =>
-  asset.ImageOut || asset.RentalContract || asset.Contract || asset.Image || "";
+  asset.RentalContract ||
+  asset.Contract ||
+  asset.RentOut?.RentalContract ||
+  asset.Return?.RentalContract ||
+  asset.ImageOut ||
+  asset.Image ||
+  "";
+
+const getLatestRentalContractAsset = (asset = {}) => {
+  const history = Array.isArray(asset?.history) ? asset.history : [];
+  const contractEntry = history
+    .flatMap((item) => [item?.RentOut, item?.Return].filter(Boolean))
+    .find((entry) => getRentalContractSource(entry));
+
+  return contractEntry || asset;
+};
 
 const getRentalContractFileName = (asset = {}) => {
   const raw = getRentalContractSource(asset);
@@ -233,7 +248,7 @@ const RentalAssets = ({ propId, history }) => {
   const fetchRentalAssets = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`https://api.urest.in:8096/api/Asset/GetRentalAssetData?PropId=${propId}`);
+      const res = await fetch(`http://localhost:62929/api/Asset/GetRentalAssetData?PropId=${propId}`);
       const data = await res.json();
       setRentalAssets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -477,12 +492,16 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
+    const url = isReturnMode ? "http://localhost:62929/ManageRentInAsset" : "http://localhost:62929/ManageRentOutAsset";
     const payload = isReturnMode
       ? {
-        assetId: selectedAsset.Id,
-        assetName: selectedAsset.Name,
-        ...formData,
+        AssetId: selectedAsset.Id || 0,
+        AssetName: selectedAsset.Name || "",
+        ReturnedBy: formData.returnedBy || "",
+        ReturnDateTime: formData.returnDateTime || "",
+        ReturnedFrom: formData.returnedFrom || "",
+        ImageIn: formData.imageIn || "",
+        RentalContract: formData.rentalContract || "",
       }
       : {
         AssetId: selectedAsset.Id || 0,
@@ -493,11 +512,15 @@ const RentalAssets = ({ propId, history }) => {
         RentedTo: formData.rentedTo || "",
         OutFrom: formData.outFrom || "",
         RentalCharges: Number(formData.rentalCharges) || 0,
-        ImageOut: formData.imageOut || "",
         SecurityDeposit: Number(formData.securityDeposit) || 0,
         RentOutTime: formData.rentOutTime || formData.rentOutDateTime || "",
-        RentalContract: formData.rentalContract || "",
         ApprovedBy: formData.approvedBy || "",
+        Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
+        Location: formData.location || formData.outFrom || selectedAsset.Location || "",
+        ImageOutBase64: formData.imageOut || "",
+        RentalContractBase64: formData.rentalContract || "",
+        ImageOut: formData.imageOutName || "",
+        RentalContract: formData.rentalContractName || "",
       };
 
     await fetch(url, {
@@ -539,10 +562,35 @@ const RentalAssets = ({ propId, history }) => {
     }
   };
 
-  const handleOpenContract = () => {
+  const handleOpenContract = async () => {
     if (!selectedAsset) return;
-    const contract = getRentalContractSource(selectedAsset);
-    const contractFileName = getRentalContractFileName(selectedAsset);
+    let assetWithContract = getLatestRentalContractAsset(selectedAsset);
+
+    if (!getRentalContractSource(assetWithContract)) {
+      try {
+        const historyData = Array.isArray(selectedAsset.history)
+          ? selectedAsset.history
+          : await getAssetRentOutReturnHistoryByAssetId(selectedAsset.Id);
+        const normalizedHistory = Array.isArray(historyData) ? historyData : [];
+        assetWithContract = getLatestRentalContractAsset({ ...selectedAsset, history: normalizedHistory });
+        setRentalAssets((prev) =>
+          prev.map((item) =>
+            Number(item.Id) === Number(selectedAsset.Id)
+              ? {
+                ...item,
+                history: normalizedHistory,
+              }
+              : item
+          )
+        );
+      } catch (error) {
+        console.error(error);
+        return;
+      }
+    }
+
+    const contract = getRentalContractSource(assetWithContract);
+    const contractFileName = getRentalContractFileName(assetWithContract);
     if (!contract) return;
 
     const previewSrc = getContractPreviewSrc(contract, contractFileName);
@@ -639,10 +687,10 @@ const RentalAssets = ({ propId, history }) => {
             <button
               type="button"
               className="rental-text-link rental-panel-link-row"
-              onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "return" : "rentout")}
+              onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.IsRented ? "return" : "rentout")}
             >
-              <i className={`fa ${selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
-              {selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "Rent in" : "Rent out"}
+              <i className={`fa ${selectedAsset.IsRented ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
+              {selectedAsset.IsRented ? "Rent in" : "Rent out"}
             </button>
           </div>
         </div>

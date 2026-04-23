@@ -58,6 +58,7 @@ class AssetsMaster extends Component {
       ManufacturerName: "",
       AssetModel: "",
       IsMoveable: false,
+      IsRented: false,
       Name: "",
       Description: "",
       QRCode: "",
@@ -237,6 +238,7 @@ class AssetsMaster extends Component {
       Manufacturer: this.state.ManufacturerName,
       AssetModel: this.state.AssetModel,
       IsMoveable: this.state.IsMoveable,
+      IsRented: this.state.IsRented,
       Flag: type,
       AssetImage: this.state.AssetImage,
       LastServiceDate: this.state.LastServiceDate,
@@ -342,6 +344,7 @@ class AssetsMaster extends Component {
         ManufacturerName: "",
         AssetModel: "",
         IsMoveable: false,
+        IsRented: false,
         Name: "",
         Description: "",
         QRCode: "",
@@ -385,6 +388,7 @@ class AssetsMaster extends Component {
       ManufacturerName: rowData.Manufacturer || "",
       AssetModel: rowData.AssetModel || "",
       IsMoveable: String(this.normalizeBoolean(rowData.IsMoveable)),
+      IsRented: String(this.normalizeBoolean(rowData.IsRented)),
       LastServiceDate: this.normalizeDate(rowData.LastServiceDate),
       NextServiceDate: this.normalizeDate(rowData.NextServiceDate),
       IsRentable: String(this.normalizeBoolean(rowData.IsRentable)),
@@ -546,6 +550,7 @@ class AssetsMaster extends Component {
         ManufacturerName: "",
         AssetModel: "",
         IsMoveable: false,
+        IsRented: false,
         Name: "",
         Description: "",
         QRCode: "",
@@ -719,6 +724,7 @@ class AssetsMaster extends Component {
       Manufacturer: item.Manufacturer,
       AssetModel: item.AssetModel,
       IsMoveable: this.getBoolLabel(item.IsMoveable),
+      IsRented: this.getBoolLabel(item.IsRented),
       LastServiceDate: this.normalizeDate(item.LastServiceDate),
       NextServiceDate: this.normalizeDate(item.NextServiceDate),
       IsRentable: this.getBoolLabel(item.IsRentable),
@@ -925,6 +931,10 @@ class AssetsMaster extends Component {
                 <span className="asset-info-value">{this.getBoolLabel(asset.IsRentable)}</span>
               </div>
               <div className="asset-info-item">
+                <span className="asset-info-label">Is Rented</span>
+                <span className="asset-info-value">{this.getBoolLabel(asset.IsRented)}</span>
+              </div>
+              <div className="asset-info-item">
                 <span className="asset-info-label">Date of Purchase</span>
                 <span className="asset-info-value">{this.formatDisplayDate(asset.PurchaseDate)}</span>
               </div>
@@ -1126,6 +1136,18 @@ class AssetsMaster extends Component {
                   ]}
                 />
               </div>
+               <div className="form-group asset-form-group-custom">
+                <label>Is Rented</label>
+                <RadioButtonGroup
+                  name="IsRented"
+                  selectedValue={String(this.state.IsRented)}
+                  onChange={(e) => this.setState({ IsRented: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
             </div>
 
             <div className="form-group asset-form-group-custom">
@@ -1306,6 +1328,19 @@ class AssetsMaster extends Component {
                   ]}
                 />
               </div>
+                <div className="form-group asset-form-group-custom">
+                <label>Is Rented</label>
+                <RadioButtonGroup
+                  name="IsRented"
+                  selectedValue={String(this.state.IsRented)}
+                  onChange={(e) => this.setState({ IsRented: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+
 
               <div className="form-group asset-form-group-custom">
                 <label>Service reminder</label>
