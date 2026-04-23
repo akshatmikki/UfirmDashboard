@@ -54,18 +54,46 @@ const BranchMaster = () => {
   }, [branches, searchTerm]);
 
   const handleEdit = (branch) => {
+    setIsView(false);
     setIsEdit(true);
     setFormData(branch);
     setShowModal(true);
   };
 
+  const normalize = (str) => {
+    return str?.toLowerCase().replace(/[^a-z0-9]/g, "");
+  };
+
   const handleSave = async () => {
     try {
+      if (!formData.BranchName.trim()) {
+        setMessage("Enter Branch Name");
+        setMessageType("danger");
+        return;
+      }
+
+      const normalizedName = normalize(formData.BranchName);
+
+      // 🔥 DUPLICATE NAME
+      const isNameDuplicate = branches.some(
+        (b) =>
+          normalize(b.BranchName) === normalizedName &&
+          b.BranchId !== formData.BranchId
+      );
+
+      if (isNameDuplicate) {
+        setMessage("Branch name already exists.");
+        setMessageType("danger");
+        return;
+      }
+
+      // ✅ API CALL
       if (isEdit) {
         await updateBranch(formData.BranchId, formData);
         setMessage("Branch updated successfully.");
       } else {
-        await createBranch(formData);
+        const { BranchCode, ...payload } = formData;
+        await createBranch(payload);
         setMessage("Branch created successfully.");
       }
 
@@ -73,18 +101,12 @@ const BranchMaster = () => {
       setShowModal(false);
       loadBranches();
 
-      // Auto hide after 3 sec
-      setTimeout(() => {
-        setMessage("");
-      }, 3000);
+      setTimeout(() => setMessage(""), 3000);
 
     } catch (error) {
-      setMessage("Something went wrong.");
+      setMessage(error?.response?.data || "Something went wrong.");
       setMessageType("danger");
-
-      setTimeout(() => {
-        setMessage("");
-      }, 3000);
+      setTimeout(() => setMessage(""), 3000);
     }
   };
 
@@ -170,6 +192,7 @@ const BranchMaster = () => {
             <button
               className="btn btn-success me-2"
               onClick={() => {
+                setIsView(false);
                 setIsEdit(false);
                 setFormData(initialForm);
                 setShowModal(true);
@@ -276,11 +299,8 @@ const BranchMaster = () => {
                       <label>Branch Code</label>
                       <input
                         className="form-control"
-                        value={formData.BranchCode}
-                        disabled={isView}
-                        onChange={(e) =>
-                          setFormData({ ...formData, BranchCode: e.target.value })
-                        }
+                        value={formData.BranchCode || "Auto-generated"}
+                        disabled
                       />
                     </div>
 

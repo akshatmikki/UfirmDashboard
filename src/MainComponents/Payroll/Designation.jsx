@@ -59,7 +59,7 @@ const DesignationMaster = () => {
     }, []);
 
     const normalize = (str) => {
-        return str?.toLowerCase().replace(/[.\s]/g, "");
+        return str?.toLowerCase().replace(/[^a-z0-9]/g, "");
     };
 
     const filteredData = data.filter((item) => {
@@ -122,6 +122,24 @@ const DesignationMaster = () => {
         try {
             if (!formData.DesignationName.trim()) {
                 toast.current.show({ severity: "warn", detail: "Enter Designation Name" });
+                return;
+            }
+
+            // 🔥 DUPLICATE CHECK
+            const normalizedInput = normalize(formData.DesignationName);
+
+            const isDuplicate = data.some(
+                (item) =>
+                    normalize(item.DesignationName) === normalizedInput &&
+                    item.Designation_ID !== formData.Designation_ID // allow self edit
+            );
+
+            if (isDuplicate) {
+                toast.current.show({
+                    severity: "warn",
+                    summary: "Duplicate",
+                    detail: "Designation already exists",
+                });
                 return;
             }
 

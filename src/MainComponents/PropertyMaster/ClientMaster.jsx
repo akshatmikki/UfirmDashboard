@@ -65,6 +65,7 @@ export default function ClientMaster() {
     // Open Create Dialog
     // ------------------------------------------
     const openCreateDialog = () => {
+        setViewVisible(false);
         setFormData({
             clientName: "",
             contactPerson: "",
@@ -101,6 +102,7 @@ export default function ClientMaster() {
     // Open Edit Dialog
     // ------------------------------------------
     const openEditDialog = (client) => {
+        setViewVisible(false);
         setFormData({
             clientName: client.clientName,
             contactPerson: client.contactPerson,
@@ -159,7 +161,7 @@ export default function ClientMaster() {
             setDialogVisible(false);
             loadClients();
         } catch (err) {
-            alert("Save failed.");
+            alert(err?.message || err?.response?.data || "Save failed.");
         }
     };
 

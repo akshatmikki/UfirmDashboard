@@ -630,7 +630,7 @@ export default function SGNEW() {
 
     // 🔥 Store SG-based exclusions & designations
     setExcludedEmployeeIds(sg.ExcludedEmployeeIds || []);
-
+    setDesignation("");
     if (Array.isArray(sg.Designations) && sg.Designations.length > 0) {
       setDesignation(sg.Designations[0]); // auto-select designation
     }
@@ -944,6 +944,14 @@ export default function SGNEW() {
 
       // 🔄 reload SG list for selected properties
       await loadSG(selectedPropertyId);
+
+      // 🔥 refresh employees so SG name updates instantly
+      const allResults = await Promise.all(
+        selectedPropertyId.map((pid) => getEmployeesByOffice(pid))
+      );
+
+      const mergedEmployees = allResults.flat().filter(Boolean);
+      setEmployees(mergedEmployees);
 
       // 🔥 full reset
       resetAll();
