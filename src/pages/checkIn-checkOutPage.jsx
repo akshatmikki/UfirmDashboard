@@ -27,6 +27,12 @@ const formatDate = (value) => {
   return `${day}-${month}-${year}`;
 };
 
+const displayValue = (value) => {
+  if (value === null || value === undefined) return "-";
+  if (typeof value === "string" && value.trim() === "") return "-";
+  return value;
+};
+
 const formatDateTimeParts = (value) => {
   if (!value) return { date: "-", time: "-" };
   const date = new Date(value);
@@ -92,13 +98,13 @@ const buildAssetEditForm = (row = {}) => ({
   Status: statusMeta(row.Status).label,
   Description: row.Description || row.Purpose || "",
   DispatchType: dispatchMeta(row).label,
-  AssigneeName: row.AssigneeName || row.Assignee || "S kumar",
-  OutFrom: row.OutFrom || row.Location || "Building A",
-  SentTo: row.SentTo || row.SentLocation || "Building B",
-  Manufacturer: row.Manufacturer || "Generic",
-  Model: row.AssetModel || row.Model || "Generic model",
+  AssigneeName: row.AssigneeName || row.Assignee || "",
+  OutFrom: row.OutFrom || row.Location || "",
+  SentTo: row.SentTo || row.SentLocation || "",
+  Manufacturer: row.Manufacturer || "",
+  Model: row.AssetModel || row.Model || "",
   ExpiryDate: normalizeDate(row.TentativeReturnDate || row.ReturnDate || row.ExpiryDate),
-  Location: row.Location || row.OutFrom || "Building A",
+  Location: row.Location || row.OutFrom || "",
 });
 
 const buildSpareEditForm = (row = {}) => ({
@@ -107,25 +113,25 @@ const buildSpareEditForm = (row = {}) => ({
   Status: statusMeta(row.Status).label,
   Description: row.Remarks || row.Description || "",
   SerialNumber: row.SerialNumber || "",
-  AssetName: row.AssetName || "Related asset",
-  Manufacturer: row.Manufacturer || "Generic",
-  Model: row.Model || "Generic model",
-  VendorName: row.VendorName || "Generic vendor",
+  AssetName: row.AssetName || "",
+  Manufacturer: row.Manufacturer || "",
+  Model: row.Model || "",
+  VendorName: row.VendorName || "",
   Rating: row.Rating || "",
   PurchaseDate: normalizeDate(row.PurchaseDate),
   ExpiryDate: normalizeDate(row.ExpiryDate),
-  Location: row.Location || "Building A",
+  Location: row.Location || "",
 });
 
 const buildActionAsset = (row, tab) =>
   tab === "spares"
     ? {
         Id: row?.AssetID || row?.SpareID || 0,
-        Name: row?.AssetName || row?.SpareType || "Spare part",
+        Name: row?.AssetName || row?.SpareType || "",
       }
     : {
         Id: row?.Id || 0,
-        Name: row?.Name || "Asset",
+        Name: row?.Name || "",
       };
 
 const mapStateToProps = (state) => ({
@@ -576,20 +582,20 @@ const CheckInCheckOut = ({ propId }) => {
           <div className="asset-details-new-layout">
             <div className="asset-details-row asset-details-header-row">
               <span className="asset-info-label">ID</span>
-              <span className="asset-info-value">{selectedAsset.Id || "AST-111"}</span>
+              <span className="asset-info-value">{displayValue(selectedAsset.Id)}</span>
             </div>
 
             <div className="asset-details-row asset-details-name-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Name</span>
-                <span className="asset-info-value">{selectedAsset.Name || "Generator"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.Name)}</span>
               </div>
               <span className={currentStatus.className}>{currentStatus.label}</span>
             </div>
 
             <div className="asset-details-row asset-details-desc-row">
               <span className="asset-info-label">Dispatch purpose</span>
-              <span className="asset-info-value">{selectedAsset.Description || selectedAsset.Purpose || "Generic generator description"}</span>
+              <span className="asset-info-value">{displayValue(selectedAsset.Description || selectedAsset.Purpose)}</span>
             </div>
 
             <div className="asset-details-grid-two-col">
@@ -599,23 +605,23 @@ const CheckInCheckOut = ({ propId }) => {
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Assignee</span>
-                <span className="asset-info-value">{selectedAsset.AssigneeName || "S kumar"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.AssigneeName)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Out from</span>
-                <span className="asset-info-value">{selectedAsset.OutFrom || selectedAsset.Location || "Building A"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.OutFrom || selectedAsset.Location)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Sent to</span>
-                <span className="asset-info-value">{selectedAsset.SentTo || "Building B"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.SentTo)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Manufacturer</span>
-                <span className="asset-info-value">{selectedAsset.Manufacturer || "Generic"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.Manufacturer)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Model</span>
-                <span className="asset-info-value">{selectedAsset.AssetModel || selectedAsset.Model || "Generic model"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.AssetModel || selectedAsset.Model)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Expiry date</span>
@@ -623,14 +629,14 @@ const CheckInCheckOut = ({ propId }) => {
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Location</span>
-                <span className="asset-info-value">{selectedAsset.Location || selectedAsset.OutFrom || "Building A"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.Location || selectedAsset.OutFrom)}</span>
               </div>
             </div>
 
             <div className="asset-details-row asset-details-location-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Location</span>
-                <span className="asset-info-value">{selectedAsset.Location || selectedAsset.OutFrom || "Building A"}</span>
+                <span className="asset-info-value">{displayValue(selectedAsset.Location || selectedAsset.OutFrom)}</span>
               </div>
             </div>
 
@@ -683,18 +689,18 @@ const CheckInCheckOut = ({ propId }) => {
           <div className="asset-details-new-layout">
             <div className="asset-details-header-row">
               <span className="asset-info-label">ID</span>
-              <span className="asset-info-value">{selectedSpare.SpareID || "AST-111"}</span>
+              <span className="asset-info-value">{displayValue(selectedSpare.SpareID)}</span>
             </div>
             <div className="asset-details-name-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Name</span>
-                <span className="asset-info-value">{selectedSpare.SpareType || "Spare part"}</span>
+                <span className="asset-info-value">{displayValue(selectedSpare.SpareType)}</span>
               </div>
               <span className={currentStatus.className}>{currentStatus.label}</span>
             </div>
             <div className="asset-details-desc-row">
               <span className="asset-info-label">Description</span>
-              <span className="asset-info-value">{selectedSpare.Remarks || selectedSpare.Description || "Generic spare description"}</span>
+              <span className="asset-info-value">{displayValue(selectedSpare.Remarks || selectedSpare.Description)}</span>
             </div>
             <div className="asset-info-grid">
               <div className="asset-info-item">
@@ -703,19 +709,19 @@ const CheckInCheckOut = ({ propId }) => {
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Asset</span>
-                <span className="asset-info-value">{selectedSpare.AssetName || selectedSpare.AssetID || "Related asset"}</span>
+                <span className="asset-info-value">{displayValue(selectedSpare.AssetName || selectedSpare.AssetID)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Manufacturer</span>
-                <span className="asset-info-value">{selectedSpare.Manufacturer || "Generic"}</span>
+                <span className="asset-info-value">{displayValue(selectedSpare.Manufacturer)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Model</span>
-                <span className="asset-info-value">{selectedSpare.Model || "Generic model"}</span>
+                <span className="asset-info-value">{displayValue(selectedSpare.Model)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Vendor</span>
-                <span className="asset-info-value">{selectedSpare.VendorName || "Generic vendor"}</span>
+                <span className="asset-info-value">{displayValue(selectedSpare.VendorName)}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Value</span>
@@ -756,7 +762,7 @@ const CheckInCheckOut = ({ propId }) => {
       <div className="asset-side-panel-body">
         <div className="asset-form-id-row-simple">
           <span className="asset-info-label">ID</span>
-          <span className="asset-info-value">{assetEditForm.Id || "AST-111"}</span>
+          <span className="asset-info-value">{displayValue(assetEditForm.Id)}</span>
         </div>
         <div className="asset-form-simple-stack">
           <div className="form-group asset-form-group-custom">
@@ -845,7 +851,7 @@ const CheckInCheckOut = ({ propId }) => {
       <div className="asset-side-panel-body">
         <div className="asset-form-id-row-simple">
           <span className="asset-info-label">ID</span>
-          <span className="asset-info-value">{spareEditForm.SpareID || "AST-111"}</span>
+          <span className="asset-info-value">{displayValue(spareEditForm.SpareID)}</span>
         </div>
         <div className="asset-form-simple-stack">
           <div className="form-group asset-form-group-custom">
@@ -945,15 +951,6 @@ const CheckInCheckOut = ({ propId }) => {
 
             <div className={`rental-assets-card ${activeSelection ? "with-side-panel" : ""}`.trim()}>
               <div className="rental-assets-main-card">
-                <div className="asset-master-tabs">
-                  <button type="button" className={`asset-master-tab ${activeTab === "assets" ? "active" : ""}`.trim()} onClick={() => handleTabChange("assets")}>
-                    Assets
-                  </button>
-                  <button type="button" className={`asset-master-tab ${activeTab === "spares" ? "active" : ""}`.trim()} onClick={() => handleTabChange("spares")}>
-                    Spare parts
-                  </button>
-                </div>
-
                 <div className="asset-master-toolbar">
                   <div className="asset-master-search" onClick={() => searchInputRef.current?.focus()}>
                     <i className="fa fa-search" aria-hidden="true" />
@@ -1011,9 +1008,9 @@ const CheckInCheckOut = ({ propId }) => {
                               const isSelected = Number(row.Id) === Number(selectedAssetId);
                               return (
                                 <tr key={row.Id} className={isSelected ? "grid-selected-row" : ""} onClick={() => handleAssetRowClick(row)}>
-                                  <td>{row.Id || "AST-111"}</td>
-                                  <td>{row.Name || "Generator"}</td>
-                                  <td>{row.Location || row.OutFrom || "Building A"}</td>
+                                  <td>{displayValue(row.Id)}</td>
+                                  <td>{displayValue(row.Name)}</td>
+                                  <td>{displayValue(row.Location || row.OutFrom)}</td>
                                   <td><span className={currentDispatch.className}>{currentDispatch.label}</span></td>
                                   <td>{formatDate(row.TentativeReturnDate || row.ExpiryDate || row.ReturnDate)}</td>
                                   <td><span className={currentStatus.className}>{currentStatus.label}</span></td>
@@ -1049,10 +1046,10 @@ const CheckInCheckOut = ({ propId }) => {
                               const isSelected = Number(row.SpareID) === Number(selectedSpareId);
                               return (
                                 <tr key={row.SpareID} className={isSelected ? "grid-selected-row" : ""} onClick={() => handleSpareRowClick(row)}>
-                                  <td>{row.SpareID || "AST-111"}</td>
-                                  <td>{row.SpareType || "Spare part"}</td>
-                                  <td>{row.AssetName || row.AssetID || "Related asset"}</td>
-                                  <td>{row.Location || "Building A"}</td>
+                                  <td>{displayValue(row.SpareID)}</td>
+                                  <td>{displayValue(row.SpareType)}</td>
+                                  <td>{displayValue(row.AssetName || row.AssetID)}</td>
+                                  <td>{displayValue(row.Location)}</td>
                                   <td>{formatDate(row.ExpiryDate)}</td>
                                   <td><span className={currentStatus.className}>{currentStatus.label}</span></td>
                                 </tr>

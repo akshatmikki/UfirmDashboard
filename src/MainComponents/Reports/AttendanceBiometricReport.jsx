@@ -120,6 +120,27 @@ const AttendanceBiometricReport = () => {
         return "";
     };
 
+    const calculateWorkingTime = (min, max) => {
+    const minM = parseTimeToMinutes(min);
+    const maxM = parseTimeToMinutes(max);
+
+    if (minM == null || maxM == null || maxM <= minM)
+        return "Can't be determined";
+
+    const totalMin = maxM - minM;
+    const h = Math.floor(totalMin / 60);
+    const m = totalMin % 60;
+
+    return `${h}h ${m}m`;
+};
+
+const getStatus = (dayLog) => {
+    if (!dayLog?.MinTime || !dayLog?.MaxTime) {
+        return "Absent";
+    }
+    return "Present";
+};
+
     const buildAttendanceWorkbookHtml = () => {
         const dateRange = getDatesInRange(fromDate, toDate);
         const dateKeys = new Set(dateRange.map((date) => formatDate(date)));
@@ -193,8 +214,7 @@ const AttendanceBiometricReport = () => {
             items,
         }));
 
-        const totalColumns = 4 + dateRange.length + 5;
-
+const totalColumns = 4 + dateRange.length;
         const getEmployeeMetrics = (employee) => {
             const normalWorkingDays = dateRange.length;
             let otDays = 0;
@@ -302,53 +322,102 @@ const AttendanceBiometricReport = () => {
             `;
         };
 
-        const employeeRows = groupSummaries
-            .map((group) => {
-                const rows = group.items
-                    .map((employee, index) => {
-                        const metrics = getEmployeeMetrics(employee);
-                        const presentCells = metrics.dayStatuses
-                            .map(
-                                (status) =>
-                                    `<td class="body-cell">${escapeHtml(status.presentMark)}</td>`
-                            )
-                            .join("");
-                        const otCells = metrics.dayStatuses
-                            .map(
-                                (status) =>
-                                    `<td class="body-cell">${escapeHtml(status.otMark)}</td>`
-                            )
-                            .join("");
 
-                        return `
-                            <tr>
-                                <td class="body-cell" rowspan="2">${escapeHtml(index + 1)}</td>
-                                <td class="body-cell text-left" rowspan="2">${escapeHtml(employee.employeeName || "-")}</td>
-                                <td class="body-cell" rowspan="2">${escapeHtml(employee.employeeCode || "-")}</td>
-                                <td class="body-cell">P/A</td>
-                                ${presentCells}
-                                <td class="body-cell">${escapeHtml(metrics.normalWorkingDays)}</td>
-                                <td class="body-cell">${escapeHtml(metrics.otDays)}</td>
-                                <td class="body-cell">${escapeHtml(metrics.weeklyOffDays)}</td>
-                                <td class="body-cell">${escapeHtml(metrics.totalAbsent)}</td>
-                                <td class="body-cell">${escapeHtml(metrics.totalPresent)}</td>
-                            </tr>
-                            <tr>
-                                <td class="body-cell">OT</td>
-                                ${otCells}
-                                <td class="body-cell"></td>
-                                <td class="body-cell"></td>
-                                <td class="body-cell"></td>
-                                <td class="body-cell"></td>
-                                <td class="body-cell"></td>
-                            </tr>
-                        `;
-                    })
-                    .join("");
+       const employeeSummary = (employee) => {
+    let present = 0;
+    let absent = 0;
+    let workingMinutes = 0;
 
-                return `${rows}${renderSummaryRow(group.name, group.dayTotals, group.totals)}`;
-            })
-            .join("");
+    dateRange.forEach((date) => {
+        const d = employee.days[formatDate(date)];
+
+        if (d?.MinTime && d?.MaxTime) {
+            present++;
+            const min = parseTimeToMinutes(d.MinTime);
+            const max = parseTimeToMinutes(d.MaxTime);
+            if (min != null && max != null && max > min) {
+                workingMinutes += (max - min);
+            }
+        } else {
+            absent++;
+        }
+    });
+
+    const h = Math.floor(workingMinutes / 60);
+    const m = workingMinutes % 60;
+
+    return {
+        present,
+        absent,
+        workingHours: `${h}h ${m}m`
+    };
+};
+       const employeeRows = employees.map((employee, index) => {
+
+    const summary = employeeSummary(employee);
+
+    const dateHeader = dateRange.map(d =>
+        `<td class="body-cell">${d.toLocaleDateString("en-GB")}</td>`
+    ).join("");
+
+    const inCells = dateRange.map((date) => {
+        const d = employee.days[formatDate(date)];
+        return `<td class="body-cell">${escapeHtml(d?.MinTime || "--")}</td>`;
+    }).join("");
+
+    const outCells = dateRange.map((date) => {
+        const d = employee.days[formatDate(date)];
+        return `<td class="body-cell">${escapeHtml(d?.MaxTime || "--")}</td>`;
+    }).join("");
+
+    const wtCells = dateRange.map((date) => {
+        const d = employee.days[formatDate(date)];
+        return `<td class="body-cell">${escapeHtml(calculateWorkingTime(d?.MinTime, d?.MaxTime))}</td>`;
+    }).join("");
+
+    const statusCells = dateRange.map((date) => {
+        const d = employee.days[formatDate(date)];
+        return `<td class="body-cell">${escapeHtml(getStatus(d, date))}</td>`;
+    }).join("");
+
+    return `
+       <td colspan="${totalColumns}" class="summary-text-cell">
+    <div style="font-weight:bold; font-size:18px;">
+        Employee: ${employee.employeeName}
+    </div>
+    <div style="margin-top:4px; font-size:18px;">
+       Present: ${summary.present}
+&nbsp;&nbsp; Absent: ${summary.absent}
+&nbsp;&nbsp; Working Hours: ${summary.workingHours}
+    </div>
+</td>
+
+        <tr>
+            <td>Date</td>
+            ${dateHeader}
+        </tr>
+
+        <tr>
+            <td>In</td>
+            ${inCells}
+        </tr>
+
+        <tr>
+            <td>Out</td>
+            ${outCells}
+        </tr>
+
+        <tr>
+            <td>WT</td>
+            ${wtCells}
+        </tr>
+
+        <tr>
+            <td>Status</td>
+            ${statusCells}
+        </tr>
+    `;
+}).join("");
 
         const dayNumberHeaders = dateRange
             .map((date) => `<th class="header-cell day-cell">${date.getDate()}</th>`)
@@ -463,22 +532,7 @@ const AttendanceBiometricReport = () => {
                                 ${escapeHtml(`Attendance ${monthLabel} (${selectedDeviceName})`)}
                             </td>
                         </tr>
-                        <tr>
-                            <th class="header-cell sno-cell" rowspan="2">S.No</th>
-                            <th class="header-cell name-cell" rowspan="2">Employee Name</th>
-                            <th class="header-cell code-cell" rowspan="2">EMPL Code</th>
-                            <th class="header-cell date-cell">Date</th>
-                            ${dayNumberHeaders}
-                            <th class="header-cell total-cell" rowspan="2">Normal Working Days</th>
-                            <th class="header-cell total-cell" rowspan="2">O.T</th>
-                            <th class="header-cell total-cell" rowspan="2">WO</th>
-                            <th class="header-cell total-cell" rowspan="2">Total Absent</th>
-                            <th class="header-cell total-cell" rowspan="2">Total Present</th>
-                        </tr>
-                        <tr>
-                            <th class="header-cell date-cell">Days</th>
-                            ${dayNameHeaders}
-                        </tr>
+                       
                         ${employeeRows}
                         <tr>
                             <td class="blank-cell" colspan="4"></td>

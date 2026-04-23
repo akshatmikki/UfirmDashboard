@@ -12,7 +12,7 @@ import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePick
 import CustomDropdown from "../ReactComponents/CustomDropdown/CustomDropdown";
 
 const statusOptions = {
-  running: { label: "Running", key: "running" },
+  running: { label: "Active", key: "running" },
   inactive: { label: "Inactive", key: "inactive" },
   servicing: { label: "Servicing", key: "servicing" },
 };
@@ -48,18 +48,90 @@ const formatTime = (value) => {
   });
 };
 
+const fileToDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
+const getRentalContractSource = (asset = {}) =>
+  asset.RentalContract ||
+  asset.Contract ||
+  asset.RentOut?.RentalContract ||
+  asset.Return?.RentalContract ||
+  asset.ImageOut ||
+  asset.Image ||
+  "";
+
+const getLatestRentalContractAsset = (asset = {}) => {
+  const history = Array.isArray(asset?.history) ? asset.history : [];
+  const contractEntry = history
+    .flatMap((item) => [item?.RentOut, item?.Return].filter(Boolean))
+    .find((entry) => getRentalContractSource(entry));
+
+  return contractEntry || asset;
+};
+
+const getRentalContractFileName = (asset = {}) => {
+  const raw = getRentalContractSource(asset);
+  const explicitName = asset.RentalContractFileName || asset.ContractFileName || "";
+  if (explicitName) return explicitName;
+  if (!raw) return "";
+  if (typeof raw !== "string") return "";
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    const path = raw.split("?")[0];
+    return path.substring(path.lastIndexOf("/") + 1);
+  }
+  if (raw.startsWith("data:")) return "Uploaded file";
+  if (raw.includes(".")) return raw;
+  return "";
+};
+
+const getContractPreviewSrc = (contract, fileName = "") => {
+  if (!contract) return "";
+  const raw = String(contract);
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) {
+    return raw;
+  }
+
+  const extension = String(fileName || "").split(".").pop()?.toLowerCase();
+  if (extension === "pdf") return `data:application/pdf;base64,${raw}`;
+  if (["jpg", "jpeg", "png", "gif", "webp"].includes(extension || "")) {
+    const mime = extension === "jpg" ? "jpeg" : extension;
+    return `data:image/${mime};base64,${raw}`;
+  }
+
+  return `data:image/png;base64,${raw}`;
+};
+
+const toBase64Payload = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = String(reader.result || "");
+      resolve(result.includes(",") ? result.split(",")[1] : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+
 const buildHistoryEntries = (history = []) =>
   (Array.isArray(history) ? history : [])
     .flatMap((item, index) => {
       const entries = [];
 
       if (item?.RentOut?.RentedOutDate) {
+        const contractSource = getRentalContractSource(item.RentOut);
+        const contractFileName = getRentalContractFileName(item.RentOut);
+        const contractPreviewSrc = getContractPreviewSrc(contractSource, contractFileName);
         entries.push({
           id: `rentout-${index}-${item.RentOut.RentedOutDate}`,
           type: "out",
           label: "Rented Out",
           summary: "Asset rented out to customer",
-          byLabel: item?.RentOut?.AssigneeName || "S Kumar",
+          byLabel: item?.RentOut?.AssigneeName || "-",
           dateValue: item.RentOut.RentedOutDate,
           details: [
             { label: "Rented To", value: item?.RentOut?.RentedTo || "-" },
@@ -67,6 +139,8 @@ const buildHistoryEntries = (history = []) =>
             { label: "Approved By", value: item?.RentOut?.ApprovedBy || "-" },
             { label: "Tentative Date", value: formatDate(item?.RentOut?.TentativeDate) || "-" },
           ],
+          mediaSrc: contractPreviewSrc,
+          mediaName: contractFileName || "Asset document",
         });
       }
 
@@ -76,7 +150,7 @@ const buildHistoryEntries = (history = []) =>
           type: "returned",
           label: "Returned",
           summary: "Asset returned by customer",
-          byLabel: item?.Return?.ReturnedBy || "S Kumar",
+          byLabel: item?.Return?.ReturnedBy || "-",
           dateValue: item.Return.ReturnDate,
           details: [
             { label: "Returned By", value: item?.Return?.ReturnedBy || "-" },
@@ -133,15 +207,16 @@ const buildEditForm = (asset = {}) => ({
   Name: asset.Name || "",
   Status: getStatusMeta(asset).label,
   Description: asset.Description || "",
-  Vendor: asset.Vendor || asset.Manufacturer || "ABCD",
-  LeaseType: asset.LeaseType || "Outbound",
-  Manufacturer: asset.Manufacturer || "Generic",
-  Model: asset.AssetModel || asset.Model || "Generic model",
-  Cost: asset.MonthlyRent || asset.Cost || "100",
+  Vendor: asset.Vendor || asset.VendorName || asset.Distributor || asset.Manufacturer || "",
+  LeaseType: asset.LeaseType || asset.Lease || "",
+  Manufacturer: asset.Manufacturer || "",
+  Model: asset.AssetModel || asset.Model || "",
+  Cost: asset.MonthlyRent || asset.Cost || "",
   SecurityDeposit: asset.SecurityDeposit || "",
   ExpiryDate: normalizeDate(asset.ExpiryDate || asset.ReturnDate || ""),
-  Location: asset.Location || asset.OutFrom || "Building-A",
-  RentalContract: asset.RentalContract || asset.Contract || "1234.jpeg",
+  Location: asset.Location || asset.OutFrom || "",
+  RentalContract: getRentalContractSource(asset),
+  RentalContractFileName: getRentalContractFileName(asset),
 });
 
 const RentalAssets = ({ propId, history }) => {
@@ -173,7 +248,7 @@ const RentalAssets = ({ propId, history }) => {
   const fetchRentalAssets = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`https://api.urest.in:8096/api/Asset/GetRentalAssetData?PropId=${propId}`);
+      const res = await fetch(`http://localhost:62929/api/Asset/GetRentalAssetData?PropId=${propId}`);
       const data = await res.json();
       setRentalAssets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -245,6 +320,18 @@ const RentalAssets = ({ propId, history }) => {
         new Set(
           rentalAssets
             .map((asset) => String(asset?.Vendor || asset?.VendorName || asset?.Distributor || "").trim())
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b)),
+    [rentalAssets]
+  );
+
+  const locationOptions = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          rentalAssets
+            .map((asset) => String(asset?.Location || asset?.OutFrom || "").trim())
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b)),
@@ -330,33 +417,69 @@ const RentalAssets = ({ propId, history }) => {
     setDeleteTarget(null);
   };
 
-  const handleSaveEdit = () => {
-    setRentalAssets((prev) =>
-      prev.map((item) =>
-        Number(item.Id) === Number(selectedAssetId)
-          ? {
-            ...item,
-            Name: editForm.Name,
-            Status: editForm.Status,
-            Description: editForm.Description,
-            Vendor: editForm.Vendor,
-            LeaseType: editForm.LeaseType,
-            Manufacturer: editForm.Manufacturer,
-            AssetModel: editForm.Model,
-            Model: editForm.Model,
-            MonthlyRent: editForm.Cost,
-            Cost: editForm.Cost,
-            SecurityDeposit: editForm.SecurityDeposit,
-            ExpiryDate: editForm.ExpiryDate,
-            Location: editForm.Location,
-            RentalContract: editForm.RentalContract,
-            Contract: editForm.RentalContract,
-          }
-          : item
-      )
-    );
-    setPanelMode("details");
-    setShowSuccessModal(true);
+  const handleSaveEdit = async () => {
+    if (!selectedAsset) return;
+    try {
+      let rentalContractValue = editForm.RentalContract;
+      let rentalContractFileName = editForm.RentalContractFileName || "";
+
+      if (editForm.RentalContract instanceof File) {
+        rentalContractValue = await toBase64Payload(editForm.RentalContract);
+        rentalContractFileName = editForm.RentalContract.name;
+      }
+
+      const payload = {
+        Id: selectedAsset.Id,
+        Name: editForm.Name,
+        Description: editForm.Description,
+        QRCode: selectedAsset.QRCode || "",
+        AssetType: selectedAsset.AssetType || selectedAsset.Type || editForm.LeaseType || "",
+        Manufacturer: editForm.Manufacturer,
+        AssetModel: editForm.Model,
+        IsMoveable: selectedAsset.IsMoveable ?? false,
+        Flag: "U",
+        AssetImage: selectedAsset.AssetImage || selectedAsset.Image || "",
+        LastServiceDate: normalizeDate(selectedAsset.LastServiceDate || ""),
+        NextServiceDate: normalizeDate(selectedAsset.NextServiceDate || ""),
+        IsRentable: selectedAsset.IsRentable ?? true,
+        AssetValue: editForm.Cost || selectedAsset.AssetValue || 0,
+        Capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
+        capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
+        AMCdoc: rentalContractValue || "",
+        status: editForm.Status,
+        category: selectedAsset.Category || selectedAsset.category || "",
+        location: editForm.Location,
+        serviceReminderDay: selectedAsset.serviceReminderDay || "",
+        propertyId: propId,
+        PurchaseDate: normalizeDate(selectedAsset.PurchaseDate || ""),
+        WarrantyDate: normalizeDate(selectedAsset.WarrantyDate || selectedAsset.ExpiryDate || selectedAsset.ReturnDate || ""),
+      };
+
+      const resp = await fetch("https://api.urest.in:8096/ManageAssets", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to update rental asset");
+      }
+
+      await fetchRentalAssets();
+      setSelectedAssetId(selectedAsset.Id);
+      setPanelMode("details");
+      setEditForm((prev) => ({
+        ...prev,
+        RentalContract: rentalContractValue,
+        RentalContractFileName: rentalContractFileName,
+      }));
+      setShowSuccessModal(true);
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleCancelEdit = () => {
@@ -369,7 +492,36 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
+    const url = isReturnMode ? "http://localhost:62929/ManageRentInAsset" : "http://localhost:62929/ManageRentOutAsset";
+    const payload = isReturnMode
+      ? {
+        AssetId: selectedAsset.Id || 0,
+        AssetName: selectedAsset.Name || "",
+        ReturnedBy: formData.returnedBy || "",
+        ReturnDateTime: formData.returnDateTime || "",
+        ReturnedFrom: formData.returnedFrom || "",
+        ImageIn: formData.imageIn || "",
+        RentalContract: formData.rentalContract || "",
+      }
+      : {
+        AssetId: selectedAsset.Id || 0,
+        AssetName: selectedAsset.Name || "",
+        AssigneeName: formData.assigneeName || "",
+        RentOutDateTime: formData.rentOutDateTime || "",
+        TentativeReturnDate: formData.tentativeReturnDate || "",
+        RentedTo: formData.rentedTo || "",
+        OutFrom: formData.outFrom || "",
+        RentalCharges: Number(formData.rentalCharges) || 0,
+        SecurityDeposit: Number(formData.securityDeposit) || 0,
+        RentOutTime: formData.rentOutTime || formData.rentOutDateTime || "",
+        ApprovedBy: formData.approvedBy || "",
+        Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
+        Location: formData.location || formData.outFrom || selectedAsset.Location || "",
+        ImageOutBase64: formData.imageOut || "",
+        RentalContractBase64: formData.rentalContract || "",
+        ImageOut: formData.imageOutName || "",
+        RentalContract: formData.rentalContractName || "",
+      };
 
     await fetch(url, {
       method: isReturnMode ? "PUT" : "POST",
@@ -377,11 +529,7 @@ const RentalAssets = ({ propId, history }) => {
         Accept: "application/json",
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        assetId: selectedAsset.Id,
-        assetName: selectedAsset.Name,
-        ...formData,
-      }),
+      body: JSON.stringify(payload),
     });
 
     setShowActionModal(false);
@@ -414,27 +562,54 @@ const RentalAssets = ({ propId, history }) => {
     }
   };
 
-  const handleOpenContract = () => {
+  const handleOpenContract = async () => {
     if (!selectedAsset) return;
-    const contract = selectedAsset.ImageOut || selectedAsset.RentalContract || selectedAsset.Contract || selectedAsset.Image || "";
+    let assetWithContract = getLatestRentalContractAsset(selectedAsset);
+
+    if (!getRentalContractSource(assetWithContract)) {
+      try {
+        const historyData = Array.isArray(selectedAsset.history)
+          ? selectedAsset.history
+          : await getAssetRentOutReturnHistoryByAssetId(selectedAsset.Id);
+        const normalizedHistory = Array.isArray(historyData) ? historyData : [];
+        assetWithContract = getLatestRentalContractAsset({ ...selectedAsset, history: normalizedHistory });
+        setRentalAssets((prev) =>
+          prev.map((item) =>
+            Number(item.Id) === Number(selectedAsset.Id)
+              ? {
+                ...item,
+                history: normalizedHistory,
+              }
+              : item
+          )
+        );
+      } catch (error) {
+        console.error(error);
+        return;
+      }
+    }
+
+    const contract = getRentalContractSource(assetWithContract);
+    const contractFileName = getRentalContractFileName(assetWithContract);
     if (!contract) return;
 
-    const raw = String(contract);
-    if (raw.startsWith("http://") || raw.startsWith("https://")) {
-      window.open(raw, "_blank", "noopener,noreferrer");
+    const previewSrc = getContractPreviewSrc(contract, contractFileName);
+    if (!previewSrc) return;
+
+    if (previewSrc.startsWith("http://") || previewSrc.startsWith("https://")) {
+      window.open(previewSrc, "_blank", "noopener,noreferrer");
       return;
     }
 
     const win = window.open("", "_blank");
     if (!win) return;
-    if (raw.startsWith("data:application/pdf")) {
+    if (previewSrc.startsWith("data:application/pdf")) {
       win.document.write(
-        `<html><body style="margin:0;padding:0"><embed src="${raw}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+        `<html><body style="margin:0;padding:0"><embed src="${previewSrc}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
       );
     } else {
-      const imgSrc = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
       win.document.write(
-        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${imgSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
+        `<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${previewSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`
       );
     }
     win.document.close();
@@ -454,38 +629,38 @@ const RentalAssets = ({ propId, history }) => {
           <div className="rental-detail-grid">
             <div className="rental-detail-item rental-detail-full rental-readonly-row">
               <span className="rental-detail-label">ID</span>
-              <span className="rental-detail-value rental-readonly-value">{selectedAsset.Id || "AST-111"}</span>
+              <span className="rental-detail-value rental-readonly-value">{selectedAsset.Id || "-"}</span>
             </div>
             <div className="rental-detail-item rental-detail-full">
               <div className="rental-detail-inline-head">
                 <span className="rental-detail-label">Name</span>
                 <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
               </div>
-              <span className="rental-detail-value">{selectedAsset.Name || "Generator"}</span>
+              <span className="rental-detail-value">{selectedAsset.Name || "-"}</span>
             </div>
             <div className="rental-detail-item rental-detail-full">
               <span className="rental-detail-label">Description</span>
-              <span className="rental-detail-value">{selectedAsset.Description || "Generic generator description"}</span>
+              <span className="rental-detail-value">{selectedAsset.Description || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Vendor</span>
-              <span className="rental-detail-value">{selectedAsset.Vendor || selectedAsset.Manufacturer || "Generic vendor"}</span>
+              <span className="rental-detail-value">{selectedAsset.Vendor || selectedAsset.VendorName || selectedAsset.Distributor || selectedAsset.Manufacturer || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Lease type</span>
-              <span className="rental-detail-value">{selectedAsset.LeaseType || "Outbound"}</span>
+              <span className="rental-detail-value">{selectedAsset.LeaseType || selectedAsset.Lease || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Manufacturer</span>
-              <span className="rental-detail-value">{selectedAsset.Manufacturer || "Generic"}</span>
+              <span className="rental-detail-value">{selectedAsset.Manufacturer || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Model</span>
-              <span className="rental-detail-value">{selectedAsset.AssetModel || selectedAsset.Model || "Generic model"}</span>
+              <span className="rental-detail-value">{selectedAsset.AssetModel || selectedAsset.Model || "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Cost</span>
-              <span className="rental-detail-value">{selectedAsset.MonthlyRent ? `₹${selectedAsset.MonthlyRent}/day` : "₹100/day"}</span>
+              <span className="rental-detail-value">{selectedAsset.MonthlyRent || selectedAsset.Cost ? `₹${selectedAsset.MonthlyRent || selectedAsset.Cost}/day` : "-"}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Security deposit</span>
@@ -497,7 +672,7 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Location</span>
-              <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "Building A"}</span>
+              <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "-"}</span>
             </div>
           </div>
           <div className="rental-panel-links">
@@ -512,10 +687,10 @@ const RentalAssets = ({ propId, history }) => {
             <button
               type="button"
               className="rental-text-link rental-panel-link-row"
-              onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "return" : "rentout")}
+              onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.IsRented ? "return" : "rentout")}
             >
-              <i className={`fa ${selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
-              {selectedAsset.ReturnDate === null && selectedAsset.RentedOutDate ? "Rent in" : "Rent out"}
+              <i className={`fa ${selectedAsset.IsRented ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
+              {selectedAsset.IsRented ? "Rent in" : "Rent out"}
             </button>
           </div>
         </div>
@@ -552,7 +727,7 @@ const RentalAssets = ({ propId, history }) => {
 
         <div className="asset-form-id-row-simple">
           <span className="asset-info-label">ID</span>
-          <span className="asset-info-value">{editForm.Id || "AST-111"}</span>
+          <span className="asset-info-value">{editForm.Id || "-"}</span>
         </div>
 
         <div className="asset-form-simple-stack">
@@ -569,7 +744,7 @@ const RentalAssets = ({ propId, history }) => {
               onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
               placeholder="Select status"
               options={[
-                { label: "Running", value: "Running" },
+                { label: "Active", value: "Active" },
                 { label: "Inactive", value: "Inactive" },
                 { label: "Servicing", value: "Servicing" }
               ]}
@@ -636,7 +811,7 @@ const RentalAssets = ({ propId, history }) => {
                 value={editForm.Location}
                 onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
                 placeholder="Select location"
-                options={Array.from(new Set([editForm.Location, "Building A", "Building-A", "Basement", "Gate no-07"])).filter(Boolean).map(v => ({ label: v, value: v }))}
+                options={locationOptions.map(v => ({ label: v, value: v }))}
               />
             </div>
           </div>
@@ -644,10 +819,23 @@ const RentalAssets = ({ propId, history }) => {
           <div className="form-group asset-form-group-custom">
             <label>Rental contract</label>
             <div className="rental-upload-field">
-              <input className="form-control" value={editForm.RentalContract} onChange={(e) => setEditForm({ ...editForm, RentalContract: e.target.value })} />
+              <input className="form-control" placeholder="Upload file" value={editForm.RentalContractFileName || ""} readOnly />
               <span className="rental-upload-icon" aria-hidden="true">
                 <i className="fa fa-file-text" />
               </span>
+              <input
+                type="file"
+                className="asset-file-hidden"
+                accept=".jpg,.jpeg,.png,.pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  setEditForm({
+                    ...editForm,
+                    RentalContract: file,
+                    RentalContractFileName: file?.name || "",
+                  });
+                }}
+              />
             </div>
           </div>
         </div>
@@ -763,7 +951,7 @@ const RentalAssets = ({ propId, history }) => {
                       <div className="asset-filter-field asset-filter-field-full">
                         <label>Status</label>
                         <div className="asset-filter-chip-row">
-                          {["Running", "Servicing", "Inactive"].map((item) => (
+                          {["Active", "Servicing", "Inactive"].map((item) => (
                             <button
                               key={item}
                               type="button"
@@ -824,11 +1012,12 @@ const RentalAssets = ({ propId, history }) => {
                           const statusMeta = getStatusMeta(asset);
                           const leaseMeta = getLeaseMeta(asset);
                           const isReturnFlow = asset.ReturnDate === null && asset.RentedOutDate;
+                          const isOverdueFiltered = filterServiceStatus === "Overdue";
 
                           return (
-                            <tr key={asset.Id} className={Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} onClick={() => handleSelectAsset(asset)}>
-                              <td>{asset.Id || "AST-111"}</td>
-                              <td>{asset.Name || "Water pump"}</td>
+                            <tr key={asset.Id} className={`${Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => handleSelectAsset(asset)}>
+                              <td>{asset.Id || "-"}</td>
+                              <td>{asset.Name || "-"}</td>
                               <td>{asset.Manufacturer || "-"}</td>
                               <td>
                                 <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
@@ -990,8 +1179,8 @@ const RentalAssets = ({ propId, history }) => {
                       </span>
                       <div className="rental-history-title-text">
                         <span className="rental-history-title-main">Rented asset</span>
-                        <span className="rental-history-title-lease">- {historyAsset?.Name || "Generator"}</span>
-                        <span className="rental-history-title-id">({historyAsset?.Id || "AST-111"})</span>
+                        <span className="rental-history-title-lease">- {historyAsset?.Name || "-"}</span>
+                        <span className="rental-history-title-id">({historyAsset?.Id || "-"})</span>
                       </div>
                     </div>
                     <button type="button" className="rental-history-close" onClick={() => setShowHistoryModal(false)}>
@@ -1032,12 +1221,51 @@ const RentalAssets = ({ propId, history }) => {
                             <i className={`fa ${isExpanded ? "fa-angle-up" : "fa-angle-down"} rental-history-row-icon`} aria-hidden="true" />
                             {isExpanded ? (
                               <div className="rental-history-details">
-                                {item.details.map((detail, detailIndex) => (
-                                  <div key={`${item.id}-detail-${detailIndex}`} className="rental-history-detail-item">
-                                    <span className="rental-history-detail-label">{detail.label}</span>
-                                    <span className="rental-history-detail-value">{detail.value}</span>
+                                <div className="rental-history-details-grid">
+                                  <div className="rental-history-details-list">
+                                    {item.details.map((detail, detailIndex) => (
+                                      <div key={`${item.id}-detail-${detailIndex}`} className="rental-history-detail-item">
+                                        <span className="rental-history-detail-label">{detail.label}</span>
+                                        <span className="rental-history-detail-value">{detail.value}</span>
+                                      </div>
+                                    ))}
                                   </div>
-                                ))}
+                                  {item.mediaSrc ? (
+                                    <div className="rental-history-media-card">
+                                      {item.mediaSrc.startsWith("data:application/pdf") ? (
+                                        <button
+                                          type="button"
+                                          className="rental-history-media-link"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            const win = window.open("", "_blank");
+                                            if (!win) return;
+                                            win.document.write(
+                                              `<html><body style="margin:0;padding:0"><embed src="${item.mediaSrc}" type="application/pdf" width="100%" height="100%" style="position:fixed;inset:0"></body></html>`
+                                            );
+                                            win.document.close();
+                                          }}
+                                        >
+                                          {item.mediaName}
+                                        </button>
+                                      ) : (
+                                        <>
+                                          <img src={item.mediaSrc} alt={item.mediaName || "Asset document"} className="rental-history-media-preview" />
+                                          <button
+                                            type="button"
+                                            className="rental-history-media-link"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              window.open(item.mediaSrc, "_blank", "noopener,noreferrer");
+                                            }}
+                                          >
+                                            {item.mediaName}
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  ) : null}
+                                </div>
                               </div>
                             ) : null}
                           </div>

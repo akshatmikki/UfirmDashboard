@@ -60,6 +60,7 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
       returnDateTime: joinDateTime(formData.returnDate, formData.returnTime),
       returnedFrom: formData.returnedFrom,
       imageIn: formData.imageIn,
+      rentalContract: formData.rentalContractData || "",
     });
     if (Close) Close();
   };

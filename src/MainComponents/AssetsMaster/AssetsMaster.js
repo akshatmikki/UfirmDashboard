@@ -14,6 +14,7 @@ import "./AssetsMaster.css";
 import { withRouter } from "react-router-dom";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
+import QRCode from "react-qr-code";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -57,6 +58,7 @@ class AssetsMaster extends Component {
       ManufacturerName: "",
       AssetModel: "",
       IsMoveable: false,
+      IsRented: false,
       Name: "",
       Description: "",
       QRCode: "",
@@ -75,6 +77,9 @@ class AssetsMaster extends Component {
       AMCdoc: null,
       AMCimage: "",
       amcFileName: "",
+      WarrantyDocument: null,
+      warrantyImage: "",
+      warrantyFileName: "",
       status: false,
       category: "",
       location: "",
@@ -97,6 +102,8 @@ class AssetsMaster extends Component {
       PurchaseDate: "",
       WarrantyDate: "",
       currentPage: 1,
+      nextAddAssetId: 0,
+      showAddQrPreview: false,
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -143,6 +150,11 @@ class AssetsMaster extends Component {
     const boolVal = this.normalizeBoolean(value);
     if (boolVal === "") return "-";
     return boolVal ? "Yes" : "No";
+  };
+
+  getAssetQrValue = (item = {}) => {
+    const qrValue = item?.QRCode || item?.QRcode || item?.QrCode || "";
+    return String(qrValue || item?.Id || "").trim();
   };
 
   formatDisplayDate = (value) => {
@@ -226,6 +238,7 @@ class AssetsMaster extends Component {
       Manufacturer: this.state.ManufacturerName,
       AssetModel: this.state.AssetModel,
       IsMoveable: this.state.IsMoveable,
+      IsRented: this.state.IsRented,
       Flag: type,
       AssetImage: this.state.AssetImage,
       LastServiceDate: this.state.LastServiceDate,
@@ -235,6 +248,7 @@ class AssetsMaster extends Component {
       Capacity: this.state.Capacity,
       capacity: this.state.Capacity,
       AMCdoc: this.state.AMCimage,
+      WarrantyDocument: this.state.warrantyImage,
       status: this.state.status,
       category: this.state.category,
       location: this.state.location,
@@ -249,17 +263,18 @@ class AssetsMaster extends Component {
   loadHomagePageData = () => {
     const propertyId = Number(this.props.PropertyId);
     if (!(propertyId > 0)) {
-      this.setState({ GridData: [], DueGridData: [], isLoading: false, selectedRowId: null, PageMode: "Home" });
+      this.setState({ GridData: [], DueGridData: [], isLoading: false, selectedRowId: null, PageMode: "Home", nextAddAssetId: 0 });
       return;
     }
 
     this.setState({ isLoading: true });
-    this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
+      this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
       .then((resp) => {
         if (!resp.ok || resp.status !== 200) return null;
         return resp.json().then((rData) => {
-          const dueServiceAssets = Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
-          const upcomingServiceAssets = Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
+          const isDirectList = Array.isArray(rData);
+          const dueServiceAssets = isDirectList ? rData : Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
+          const upcomingServiceAssets = isDirectList ? [] : Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
           const merged = [...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
             const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
             const statusMeta = this.getAssetStatusMeta(item);
@@ -272,7 +287,7 @@ class AssetsMaster extends Component {
               LastServiceDate: this.normalizeDate(item?.LastServiceDate),
               NextServiceDate: nextServiceDate,
               NextServiceDateDisplay: displayDate,
-              Location: item?.Location || item?.location || "Building-A",
+              Location: item?.Location || item?.location || "",
               StatusDisplay: `<span class="asset-table-status asset-table-status-${statusMeta.key}">${statusMeta.label}</span>`,
             };
           });
@@ -292,7 +307,7 @@ class AssetsMaster extends Component {
              return dateA.localeCompare(dateB);
            });
 
-          this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false });
+          this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false, nextAddAssetId: this.getNextAssetId(merged) });
         });
       })
       .catch(() => this.setState({ isLoading: false }));
@@ -302,16 +317,34 @@ class AssetsMaster extends Component {
 
   findItem = (id) => this.state.GridData.find((item) => String(item.Id) === String(id)) || null;
 
+  getNextAssetId = (rows = this.state.GridData) => {
+    const ids = (rows || []).map((item) => Number(item?.Id)).filter((id) => Number.isFinite(id));
+    const maxId = ids.length ? Math.max(...ids) : 0;
+    return maxId + 1;
+  };
+
+  generateAddAssetQr = () => {
+    const nextId = this.state.Id || this.state.nextAddAssetId || this.getNextAssetId();
+    const qrValue = String(nextId || "").trim();
+    if (!qrValue) return;
+    this.setState({
+      Id: nextId,
+      QRCode: qrValue,
+      showAddQrPreview: false,
+    });
+  };
+
   Addnew = () => {
     this.setState(
       {
         PageMode: "Add",
         selectedRowId: null,
-        Id: 0,
+        Id: this.state.nextAddAssetId || this.getNextAssetId(),
         AssetType: "",
         ManufacturerName: "",
         AssetModel: "",
         IsMoveable: false,
+        IsRented: false,
         Name: "",
         Description: "",
         QRCode: "",
@@ -327,12 +360,16 @@ class AssetsMaster extends Component {
         AMCdoc: null,
         AMCimage: "",
         amcFileName: "",
+        WarrantyDocument: null,
+        warrantyImage: "",
+        warrantyFileName: "",
         status: false,
         category: "",
         location: "",
         serviceReminderDay: "",
         PurchaseDate: "",
         WarrantyDate: "",
+        showAddQrPreview: false,
       },
       () => CreateValidator()
     );
@@ -340,16 +377,18 @@ class AssetsMaster extends Component {
 
   setFormData = (rowData, mode) => {
     if (!rowData) return;
+    const assetQrValue = this.getAssetQrValue(rowData);
     this.setState({
       PageMode: mode,
       selectedRowId: rowData.Id,
       Id: rowData.Id,
       Name: rowData.Name || "",
       Description: this.getRowDescription(rowData),
-      QRCode: rowData.QRCode || "",
+      QRCode: assetQrValue,
       ManufacturerName: rowData.Manufacturer || "",
       AssetModel: rowData.AssetModel || "",
       IsMoveable: String(this.normalizeBoolean(rowData.IsMoveable)),
+      IsRented: String(this.normalizeBoolean(rowData.IsRented)),
       LastServiceDate: this.normalizeDate(rowData.LastServiceDate),
       NextServiceDate: this.normalizeDate(rowData.NextServiceDate),
       IsRentable: String(this.normalizeBoolean(rowData.IsRentable)),
@@ -358,6 +397,7 @@ class AssetsMaster extends Component {
       AssetType: rowData.AssetType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
       AMCimage: rowData.AMCdoc || rowData.AMCimage || "",
+      warrantyImage: rowData.WarrantyDocument || rowData.warrantyImage || "",
       assetImageFileName:
         rowData.AssetImageName ||
         rowData.ImageName ||
@@ -366,15 +406,20 @@ class AssetsMaster extends Component {
         rowData.AMCdocName ||
         rowData.AMCimageName ||
         ((rowData.AMCdoc || rowData.AMCimage) ? "Existing document" : ""),
+      warrantyFileName:
+        rowData.WarrantyDocumentName ||
+        rowData.warrantyImageName ||
+        ((rowData.WarrantyDocument || rowData.warrantyImage) ? "Existing document" : ""),
       showImagefiletype: rowData.ImageExt || null,
       showImagefile: rowData.Image || null,
       extension: rowData.ImageExt || null,
       status: String(this.normalizeBoolean(rowData.Status)),
       category: rowData.Category || "",
       location: rowData.Location || "",
-      serviceReminderDay: rowData.serviceReminderDay || "",
-      PurchaseDate: this.normalizeDate(rowData.PurchaseDate),
-      WarrantyDate: this.normalizeDate(rowData.WarrantyDate),
+        serviceReminderDay: rowData.serviceReminderDay || "",
+        PurchaseDate: this.normalizeDate(rowData.PurchaseDate),
+        WarrantyDate: this.normalizeDate(rowData.WarrantyDate),
+        showAddQrPreview: false,
     });
   };
 
@@ -429,6 +474,18 @@ class AssetsMaster extends Component {
     appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
   };
 
+  onWarrantyFileChange = (event) => {
+    const selected = event?.target?.files?.[0];
+    if (!selected) return;
+    const valid = ["jpg", "jpeg", "png", "pdf"];
+    const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
+    if (valid.includes(extension)) {
+      this.setState({ WarrantyDocument: selected, warrantyFileName: selected.name });
+      return;
+    }
+    appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
+  };
+
   handleTabChange = (tab) => {
   this.setState({
     activeTab: tab,
@@ -441,6 +498,7 @@ class AssetsMaster extends Component {
     let assetImage = this.state.AssetImage;
     let imageExt = this.state.ImageExt;
     let amcImage = this.state.AMCimage;
+    let warrantyImage = this.state.warrantyImage;
 
     if (this.state.ImageData?.name && this.state.ImageData?.size) {
       const fileD = await toBase64(this.state.ImageData);
@@ -451,10 +509,14 @@ class AssetsMaster extends Component {
       const fileD = await toBase64(this.state.AMCdoc);
       amcImage = fileD[1];
     }
+    if (this.state.WarrantyDocument?.name && this.state.WarrantyDocument?.size) {
+      const fileD = await toBase64(this.state.WarrantyDocument);
+      warrantyImage = fileD[1];
+    }
 
     if (ValidateControls()) {
       const type = this.state.PageMode === "Add" ? "I" : "U";
-      this.mangaeSave(this.getModel(type, { AssetImage: assetImage, ImageExt: imageExt, AMCdoc: amcImage }), type);
+      this.mangaeSave(this.getModel(type, { AssetImage: assetImage, ImageExt: imageExt, AMCdoc: amcImage, WarrantyDocument: warrantyImage }), type);
     }
   };
 
@@ -488,6 +550,7 @@ class AssetsMaster extends Component {
         ManufacturerName: "",
         AssetModel: "",
         IsMoveable: false,
+        IsRented: false,
         Name: "",
         Description: "",
         QRCode: "",
@@ -506,12 +569,16 @@ class AssetsMaster extends Component {
         AMCdoc: null,
         AMCimage: "",
         amcFileName: "",
+        WarrantyDocument: null,
+        warrantyImage: "",
+        warrantyFileName: "",
         status: false,
         category: "",
         location: "",
         serviceReminderDay: "",
         PurchaseDate: "",
         WarrantyDate: "",
+        showAddQrPreview: false,
       },
       this.loadHomagePageData
     );
@@ -657,6 +724,7 @@ class AssetsMaster extends Component {
       Manufacturer: item.Manufacturer,
       AssetModel: item.AssetModel,
       IsMoveable: this.getBoolLabel(item.IsMoveable),
+      IsRented: this.getBoolLabel(item.IsRented),
       LastServiceDate: this.normalizeDate(item.LastServiceDate),
       NextServiceDate: this.normalizeDate(item.NextServiceDate),
       IsRentable: this.getBoolLabel(item.IsRentable),
@@ -741,10 +809,11 @@ class AssetsMaster extends Component {
               paginated.rows.map((asset) => {
                 const statusMeta = this.getAssetStatusMeta(asset);
                 const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+                const isOverdueFiltered = this.state.filterServiceStatus === "Overdue";
                 return (
                   <tr
                     key={asset.Id}
-                    className={isSelected ? "grid-selected-row active" : ""}
+                    className={`${isSelected ? "grid-selected-row active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()}
                     onClick={() => this.onGridRowSelect(asset.Id)}
                   >
                     <td className="col-id">{asset.Id || "-"}</td>
@@ -789,12 +858,14 @@ class AssetsMaster extends Component {
   renderAssetDetailsPanel = () => {
     const asset = this.getSelectedAssetRecord();
     if (!asset) return null;
+    const assetQrValue = this.getAssetQrValue(asset);
     const statusMeta = this.getAssetStatusMeta(asset);
     const imageSource = this.getPreviewSrc(
       this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
       this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
     );
     const amcSource = this.getPreviewSrc(this.state.AMCimage || asset.AMCdoc || asset.AMCimage, "png");
+    const warrantySource = this.getPreviewSrc(this.state.warrantyImage || asset.WarrantyDocument || asset.warrantyImage, "png");
 
     return (
       <div className="asset-side-panel asset-details-view-panel">
@@ -840,14 +911,17 @@ class AssetsMaster extends Component {
                 <span className="asset-info-label">Next service</span>
                 <span className="asset-info-value">{this.formatDisplayDate(asset.NextServiceDate)}</span>
               </div>
+               <div className="asset-details-row asset-details-location-row">
+              <div className="asset-info-item">
+                <span className="asset-info-label">Location</span>
+                <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+              </div>
+            </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Reminder</span>
                 <span className="asset-info-value">{asset.serviceReminderDay ? `${asset.serviceReminderDay} day(s)` : "No reminder set"}</span>
               </div>
-              <div className="asset-info-item">
-                <span className="asset-info-label">Value</span>
-                <span className="asset-info-value">{asset.AssetValue ? `₹${asset.AssetValue}` : "₹0"}</span>
-              </div>
+              
               <div className="asset-info-item">
                 <span className="asset-info-label">Is Movable</span>
                 <span className="asset-info-value">{this.getBoolLabel(asset.IsMoveable)}</span>
@@ -856,22 +930,40 @@ class AssetsMaster extends Component {
                 <span className="asset-info-label">Is Rentable</span>
                 <span className="asset-info-value">{this.getBoolLabel(asset.IsRentable)}</span>
               </div>
-            </div>
-
-            <div className="asset-details-row asset-details-location-row">
               <div className="asset-info-item">
-                <span className="asset-info-label">Location</span>
-                <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+                <span className="asset-info-label">Is Rented</span>
+                <span className="asset-info-value">{this.getBoolLabel(asset.IsRented)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Date of Purchase</span>
+                <span className="asset-info-value">{this.formatDisplayDate(asset.PurchaseDate)}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Value</span>
+                <span className="asset-info-value">{asset.AssetValue ? `₹${asset.AssetValue}` : "₹0"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Warranty Expiry</span>
+                <span className="asset-info-value">{this.formatDisplayDate(asset.WarrantyDate)}</span>
               </div>
             </div>
+
+           
 
             <div className="asset-details-docs-section">
               <div className="asset-qr-preview-box">
                 <div className="asset-qr-wrapper">
-                  <i className="fa fa-qrcode" />
+                  {assetQrValue ? (
+                    <QRCode
+                      value={assetQrValue}
+                      size={72}
+                    />
+                  ) : (
+                    <span>No QR</span>
+                  )}
                 </div>
               </div>
-              <div className="asset-doc-links-stack">
+              <div className="asset-doc-links-stack asset-doc-links-stack-view">
                 <div className="asset-doc-link-item">
                   <div className="asset-doc-icon-wrapper">
                     <i className="fa fa-picture-o" />
@@ -884,6 +976,20 @@ class AssetsMaster extends Component {
                     >Asset photo</button>
                   ) : (
                     <span className="asset-doc-link-text disabled">Asset photo</span>
+                  )}
+                </div>
+                <div className="asset-doc-link-item">
+                  <div className="asset-doc-icon-wrapper">
+                    <i className="fa fa-file-text-o" />
+                  </div>
+                  {warrantySource ? (
+                    <button
+                      type="button"
+                      className="asset-doc-link-text"
+                      onClick={() => this.openDocumentUrl(warrantySource)}
+                    >Warranty Card</button>
+                  ) : (
+                    <span className="asset-doc-link-text disabled">Warranty Card</span>
                   )}
                 </div>
                 <div className="asset-doc-link-item">
@@ -919,6 +1025,7 @@ class AssetsMaster extends Component {
 
   renderAssetForm = () => {
     const isEditMode = this.state.PageMode === "Edit";
+    const assetQrValue = this.getAssetQrValue({ QRCode: this.state.QRCode, Id: this.state.Id });
     return (
       <div className={`asset-side-panel asset-side-panel-form ${isEditMode ? "asset-side-panel-form-edit" : ""}`.trim()}>
         <div className="asset-side-panel-header asset-form-new-header">
@@ -932,7 +1039,11 @@ class AssetsMaster extends Component {
         <div className="asset-side-panel-body">
           <div className="asset-form-qr-centered">
             <div className="asset-qr-wrapper-large">
-              <i className="fa fa-qrcode" aria-hidden="true" />
+              {assetQrValue ? (
+                <QRCode value={assetQrValue} size={120} />
+              ) : (
+                <span>No QR</span>
+              )}
             </div>
           </div>
 
@@ -1025,6 +1136,18 @@ class AssetsMaster extends Component {
                   ]}
                 />
               </div>
+               <div className="form-group asset-form-group-custom">
+                <label>Is Rented</label>
+                <RadioButtonGroup
+                  name="IsRented"
+                  selectedValue={String(this.state.IsRented)}
+                  onChange={(e) => this.setState({ IsRented: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
             </div>
 
             <div className="form-group asset-form-group-custom">
@@ -1062,6 +1185,9 @@ class AssetsMaster extends Component {
   renderAssetFormModal = () => {
     const isEditMode = this.state.PageMode === "Edit";
     const title = isEditMode ? "Edit Asset" : "Add Asset";
+    const nextAssetId = this.state.Id || this.state.nextAddAssetId || this.getNextAssetId();
+    const addAssetQrValue = String(this.state.QRCode || "").trim();
+    const canViewAddQr = Boolean(addAssetQrValue);
 
     return (
       <div className="asset-add-backdrop" role="presentation">
@@ -1079,13 +1205,33 @@ class AssetsMaster extends Component {
             <div className="asset-add-id-row">
               <div className="asset-add-id-left">
                 <span className="asset-add-id-label">ID</span>
-                <span className="asset-add-id-value">{this.state.Id ? `#${this.state.Id}` : "#1234"}</span>
+                <span className="asset-add-id-value">{nextAssetId ? `#${nextAssetId}` : "-"}</span>
               </div>
-              <button type="button" className="asset-add-generate">
+              <button
+                type="button"
+                className="asset-add-generate"
+                onClick={() => {
+                  if (!canViewAddQr) {
+                    this.generateAddAssetQr();
+                    return;
+                  }
+                  this.setState((prev) => ({ showAddQrPreview: !prev.showAddQrPreview }));
+                }}
+              >
                 <i className="fa fa-qrcode" aria-hidden="true" />
-                Generate QR code
+                {!canViewAddQr ? "Generate QR code" : this.state.showAddQrPreview ? "Hide QR code" : "View QR code"}
               </button>
             </div>
+
+            {canViewAddQr ? (
+              <div className="asset-add-qr-block">
+                {this.state.showAddQrPreview ? (
+                  <div className="asset-add-qr-preview">
+                    <QRCode value={addAssetQrValue} size={84} />
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
 
             <div className="asset-add-grid">
               <div className="form-group asset-form-group-custom">
@@ -1182,6 +1328,19 @@ class AssetsMaster extends Component {
                   ]}
                 />
               </div>
+                <div className="form-group asset-form-group-custom">
+                <label>Is Rented</label>
+                <RadioButtonGroup
+                  name="IsRented"
+                  selectedValue={String(this.state.IsRented)}
+                  onChange={(e) => this.setState({ IsRented: e.target.value })}
+                  options={[
+                    { label: "Yes", value: "true" },
+                    { label: "No", value: "false" },
+                  ]}
+                />
+              </div>
+
 
               <div className="form-group asset-form-group-custom">
                 <label>Service reminder</label>
@@ -1237,9 +1396,9 @@ class AssetsMaster extends Component {
               <div className="form-group asset-form-group-custom">
                 <label>Warranty document</label>
                 <div className="asset-file-input-wrapper">
-                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.warrantyFileName || ""} readOnly />
                   <i className="fa fa-file-text-o asset-file-icon" />
-                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+                  <input type="file" className="asset-file-hidden" onChange={this.onWarrantyFileChange} />
                 </div>
               </div>
 
@@ -1249,6 +1408,14 @@ class AssetsMaster extends Component {
                   <input type="text" className="form-control" placeholder="Upload file" value={this.state.assetImageFileName || ""} readOnly />
                   <i className="fa fa-picture-o asset-file-icon" />
                   <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
+                </div>
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>AMC Contract</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
+                  <i className="fa fa-file-text-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
                 </div>
               </div>
             </div>
@@ -1367,7 +1534,7 @@ class AssetsMaster extends Component {
           <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="spare-add-title">
               <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
-                <i className="fa fa-check" aria-hidden="true" />
+                <i className="fa fa-check-circle-o" aria-hidden="true" />
               </span>
               {title}
             </div>
@@ -1415,7 +1582,7 @@ class AssetsMaster extends Component {
           <span>Asset Master</span>
         </div>
 
-        <div className={`asset-master-layout ${hasSidePanel ? "has-side-panel" : ""}`}>
+        <div className={`asset-master-layout asset-master-layout-owned ${hasSidePanel ? "has-side-panel" : ""}`}>
           <div className="asset-master-main-card">
             <div className="asset-master-tabs">
              <button

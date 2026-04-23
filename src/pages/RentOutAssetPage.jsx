@@ -57,12 +57,19 @@ const RentOut = ({ Close, setData, asset, showModeToggle }) => {
     setData({
       assigneeName: formData.assigneeName,
       rentOutDateTime: joinDateTime(formData.rentOutDate, formData.rentOutTime),
-      outFrom: formData.outFrom,
-      rentedTo: formData.rentedTo,
       tentativeReturnDate: formData.tentativeReturnDate,
-      imageOut: formData.imageOut,
-      approvedBy: formData.approvedBy,
+      rentedTo: formData.rentedTo,
+      outFrom: formData.outFrom,
+      location: formData.outFrom,
+      manufacturer: formData.manufacturer,
       rentalCharges: formData.rentalCharges,
+      imageOut: formData.imageOut,
+      imageOutName: formData.assetImageName || "",
+      securityDeposit: formData.securityDeposit,
+      rentOutTime: joinDateTime(formData.rentOutDate, formData.rentOutTime),
+      rentalContract: formData.rentalContractData || "",
+      rentalContractName: formData.rentalContractName || "",
+      approvedBy: formData.approvedBy,
     });
     if (Close) Close();
   };

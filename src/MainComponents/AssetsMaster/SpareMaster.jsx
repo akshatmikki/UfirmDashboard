@@ -8,6 +8,7 @@ import SpareService from "../../Services/SpareService";
 import "./AssetsMaster.css";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
+import QRCode from "react-qr-code";
 
 function getEmptySpareRow() {
   return {
@@ -20,8 +21,10 @@ function getEmptySpareRow() {
     ExpiryDate: "",
     SerialNumber: "",
     VendorName: "",
-    InvoiceNo: "",
-    Warranty: "",
+    InvoiceNo: null,
+    InvoiceFileName: "",
+    Warranty: null,
+    WarrantyFileName: "",
     Remarks: "",
   };
 }
@@ -62,19 +65,6 @@ function matchesServiceStatus(row = {}, selectedStatus = "") {
   return current === selected;
 }
 
-function buildPseudoQrCells(value) {
-  const seed = String(value || "QR").split("").reduce((acc, char, index) => acc + char.charCodeAt(0) * (index + 1), 0);
-  return Array.from({ length: 144 }, (_, index) => {
-    const row = Math.floor(index / 12);
-    const col = index % 12;
-    const inTopLeft = row < 3 && col < 3;
-    const inTopRight = row < 3 && col > 8;
-    const inBottomLeft = row > 8 && col < 3;
-    if (inTopLeft || inTopRight || inBottomLeft) return true;
-    return ((seed + row * 17 + col * 29 + row * col) % 5) < 2;
-  });
-}
-
 const ROWS_PER_PAGE = 15;
 
 const SparePage = () => {
@@ -104,6 +94,7 @@ const SparePage = () => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successType, setSuccessType] = useState("U");
   const [currentPage, setCurrentPage] = useState(1);
 
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
@@ -213,28 +204,43 @@ const SparePage = () => {
 
     try {
       for (const row of spareRows) {
-        const formData = new FormData();
-        formData.append("PropertyID", propertyId);
-        formData.append("AssetID", assetId);
-        formData.append("SpareType", row.SpareType);
-        formData.append("Rating", row.Rating);
-        formData.append("BackupTime", row.BackupTime);
-        formData.append("Status", row.Status);
-        formData.append("Quantity", row.Quantity);
-        formData.append("PurchaseDate", toIsoOrEmpty(row.PurchaseDate));
-        formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
-        formData.append("SerialNumber", row.SerialNumber);
-        formData.append("VendorName", row.VendorName);
-        formData.append("InvoiceNo", row.InvoiceNo);
-        formData.append("Warranty", row.Warranty);
-        formData.append("Remarks", row.Remarks);
-        formData.append("Reusable", 0);
-        await SpareService.create(formData);
+       const formData = new FormData();
+
+formData.append("PropertyID", propertyId);
+formData.append("AssetID", assetId);
+formData.append("SpareType", row.SpareType);
+formData.append("Rating", row.Rating);
+formData.append("BackupTime", row.BackupTime);
+formData.append("Status", row.Status);
+formData.append("Quantity", row.Quantity);
+formData.append("PurchaseDate", toIsoOrEmpty(row.PurchaseDate));
+formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
+formData.append("SerialNumber", row.SerialNumber);
+formData.append("VendorName", row.VendorName);
+
+// 🔥 CHANGE 1: KEY NAME FIX
+if (row.InvoiceNo instanceof File) {
+  formData.append("InvoiceFile", row.InvoiceNo);  // ✅ FIXED
+}
+
+// 🔥 CHANGE 2: KEY NAME FIX
+if (row.Warranty instanceof File) {
+  formData.append("WarrantyFile", row.Warranty);  // ✅ FIXED
+}
+
+formData.append("InvoiceNo", "");   // optional text field
+formData.append("Warranty", "");    // optional text field
+
+formData.append("Remarks", row.Remarks);
+formData.append("Reusable", 0);
+
+await SpareService.create(formData);
       }
 
-      toast.current?.show({ severity: "success", summary: "Saved", detail: "All spares saved successfully" });
       setShowAddModal(false);
       resetAddForm();
+      setSuccessType("I");
+      setShowSuccessModal(true);
       loadSpares();
     } catch {
       toast.current?.show({ severity: "error", summary: "Error", detail: "Failed to save spares" });
@@ -375,12 +381,21 @@ const SparePage = () => {
       formData.append("ExpiryDate", toIsoOrEmpty(editForm.ExpiryDate));
       formData.append("SerialNumber", editForm.SerialNumber);
       formData.append("VendorName", editForm.VendorName || "");
-      formData.append("InvoiceNo", existing.InvoiceNo || "");
-      formData.append("Warranty", existing.Warranty || "");
+      if (editForm.InvoiceFile instanceof File) {
+  formData.append("InvoiceFile", editForm.InvoiceFile);
+}
+
+if (editForm.WarrantyFile instanceof File) {
+  formData.append("WarrantyFile", editForm.WarrantyFile);
+}
+
+formData.append("InvoiceFilePath", selectedRow?.InvoiceFilePath || "");
+formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
       formData.append("Remarks", editForm.Remarks);
       formData.append("Reusable", 0);
 
       await SpareService.update(formData);
+      setSuccessType("U");
       setShowSuccessModal(true);
       setSideMode("details");
       loadSpares();
@@ -402,7 +417,8 @@ const SparePage = () => {
 
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
-  const selectedQrCells = useMemo(() => buildPseudoQrCells(selectedRow?.SerialNumber || selectedRow?.SpareID || "QR"), [selectedRow]);
+  const selectedStatusLabel = String(selectedRow?.Status || "").trim() || selectedStatus.label;
+  const selectedQrValue = useMemo(() => String(selectedRow?.SpareID || "").trim(), [selectedRow]);
 
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
@@ -421,46 +437,46 @@ const SparePage = () => {
             <div className="asset-details-row asset-details-name-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Name</span>
-                <span className="asset-info-value">{selectedRow.SpareType || "Engine filter"}</span>
+                <span className="asset-info-value">{selectedRow.SpareType || "-"}</span>
               </div>
-              <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatus.label}</span>
+              <span className={`asset-status-badge asset-status-badge-${selectedStatus.key}`}>{selectedStatusLabel}</span>
             </div>
 
-            <div className="asset-details-row asset-details-desc-row">
+            {/* <div className="asset-details-row asset-details-desc-row">
               <div className="asset-info-item">
                 <span className="asset-info-label">Description</span>
-                <span className="asset-info-value">{selectedRow.Remarks || "Generic engine filter for industrial equipment"}</span>
+                <span className="asset-info-value">{selectedRow.Description || selectedRow.description || "-"}</span>
               </div>
-            </div>
+            </div> */}
 
             <div className="asset-details-grid spare-details-grid">
               <div className="asset-info-item asset-info-full">
                 <span className="asset-info-label">Serial number</span>
-                <span className="asset-info-value">{selectedRow.SerialNumber || "1234567890"}</span>
+                <span className="asset-info-value">{selectedRow.SerialNumber || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Asset</span>
-                <span className="asset-info-value">{selectedAsset?.Name || selectedAsset?.name || "Generator"}</span>
+                <span className="asset-info-value">{selectedAsset?.Name || selectedAsset?.name || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Asset ID</span>
                 <span className="asset-info-value">{selectedRow.AssetID || "-"}</span>
               </div>
               <div className="asset-info-item">
-                <span className="asset-info-label">Manufacturer</span>
-                <span className="asset-info-value">{selectedAsset?.Manufacturer || selectedAsset?.manufacturer || "Generic"}</span>
-              </div>
-              <div className="asset-info-item">
-                <span className="asset-info-label">Model</span>
-                <span className="asset-info-value">{selectedAsset?.AssetModel || selectedAsset?.Model || "Generic model"}</span>
-              </div>
-              <div className="asset-info-item">
                 <span className="asset-info-label">Vendor</span>
-                <span className="asset-info-value">{selectedRow.VendorName || "Generic vendor"}</span>
+                <span className="asset-info-value">{selectedRow.VendorName || "-"}</span>
               </div>
               <div className="asset-info-item">
-                <span className="asset-info-label">Purchase price</span>
-                <span className="asset-info-value">{selectedRow.Rating ? `Rs${selectedRow.Rating}` : "Rs1000"}</span>
+                <span className="asset-info-label">Quantity</span>
+                <span className="asset-info-value">{selectedRow.Quantity ?? "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Type</span>
+                <span className="asset-info-value">{selectedRow.SpareType || "-"}</span>
+              </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Back up time</span>
+                <span className="asset-info-value">{selectedRow.BackupTime || "-"}</span>
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Purchase date</span>
@@ -470,33 +486,61 @@ const SparePage = () => {
                 <span className="asset-info-label">Expiry date</span>
                 <span className="asset-info-value">{formatDisplayDate(selectedRow.ExpiryDate)}</span>
               </div>
+              <div className="asset-info-item">
+                <span className="asset-info-label">Value</span>
+                <span className="asset-info-value">{selectedRow.Value || selectedRow.AssetValue || "-"}</span>
+              </div>
             </div>
           </div>
 
           <div className="asset-doc-strip spare-doc-strip">
-            <div className="spare-qr-code" aria-label="QR code preview">
-              {selectedQrCells.map((filled, index) => (
-                <span key={index} className={filled ? "filled" : ""} />
-              ))}
+            <div className="spare-doc-qr-block">
+              <div className="spare-qr-code" aria-label="QR code preview">
+                {selectedQrValue ? <QRCode value={selectedQrValue} size={72} /> : null}
+              </div>
             </div>
             {(() => {
-              const photoSrc = selectedRow?.Image || selectedRow?.Photo || selectedRow?.AssetImage || selectedRow?.ImageUrl || "";
-              if (photoSrc) {
-                const openPhoto = () => {
-                  const raw = String(photoSrc);
-                  if (raw.startsWith("http://") || raw.startsWith("https://")) {
-                    window.open(raw, "_blank", "noopener,noreferrer");
-                    return;
-                  }
-                  const imgSrc = raw.startsWith("data:") ? raw : `data:image/png;base64,${raw}`;
-                  const win = window.open("", "_blank");
-                  if (!win) return;
-                  win.document.write(`<html><body style="margin:0;padding:0;background:#000;display:flex;align-items:center;justify-content:center;min-height:100vh"><img src="${imgSrc}" style="max-width:100%;max-height:100vh;object-fit:contain"></body></html>`);
-                  win.document.close();
-                };
-                return (<button type="button" className="asset-link-btn spare-photo-link" onClick={openPhoto}><i className="fa fa-file-image-o mr-1" aria-hidden="true" />Spare-part photo</button>);
-              }
-              return (<span className="asset-link-btn spare-photo-link" style={{ opacity: 0.45, cursor: "default" }}><i className="fa fa-file-image-o mr-1" aria-hidden="true" />Spare-part photo</span>);
+             const openDocument = (filePath) => {
+  if (!filePath) return;
+
+  const baseUrl = "http://localhost:62929/"; // ⚠️ apna backend URL
+
+  const fullUrl = baseUrl + filePath.replace(/\\/g, "/");
+
+  window.open(fullUrl, "_blank");
+};
+
+              const invoiceSrc = selectedRow?.InvoiceFilePath || "";
+const warrantySrc = selectedRow?.WarrantyFilePath || "";
+
+              return (
+                <div className="asset-doc-links-stack asset-doc-links-stack-view spare-doc-links-view">
+                  <div className="asset-doc-link-item">
+                    <div className="asset-doc-icon-wrapper">
+                      <i className="fa fa-file-text" aria-hidden="true" />
+                    </div>
+                    {invoiceSrc ? (
+                      <button onClick={() => openDocument(invoiceSrc)}>
+                      Invoice
+                    </button>
+                    ) : (
+                      <span className="asset-doc-link-text disabled">Invoice</span>
+                    )}
+                  </div>
+                  <div className="asset-doc-link-item">
+                    <div className="asset-doc-icon-wrapper">
+                      <i className="fa fa-file-text" aria-hidden="true" />
+                    </div>
+                    {warrantySrc ? (
+                      <button type="button" className="asset-doc-link-text" onClick={() => openDocument(warrantySrc)}>
+                        Warranty card
+                      </button>
+                    ) : (
+                      <span className="asset-doc-link-text disabled">Warranty card</span>
+                    )}
+                  </div>
+                </div>
+              );
             })()}
           </div>
         </div>
@@ -527,16 +571,14 @@ const SparePage = () => {
         <div className="asset-side-panel-body spare-side-panel-body">
           <div className="asset-qr-preview spare-edit-qr-preview">
             <div className="spare-qr-code spare-qr-code-large" aria-label="QR code preview">
-              {selectedQrCells.map((filled, index) => (
-                <span key={index} className={filled ? "filled" : ""} />
-              ))}
+              {selectedQrValue ? <QRCode value={selectedQrValue} size={120} /> : null}
             </div>
           </div>
 
           <div className="asset-form-simple-stack spare-form-grid">
             <div className="asset-form-id-row-simple spare-readonly-row">
               <span className="asset-info-label">ID</span>
-              <span className="asset-info-value">{editForm.SpareID || "AST-111"}</span>
+              <span className="asset-info-value">{editForm.SpareID || "-"}</span>
             </div>
 
             <div className="asset-form-group-custom">
@@ -571,17 +613,17 @@ const SparePage = () => {
 
             <div className="asset-form-group-custom">
               <label>Asset</label>
-              <input className="form-control" value={editForm.AssetName || "Generator"} readOnly />
+              <input className="form-control" value={editForm.AssetName || ""} readOnly />
             </div>
 
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
                 <label>Manufacturer</label>
-                <input className="form-control" value={editForm.Manufacturer || "Generic"} readOnly />
+                <input className="form-control" value={editForm.Manufacturer || ""} readOnly />
               </div>
               <div className="asset-form-group-custom">
                 <label>Model</label>
-                <input className="form-control" value={editForm.Model || "Generic model"} readOnly />
+                <input className="form-control" value={editForm.Model || ""} readOnly />
               </div>
             </div>
 
@@ -598,13 +640,30 @@ const SparePage = () => {
 
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
-                <label>Purchase date</label>
-                <CustomDatePicker value={editForm.PurchaseDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, PurchaseDate: e.target.value }))} />
-              </div>
-              <div className="asset-form-group-custom">
-                <label>Expiry date</label>
-                <CustomDatePicker value={editForm.ExpiryDate || ""} onChange={(e) => setEditForm((prev) => ({ ...prev, ExpiryDate: e.target.value }))} />
-              </div>
+  <label>Update Invoice</label>
+  <input
+    type="file"
+    onChange={(e) =>
+      setEditForm((prev) => ({
+        ...prev,
+        InvoiceFile: e.target.files[0]
+      }))
+    }
+  />
+</div>
+
+<div className="asset-form-group-custom">
+  <label>Update Warranty</label>
+  <input
+    type="file"
+    onChange={(e) =>
+      setEditForm((prev) => ({
+        ...prev,
+        WarrantyFile: e.target.files[0]
+      }))
+    }
+  />
+</div>
             </div>
           </div>
         </div>
@@ -792,9 +851,9 @@ const SparePage = () => {
                       <thead>
                         <tr>
                           <th>ID</th>
-                          <th>Name</th>
+                          <th>Type</th>
                           <th>Asset</th>
-                          <th>Service due</th>
+                          <th>Expiry date</th>
                           <th>Status</th>
                           <th>Actions</th>
                         </tr>
@@ -804,11 +863,12 @@ const SparePage = () => {
                           const meta = statusMeta(row?.Status);
                           const asset = assetById.get(Number(row.AssetID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
+                          const isOverdueFiltered = filterServiceStatus === "Overdue";
                           return (
-                            <tr key={row.SpareID} className={isActive ? "grid-selected-row" : ""} onClick={() => onRowClick(row)}>
-                              <td>{row.AssetID || "AST-111"}</td>
+                            <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
+                              <td>{row.AssetID || "-"}</td>
                               <td>{row.SpareType || "-"}</td>
-                              <td>{asset?.Name || asset?.name || "Generator"}</td>
+                              <td>{asset?.Name || asset?.name || "-"}</td>
                               <td>{formatDisplayDate(row.ExpiryDate)}</td>
                               <td>
                                 <span className={`spare-table-status spare-table-status-${meta.key}`}>{meta.label}</span>
@@ -922,7 +982,7 @@ const SparePage = () => {
                           </div>
                           <div className="spare-add-field">
                             <label>Back-up time</label>
-                            <input className="form-control" placeholder="--:--:--" value={row.BackupTime} onChange={(e) => updateRow(index, "BackupTime", e.target.value)} />
+                            <input type="time" step="1" className="form-control" value={row.BackupTime || ""} onChange={(e) => updateRow(index, "BackupTime", e.target.value)} />
                           </div>
                           <div className="spare-add-field">
                             <label>Status</label>
@@ -956,11 +1016,37 @@ const SparePage = () => {
                           </div>
                           <div className="spare-add-field">
                             <label>Add invoice</label>
-                            <input className="form-control" placeholder="Invoice no" value={row.InvoiceNo} onChange={(e) => updateRow(index, "InvoiceNo", e.target.value)} />
+                            <div className="asset-file-input-wrapper">
+                              <input type="text" className="form-control" placeholder="Upload file" value={row.InvoiceFileName || ""} readOnly />
+                              <i className="fa fa-file-text-o asset-file-icon" />
+                              <input
+                                type="file"
+                                className="asset-file-hidden"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] || null;
+                                  updateRow(index, "InvoiceNo", file);
+                                  updateRow(index, "InvoiceFileName", file?.name || "");
+                                }}
+                              />
+                            </div>
                           </div>
                           <div className="spare-add-field">
                             <label>Add warranty</label>
-                            <input className="form-control" placeholder="Warranty" value={row.Warranty} onChange={(e) => updateRow(index, "Warranty", e.target.value)} />
+                            <div className="asset-file-input-wrapper">
+                              <input type="text" className="form-control" placeholder="Upload file" value={row.WarrantyFileName || ""} readOnly />
+                              <i className="fa fa-file-text-o asset-file-icon" />
+                              <input
+                                type="file"
+                                className="asset-file-hidden"
+                                accept=".jpg,.jpeg,.png,.pdf"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0] || null;
+                                  updateRow(index, "Warranty", file);
+                                  updateRow(index, "WarrantyFileName", file?.name || "");
+                                }}
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1045,7 +1131,7 @@ const SparePage = () => {
                       </div>
                       <div className="asset-dialog-assetrow">
                         <span className="asset-dialog-assetlabel">Location:</span>
-                        <span className="asset-dialog-assetvalue">{assetById.get(Number(deleteTarget.AssetID))?.Location || "Building A"}</span>
+                        <span className="asset-dialog-assetvalue">{assetById.get(Number(deleteTarget.AssetID))?.Location || "-"}</span>
                       </div>
                     </div>
                   </div>
@@ -1069,13 +1155,15 @@ const SparePage = () => {
                       <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
                         <i className="fa fa-check" aria-hidden="true" />
                       </span>
-                      Changes updated successfully
+                      {successType === "U" ? "Changes updated successfully" : "Item created successfully"}
                     </div>
                     <button type="button" className="spare-add-close" onClick={() => setShowSuccessModal(false)}>
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="asset-side-panel-body">The item has been updated.</div>
+                  <div className="asset-side-panel-body">
+                    {successType === "U" ? "The item has been updated." : "The item is ready. You can now monitor its progress."}
+                  </div>
                   <div className="asset-dialog-actions asset-dialog-actions-right">
                     <button type="button" className="btn btn-primary" onClick={() => setShowSuccessModal(false)}>
                       Done

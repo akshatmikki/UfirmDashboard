@@ -1,4 +1,4 @@
-const API = "https://api.urest.in:8096/api/Spare";
+const API = "http://localhost:62929/api/Spare";
 
 const SpareService = {
   getByProperty: async (propertyId) => {

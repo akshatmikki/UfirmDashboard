@@ -36,6 +36,7 @@ const Home = ({ PropertyId }) => {
 
   const [initialDate, setInitialDate] = useState("");
   const [finalDate, setFinalDate] = useState("");
+ 
 
   const [subCategoryCards] = useState([
     { name: "Lift", id: 4 },
@@ -626,23 +627,23 @@ const Home = ({ PropertyId }) => {
                     {chartLoading.assets ? (
                       <CardLoader />
                     ) : hasData(assetCount) ? (
-                      <Chart
-                        type="bar"
-                        data={{
-                          labels: assetCount.map((a) => a.Title),
-                          datasets: [
-                            {
-                              label: "Assets",
-                              data: assetCount.map((a) => a.Value),
-                              backgroundColor: [
-                                "#42A5F5",
-                                "#66BB6A",
-                                "#FFA726",
-                                "#AB47BC",
-                              ],
-                            },
-                          ],
-                        }}
+                     <Chart
+                      type="bar"
+                      data={{
+                        labels: assetCount.map((a) => a.Title),
+                        datasets: [
+                          {
+                            label: "Assets",
+                           data: assetCount.map((a) => a.Value),
+                            backgroundColor: [
+                              "#42A5F5",
+                              "#66BB6A",
+                              "#FFA726",
+                              "#AB47BC",
+                            ],
+                          },
+                        ],
+                      }}
                         options={{
                           responsive: true,
                           maintainAspectRatio: false,

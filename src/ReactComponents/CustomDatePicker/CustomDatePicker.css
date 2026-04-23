@@ -15,6 +15,11 @@
   cursor: pointer;
 }
 
+.custom-datepicker-input:focus,
+.custom-datepicker-input:active {
+  background: #EDF0F3 !important;
+}
+
 .custom-datepicker-icon {
   position: absolute;
   right: 10px;
@@ -27,7 +32,7 @@
   top: calc(100% + 5px);
   left: 0;
   z-index: 1050;
-  width: 320px;
+  width: 100%;
   height: auto;
   background: #FAFAFA;
   border: 1px solid #EAEAEA;
