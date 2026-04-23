@@ -1,5 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { getAllProperties } from "../../Services/PropertyService";
+import { getFreezedSalaryDetailsForFundsApproval, getAllAgreements, sendFundsApprovalToRecipient, getFundsApprovalHistory } from "../../Services/PayrollService";
+import { Modal, Card, Row, Col, Badge } from "react-bootstrap";
+import * as appCommon from "../../Common/AppCommon";
 
 const monthNames = [
   "January",
@@ -100,18 +103,22 @@ export default function FundsApproval() {
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
 
-  const [dataMode, setDataMode] = useState("test"); // "test" | "live"
+  const [dataMode, setDataMode] = useState("live");
   const [selectedYear, setSelectedYear] = useState(defaults.year);
   const [selectedMonth, setSelectedMonth] = useState(defaults.month);
 
   const [sites, setSites] = useState([]);
   const [loadingSites, setLoadingSites] = useState(false);
 
-  // row data is stored per month-year so user can fill amounts/reasons and come back later
   const [rowsBySiteId, setRowsBySiteId] = useState({});
   const [selectedSiteIds, setSelectedSiteIds] = useState(() => new Set());
   const [searchText, setSearchText] = useState("");
   const [sending, setSending] = useState(false);
+
+  // Live Data State
+  const [freezedBreakup, setFreezedBreakup] = useState([]);
+  const [expandedSiteIds, setExpandedSiteIds] = useState(new Set());
+  const [history, setHistory] = useState([]);
 
   const years = useMemo(() => {
     const list = [];
@@ -134,18 +141,31 @@ export default function FundsApproval() {
   const loadSites = async () => {
     setLoadingSites(true);
     try {
-      const data = await getAllProperties();
-      const normalized = (Array.isArray(data) ? data : [])
-        .map((p) => ({
-          SiteId: Number(p.PropertyID ?? p.PropertyId ?? p.Id ?? p.id ?? 0),
-          SiteName: String(p.Name ?? p.PropertyName ?? p.SiteName ?? "").trim(),
-        }))
-        .filter((p) => p.SiteId > 0 && p.SiteName);
+      const monthName = monthNames[selectedMonth - 1].toLowerCase();
+      const freezedData = await getFreezedSalaryDetailsForFundsApproval(monthName, selectedYear);
 
-      setSites(normalized.length ? normalized : TEST_SITES);
+      const summaryList = Array.isArray(freezedData?.summary) ? freezedData.summary : [];
+      const employeesList = Array.isArray(freezedData?.employees) ? freezedData.employees : [];
+
+      setFreezedBreakup(employeesList);
+
+      const normalized = summaryList.map((s) => ({
+        SiteId: Number(s.PropertyId),
+        SiteName: String(s.PropertyName || "").trim(),
+        AgreementAmount: toNumber(s.AgreementAmount),
+        AgreementStartDate: s.Agreement_Start_Date ? new Date(s.Agreement_Start_Date) : null,
+        AgreementEndDate: s.Agreement_End_Date ? new Date(s.Agreement_End_Date) : null,
+        FreezedSalary: toNumber(s.TotalFreezedSalary),
+        FreezedEmployees: toNumber(s.TotalFreezedEmployees),
+        PrevMonthFreezed: toNumber(s.PreviousMonthFreezedSalary),
+        TotalEmployeesInUnit: toNumber(s.TotalEmployeesInUnit),
+        PendingDiff: toNumber(s.PendingAmountDiff),
+      }));
+
+      setSites(normalized);
     } catch (e) {
       console.error("Failed to load sites:", e);
-      setSites(TEST_SITES);
+      if (dataMode === "test") setSites(TEST_SITES);
     } finally {
       setLoadingSites(false);
     }
@@ -173,47 +193,57 @@ export default function FundsApproval() {
     persistRows(next);
   };
 
-  // Load data once
-  useEffect(() => {
-    if (dataMode === "live") loadSites();
-    else loadTestSites();
-  }, []);
+  const loadHistory = async () => {
+    try {
+      const monthName = monthNames[selectedMonth - 1];
+      const historicalData = await getFundsApprovalHistory(monthName, selectedYear);
+      setHistory(Array.isArray(historicalData) ? historicalData : []);
+    } catch (e) {
+      console.error("Failed to load history:", e);
+    }
+  };
 
-  // Load saved rows when month/year changes
+  useEffect(() => {
+    if (dataMode === "live") {
+      loadSites();
+      loadHistory();
+    } else {
+      loadTestSites();
+    }
+  }, [dataMode, selectedMonth, selectedYear]);
+
   useEffect(() => {
     const saved = safeJsonParse(window.localStorage.getItem(storageKey), {});
     setRowsBySiteId(saved && typeof saved === "object" ? saved : {});
     setSelectedSiteIds(new Set());
+    setExpandedSiteIds(new Set());
 
     if (dataMode === "test") seedTestRowsIfEmpty();
   }, [storageKey]);
 
-  // Ensure we always have a row object for each site (so table renders nicely)
   useEffect(() => {
     if (!sites.length) return;
     setRowsBySiteId((prev) => {
-      const next = { ...(prev || {}) };
-      let changed = false;
+      const next = { ...prev };
       for (const s of sites) {
         const key = String(s.SiteId);
-        if (!next[key]) {
-          next[key] = {
-            SiteId: s.SiteId,
-            SiteName: s.SiteName,
-            AmountToTransfer: 0,
-            PreviouslyTransferred: 0,
-            NotGeneratedReason: "",
-          };
-          changed = true;
-        } else if (!next[key].SiteName) {
-          next[key] = { ...next[key], SiteName: s.SiteName };
-          changed = true;
-        }
+        next[key] = {
+          ...next[key],
+          SiteId: s.SiteId,
+          SiteName: s.SiteName,
+          AmountToTransfer: dataMode === "live" ? s.FreezedSalary : (next[key]?.AmountToTransfer ?? 0),
+          AgreementAmount: s.AgreementAmount,
+          FreezedEmployees: s.FreezedEmployees,
+          PrevMonthFreezed: s.PrevMonthFreezed,
+          TotalEmployeesInUnit: s.TotalEmployeesInUnit,
+          PendingDiff: s.PendingDiff,
+          RecipientName: next[key]?.RecipientName ?? "",
+          RecipientEmail: next[key]?.RecipientEmail ?? ""
+        };
       }
-      if (!changed) return prev;
       return next;
     });
-  }, [sites]);
+  }, [sites, dataMode]);
 
   const rows = useMemo(() => {
     const list = sites.map((s) => {
@@ -237,15 +267,34 @@ export default function FundsApproval() {
         AmountToTransfer: amount,
         PreviouslyTransferred: prev,
         NotGeneratedReason: row.NotGeneratedReason || "",
-        PendingAmount: pending,
+        PendingAmount: amount,
         Status: status,
+        FreezedEmployees: row.FreezedEmployees || 0,
+        AgreementAmount: s.AgreementAmount || 0,
+        PrevMonthFreezed: s.PrevMonthFreezed || 0,
+        TotalEmployeesInUnit: s.TotalEmployeesInUnit || 0,
+        PendingDiff: s.PendingDiff || 0,
+        RecipientName: row.RecipientName || "",
+        RecipientEmail: row.RecipientEmail || "",
       };
     });
 
     const q = searchText.trim().toLowerCase();
     if (!q) return list;
     return list.filter((r) => (r.SiteName || "").toLowerCase().includes(q));
-  }, [sites, rowsBySiteId, searchText]);
+  }, [sites, rowsBySiteId, searchText, history]);
+
+  const stats = useMemo(() => {
+    let approved = 0;
+    let rejected = 0;
+    let pending = 0;
+    history.forEach(h => {
+      if (h.IsApproved === true) approved += toNumber(h.AmountToTransfer);
+      else if (h.IsApproved === false) rejected += toNumber(h.AmountToTransfer);
+      else pending += toNumber(h.AmountToTransfer);
+    });
+    return { approved, rejected, pending };
+  }, [history]);
 
   const totals = useMemo(() => {
     let totalAmount = 0;
@@ -269,6 +318,15 @@ export default function FundsApproval() {
     const next = { ...(rowsBySiteId || {}) };
     next[key] = { ...(next[key] || {}), ...patch, SiteId: Number(siteId) };
     persistRows(next);
+  };
+
+  const toggleExpand = (siteId) => {
+    setExpandedSiteIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(siteId)) next.delete(siteId);
+      else next.add(siteId);
+      return next;
+    });
   };
 
   const toggleSelected = (siteId) => {
@@ -311,33 +369,38 @@ export default function FundsApproval() {
         AmountToTransfer: r.AmountToTransfer,
         PreviouslyTransferred: r.PreviouslyTransferred,
         PendingAmount: r.PendingAmount,
+        AgreementAmount: r.AgreementAmount,
+        PendingDiff: r.PendingDiff,
+        RecipientName: r.RecipientName,
+        RecipientEmail: r.RecipientEmail,
         NotGeneratedReason: (r.NotGeneratedReason || "").trim(),
+        EmployeeIds: freezedBreakup
+          .filter(b => Number(b.PropertyId) === r.SiteId)
+          .map(b => Number(b.FacilityMemberId)),
       }));
 
-    if (!payload.length) {
-      alert("No pending amount available to send for approval.");
+    const invalid = payload.filter(p => !p.RecipientEmail || !p.RecipientName);
+    if (invalid.length > 0) {
+      alert(`Please provide Recipient Name and Email for all selected sites: ${invalid.map(i => i.SiteName).join(", ")}`);
       return;
     }
 
-    if (
-      !window.confirm(
-        `Send ${payload.length} site(s) for approval for ${monthNames[selectedMonth - 1]} ${selectedYear}?`
-      )
-    ) {
-      return;
-    }
+    if (!window.confirm(`Send ${payload.length} site(s) for approval?`)) return;
 
     setSending(true);
     try {
-      // NOTE: API integration is pending.
-      // When backend is ready, replace the alert with a POST call.
-      // Example payload is prepared in `payload`.
-      console.log("Funds approval payload:", payload);
-      alert("Sent for approval successfully.");
+      const result = await sendFundsApprovalToRecipient({
+        month: monthNames[selectedMonth - 1],
+        year: selectedYear,
+        sentBy: appCommon.getLoggedInUserName() || "Admin",
+        requests: payload
+      });
+
+      alert(result?.message || "Approval request(s) sent successfully via email.");
       setSelectedSiteIds(new Set());
     } catch (e) {
-      console.error("Failed to send for approval:", e);
-      alert("Failed to send for approval.");
+      console.error("Failed to send approval:", e);
+      alert("Failed to send approval request. Check console for details.");
     } finally {
       setSending(false);
     }
@@ -345,245 +408,219 @@ export default function FundsApproval() {
 
   return (
     <div className="content-wrapper" style={{ minHeight: "100vh", padding: 30 }}>
-      <div
-        className="card"
-        style={{
-          maxWidth: 1200,
-          margin: "0 auto",
-          borderRadius: 10,
-          boxShadow: "0 2px 10px rgba(0,0,0,0.05)",
-          paddingBottom: 14,
-        }}
-      >
+      <div className="card shadow-sm" style={{ maxWidth: 1250, margin: "0 auto", borderRadius: 10 }}>
         {/* HEADER */}
-        <div
-          className="d-flex justify-content-between align-items-center"
-          style={{
-            padding: "20px 28px 14px 28px",
-            borderBottom: "1px solid #dee2e6",
-            gap: 12,
-            flexWrap: "wrap",
-          }}
-        >
+        <div className="d-flex justify-content-between align-items-center p-4 border-bottom flex-wrap gap-3">
           <div>
-            <h2 style={{ fontWeight: "bold", fontSize: "2rem", margin: 0 }}>
-              Funds Approval
-            </h2>
-            <div style={{ color: "#6b7280", marginTop: 4, fontSize: 13 }}>
-              Select month/year, review site-wise transfer amount, reason, and send for approval.
-            </div>
+            <h2 className="fw-bold m-0 text-primary">Funds Approval</h2>
+            <div className="text-muted small">Review site-wise salary requirements and manage fund transfers.</div>
           </div>
 
-          <div
-            className="d-flex align-items-end"
-            style={{ gap: 12, flexWrap: "wrap" }}
-          >
+          <div className="d-flex align-items-end gap-2 flex-wrap">
             <div>
-              <label style={{ fontSize: 12, marginBottom: 4 }}>Mode</label>
-              <select
-                className="form-control"
-                style={{ width: 140 }}
-                value={dataMode}
-                onChange={(e) => {
-                  const nextMode = e.target.value;
-                  setDataMode(nextMode);
-                  if (nextMode === "live") loadSites();
-                  else {
-                    loadTestSites();
-                    seedTestRowsIfEmpty();
-                  }
-                }}
-              >
-                <option value="test">Test Data</option>
-                <option value="live">Live Data</option>
+              <label className="small mb-1 d-block text-secondary">Year</label>
+              <select className="form-select form-select-sm" style={{ width: 100 }} value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+                {years.map(y => <option key={y} value={y}>{y}</option>)}
               </select>
             </div>
-
             <div>
-              <label style={{ fontSize: 12, marginBottom: 4 }}>Year</label>
-              <select
-                className="form-control"
-                style={{ width: 140 }}
-                value={selectedYear}
-                onChange={(e) => setSelectedYear(Number(e.target.value))}
-              >
-                {years.map((y) => (
-                  <option key={y} value={y}>
-                    {y}
-                  </option>
-                ))}
+              <label className="small mb-1 d-block text-secondary">Month</label>
+              <select className="form-select form-select-sm" style={{ width: 140 }} value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+                {monthNames.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
               </select>
             </div>
-
             <div>
-              <label style={{ fontSize: 12, marginBottom: 4 }}>Month</label>
-              <select
-                className="form-control"
-                style={{ width: 180 }}
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(clampMonth(e.target.value))}
-              >
-                {months.map((m) => (
-                  <option key={m} value={m}>
-                    {monthNames[m - 1]}
-                  </option>
-                ))}
-              </select>
+              <label className="small mb-1 d-block text-secondary">Search</label>
+              <input type="text" className="form-control form-control-sm" style={{ width: 180 }} placeholder="Search site..." value={searchText} onChange={(e) => setSearchText(e.target.value)} />
             </div>
-
-            <div>
-              <label style={{ fontSize: 12, marginBottom: 4 }}>Search</label>
-              <input
-                type="text"
-                className="form-control"
-                style={{ width: 220, background: "#f8fafc" }}
-                placeholder="Search site"
-                value={searchText}
-                onChange={(e) => setSearchText(e.target.value)}
-              />
-            </div>
-
-            <div style={{ display: "flex", gap: 10 }}>
-              <button
-                className="btn btn-outline-secondary"
-                style={{ height: 38 }}
-                onClick={loadSites}
-                disabled={loadingSites || dataMode !== "live"}
-                title="Reload site list"
-              >
-                {loadingSites ? "Loading..." : "Reload Sites"}
-              </button>
-
-              <button
-                className="btn btn-primary"
-                style={{ height: 38 }}
-                onClick={() => sendForApproval(null)}
-                disabled={sending || selectedSiteIds.size === 0}
-                title="Send selected sites for approval"
-              >
-                {sending ? "Sending..." : "Send for Approval"}
-              </button>
-            </div>
+            <button className="btn btn-primary btn-sm" style={{ height: 31 }} onClick={() => sendForApproval(null)} disabled={sending || selectedSiteIds.size === 0}>
+              {sending ? "Sending..." : "Send for Approval"}
+            </button>
           </div>
         </div>
 
+        {/* SUMMARY STATS */}
+        {dataMode === "live" && (
+          <div className="p-3 bg-light border-bottom">
+            <Row className="g-3">
+              <Col md={3}>
+                <Card className="text-center shadow-sm border-0 border-start border-primary border-4">
+                  <Card.Body className="py-2">
+                    <div className="text-muted small fw-bold">TOTAL REQUESTED</div>
+                    <div className="fs-5 fw-bold">{formatINR(totals.totalAmount)}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={3}>
+                <Card className="text-center shadow-sm border-0 border-start border-success border-4">
+                  <Card.Body className="py-2">
+                    <div className="text-success small fw-bold">TOTAL APPROVED</div>
+                    <div className="fs-5 fw-bold text-success">{formatINR(stats.approved)}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={3}>
+                <Card className="text-center shadow-sm border-0 border-start border-danger border-4">
+                  <Card.Body className="py-2">
+                    <div className="text-danger small fw-bold">TOTAL REJECTED</div>
+                    <div className="fs-5 fw-bold text-danger">{formatINR(stats.rejected)}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+              <Col md={3}>
+                <Card className="text-center shadow-sm border-0 border-start border-warning border-4">
+                  <Card.Body className="py-2">
+                    <div className="text-warning small fw-bold">PENDING APPROVAL</div>
+                    <div className="fs-5 fw-bold text-warning">{formatINR(stats.pending)}</div>
+                  </Card.Body>
+                </Card>
+              </Col>
+            </Row>
+          </div>
+        )}
+
         {/* TABLE */}
-        <div className="table-responsive px-4 pt-3 pb-2">
-          <table className="table table-bordered table-hover">
-            <thead style={{ background: "#f8fafc" }}>
+        <div className="table-responsive p-3">
+          <table className="table table-bordered table-hover align-middle shadow-sm rounded">
+            <thead className="table-light">
               <tr>
-                <th style={{ width: 50, textAlign: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={rows.length > 0 && rows.every((r) => selectedSiteIds.has(r.SiteId))}
-                    onChange={toggleSelectAllVisible}
-                    aria-label="Select all visible"
-                  />
+                <th style={{ width: 40, textAlign: "center" }}>
+                  <input type="checkbox" checked={rows.length > 0 && rows.every(r => selectedSiteIds.has(r.SiteId))} onChange={toggleSelectAllVisible} />
                 </th>
                 <th>Site</th>
-                <th style={{ width: 170 }}>Amount to Transfer</th>
-                <th style={{ width: 170 }}>Previously Transferred</th>
-                <th>Why not generated right now?</th>
-                <th style={{ width: 140 }}>Pending</th>
-                <th style={{ width: 140 }}>Status</th>
-                <th style={{ width: 170 }}>Action</th>
+                <th className="text-end" style={{ width: 130 }}>Agreement Amt</th>
+                <th className="text-end" style={{ width: 130 }}>Prev Month</th>
+                <th className="text-end" style={{ width: 130 }}>Current Freezed</th>
+                <th className="text-end" style={{ width: 120 }}>Budget Diff</th>
+                <th style={{ width: 170 }}>Approve To (Name)</th>
+                <th style={{ width: 220 }}>Approve To (Email)</th>
+                <th>Reason</th>
+                <th className="text-center" style={{ width: 150 }}>Action</th>
               </tr>
             </thead>
-
             <tbody>
               {rows.length === 0 ? (
-                <tr>
-                  <td colSpan={8} style={{ textAlign: "center", padding: 22 }}>
-                    {loadingSites ? "Loading sites..." : "No sites found."}
-                  </td>
-                </tr>
+                <tr><td colSpan={11} className="text-center p-5 text-muted">{loadingSites ? "Fetching live data..." : "No property records found for this period."}</td></tr>
               ) : (
                 rows.map((r) => (
-                  <tr key={r.SiteId}>
-                    <td style={{ textAlign: "center" }}>
-                      <input
-                        type="checkbox"
-                        checked={selectedSiteIds.has(r.SiteId)}
-                        onChange={() => toggleSelected(r.SiteId)}
-                        aria-label={`Select ${r.SiteName}`}
-                      />
-                    </td>
+                  <React.Fragment key={r.SiteId}>
+                    <tr>
+                      <td className="text-center">
+                        <input type="checkbox" checked={selectedSiteIds.has(r.SiteId)} onChange={() => toggleSelected(r.SiteId)} />
+                      </td>
+                      <td className="fw-bold">{r.SiteName}</td>
+                      <td className="text-end">{formatINR(r.AgreementAmount)}</td>
+                      <td className="text-end text-muted small">{formatINR(r.PrevMonthFreezed)}</td>
+                      <td className="text-end fw-bold">{formatINR(r.AmountToTransfer)}</td>
+                      <td className={`text-end fw-bold ${r.PendingDiff > 0 ? "text-danger" : "text-success"}`}>
+                        {formatINR(r.PendingDiff)}
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="form-control form-control-sm"
+                          placeholder="Name..."
+                          value={r.RecipientName}
+                          onChange={(e) => updateRow(r.SiteId, { RecipientName: e.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="email"
+                          className="form-control form-control-sm"
+                          placeholder="Email..."
+                          value={r.RecipientEmail}
+                          onChange={(e) => updateRow(r.SiteId, { RecipientEmail: e.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input type="text" className="form-control form-control-sm" placeholder="Reason..." value={r.NotGeneratedReason} onChange={(e) => updateRow(r.SiteId, { NotGeneratedReason: e.target.value })} />
+                      </td>
+                      <td className="text-center">
+                        <div className="btn-group btn-group-sm">
+                          <button className="btn btn-outline-primary" onClick={() => sendForApproval(r.SiteId)} disabled={sending || r.PendingAmount <= 0}>Send</button>
+                          <button className="btn btn-outline-info" onClick={() => toggleExpand(r.SiteId)}>
+                            {expandedSiteIds.has(r.SiteId) ? "Hide" : "Breakup"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
 
-                    <td style={{ fontWeight: 600 }}>{r.SiteName}</td>
+                    {expandedSiteIds.has(r.SiteId) && (
+                      <tr className="table-light">
+                        <td colSpan={11} className="p-0">
+                          <div className="p-3 bg-white border rounded m-2 shadow-sm">
+                            <h6 className="mb-3 text-secondary d-flex justify-content-between align-items-center">
+                              <span>Salary Slip Breakup</span>
+                              <span className="badge bg-light text-dark">{r.FreezedEmployees} Freezed Employees</span>
+                            </h6>
+                            <div className="table-responsive">
+                              <table className="table table-sm table-bordered mb-0 small" style={{ minWidth: 1200 }}>
+                                <thead className="bg-light text-center">
+                                  <tr>
+                                    <th rowSpan="2" className="align-middle">Emp ID</th>
+                                    <th rowSpan="2" className="align-middle">Name / Designation</th>
+                                    <th colSpan="5" className="bg-success text-white py-1">Earnings</th>
+                                    <th colSpan="5" className="bg-danger text-white py-1">Deductions</th>
+                                    <th colSpan="3" className="bg-info text-white py-1">Attendance</th>
+                                    <th rowSpan="2" className="align-middle bg-primary text-white">Net Total</th>
+                                  </tr>
+                                  <tr className="bg-light small">
+                                    <th>Basic</th>
+                                    <th>HRA</th>
+                                    <th>Conv.</th>
+                                    <th>Spl.</th>
+                                    <th>OT</th>
+                                    <th>ESI</th>
+                                    <th>PF</th>
+                                    <th>PT</th>
+                                    <th>Adv.</th>
+                                    <th>TDS</th>
+                                    <th>W</th>
+                                    <th>L</th>
+                                    <th>P</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {freezedBreakup
+                                    .filter(b => Number(b.PropertyId) === r.SiteId)
+                                    .map((b, idx) => (
+                                      <tr key={idx}>
+                                        <td className="text-center">{b.FacilityMemberId}</td>
+                                        <td>
+                                          <div className="fw-bold">{b.FacilityMemberName}</div>
+                                          <div className="text-muted" style={{ fontSize: 10 }}>{b.Designation}</div>
+                                        </td>
+                                        {/* Earnings */}
+                                        <td className="text-end">{formatINR(b.Basic)}</td>
+                                        <td className="text-end">{formatINR(b.HRA)}</td>
+                                        <td className="text-end">{formatINR(b.Conveyance)}</td>
+                                        <td className="text-end">{formatINR(b.SplAllowance)}</td>
+                                        <td className="text-end">{formatINR(b.OTAmount)}</td>
 
-                    <td>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={r.AmountToTransfer}
-                        min={0}
-                        onChange={(e) =>
-                          updateRow(r.SiteId, { AmountToTransfer: toNumber(e.target.value) })
-                        }
-                      />
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                        {formatINR(r.AmountToTransfer)}
-                      </div>
-                    </td>
+                                        {/* Deductions */}
+                                        <td className="text-end text-danger">{formatINR(b.ESI)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.PF)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.PT)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.Advance)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.TDS)}</td>
 
-                    <td>
-                      <input
-                        type="number"
-                        className="form-control"
-                        value={r.PreviouslyTransferred}
-                        min={0}
-                        onChange={(e) =>
-                          updateRow(r.SiteId, { PreviouslyTransferred: toNumber(e.target.value) })
-                        }
-                      />
-                      <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-                        {formatINR(r.PreviouslyTransferred)}
-                      </div>
-                    </td>
+                                        {/* Attendance */}
+                                        <td className="text-center">{b.WorkingDays || 0}</td>
+                                        <td className="text-center">{b.LeaveDays || b.AbsentDays || 0}</td>
+                                        <td className="text-center fw-bold">{b.PaidDays || 0}</td>
 
-                    <td>
-                      <input
-                        type="text"
-                        className="form-control"
-                        value={r.NotGeneratedReason}
-                        placeholder="E.g., Salary not generated / Bank details missing / Attendance pending"
-                        onChange={(e) =>
-                          updateRow(r.SiteId, { NotGeneratedReason: e.target.value })
-                        }
-                      />
-                    </td>
-
-                    <td style={{ fontWeight: 700 }}>
-                      {formatINR(r.PendingAmount)}
-                    </td>
-
-                    <td>
-                      <span
-                        className={
-                          r.Status === "Ready"
-                            ? "badge bg-success"
-                            : r.Status === "Blocked"
-                              ? "badge bg-warning text-dark"
-                              : r.Status === "Already Transferred"
-                                ? "badge bg-secondary"
-                                : "badge bg-danger"
-                        }
-                      >
-                        {r.Status}
-                      </span>
-                    </td>
-
-                    <td>
-                      <button
-                        className="btn btn-outline-primary btn-sm"
-                        onClick={() => sendForApproval(r.SiteId)}
-                        disabled={sending || r.PendingAmount <= 0}
-                        title="Send this site for approval"
-                      >
-                        Send
-                      </button>
-                    </td>
-                  </tr>
+                                        <td className="text-end fw-bold text-primary">{formatINR(b.NetSalary || b.GeneratedAmount)}</td>
+                                      </tr>
+                                    ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 ))
               )}
             </tbody>
@@ -591,29 +628,62 @@ export default function FundsApproval() {
         </div>
 
         {/* TOTALS */}
-        <div
-          className="px-4 pb-3"
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 18,
-            flexWrap: "wrap",
-          }}
-        >
-          <div style={{ fontWeight: 600 }}>
-            Total to Transfer:{" "}
-            <span style={{ fontWeight: 800 }}>{formatINR(totals.totalAmount)}</span>
+        <div className="p-4 bg-light text-end border-top d-flex justify-content-end gap-4 flex-wrap">
+          <div className="summary-item">
+            <div className="text-muted small">Total to Transfer</div>
+            <div className="fw-bold fs-5 text-primary">{formatINR(totals.totalAmount)}</div>
           </div>
-          <div style={{ fontWeight: 600 }}>
-            Total Previously Transferred:{" "}
-            <span style={{ fontWeight: 800 }}>{formatINR(totals.totalPrev)}</span>
+          <div className="summary-item border-start ps-4">
+            <div className="text-muted small">Previously Transferred</div>
+            <div className="fw-bold fs-5">{formatINR(totals.totalPrev)}</div>
           </div>
-          <div style={{ fontWeight: 600 }}>
-            Total Pending:{" "}
-            <span style={{ fontWeight: 800 }}>{formatINR(totals.totalPending)}</span>
+          <div className="summary-item border-start ps-4">
+            <div className="text-muted small">Net Pending</div>
+            <div className="fw-bold fs-5 text-dark">{formatINR(totals.totalPending)}</div>
           </div>
         </div>
+        {/* HISTORY TABLE ✅ NEW SECTION */}
+        <div className="p-4 border-top">
+          <h5 className="fw-bold text-secondary mb-3">Approval & Rejection History</h5>
+          <div className="table-responsive">
+            <table className="table table-sm table-bordered align-middle small">
+              <thead className="table-dark">
+                <tr>
+                  <th>Site Name</th>
+                  <th className="text-end">Amount</th>
+                  <th className="text-center">Status</th>
+                  <th>Action By</th>
+                  <th>Remark / Feedback</th>
+                  <th>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.length === 0 ? (
+                  <tr><td colSpan={6} className="text-center p-3 text-muted">No history found for current selection.</td></tr>
+                ) : (
+                  history.map((h, idx) => (
+                    <tr key={idx}>
+                      <td className="fw-bold">{sites.find(s => s.SiteId === Number(h.PropertyId))?.SiteName || `Site ${h.PropertyId}`}</td>
+                      <td className="text-end">{formatINR(h.AmountToTransfer)}</td>
+                      <td className="text-center">
+                        <Badge bg={h.IsApproved === true ? "success" : h.IsApproved === false ? "danger" : "warning"}>
+                          {h.IsApproved === true ? "Approved" : h.IsApproved === false ? "Rejected" : "Pending"}
+                        </Badge>
+                      </td>
+                      <td>{h.ApprovedBy || h.RejectedBy || "Pending"}</td>
+                      <td>{h.RejectionRemark || "-"}</td>
+                      <td>{new Date(h.ApprovedOn || h.RejectionOn || h.SentOn).toLocaleDateString()}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
       </div>
     </div>
   );
 }
+
+

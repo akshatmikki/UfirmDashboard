@@ -262,3 +262,9 @@ export function getapitoken() {
 
 //}
 // export default AppCommon;
+
+export function getLoggedInUserName() {
+    let name = document.getElementById("app")?.getAttribute("username");
+    if (!name) name = window.sessionStorage.getItem("username");
+    return name || "Admin";
+}

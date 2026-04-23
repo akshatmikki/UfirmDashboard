@@ -1560,3 +1560,66 @@ export const importEmployees = async (propertyId, file) => {
     throw error;
   }
 };
+
+// --------------------------------------------------
+// NEW: Get Freezed Salary Details (Funds Approval)
+// --------------------------------------------------
+export const getFreezedSalaryDetailsForFundsApproval = async (month, year) => {
+  try {
+    const response = await axios.get(`https://api.urest.in:8096/get-freezed-salary-details-dynamic`, {
+      params: { month, year },
+      withCredentials: false,
+    });
+    // This returns an object { summary: [], employees: [] }
+    return response.data;
+  } catch (error) {
+
+    console.error("Failed to fetch freezed salary details:", error);
+    throw error;
+  }
+};
+
+// --------------------------------------------------
+// NEW: Get All Agreements
+// --------------------------------------------------
+export const getAllAgreements = async () => {
+  try {
+    const response = await fetch(`https://api.urest.in:8096/api/Agreement/GetAll`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) throw new Error("Failed to fetch agreements");
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching agreements:", error);
+    throw error;
+  }
+};
+
+
+export async function sendFundsApprovalToRecipient(payload) {
+  try {
+    const response = await axios.post(
+      "https://api.urest.in:8096/api/fundsapproval/post-funds-approval-request",
+      payload,
+      { withCredentials: false }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error sending funds approval request:", error);
+    throw error;
+  }
+}
+
+export async function getFundsApprovalHistory(month, year) {
+  try {
+    const response = await axios.get("https://api.urest.in:8096/api/fundsapproval/get-funds-approval-history", {
+      params: { month, year },
+      withCredentials: false,
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching funds approval history:", error);
+    return [];
+  }
+}
