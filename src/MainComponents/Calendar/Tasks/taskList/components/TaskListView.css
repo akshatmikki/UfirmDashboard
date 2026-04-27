@@ -41,6 +41,14 @@
   box-sizing: border-box;
 }
 
+.task-summary-card.task-summary-active {
+  box-shadow: 0 0 0 3px rgba(51, 107, 147, 0.22), 0 2px 12px rgba(18, 44, 74, 0.08);
+}
+
+.task-badge-active {
+  box-shadow: 0 0 0 2px rgba(51, 107, 147, 0.2);
+}
+
 .task-summary-value {
   margin: 0;
   font-family: 'Inter', sans-serif;
@@ -107,11 +115,11 @@
 }
 
 .task-summary-pending .task-summary-value {
-  color: #64748b;
+  color: #ef4444;
 }
 
 .task-summary-pending .task-summary-label {
-  color: #64748b;
+  color: #ef4444;
 }
 
 .task-summary-overdue {
@@ -1067,13 +1075,6 @@
   text-align: right;
 }
 
-
-
-.task-card-kv b.task-priority {
-  /* Dynamic priority colors are handled below or via specific classes */
-}
-
-
 .task-card-actions {
   width: 244px;
   height: auto; /* Changed from fixed 32px to auto for padding/divider space */
@@ -1090,7 +1091,7 @@
 }
 
 .task-card-action-group {
-  width: 48px;
+  width: auto;
   height: 20px;
   display: flex;
   align-items: center;
@@ -1140,6 +1141,14 @@
 
 .task-action-add {
   color: #3a73b5 !important;
+}
+
+.task-action-remarks {
+  color: #a0aec0 !important;
+}
+
+.task-action-remarks:hover {
+  color: #3b82f6 !important;
 }
 
 .task-pager {

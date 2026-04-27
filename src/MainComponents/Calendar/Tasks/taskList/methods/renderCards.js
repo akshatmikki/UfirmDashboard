@@ -2,6 +2,42 @@ import React from "react";
 import moment from "moment";
 
 const getStatusClass = (status) => String(status || "").toLowerCase().replace(/\s+/g, "-");
+const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
+const hasActiveStatusFilter = (filter) => {
+  const normalized = normalizeStatus(filter);
+  return normalized !== "" && normalized !== "none" && normalized !== "0";
+};
+const isActionableStatus = (status) => {
+  const normalized = normalizeStatus(status);
+  return normalized === "actionable" || normalized === "in-progress" || normalized === "in progress";
+};
+const getStatusRank = (status) => {
+  const normalized = normalizeStatus(status);
+  if (normalized === "pending" || normalized.includes("overdue")) return 0;
+  if (normalized === "actionable" || normalized === "in-progress" || normalized === "in progress") return 1;
+  if (normalized === "completed" || normalized === "complete") return 2;
+  return 99;
+};
+const matchesStatusFilter = (taskStatus, statusFilter) => {
+  const tStatus = normalizeStatus(taskStatus);
+  const fStatus = normalizeStatus(statusFilter);
+
+  if (!hasActiveStatusFilter(fStatus)) return true;
+
+  if (fStatus === "complete" || fStatus === "completed") {
+    return tStatus === "complete" || tStatus === "completed";
+  }
+
+  if (fStatus === "actionable" || fStatus === "in-progress" || fStatus === "in progress") {
+    return tStatus === "actionable" || tStatus === "in-progress" || tStatus === "in progress";
+  }
+
+  if (fStatus === "pending") {
+    return tStatus === "pending" || tStatus.includes("overdue");
+  }
+
+  return tStatus === fStatus;
+};
 const getPriorityClass = (priority) => {
   const val = String(priority || "").toLowerCase();
   if (val.includes("sos")) return "sos";
@@ -51,7 +87,7 @@ const getStatusCounts = (tasks = []) => {
 
 export default function attachRenderCards(TaskList) {
   TaskList.prototype.renderTaskCards = function () {
-    const { data, searchTerm } = this.state;
+    const { data, searchTerm, uiTaskStatus, dateStatusFilters } = this.state;
     const searchStr = String(searchTerm || "").trim().toLowerCase();
     const filteredData = searchStr
       ? data.filter((task) =>
@@ -99,14 +135,33 @@ export default function attachRenderCards(TaskList) {
       <>
         {sortedDates.map((date) => {
           const tasks = groupedByDate[date] || [];
+          const dateFilter = dateStatusFilters && dateStatusFilters[date] ? dateStatusFilters[date] : null;
+          const effectiveFilter = dateFilter || uiTaskStatus;
+          const displayTasks = tasks
+            .filter((task) => matchesStatusFilter(task?.TaskStatus, effectiveFilter))
+            .slice()
+            .sort((a, b) => {
+              const rankDiff = getStatusRank(a?.TaskStatus) - getStatusRank(b?.TaskStatus);
+              if (rankDiff !== 0) return rankDiff;
+              const aId = Number(a?.TaskId ?? 0);
+              const bId = Number(b?.TaskId ?? 0);
+              return aId - bId;
+            });
+
+          if (displayTasks.length === 0) return null;
+
           const isExpanded = activeDate === date;
           const { completed, pending, actionable } = getStatusCounts(tasks);
           const cardPageSize = Number(this.state.cardPageSize || 12);
           const cardPage = Number(this.state.cardPage || 1);
-          const totalPages = Math.max(1, Math.ceil(tasks.length / cardPageSize));
+          const totalPages = Math.max(1, Math.ceil(displayTasks.length / cardPageSize));
           const currentPage = Math.min(cardPage, totalPages);
           const startIndex = (currentPage - 1) * cardPageSize;
-          const pagedTasks = isExpanded ? tasks.slice(startIndex, startIndex + cardPageSize) : [];
+          const pagedTasks = isExpanded ? displayTasks.slice(startIndex, startIndex + cardPageSize) : [];
+          const isFilterActive = hasActiveStatusFilter(effectiveFilter);
+          const isCompletedActive = isFilterActive && (normalizeStatus(effectiveFilter) === "complete" || normalizeStatus(effectiveFilter) === "completed");
+          const isPendingActive = isFilterActive && normalizeStatus(effectiveFilter) === "pending";
+          const isActionableActive = isFilterActive && (normalizeStatus(effectiveFilter) === "actionable" || normalizeStatus(effectiveFilter) === "in-progress" || normalizeStatus(effectiveFilter) === "in progress");
 
           return (
             <div key={date} className="mb-3">
@@ -126,9 +181,42 @@ export default function attachRenderCards(TaskList) {
                     <i className="fa fa-calendar mr-2" />
                     {date}
                   </h6>
-                  <span className="badge badge-light border text-success">{completed} Completed</span>
-                  <span className="badge badge-light border text-danger">{pending} Pending</span>
-                  <span className="badge badge-light border text-info">{actionable} Actionable</span>
+                  <button
+                    type="button"
+                    className={`badge badge-light border text-success ${isCompletedActive ? "task-badge-active" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      this.handleDateStatusFilter?.(date, "Complete");
+                    }}
+                    title="Filter completed tasks"
+                  >
+                    {completed} Completed
+                  </button>
+                  <button
+                    type="button"
+                    className={`badge badge-light border text-danger ${isPendingActive ? "task-badge-active" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      this.handleDateStatusFilter?.(date, "Pending");
+                    }}
+                    title="Filter pending tasks"
+                  >
+                    {pending} Pending
+                  </button>
+                  <button
+                    type="button"
+                    className={`badge badge-light border text-info ${isActionableActive ? "task-badge-active" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      this.handleDateStatusFilter?.(date, "Actionable");
+                    }}
+                    title="Filter actionable tasks"
+                  >
+                    {actionable} Actionable
+                  </button>
                   <span className="badge badge-light border text-muted">Total {tasks.length}</span>
                 </div>
                 <i className={`fa ${isExpanded ? "fa-chevron-up" : "fa-chevron-down"} text-primary`} />
@@ -184,6 +272,19 @@ export default function attachRenderCards(TaskList) {
 
                           <div className="task-card-actions">
                             <div className="task-card-action-group">
+                              {isActionableStatus(task.TaskStatus) ? (
+                                <button
+                                  className="btn btn-link task-action-remarks"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    this.ViewTask(task, "fmRemarks");
+                                  }}
+                                  title="Remarks"
+                                  type="button"
+                                >
+                                  <i className="fa fa-commenting-o" />
+                                </button>
+                              ) : null}
                               <button
                                 className="btn btn-link task-action-edit"
                                 onClick={(e) => {
@@ -226,7 +327,7 @@ export default function attachRenderCards(TaskList) {
                     ))}
                   </div>
 
-                  {tasks.length > cardPageSize ? (
+                  {displayTasks.length > cardPageSize ? (
                     <div className="task-pager">
                       <button
                         className="btn btn-sm btn-outline-primary"

@@ -48,6 +48,7 @@ export default function attachLifecycleMethods(TaskList) {
         filtered: hasPresetFilters,
         propertyId: PropertyVal,
         taskStatus: status === null ? "None" : status,
+        uiTaskStatus: status === null ? "None" : status,
         taskPriority: priority === null ? 0 : priority,
         selectedSubCategoryId: Number.isFinite(subCatId) ? subCatId : 0,
       },

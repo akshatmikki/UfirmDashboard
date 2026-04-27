@@ -181,6 +181,7 @@ export default function attachApiModelsManage(TaskList) {
                     expandedDate: hasCurrentExpandedDate ? prevState.expandedDate : (sortedDates[0] || null),
                     cardPage: 1,
                     tablePage: 1,
+                    dateStatusFilters: {},
                   };
                 });
                 break;

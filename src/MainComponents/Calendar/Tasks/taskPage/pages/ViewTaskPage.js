@@ -6,8 +6,8 @@ import TaskFmRemarksSection from "../TaskFmRemarksSection";
 import { TaskQuestionsViewSection } from "../TaskQuestionsSections";
 
 export default function ViewTaskPage(props) {
-  const { visible, closeModal, rowData, onTaskUpdated } = props;
-  const { openSection, toggleSection } = useSingleOpenSection(null);
+  const { visible, closeModal, rowData, onTaskUpdated, viewOnlySection, initialOpenSection } = props;
+  const { openSection, toggleSection } = useSingleOpenSection(initialOpenSection ?? null);
   const ctrl = useViewTaskController({ rowData });
   const questions = ctrl.questions || [];
   const fmCtrl = useTaskFmRemarks({
@@ -19,6 +19,7 @@ export default function ViewTaskPage(props) {
   });
 
   const isActionable = String(rowData?.TaskStatus || "").toLowerCase().includes("actionable");
+  const fmOnly = String(viewOnlySection || "").toLowerCase() === "fmremarks";
 
   const fmQuestions = useMemo(
     () =>
@@ -82,7 +83,7 @@ export default function ViewTaskPage(props) {
     <div>
       <TaskShell 
         visible={visible} 
-        title="Task details" 
+        title={fmOnly ? "FM remarks" : "Task details"}
         priority={rowData?.Priority} 
         status={rowData?.TaskStatus}
         rightActions={
@@ -97,93 +98,101 @@ export default function ViewTaskPage(props) {
         onClose={closeModal} 
         footer={footer}
       >
-        <TaskSection title="Task details" isOpen>
-          <div className="task-view-grid">
-            <div className="task-view-field">
-              <p className="task-view-label">Task Name</p>
-              <p className="task-view-value">{rowData?.Name || "-"}</p>
-            </div>
-            <div className="task-view-field"></div>
-            <div className="task-view-field">
-              <p className="task-view-label">Category</p>
-              <p className="task-view-value">{categoryLabel}</p>
-            </div>
-             <div className="task-view-field">
-              <p className="task-view-label">Sub-category</p>
-              <p className="task-view-value">{subCategoryLabel}</p>
-            </div>
-            
-            <div className="task-view-field">
-              <p className="task-view-label">Location</p>
-              <p className="task-view-value">{rowData?.Location || "-"}</p>
-            </div>
-            <div className="task-view-field">
-              <p className="task-view-label">Property</p>
-              <p className="task-view-value">{propertyLabel}</p>
-            </div>
-            <div className="task-view-field">
-               <p className="task-view-label">Priority</p>
-               <p className="task-view-value">{rowData?.Priority || "-"}</p>
-            </div>
-            <div className="task-view-field">
-              <p className="task-view-label">Assigned to</p>
-              <p className="task-view-value">{rowData?.AssignedTo || "-"}</p>
-            </div>
+        {!fmOnly ? (
+          <>
+            <TaskSection title="Task details" isOpen>
+              <div className="task-view-grid">
+                <div className="task-view-field">
+                  <p className="task-view-label">Task Name</p>
+                  <p className="task-view-value">{rowData?.Name || "-"}</p>
+                </div>
+                <div className="task-view-field"></div>
+                <div className="task-view-field">
+                  <p className="task-view-label">Category</p>
+                  <p className="task-view-value">{categoryLabel}</p>
+                </div>
+                 <div className="task-view-field">
+                  <p className="task-view-label">Sub-category</p>
+                  <p className="task-view-value">{subCategoryLabel}</p>
+                </div>
+                
+                <div className="task-view-field">
+                  <p className="task-view-label">Location</p>
+                  <p className="task-view-value">{rowData?.Location || "-"}</p>
+                </div>
+                <div className="task-view-field">
+                  <p className="task-view-label">Property</p>
+                  <p className="task-view-value">{propertyLabel}</p>
+                </div>
+                <div className="task-view-field">
+                   <p className="task-view-label">Priority</p>
+                   <p className="task-view-value">{rowData?.Priority || "-"}</p>
+                </div>
+                <div className="task-view-field">
+                  <p className="task-view-label">Assigned to</p>
+                  <p className="task-view-value">{rowData?.AssignedTo || "-"}</p>
+                </div>
 
-            <div className="task-view-field">
-              <p className="task-view-label">Start Date</p>
-              <p className="task-view-value">{formatDate(ctrl.startDate)}</p>
-            </div>
-             <div className="task-view-field">
-              <p className="task-view-label">Due Date</p>
-              <p className="task-view-value">{formatDate(ctrl.endDate)}</p>
-            </div>
-            <div className="task-view-field">
-              <p className="task-view-label">Start time</p>
-              <p className="task-view-value">{formatTime(ctrl.startTime)}</p>
-            </div>
-            <div className="task-view-field">
-               <p className="task-view-label">End time</p>
-               <p className="task-view-value">{formatTime(ctrl.endTime)}</p>
-            </div>
+                <div className="task-view-field">
+                  <p className="task-view-label">Start Date</p>
+                  <p className="task-view-value">{formatDate(ctrl.startDate)}</p>
+                </div>
+                 <div className="task-view-field">
+                  <p className="task-view-label">Due Date</p>
+                  <p className="task-view-value">{formatDate(ctrl.endDate)}</p>
+                </div>
+                <div className="task-view-field">
+                  <p className="task-view-label">Start time</p>
+                  <p className="task-view-value">{formatTime(ctrl.startTime)}</p>
+                </div>
+                <div className="task-view-field">
+                   <p className="task-view-label">End time</p>
+                   <p className="task-view-value">{formatTime(ctrl.endTime)}</p>
+                </div>
 
-            <div className="task-view-field">
-               <p className="task-view-label">Occurence</p>
-               <p className="task-view-value">{rowData?.OccurenceView || "-"}</p>
-            </div>
-             <div className="task-view-field">
-               <p className="task-view-label">Reminder</p>
-               <p className="task-view-value">{ctrl.remindme || "-"}</p>
-            </div>
-            <div className="task-view-field"></div>
-            <div className="task-view-field"></div>
+                <div className="task-view-field">
+                   <p className="task-view-label">Occurence</p>
+                   <p className="task-view-value">{rowData?.OccurenceView || "-"}</p>
+                </div>
+                 <div className="task-view-field">
+                   <p className="task-view-label">Reminder</p>
+                   <p className="task-view-value">{ctrl.remindme || "-"}</p>
+                </div>
+                <div className="task-view-field"></div>
+                <div className="task-view-field"></div>
 
-             <div className="task-view-field task-view-field--full">
-               <p className="task-view-label">Description</p>
-               <p className="task-view-value">{rowData?.TaskDescription || "-"}</p>
-            </div>
-          </div>
-        </TaskSection>
+                 <div className="task-view-field task-view-field--full">
+                   <p className="task-view-label">Description</p>
+                   <p className="task-view-value">{rowData?.TaskDescription || "-"}</p>
+                </div>
+              </div>
+            </TaskSection>
 
-        <TaskInlineSection title="Checklist">
-          <TaskQuestionsViewSection questions={ctrl.questions} />
-        </TaskInlineSection>
+            <TaskInlineSection title="Checklist">
+              <TaskQuestionsViewSection questions={ctrl.questions} />
+            </TaskInlineSection>
 
-        <TaskInlineSection title="Assets (Optional)">
-          <TaskAssetSection
-            mode="view"
-            assetId={rowData?.AssetId || ""}
-            assetName={ctrl.assetDetails.assetName}
-            assetBrand={ctrl.assetDetails.assetBrand}
-            lastServiceDate={ctrl.assetDetails.lastServiceDate}
-            nextServiceDate={ctrl.assetDetails.nextServiceDate}
-            assetPhoto={ctrl.assetDetails.assetPhoto}
-            QRCode={rowData?.QRcode || ctrl.assetDetails.QRCode || ""}
-          />
-        </TaskInlineSection>
+            <TaskInlineSection title="Assets (Optional)">
+              <TaskAssetSection
+                mode="view"
+                assetId={rowData?.AssetId || ""}
+                assetName={ctrl.assetDetails.assetName}
+                assetBrand={ctrl.assetDetails.assetBrand}
+                lastServiceDate={ctrl.assetDetails.lastServiceDate}
+                nextServiceDate={ctrl.assetDetails.nextServiceDate}
+                assetPhoto={ctrl.assetDetails.assetPhoto}
+                QRCode={rowData?.QRcode || ctrl.assetDetails.QRCode || ""}
+              />
+            </TaskInlineSection>
+          </>
+        ) : null}
 
-        {isActionable && (
-          <TaskSection title="Fm Remarks" isOpen={openSection === "fmRemarks"} onToggle={() => toggleSection("fmRemarks")}>
+        {isActionable ? (
+          <TaskSection
+            title="Fm Remarks"
+            isOpen={fmOnly ? true : openSection === "fmRemarks"}
+            onToggle={fmOnly ? undefined : () => toggleSection("fmRemarks")}
+          >
             <TaskFmRemarksSection
               taskName={rowData?.Name}
               location={rowData?.Location}
@@ -200,6 +209,10 @@ export default function ViewTaskPage(props) {
               questionIdsWithRemarks={fmCtrl.questionIdsWithRemarks}
               onSend={fmCtrl.sendFmRemark}
             />
+          </TaskSection>
+        ) : (
+          <TaskSection title="Fm Remarks" isOpen>
+            <p className="text-muted mb-0">FM remarks are available only for actionable tasks.</p>
           </TaskSection>
         )}
       </TaskShell>

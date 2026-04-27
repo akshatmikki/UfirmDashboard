@@ -1,6 +1,40 @@
 import moment from 'moment';
 
 export default function attachActionMethods(TaskList) {
+  const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
+
+  const toTaskDateMoment = (value) => {
+    if (!value) return null;
+    const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
+    return parsed.isValid() ? parsed : null;
+  };
+
+  const getTaskDateLabel = (value) => {
+    const parsed = toTaskDateMoment(value);
+    return parsed ? parsed.format("DD-MM-YYYY") : "No Date";
+  };
+
+  const matchesStatusFilter = (taskStatus, filterStatus) => {
+    const tStatus = normalizeStatus(taskStatus);
+    const fStatus = normalizeStatus(filterStatus);
+
+    if (!fStatus || fStatus === "none" || fStatus === "0") return true;
+
+    if (fStatus === "complete" || fStatus === "completed") {
+      return tStatus === "complete" || tStatus === "completed";
+    }
+
+    if (fStatus === "actionable" || fStatus === "in-progress" || fStatus === "in progress") {
+      return tStatus === "actionable" || tStatus === "in-progress" || tStatus === "in progress";
+    }
+
+    if (fStatus === "pending") {
+      return tStatus === "pending" || tStatus.includes("overdue");
+    }
+
+    return tStatus === fStatus;
+  };
+
     TaskList.prototype.AddNew = function () {
       this.setState({ PageMode: "Add", showAddModal: true });
   };
@@ -20,6 +54,8 @@ export default function attachActionMethods(TaskList) {
         occurance: "",
         assignTo: 0,
         taskStatus: "None",
+        uiTaskStatus: "None",
+        dateStatusFilters: {},
         completedTasks: 0,
         pendingTasks: 0,
         actionableTasks: 0,
@@ -33,6 +69,67 @@ export default function attachActionMethods(TaskList) {
         this.getTasks();
       });
   };
+
+  TaskList.prototype.handleStatusFilter = function (status) {
+    this.setState((prevState) => {
+      const prevFilter = normalizeStatus(prevState.uiTaskStatus);
+      const nextFilter = normalizeStatus(status);
+      const toggledOff = prevFilter && prevFilter !== "none" && prevFilter === nextFilter;
+      const uiTaskStatus = toggledOff ? "None" : status;
+      const normalizedNext = normalizeStatus(uiTaskStatus);
+
+      const tasks = Array.isArray(prevState.data) ? prevState.data : [];
+      const groupedByDate = tasks.reduce((acc, task) => {
+        const key = getTaskDateLabel(task?.UpdatedOn);
+        if (!acc[key]) acc[key] = [];
+        acc[key].push(task);
+        return acc;
+      }, {});
+
+      const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
+        if (a === "No Date") return 1;
+        if (b === "No Date") return -1;
+        return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
+      });
+
+      const currentDate = prevState.expandedDate && sortedDates.includes(prevState.expandedDate) ? prevState.expandedDate : null;
+
+      const dateHasMatch = (dateKey) =>
+        (groupedByDate[dateKey] || []).some((t) => matchesStatusFilter(t?.TaskStatus, normalizedNext));
+
+      let expandedDate = currentDate;
+      if (normalizedNext && normalizedNext !== "none") {
+        if (!expandedDate || !dateHasMatch(expandedDate)) {
+          expandedDate = sortedDates.find(dateHasMatch) || null;
+        }
+      } else if (!expandedDate) {
+        expandedDate = sortedDates[0] || null;
+      }
+
+      return { uiTaskStatus, expandedDate, cardPage: 1, tablePage: 1 };
+    });
+  };
+
+  TaskList.prototype.handleDateStatusFilter = function (dateKey, status) {
+    this.setState((prevState) => {
+      const safeDateKey = String(dateKey || "").trim();
+      if (!safeDateKey) return null;
+
+      const prevMap = prevState.dateStatusFilters || {};
+      const prevForDate = normalizeStatus(prevMap[safeDateKey]);
+      const nextFilter = normalizeStatus(status);
+      const toggledOff = prevForDate && prevForDate !== "none" && prevForDate === nextFilter;
+
+      const nextMap = { ...prevMap };
+      if (toggledOff || nextFilter === "none" || nextFilter === "") {
+        delete nextMap[safeDateKey];
+      } else {
+        nextMap[safeDateKey] = status;
+      }
+
+      return { dateStatusFilters: nextMap, cardPage: 1, tablePage: 1 };
+    });
+  };
   
     TaskList.prototype.AddQuestion = function (data) {
       this.setState({
@@ -45,11 +142,13 @@ export default function attachActionMethods(TaskList) {
       });
   };
     TaskList.prototype.ViewTask = function (data) {
+      const viewOnlySection = arguments.length > 1 ? arguments[1] : null;
       this.setState({
         PageMode: "ViewTask",
         showTaskModal: true,
         showEditModal: false,
         openAddQuestion: false,
+        viewOnlySection: viewOnlySection || null,
         rowData: data,
       });
   };
@@ -86,6 +185,8 @@ export default function attachActionMethods(TaskList) {
           showTaskModal: false,
           showEditModal: false,
           openAddQuestion: false,
+          viewOnlySection: null,
+          dateStatusFilters: {},
         },
         () => {
           const startDate = moment().clone().startOf("month");

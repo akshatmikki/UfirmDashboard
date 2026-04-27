@@ -12,6 +12,7 @@ export default function PPMCalendar() {
   const propertyId = useSelector((s) => s.Commonreducer.puidn);
 
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [calendarFilter, setCalendarFilter] = useState("total"); // total | completed | pending | actionable
   const [summaryByDate, setSummaryByDate] = useState({});
   const [monthlySummary, setMonthlySummary] = useState({
     totalTasks: 0,
@@ -98,14 +99,49 @@ export default function PPMCalendar() {
     return days;
   };
 
+  const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
+
+  const getMemberStatusCount = (member, filterKey) => {
+    if (!member) return 0;
+    const key = normalizeStatus(filterKey);
+    if (key === "pending") return Number(member.PendingTaskCount || 0);
+    if (key === "actionable") return Number(member.ActionableTaskCount || member.ActionableCount || 0);
+    // For "total" and "completed", show completed count in green as requested
+    const total = Number(member.TaskCount ?? member.TotalTaskCount ?? 0);
+    const pending = Number(member.PendingTaskCount ?? 0);
+    if (Number.isFinite(total) && Number.isFinite(pending) && total > 0) {
+      return Math.max(0, total - pending);
+    }
+    return Number(member.CompletedTaskCount || member.CompletedCount || 0);
+  };
+
+  const getCountClass = (filterKey) => {
+    const key = normalizeStatus(filterKey);
+    if (key === "pending") return "ppm-count-pending";
+    if (key === "actionable") return "ppm-count-actionable";
+    return "ppm-count-completed";
+  };
+
   const handleMemberClick = async (member, dateKey) => {
     const taskIds = (member.TaskIds || "").split(",").filter(Boolean);
     const taskMap = {};
+    const filterKey = normalizeStatus(calendarFilter);
+
+    const matchesDialogFilter = (row) => {
+      if (filterKey === "total") return true;
+      const status = normalizeStatus(row?.Action || row?.Status || row?.TaskStatus);
+      if (!status) return false;
+      if (filterKey === "completed") return status.includes("complete");
+      if (filterKey === "pending") return status.includes("pending");
+      if (filterKey === "actionable") return status.includes("actionable");
+      return true;
+    };
 
     for (const taskId of taskIds) {
       const details = await getTaskDetails(taskId, dateKey, member.FacilityMemberId);
+      const filteredDetails = (details || []).filter(matchesDialogFilter);
 
-      details.forEach((d) => {
+      filteredDetails.forEach((d) => {
         if (!taskMap[d.TaskName]) taskMap[d.TaskName] = [];
         taskMap[d.TaskName].push(d);
       });
@@ -161,22 +197,42 @@ export default function PPMCalendar() {
           </div>
 
           <div className="ppm-summary-row">
-            <div className="ppm-stat-card ppm-stat-total">
+            <button
+              type="button"
+              className={`ppm-stat-card ppm-stat-total ${calendarFilter === "total" ? "ppm-stat-active" : ""}`}
+              onClick={() => setCalendarFilter("total")}
+              title="Show all tasks (cards show completed/total)"
+            >
               <div className="ppm-stat-value">{monthlySummary.totalTasks}</div>
               <div className="ppm-stat-label">Total Tasks</div>
-            </div>
-            <div className="ppm-stat-card ppm-stat-completed">
+            </button>
+            <button
+              type="button"
+              className={`ppm-stat-card ppm-stat-completed ${calendarFilter === "completed" ? "ppm-stat-active" : ""}`}
+              onClick={() => setCalendarFilter("completed")}
+              title="Filter calendar by completed"
+            >
               <div className="ppm-stat-value">{monthlySummary.completedTasks}</div>
               <div className="ppm-stat-label">Completed</div>
-            </div>
-            <div className="ppm-stat-card ppm-stat-pending">
+            </button>
+            <button
+              type="button"
+              className={`ppm-stat-card ppm-stat-pending ${calendarFilter === "pending" ? "ppm-stat-active" : ""}`}
+              onClick={() => setCalendarFilter("pending")}
+              title="Filter calendar by pending"
+            >
               <div className="ppm-stat-value">{monthlySummary.pendingTasks}</div>
               <div className="ppm-stat-label">Pending</div>
-            </div>
-            <div className="ppm-stat-card ppm-stat-actionable">
+            </button>
+            <button
+              type="button"
+              className={`ppm-stat-card ppm-stat-actionable ${calendarFilter === "actionable" ? "ppm-stat-active" : ""}`}
+              onClick={() => setCalendarFilter("actionable")}
+              title="Filter calendar by actionable"
+            >
               <div className="ppm-stat-value">{monthlySummary.actionableTasks}</div>
               <div className="ppm-stat-label">Actionable</div>
-            </div>
+            </button>
           </div>
         </div>
 
@@ -202,6 +258,11 @@ export default function PPMCalendar() {
                       : null;
 
                     const members = dateKey ? summaryByDate[dateKey] : null;
+                    const filteredMembers = (members || []).filter((m) => {
+                      const filterKey = normalizeStatus(calendarFilter);
+                      if (filterKey === "total") return true;
+                      return getMemberStatusCount(m, filterKey) > 0;
+                    });
 
                     return (
                       <td key={d} className="ppm-day-cell">
@@ -210,7 +271,7 @@ export default function PPMCalendar() {
                             <div className="ppm-day-number">{day}</div>
 
                             <div className="ppm-member-list">
-                              {members?.map((m, i) => (
+                              {filteredMembers?.map((m, i) => (
                                 <div
                                   key={i}
                                   onClick={() => handleMemberClick(m, dateKey)}
@@ -220,7 +281,9 @@ export default function PPMCalendar() {
                                     {(m.FacilityMemberName || "").trim()}
                                   </span>
                                   <span className="ppm-count-wrap">
-                                    <span className="ppm-count-pending">{m.PendingTaskCount || 0}</span>
+                                    <span className={getCountClass(calendarFilter)}>
+                                      {getMemberStatusCount(m, calendarFilter)}
+                                    </span>
                                     <span className="ppm-count-sep">/</span>
                                     <span className="ppm-count-total">{m.TaskCount || 0}</span>
                                   </span>

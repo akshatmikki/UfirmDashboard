@@ -121,6 +121,7 @@ export default function GenerateSalary() {
   const [designations, setDesignations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [creatingPayslipPdf, setCreatingPayslipPdf] = useState(false);
   const [generatedEmployees, setGeneratedEmployees] = useState([]);
   const [loadingGenerated, setLoadingGenerated] = useState(false);
   const [selectedSalaryRows, setSelectedSalaryRows] = useState([]);
@@ -462,13 +463,13 @@ export default function GenerateSalary() {
       if (!monthName) {
         setSalaryData([]);
         setLoadingSalaryData(false);
-        return;
+        return [];
       }
 
       if (!effectivePropertyId) {
         setSalaryData([]);
         setShowGrid(false);
-        return;
+        return [];
       }
 
       const data = await getFacilityMemberSalaryDetailsByClientBranch({
@@ -482,11 +483,48 @@ export default function GenerateSalary() {
       });
       setSalaryData(data || []);
       if ((data || []).length === 0) setShowGrid(false);
+      return data || [];
     } catch (error) {
       console.error("Failed to fetch salary details:", error);
       setSalaryData([]);
+      return [];
     } finally {
       setLoadingSalaryData(false);
+    }
+  };
+
+  const buildNetSalaryMap = async (facilityMemberIds = []) => {
+    const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
+    if (!monthName || !effectivePropertyId || !facilityMemberIds.length) return new Map();
+
+    try {
+      const data = await getFacilityMemberSalaryDetailsByClientBranch({
+        facilityMemberIds,
+        branchId: null,
+        clientId: selectedUnitId || reduxClientId || null,
+        propertyIds: String(effectivePropertyId),
+        month: monthName,
+        year: selectedYear,
+        requireGeneratedSalary: false,
+      });
+
+      const map = new Map();
+      for (const row of Array.isArray(data) ? data : []) {
+        const id = Number(row?.FacilityMemberId ?? row?.EmployeeId ?? 0);
+        if (!id) continue;
+
+        const allowanceKeys = getRowAllowanceKeys(row);
+        const deductionKeys = getRowDeductionKeys(row);
+        const totalAllowance = computeTotalAllowance(row, allowanceKeys);
+        const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
+        const net = row.NetSalary ?? (totalAllowance - totalDeduction);
+
+        map.set(id, Number(net) || 0);
+      }
+      return map;
+    } catch (error) {
+      console.error("Failed to compute net salary amount:", error);
+      return new Map();
     }
   };
 
@@ -977,6 +1015,9 @@ export default function GenerateSalary() {
       const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : null;
       const yearValue = selectedYear;
 
+      const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
+      const netMap = await buildNetSalaryMap(idsForNet);
+
       const payload = selectedEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
@@ -985,6 +1026,8 @@ export default function GenerateSalary() {
         Month: monthValue,
         Year: yearValue,
         is_active: true,
+        IsFreezed: false,
+        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
       await createGeneratedSalary(payload);
@@ -1034,6 +1077,9 @@ export default function GenerateSalary() {
       const monthValue = monthNames[selectedMonth - 1];
       const yearValue = selectedYear;
 
+      const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
+      const netMap = await buildNetSalaryMap(idsForNet);
+
       const payload = employeesToRegenerate.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
@@ -1042,6 +1088,8 @@ export default function GenerateSalary() {
         Month: monthValue,
         Year: yearValue,
         is_active: true,
+        IsFreezed: false,
+        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
       await regenerateEmployeeSalary(payload);
@@ -1091,15 +1139,23 @@ export default function GenerateSalary() {
       return;
     }
 
-    const pdf = new jsPDF("p", "mm", "a4");
     const pdfWidthMm = 210;
     const pdfHeightMm = 297;
     const payslipMaxWidthMm = pdfWidthMm * 0.88;
     const payslipMaxHeightMm = pdfHeightMm * 0.88;
 
-    for (let index = 0; index < selectedRows.length; index++) {
-      const row = selectedRows[index];
-      const payslipHtml = generatePayslipHTML(row);
+    const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : "WholeYear";
+    const safeMonth = String(monthValue).replace(/\s+/g, "-");
+
+    const failures = [];
+    let pagesAdded = 0;
+
+    setCreatingPayslipPdf(true);
+    try {
+      const pdf = new jsPDF("p", "mm", "a4");
+
+      for (const row of selectedRows) {
+        const payslipHtml = generatePayslipHTML(row);
 
       const container = document.createElement("div");
       container.style.position = "fixed";
@@ -1111,7 +1167,7 @@ export default function GenerateSalary() {
       container.style.background = "#fff";
       container.style.boxSizing = "border-box";
 
-      // 🔥 inject compact CSS ONLY for PDF
+      // inject compact CSS ONLY for PDF
       container.innerHTML = `
   <style>
     body { font-size: 13px !important; }
@@ -1141,31 +1197,41 @@ export default function GenerateSalary() {
           renderWidthMm = renderHeightMm * imageAspectRatio;
         }
 
-        if (index > 0) {
-          pdf.addPage();
-        }
         const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
         const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
 
+        if (pagesAdded > 0) pdf.addPage();
         pdf.addImage(imgData, "PNG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
+        pagesAdded += 1;
       } catch (error) {
-        alert(
-          "Failed to generate PDF for employee " +
-          (row.FacilityMemberName || "")
-        );
+        failures.push(row.FacilityMemberName || row.EmployeeCode || "Unknown");
       } finally {
         document.body.removeChild(container);
       }
+      }
+
+      if (pagesAdded === 0) {
+        alert("Failed to generate payslip PDF.");
+        return;
+      }
+
+      const fileName =
+        selectedRows.length === 1
+          ? `Payslip_${selectedRows[0].EmployeeCode}_${selectedRows[0].Month || "All"}_${selectedRows[0].Year}.pdf`
+          : `Payslips_${safeMonth}_${selectedYear}_${selectedRows.length}.pdf`;
+
+      pdf.save(fileName);
+
+      if (failures.length > 0) {
+        alert(
+          `PDF generated, but failed for ${failures.length} employee(s): ${failures.join(
+            ", "
+          )}`
+        );
+      }
+    } finally {
+      setCreatingPayslipPdf(false);
     }
-
-    const firstRow = selectedRows[0];
-    const lastRow = selectedRows[selectedRows.length - 1];
-    const fileName =
-      selectedRows.length === 1
-        ? `Payslip_${firstRow.EmployeeCode}_${firstRow.Month || "All"}_${firstRow.Year}.pdf`
-        : `Payslip_Group_${firstRow.Month || "All"}_${firstRow.Year}_${firstRow.EmployeeCode}_to_${lastRow.EmployeeCode}.pdf`;
-
-    pdf.save(fileName);
   };
 
   const handleFreezeSalary = () => {
@@ -1652,24 +1718,30 @@ export default function GenerateSalary() {
                 >
                   Freeze
                 </button>
-                <button
-                  onClick={handleCreatePDF}
-                  disabled={selectedSalaryRows.length === 0}
-                  style={{
-                    background: selectedSalaryRows.length === 0 ? "#d1eaff" : "#2563eb",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 6,
-                    padding: "10px 28px",
-                    fontWeight: 600,
-                    letterSpacing: 1,
-                    cursor: selectedSalaryRows.length === 0 ? "not-allowed" : "pointer",
-                    fontSize: "1rem",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Create PDF
-                </button>
+                 <button
+                   onClick={handleCreatePDF}
+                   disabled={selectedSalaryRows.length === 0 || creatingPayslipPdf}
+                   style={{
+                     background:
+                       selectedSalaryRows.length === 0 || creatingPayslipPdf
+                         ? "#d1eaff"
+                         : "#2563eb",
+                     color: "#fff",
+                     border: "none",
+                     borderRadius: 6,
+                     padding: "10px 28px",
+                     fontWeight: 600,
+                     letterSpacing: 1,
+                     cursor:
+                       selectedSalaryRows.length === 0 || creatingPayslipPdf
+                         ? "not-allowed"
+                         : "pointer",
+                     fontSize: "1rem",
+                     marginBottom: "8px",
+                   }}
+                 >
+                   {creatingPayslipPdf ? "Creating PDF..." : "Create PDF"}
+                 </button>
               </div>
 
               <div style={{ overflowX: "auto", paddingTop: 45 }}>

@@ -55,6 +55,26 @@
   border: 1px solid #cdd9e8;
   border-radius: 12px;
   padding: 6px 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+button.ppm-stat-card {
+  appearance: none;
+  border: 1px solid #cdd9e8;
+}
+
+.ppm-stat-card:focus {
+  outline: none;
+}
+
+.ppm-stat-card:focus-visible {
+  outline: 2px solid rgba(51, 107, 147, 0.35);
+  outline-offset: 2px;
+}
+
+.ppm-stat-active {
+  box-shadow: 0 0 0 3px rgba(51, 107, 147, 0.18);
 }
 
 .ppm-stat-value {
@@ -71,7 +91,7 @@
 
 .ppm-stat-total .ppm-stat-value,
 .ppm-stat-total .ppm-stat-label {
-  color: #7f3fbf;
+  color: #111827;
 }
 
 .ppm-stat-completed .ppm-stat-value,
@@ -159,6 +179,14 @@
 
 .ppm-count-pending {
   color: #dc3545;
+}
+
+.ppm-count-completed {
+  color: #16a34a;
+}
+
+.ppm-count-actionable {
+  color: #c79a00;
 }
 
 .ppm-count-sep {

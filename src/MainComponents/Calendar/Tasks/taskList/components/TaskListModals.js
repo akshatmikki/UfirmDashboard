@@ -23,6 +23,8 @@ export default function TaskListModals({ ctx }) {
           closeModal={ctx.closeModal}
           rowData={ctx.state.rowData}
           onTaskUpdated={() => ctx.getTasks()}
+          viewOnlySection={ctx.state.viewOnlySection}
+          initialOpenSection={ctx.state.viewOnlySection || null}
         />
       ) : null}
 
