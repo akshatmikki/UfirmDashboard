@@ -29,6 +29,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "Spl": emp.SpecialAllowance || 0,
     "Other": emp.OtherAllowance || 0,
     "Bonus": emp.Bonus || 0,
+    "Total Salary": emp.TotalGross || 0,   
     "OT Amt": emp.OTAmount || 0,
     "Gross": emp.ProratedTotalGross || 0,
 

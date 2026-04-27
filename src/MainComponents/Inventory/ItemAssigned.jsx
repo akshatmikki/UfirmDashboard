@@ -142,11 +142,7 @@ const [selectedRows, setSelectedRows] = useState([]);
       setGrouped(res || []);
     } catch (err) {
       console.error("[FETCH_GROUPED_ERROR]", err);
-      toast.current?.show({
-        severity: "error",
-        summary: "Error",
-        detail: "Failed to load data",
-      });
+      setGrouped([]);
     }
   };
 

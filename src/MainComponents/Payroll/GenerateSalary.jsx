@@ -1844,4 +1844,3 @@ export default function GenerateSalary() {
     </div>
   );
 }
-

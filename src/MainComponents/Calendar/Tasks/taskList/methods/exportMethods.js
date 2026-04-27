@@ -37,10 +37,16 @@ export default function attachExportMethods(TaskList) {
   TaskList.prototype.fetchQuestionsForTask = async function (task) {
     try {
       const taskId = task.TaskId;
-      const dateMoment = moment(task?.UpdatedOn, ["YYYY-MM-DD", "DD-MM-YYYY", moment.ISO_8601], true);
-      const updatedOn = dateMoment.isValid() ? dateMoment.format("DD-MM-YYYY") : "";
+      const rawDate = task?.UpdatedOn || task?.DateFrom || "";
 
-      if (!taskId || !updatedOn) return [];
+      // Explicitly specify DD-MM-YYYY first since state stores dates like "24-04-2026"
+      const dateMoment = moment(rawDate, ["DD-MM-YYYY", "YYYY-MM-DD", "DD/MM/YYYY", moment.ISO_8601]);
+      const updatedOn = dateMoment.isValid() ? dateMoment.format("YYYY-MM-DD") : null;
+
+      if (!taskId || !updatedOn) {
+        console.warn("[fetchQuestionsForTask] Skipping task", taskId, "- invalid date:", rawDate, "→ updatedOn:", updatedOn);
+        return [];
+      }
 
       const model = [{ CmdType: "R", Id: taskId, date: updatedOn }];
       const resp = await this.ApiProvider.manageQues(model, "R");
@@ -50,6 +56,8 @@ export default function attachExportMethods(TaskList) {
         return rData.map((q) => ({
           QuesId: q.QuestID,
           QuesName: q.QuestionName,
+          Action: q.Action,
+          Remark: q.Remarks,
         }));
       }
 
@@ -60,7 +68,146 @@ export default function attachExportMethods(TaskList) {
     }
   };
 
+  TaskList.prototype.handleCustomPropertyExport = async function () {
+    // Custom multi-sheet export: one tab per Supervisor, grouped by Task Name
+    // Columns: Location | Q1 | Q2 | ... | Remarks
+    // ✔ = completed/done, ✘ = otherwise
+    const XLSX = await import("xlsx");
+
+    if (this.state.exporting) return;
+    this.setState({ exporting: true });
+
+    try {
+      // 1. Fetch questions for all visible tasks
+      const tasksWithQues = [];
+      for (const task of this.state.data) {
+        const questions = await this.fetchQuestionsForTask(task);
+        tasksWithQues.push({ ...task, questionsList: questions || [] });
+      }
+
+      // 2. Group by Supervisor
+      const supervisorGroups = {};
+      tasksWithQues.forEach((t) => {
+        const sup = t.AssignedTo || "Unassigned";
+        if (!supervisorGroups[sup]) supervisorGroups[sup] = [];
+        supervisorGroups[sup].push(t);
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      Object.keys(supervisorGroups).forEach((supervisorName) => {
+        const supTasks = supervisorGroups[supervisorName];
+        let sheetData = [];
+
+        // Group by Task Name within supervisor (ignore case and internal whitespace)
+        const taskNameGroups = {};
+        const taskDisplayNameMap = {}; // key -> UPPERCASE_NAME
+
+        supTasks.forEach((t) => {
+          const rawName = t.Name || "Unnamed Task";
+          const normalizedKey = rawName.toLowerCase().replace(/\s+/g, "");
+          
+          if (!taskNameGroups[normalizedKey]) {
+            taskNameGroups[normalizedKey] = [];
+            taskDisplayNameMap[normalizedKey] = rawName.toUpperCase();
+          }
+          taskNameGroups[normalizedKey].push(t);
+        });
+
+        Object.keys(taskNameGroups).forEach((normalizedTaskKey) => {
+          const tasksUnderName = taskNameGroups[normalizedTaskKey];
+          const taskDisplayTitle = taskDisplayNameMap[normalizedTaskKey];
+
+          // Collect unique question names (ignore case and internal whitespace)
+          const quesNameMap = {}; // normalizedKey -> UPPERCASE_NAME
+          tasksUnderName.forEach((t) => t.questionsList.forEach((q) => { 
+            if (q.QuesName) {
+              const qKey = q.QuesName.toLowerCase().replace(/\s+/g, "");
+              if (!quesNameMap[qKey]) {
+                quesNameMap[qKey] = q.QuesName.toUpperCase();
+              }
+            }
+          }));
+
+          const qKeys = Object.keys(quesNameMap);
+          const qDisplayNames = qKeys.map(k => quesNameMap[k]);
+
+          // Title rows: Task Name on top, Supervisor below
+          sheetData.push([taskDisplayTitle]);
+          sheetData.push([supervisorName.toUpperCase()]); // Making supervisor uppercase too for consistency
+          sheetData.push([]);
+
+          // Header row — Location | Date | <Questions...> | Remarks
+          sheetData.push(["LOCATION", "DATE", ...qDisplayNames, "REMARKS"]);
+
+          // One row per task (location + date)
+          tasksUnderName.forEach((task) => {
+            // Parse task date
+            const rawDate = task?.UpdatedOn || task?.DateFrom || "";
+            const dateMoment = moment(rawDate, ["DD-MM-YYYY", "YYYY-MM-DD", "DD/MM/YYYY", moment.ISO_8601]);
+            const displayDate = dateMoment.isValid() ? dateMoment.format("DD-MM-YYYY") : rawDate;
+
+            const row = [task.Location || "", displayDate];
+
+            const specificRemarks = [];
+            qKeys.forEach((qKey) => {
+              // Compare normalized qKey
+              const matched = task.questionsList.find((q) => (q.QuesName || "").toLowerCase().replace(/\s+/g, "") === qKey);
+              if (matched) {
+                const qAction = String(matched.Action || "").toLowerCase();
+                const qRemark = (matched.Remark || "").trim();
+                const hasProblematicRemark = qRemark && qRemark.toLowerCase() !== "all";
+                
+                // Mark as ✘ if it's specifically problematic (actionable/pending) OR it has a remark
+                const isProblematic = qAction === "actionable" || qAction === "pending" || hasProblematicRemark;
+                row.push(isProblematic ? "✘" : "✔");
+
+                // Collect ordered remark
+                if (hasProblematicRemark) {
+                  const qDisplayName = (matched.QuesName || "").toUpperCase();
+                  specificRemarks.push(`${qDisplayName}: ${qRemark}`);
+                }
+              } else {
+                row.push("");
+              }
+            });
+
+            let finalTaskRemark = task.Remarks || "";
+            if (finalTaskRemark.toLowerCase().trim() === "all") {
+              finalTaskRemark = "";
+            }
+
+            // Join multiple remarks with a newline for a multiline cell effect
+            const combinedRemarks = specificRemarks.length > 0 ? specificRemarks.join("\n") : finalTaskRemark;
+            row.push(combinedRemarks);
+            sheetData.push(row);
+          });
+
+          sheetData.push([]);
+          sheetData.push([]);
+        });
+
+        const safeSheetName = supervisorName.replace(/[\[\]*\\/\?:]/g, "").substring(0, 31) || "Sheet";
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
+      });
+
+      XLSX.writeFile(wb, "TaskList_Supervisor_Report.xlsx");
+    } catch (err) {
+      console.error("Custom export failed:", err);
+      appCommon.showtextalert("Export failed", "Please try again", "error");
+    } finally {
+      this.setState({ exporting: false });
+    }
+  };
+
   TaskList.prototype.handleExportWithQuestions = async function () {
+    // ⭐ Property 43 (BITS Pilani) → custom supervisor matrix export
+    const propVal = Number(this.props.PropertyVal);
+    if (propVal === 43) {
+      return this.handleCustomPropertyExport();
+    }
+
     if (this.state.exporting) return;
 
     const tasks = Array.isArray(this.state.data) ? this.state.data : [];

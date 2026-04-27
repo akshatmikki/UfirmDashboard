@@ -55,8 +55,28 @@ export async function createProperty(model) {
       body: JSON.stringify(model),
     });
 
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-    return await response.json();
+    const text = await response.text();
+
+    let message = text;
+
+    // 🔥 TRY TO PARSE JSON RESPONSE
+    try {
+      const json = JSON.parse(text);
+      message = json.Message || text;
+    } catch {
+      // not JSON → keep text
+    }
+
+    if (!response.ok) {
+      throw new Error(message); // ✅ CLEAN ERROR
+    }
+
+    // 🔥 If success response is JSON, parse it
+    try {
+      return JSON.parse(text);
+    } catch {
+      return message;
+    }
 
   } catch (error) {
     console.error("Error creating property:", error);
@@ -79,8 +99,23 @@ export async function updateProperty(propertyId, model) {
       body: JSON.stringify(model),
     });
 
-    if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);
-    return await response.json();
+    const text = await response.text();
+
+    let message = text;
+
+    // 🔥 TRY TO PARSE JSON
+    try {
+      const json = JSON.parse(text);
+      message = json.Message || text;
+    } catch {
+      // not JSON → keep text
+    }
+
+    if (!response.ok) {
+      throw new Error(message); // ✅ CLEAN MESSAGE ONLY
+    }
+
+    return message;
 
   } catch (error) {
     console.error("Error updating property:", error);

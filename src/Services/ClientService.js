@@ -21,7 +21,10 @@ export const createClient = async (data) => {
     body: JSON.stringify(data)
   });
 
-  if (!response.ok) throw new Error("Failed to create client");
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to create client");
+  }
   return response.json();
 };
 
@@ -35,7 +38,10 @@ export const updateClient = async (id, data) => {
     body: JSON.stringify(data)
   });
 
-  if (!response.ok) throw new Error("Failed to update client");
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to update client");
+  }
   return response.json();
 };
 

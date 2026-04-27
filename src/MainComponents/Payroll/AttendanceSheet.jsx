@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
+import * as appCommon from "../../Common/AppCommon";
 import {
   getAttendanceByProperties,
   saveAttendanceBatch,
@@ -80,6 +81,10 @@ function countSundaysInRange(startDate, endDate) {
 }
 
 function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear) {
+  const parsed = parseMonthYear(monthyear);
+  const year = parsed?.year ?? fallbackYear;
+  const month = parsed?.month ?? fallbackMonth;
+
   const totalWorkingDaysValue = parsePositiveNumber(
     config?.TotalWorkingDays ?? config?.totalWorkingDays ?? config?.totalworkingdays
   );
@@ -90,10 +95,9 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
   );
   if (monthDaysValue > 0) return monthDaysValue;
 
-  const parsed = parseMonthYear(monthyear);
-  const year = parsed?.year ?? fallbackYear;
-  const month = parsed?.month ?? fallbackMonth;
-  if (!year || !month) return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
+  if (!year || !month) {
+    return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
+  }
 
   const excludeSundaysRaw =
     config?.ExcludeSunday ??
@@ -118,10 +122,17 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
     config?.SalaryEndTo ??
     config?.salaryEndTo ??
     config?.salaryendto ??
-    30;
+    getDaysInMonth(month, year);
 
-  const salaryStartFrom = Number(salaryStartFromRaw) || 1;
-  const salaryEndTo = Number(salaryEndToRaw) || 30;
+  let salaryStartFrom = Number(salaryStartFromRaw) || 0;
+  let salaryEndTo = Number(salaryEndToRaw) || 0;
+
+  // Match backend behavior:
+  // If both are <=0, default to full month.
+  if (salaryStartFrom <= 0 && salaryEndTo <= 0) {
+    salaryStartFrom = 1;
+    salaryEndTo = getDaysInMonth(month, year);
+  }
 
   let startDate;
   if (salaryStartFrom <= salaryEndTo) {
@@ -131,7 +142,7 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
     const prevYear = month === 1 ? year - 1 : year;
     startDate = safeDate(prevYear, prevMonth, salaryStartFrom);
   }
-  const endDate = safeDate(year, month, salaryEndTo);
+  const endDate = safeDate(year, month, salaryEndTo || getDaysInMonth(month, year));
 
   const totalDays = Math.max(
     1,
@@ -214,6 +225,47 @@ export default function AttendanceSheet() {
   const [pendingUpload, setPendingUpload] = useState(null);
   const [confirmingUpload, setConfirmingUpload] = useState(false);
 
+  const lastValidationToastAtRef = useRef({});
+  const notifyValidation = (key, message) => {
+    const now = Date.now();
+    const last = Number(lastValidationToastAtRef.current?.[key]) || 0;
+    if (now - last < 1200) return; // throttle to avoid popup spam while typing
+    lastValidationToastAtRef.current = {
+      ...(lastValidationToastAtRef.current || {}),
+      [key]: now,
+    };
+    try {
+      appCommon.ShownotifyError(message);
+    } catch {
+      alert(message);
+    }
+  };
+const allEmployeesMap = {};
+
+employees.forEach((emp) => {
+  const id = emp?.FacilityMember?.FacilityMemberId;
+  if (id) allEmployeesMap[id] = emp;
+});
+
+filteredAttendance.forEach((att) => {
+  if (!allEmployeesMap[att.EmpID]) {
+    allEmployeesMap[att.EmpID] = {
+      FacilityMember: {
+        FacilityMemberId: att.EmpID,
+        PropertyId: att.PropertyID,
+      },
+      Profile: {
+        EmployeeCode: att.EmployeeCode,
+        EmployeeName: att.EmployeeName,
+      },
+      EmployeeList: {
+        Designation: att.Designation,
+      },
+    };
+  }
+});
+
+const finalEmployees = Object.values(allEmployeesMap);
   useEffect(() => {
     const days = getDaysInMonth(month, year);
     setGlobalTotalDays(days);
@@ -236,11 +288,13 @@ export default function AttendanceSheet() {
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+  const attendanceLoadSeqRef = useRef(0);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 20;
-  const filteredEmployees = employees.filter((emp) => {
+  const filteredEmployees = finalEmployees.filter((emp) => {
     const code = emp?.Profile?.EmployeeCode?.toLowerCase() || "";
     const name =
       emp?.Profile?.EmployeeName?.toLowerCase() ||
@@ -635,66 +689,84 @@ export default function AttendanceSheet() {
     }
   }
   async function reloadAttendanceData() {
-    const currMonthYear = getMonthYearString(month, year);
+    const seq = (attendanceLoadSeqRef.current || 0) + 1;
+    attendanceLoadSeqRef.current = seq;
+    setAttendanceLoading(true);
 
-    let propertyIds =
-      selectedPropertyId.length > 0
-        ? selectedPropertyId
-        : reduxPropertyId
-          ? [reduxPropertyId]
-          : [];
+    try {
+      const currMonthYear = getMonthYearString(month, year);
 
-    if (!propertyIds.length) {
-      console.warn("No property selected for reload");
-      return;
+      const propertyIds =
+        selectedPropertyId.length > 0
+          ? selectedPropertyId
+          : reduxPropertyId
+            ? [reduxPropertyId]
+            : [];
+
+      if (!propertyIds.length) {
+        console.warn("No property selected for reload");
+        return;
+      }
+
+      const response = await getAttendanceByProperties(propertyIds, currMonthYear);
+      const flat = response?.flatMap((p) => p.Employees || []) || [];
+
+      setFilteredAttendance(flat);
+
+      const mappedInputs = {};
+      flat.forEach((att) => {
+        const configDivideByDays =
+          employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
+
+        const key = `${att.EmpID}_${att.AttendanceID}`;
+
+        mappedInputs[key] = {
+          workingDays: clampWorkingDaysToMonth(att.WorkingDays, month, year),
+          EL: att.EL ?? "",
+          CL: att.CL ?? "",
+          SL: att.SL ?? "",
+          weekDaysOff: att.WeekDaysOff ?? "",
+          otDays: att.OtDays ?? "",
+          otHours: att.OtHours ?? "",
+          totalDays: att.PayableDays ?? "",
+          manualTotalDays: false,
+          nhDays: att.NHDays ?? "",
+          fhDays: att.FHDays ?? "",
+          holidays: att.Holidays ?? "",
+          divideByDays:
+            att.DivideByDays ??
+            configDivideByDays ??
+            globalTotalDays,
+          otMonthDays: att.OtMonthDays ?? "",
+          pfArrear: att.PFArrear ?? "",
+          otherArrear: att.OtherArrear ?? "",
+          incentive: att.Incentive ?? "",
+          advanceDed: att.AdvanceDed ?? "",
+          uniformDed: att.UniformDed ?? "",
+          bgvDed: att.BGVDed ?? "",
+          roomDed: att.RoomDed ?? "",
+          fineDed: att.FineDed ?? "",
+          joiningKits: att.JoiningKits ?? "",
+          otherDed: att.OtherDed ?? "",
+          foodDed: att.FoodDed ?? "",
+          status: att.Status ?? "",
+        };
+      });
+
+      setDayInputs(mappedInputs);
+      setSelectedEmpIds(new Set());
+    } catch (err) {
+      console.error("Attendance refresh failed:", err);
+      try {
+        appCommon.ShownotifyError("Failed to refresh attendance.");
+      } catch {
+        alert("Failed to refresh attendance.");
+      }
+    } finally {
+      if (seq === attendanceLoadSeqRef.current) {
+        setAttendanceLoading(false);
+      }
     }
-
-    const response = await getAttendanceByProperties(
-      propertyIds,
-      currMonthYear
-    );
-
-    const flat = response?.flatMap((p) => p.Employees || []) || [];
-
-    setFilteredAttendance(flat);
-
-    const mappedInputs = {};
-    flat.forEach((att) => {
-      const configDivideByDays =
-        employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
-
-      mappedInputs[att.EmpID] = {
-        workingDays: clampWorkingDaysToMonth(att.WorkingDays, month, year),
-        EL: att.EL ?? "",
-        CL: att.CL ?? "",
-        SL: att.SL ?? "",
-        weekDaysOff: att.WeekDaysOff ?? "",
-        otDays: att.OtDays ?? "",
-        otHours: att.OtHours ?? "",
-        totalDays: att.PayableDays ?? "",
-        manualTotalDays: false,
-        nhDays: att.NHDays ?? "",
-        fhDays: att.FHDays ?? "",
-        holidays: att.Holidays ?? "",
-        divideByDays: att.DivideByDays ?? configDivideByDays,
-        otMonthDays: att.OtMonthDays ?? "",
-        pfArrear: att.PFArrear ?? "",
-        otherArrear: att.OtherArrear ?? "",
-        incentive: att.Incentive ?? "",
-        advanceDed: att.AdvanceDed ?? "",
-        uniformDed: att.UniformDed ?? "",
-        bgvDed: att.BGVDed ?? "",
-        roomDed: att.RoomDed ?? "",
-        fineDed: att.FineDed ?? "",
-        joiningKits: att.JoiningKits ?? "",
-        otherDed: att.OtherDed ?? "",
-        foodDed: att.FoodDed ?? "",
-        status: att.Status ?? "",
-      };
-    });
-
-    setDayInputs(mappedInputs);
-    setSelectedEmpIds(new Set());
   }
 
   useEffect(() => {
@@ -881,6 +953,7 @@ export default function AttendanceSheet() {
 
     async function loadAttendance() {
       if (!employees.length) return;
+      let seq = 0;
       try {
         // 🔹 Decide which properties to use
         const propertyIds =
@@ -891,6 +964,10 @@ export default function AttendanceSheet() {
               : [];
 
         if (!propertyIds.length) return;
+
+        seq = (attendanceLoadSeqRef.current || 0) + 1;
+        attendanceLoadSeqRef.current = seq;
+        setAttendanceLoading(true);
 
         const currMonthYear = getMonthYearString(month, year);
 
@@ -921,64 +998,60 @@ export default function AttendanceSheet() {
           console.error("OT load failed:", err);
         }
 
-        const mappedInputs = {};
 
-        employees.forEach((emp) => {
-          const empId = emp?.FacilityMember?.FacilityMemberId;
-          const empCode = emp?.Profile?.EmployeeCode;
+       const mappedInputs = {};
 
-          if (!empId) return;
+filtered.forEach((att) => {
+  const empId = att.EmpID;
+  const key = `${att.EmpID}_${att.AttendanceID}`;
 
-          const saved = filtered.find(
-            (a) => a.EmpID === empId
-          );
+  const emp = employees.find(
+    (e) => e?.FacilityMember?.FacilityMemberId === empId
+  );
 
-          const otMatch = otData?.find(
-            (ot) => ot.EmployeeCode === empCode
-          );
+  const empCode = emp?.Profile?.EmployeeCode;
 
-          mappedInputs[empId] = {
-            workingDays: clampWorkingDaysToMonth(
-              saved?.WorkingDays ?? "",
-              month,
-              year
-            ),
-            EL: saved?.EL ?? "",
-            CL: saved?.CL ?? "",
-            SL: saved?.SL ?? "",
-            weekDaysOff: saved?.WeekDaysOff ?? "",
-            otDays: saved?.OtDays ?? "",
-            otHours:
-              saved?.OtHours !== null &&
-                saved?.OtHours !== undefined &&
-                saved?.OtHours !== ""
-                ? saved.OtHours
-                : otMatch?.TotalOTHours ?? "",
-            totalDays:
-              saved?.PayableDays ?? "",
-            manualTotalDays: false,
-            nhDays: saved?.NHDays ?? "",
-            fhDays: saved?.FHDays ?? "",
-            holidays: saved?.Holidays ?? "",
-            divideByDays:
-              saved?.DivideByDays ??
-              employeeSGMap[empId]?.divideByDays ??
-              globalTotalDays,
-            otMonthDays: saved?.OtMonthDays ?? "",
-            pfArrear: saved?.PFArrear ?? "",
-            otherArrear: saved?.OtherArrear ?? "",
-            incentive: saved?.Incentive ?? "",
-            advanceDed: saved?.AdvanceDed ?? "",
-            uniformDed: saved?.UniformDed ?? "",
-            bgvDed: saved?.BGVDed ?? "",
-            roomDed: saved?.RoomDed ?? "",
-            fineDed: saved?.FineDed ?? "",
-            joiningKits: saved?.JoiningKits ?? "",
-            otherDed: saved?.OtherDed ?? "",
-            foodDed: saved?.FoodDed ?? "",
-            status: saved?.Status ?? "",
-          };
-        });
+  const otMatch = otData?.find(
+    (ot) => ot.EmployeeCode === empCode
+  );
+
+  mappedInputs[key] = {
+    workingDays: clampWorkingDaysToMonth(att.WorkingDays ?? "", month, year),
+    EL: att.EL ?? "",
+    CL: att.CL ?? "",
+    SL: att.SL ?? "",
+    weekDaysOff: att.WeekDaysOff ?? "",
+    otDays: att.OtDays ?? "",
+    otHours:
+      att?.OtHours !== null &&
+      att?.OtHours !== undefined &&
+      att?.OtHours !== ""
+        ? att.OtHours
+        : otMatch?.TotalOTHours ?? "",
+    totalDays: att.PayableDays ?? "",
+    manualTotalDays: false,
+    nhDays: att.NHDays ?? "",
+    fhDays: att.FHDays ?? "",
+    holidays: att.Holidays ?? "",
+    divideByDays:
+      att.DivideByDays ??
+      employeeSGMap[empId]?.divideByDays ??
+      globalTotalDays,
+    otMonthDays: att.OtMonthDays ?? "",
+    pfArrear: att.PFArrear ?? "",
+    otherArrear: att.OtherArrear ?? "",
+    incentive: att.Incentive ?? "",
+    advanceDed: att.AdvanceDed ?? "",
+    uniformDed: att.UniformDed ?? "",
+    bgvDed: att.BGVDed ?? "",
+    roomDed: att.RoomDed ?? "",
+    fineDed: att.FineDed ?? "",
+    joiningKits: att.JoiningKits ?? "",
+    otherDed: att.OtherDed ?? "",
+    foodDed: att.FoodDed ?? "",
+    status: att.Status ?? "",
+  };
+});
 
         setDayInputs(mappedInputs);
         setSelectedEmpIds(new Set());
@@ -989,6 +1062,10 @@ export default function AttendanceSheet() {
           setSelectedEmpIds(new Set());
         } else {
           console.error("Attendance load failed:", err);
+        }
+      } finally {
+        if (seq && seq === attendanceLoadSeqRef.current) {
+          setAttendanceLoading(false);
         }
       }
     }
@@ -1006,119 +1083,107 @@ export default function AttendanceSheet() {
   // ---------------------------------------------------------
   // Checkbox toggle
   // ---------------------------------------------------------
-  function toggleCheckbox(empId) {
-    setSelectedEmpIds((prev) => {
-      const next = new Set(prev);
+ function toggleCheckbox(rowKey) {
+  setSelectedEmpIds((prev) => {
+    const next = new Set(prev);
 
-      if (next.has(empId)) {
-        next.delete(empId);
-      } else {
-        next.add(empId);
+    if (next.has(rowKey)) {
+      next.delete(rowKey);
+    } else {
+      next.add(rowKey);
 
-        if (!dayInputs[empId]) {
-          setDayInputs((old) => ({
-            ...old,
-            [empId]: {
-              workingDays: "",
-              EL: "",
-              CL: "",
-              SL: "",
-              weekDaysOff: "",
-              otDays: "",
-              otHours: "",
-              totalDays: "",
-              manualTotalDays: false,
-            },
-          }));
-        }
+      if (!dayInputs[rowKey]) {
+        setDayInputs((old) => ({
+          ...old,
+          [rowKey]: {
+            ...baseExtraFields,
+            workingDays: "",
+            weekDaysOff: "",
+            otDays: "",
+            otHours: "",
+            totalDays: "",
+            manualTotalDays: false,
+          },
+        }));
       }
+    }
 
-      return next;
-    });
-  }
+    return next;
+  });
+}
 
   // ---------------------------------------------------------
   // Handle per-employee input (manual override supported)
   // ---------------------------------------------------------
-  function handleInputChange(empId, field, value) {
-    if (field !== "status" && !/^\d*\.?\d*$/.test(value)) return;
+ function handleInputChange(rowKey, field, value) {
+  if (field !== "status" && !/^\d*\.?\d*$/.test(value)) return;
 
-    setDayInputs((prev) => {
-      const current = prev[empId] || {
-        workingDays: "",
-        EL: "",
-        CL: "",
-        SL: "",
-        weekDaysOff: "",
-        otDays: "",
-        otHours: "",
-        totalDays: globalTotalDays,
-        manualTotalDays: false,
-        ...baseExtraFields,
-      };
+  setDayInputs((prev) => {
+    const current = prev[rowKey] || {
+      ...baseExtraFields,
+      workingDays: "",
+      weekDaysOff: "",
+      otDays: "",
+      otHours: "",
+      totalDays: globalTotalDays,
+      manualTotalDays: false,
+      divideByDays: globalTotalDays,
+    };
 
-      const updated = { ...current, [field]: value };
+    const updated = { ...current, [field]: value };
 
-      if (field === "totalDays") {
-        updated.manualTotalDays = true; // user override!
+    if (field === "totalDays") {
+      updated.manualTotalDays = true;
+    }
+
+    const monthDaysLimit = getDaysInMonth(month, year);
+
+    // 🔥 VALIDATION (same logic, just no empId dependency)
+
+    const totalDaysInputNum =
+      field === "totalDays" ? Number(value) : Number(updated.totalDays);
+
+    let totalDaysResolved =
+      Number.isFinite(totalDaysInputNum) && totalDaysInputNum > 0
+        ? totalDaysInputNum
+        : Number(current.totalDays) || globalTotalDays;
+
+    if (totalDaysResolved > monthDaysLimit) {
+      updated.totalDays = String(monthDaysLimit);
+      totalDaysResolved = monthDaysLimit;
+    }
+
+    const fieldsToCheck = ["workingDays", "EL", "CL", "SL", "weekDaysOff"];
+
+    if (fieldsToCheck.includes(field)) {
+      const v = Number(updated[field]) || 0;
+
+      if (v > totalDaysResolved) {
+        updated[field] = String(totalDaysResolved);
       }
+    }
 
-      if (field === "divideByDays") {
-        if (value !== "") {
-          const inputNum = Number(value);
-          if (!Number.isFinite(inputNum) || inputNum < 1) return prev;
+    // 🔥 SUM VALIDATION
+    const w = parseFloat(updated.workingDays) || 0;
+    const el = parseFloat(updated.EL) || 0;
+    const cl = parseFloat(updated.CL) || 0;
+    const sl = parseFloat(updated.SL) || 0;
+    const wk = parseFloat(updated.weekDaysOff) || 0;
 
-          const expected = getComputedDivideByDays(
-            employeeSGMap?.[empId] || null,
-            getMonthYearString(month, year),
-            month,
-            year
-          );
+    const total = w + el + cl + sl + wk;
 
-          if (Number.isFinite(expected) && expected > 0 && inputNum > expected) {
-            return prev;
-          }
-        }
-      }
+    if (total > totalDaysResolved) {
+      const sumOther = total - (Number(updated[field]) || 0);
+      const remaining = Math.max(0, totalDaysResolved - sumOther);
+      updated[field] = String(remaining);
+    }
 
-      const totalDays =
-        field === "totalDays"
-          ? parseFloat(value) || 0
-          : parseFloat(current.totalDays) || globalTotalDays;
-      const monthDaysLimit = getDaysInMonth(month, year);
-
-      const w = parseFloat(updated.workingDays) || 0;
-      const el = parseFloat(updated.EL) || 0;
-      const cl = parseFloat(updated.CL) || 0;
-      const sl = parseFloat(updated.SL) || 0;
-      const l = el + cl + sl;
-      const wk = parseFloat(updated.weekDaysOff) || 0;
-      const totalAgainstMonthLimit =
-        field === "totalDays" ? parseFloat(value) || 0 : totalDays;
-
-      if (
-        ["workingDays", "EL", "CL", "SL", "weekDaysOff", "totalDays"].includes(
-          field
-        ) &&
-        (parseFloat(value) || 0) > monthDaysLimit
-      ) {
-        return prev;
-      }
-
-      if (["workingDays", "EL", "CL", "SL", "weekDaysOff"].includes(field)) {
-        if (parseFloat(value) > totalDays) return prev;
-      }
-
-      if (totalAgainstMonthLimit > monthDaysLimit) return prev;
-
-      // Only validate when NOT editing totalDays itself
-      if (field !== "totalDays") {
-        if (w + l + wk > totalDays || w + l + wk > monthDaysLimit) return prev;
-      }
-
-      return { ...prev, [empId]: updated };
-    });
-  }
+    return {
+      ...prev,
+      [rowKey]: updated, // ✅ IMPORTANT
+    };
+  });
+}
 
   // ---------------------------------------------------------
   // Save Attendance
@@ -1140,7 +1205,8 @@ export default function AttendanceSheet() {
       const newEmployees = [];
       const savedModelsByEmpId = {};
 
-      selectedEmpIds.forEach((empId) => {
+      selectedEmpIds.forEach((rowKey) => {
+  const [empId, attendanceId] = rowKey.split("_").map(Number);
         const emp = employees.find(
           (e) => e?.FacilityMember?.FacilityMemberId === empId
         );
@@ -1153,7 +1219,7 @@ export default function AttendanceSheet() {
           emp?.FacilityMember?.Name ||
           "Unknown";
 
-        const inp = dayInputs[empId] || {};
+        const inp = dayInputs[rowKey] || {};
 
         const EL = n(inp.EL);
         const CL = n(inp.CL);
@@ -1510,6 +1576,14 @@ export default function AttendanceSheet() {
     allEmpIds.length > 0 &&
     allEmpIds.every((id) => selectedEmpIds.has(id));
 
+  const uniqueEmployees = Object.values(
+    paginatedEmployees.reduce((acc, emp) => {
+      const id = emp?.FacilityMember?.FacilityMemberId;
+      if (!acc[id]) acc[id] = emp;
+      return acc;
+    }, {})
+  );
+
   function toggleSelectAll(checked) {
     setSelectedEmpIds((prev) => {
       const next = new Set(prev);
@@ -1590,6 +1664,40 @@ export default function AttendanceSheet() {
             boxShadow: "0 8px 25px rgba(0,0,0,0.15)"
           }}>
             <i className="pi pi-spin pi-spinner" style={{ fontSize: "3rem" }}></i>
+          </div>
+        </div>
+      )}
+      {attendanceLoading && !importing && (
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100vw",
+            height: "100vh",
+            background: "rgba(255,255,255,0.2)",
+            backdropFilter: "blur(6px)",
+            zIndex: 9998,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "rgba(255,255,255,0.85)",
+              padding: "26px 30px",
+              borderRadius: "12px",
+              boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              color: "#111827",
+              fontWeight: 700,
+            }}
+          >
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: "2.25rem" }} />
+            Refreshing attendance...
           </div>
         </div>
       )}
@@ -1758,12 +1866,16 @@ export default function AttendanceSheet() {
 
           <button
             onClick={exportToExcel}
-            disabled={!hasSingleEffectiveProperty}
+            disabled={!hasSingleEffectiveProperty || attendanceLoading}
             style={{
-              background: !hasSingleEffectiveProperty ? "#ccc" : "#3182ce",
+              background:
+                !hasSingleEffectiveProperty || attendanceLoading ? "#ccc" : "#3182ce",
               color: "#fff",
               padding: "6px 14px",
-              cursor: !hasSingleEffectiveProperty ? "not-allowed" : "pointer"
+              cursor:
+                !hasSingleEffectiveProperty || attendanceLoading
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             Export CSV
@@ -1870,14 +1982,14 @@ export default function AttendanceSheet() {
 
           <button
             onClick={handleImportClick}
-            disabled={importing}
+            disabled={importing || attendanceLoading}
             style={{
-              background: importing ? "#9f7aea" : "#6b46c1",
-              color: "#fff",
+              background: importing || attendanceLoading ? "#cbd5e0" : "#6b46c1",
+              color: importing || attendanceLoading ? "#4a5568" : "#fff",
               padding: "8px 20px",
               borderRadius: 6,
               border: "none",
-              cursor: importing ? "not-allowed" : "pointer",
+              cursor: importing || attendanceLoading ? "not-allowed" : "pointer",
               transition: "all 0.2s ease",
             }}
           >
@@ -1885,10 +1997,13 @@ export default function AttendanceSheet() {
           </button>
 
           <button
-            disabled={selectedEmpIds.size === 0 || saving}
+            disabled={selectedEmpIds.size === 0 || saving || attendanceLoading}
             onClick={handleSaveAttendance}
             style={{
-              background: selectedEmpIds.size === 0 ? "#ccc" : "#48bb78",
+              background:
+                selectedEmpIds.size === 0 || saving || attendanceLoading
+                  ? "#ccc"
+                  : "#48bb78",
               color: "#fff",
               padding: "8px 20px",
               borderRadius: 6,
@@ -1904,16 +2019,19 @@ export default function AttendanceSheet() {
             disabled={
               selectedEmpIds.size === 0 ||
               deleting ||
+              attendanceLoading ||
               !hasSingleEffectiveProperty
             }
             style={{
               background:
-                selectedEmpIds.size === 0 || deleting ? "#ccc" : "#e53e3e",
+                selectedEmpIds.size === 0 || deleting || attendanceLoading
+                  ? "#ccc"
+                  : "#e53e3e",
               color: "#fff",
               padding: "8px 20px",
               borderRadius: 6,
               cursor:
-                selectedEmpIds.size === 0 || deleting
+                selectedEmpIds.size === 0 || deleting || attendanceLoading
                   ? "not-allowed"
                   : "pointer",
             }}
@@ -2004,392 +2122,422 @@ export default function AttendanceSheet() {
           </thead>
 
           <tbody>
-            {paginatedEmployees.map((emp, idx) => {
-              const empCode = emp?.Profile?.EmployeeCode || "-";
-              if (!emp?.FacilityMember?.FacilityMemberId) return null;
-              const empId = emp.FacilityMember.FacilityMemberId;
+            {uniqueEmployees.flatMap((emp, idx) => {
+              if (!emp?.FacilityMember?.FacilityMemberId) return [];
 
-              const designation =
-                emp?.EmployeeList?.Designation ||
-                emp?.Profile?.Designation ||
-                "-";
+              const empId = emp.FacilityMember.FacilityMemberId;
+              const empCode = emp?.Profile?.EmployeeCode || "-";
 
               const name =
                 emp?.Profile?.EmployeeName ||
-                emp?.EmployeeList?.Designation ||
                 emp?.FacilityMember?.Name ||
                 "Unknown";
 
-              const isChecked = selectedEmpIds.has(empId);
-
-              const inp = dayInputs[empId] || {
-                ...baseExtraFields,   // spread first
-                workingDays: "",
-                EL: "",
-                CL: "",
-                SL: "",
-                weekDaysOff: "",
-                otDays: "",
-                otHours: "",
-                totalDays: "",
-                manualTotalDays: false,
-                divideByDays:
-                  employeeSGMap[empId]?.divideByDays ?? globalTotalDays, // override AFTER spread
-              };
-
-              return (
-                <tr key={empId}>
-                  <td style={tdStyle}>
-                    {(currentPage - 1) * recordsPerPage + idx + 1}
-                  </td>
-
-                  {/* Employee Code */}
-                  <td style={{ ...tdStyle, fontWeight: 500 }}>
-                    {empCode}
-                  </td>
-
-                  {/* Employee Name */}
-                  <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>
-                    {name}
-                  </td>
-
-                  {/* Designation */}
-                  <td style={{ ...tdStyle, textAlign: "left" }}>
-                    {designation}
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => toggleCheckbox(empId)}
-                    />
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.workingDays}
-                      onChange={(e) =>
-                        handleInputChange(empId, "workingDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* EL */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.EL}
-                      onChange={(e) =>
-                        handleInputChange(empId, "EL", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* CL */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.CL}
-                      onChange={(e) =>
-                        handleInputChange(empId, "CL", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* SL */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.SL}
-                      onChange={(e) =>
-                        handleInputChange(empId, "SL", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.totalDays ?? ""}
-                      onChange={(e) =>
-                        handleInputChange(empId, "totalDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.weekDaysOff}
-                      onChange={(e) =>
-                        handleInputChange(empId, "weekDaysOff", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.otDays}
-                      onChange={(e) =>
-                        handleInputChange(empId, "otDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.otHours}
-                      onChange={(e) =>
-                        handleInputChange(empId, "otHours", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* NH Days */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.nhDays}
-                      onChange={(e) =>
-                        handleInputChange(empId, "nhDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* FH Days */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.fhDays}
-                      onChange={(e) =>
-                        handleInputChange(empId, "fhDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Holidays */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.holidays}
-                      onChange={(e) =>
-                        handleInputChange(empId, "holidays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Divide By Days */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.divideByDays ?? ""}
-                      onChange={(e) =>
-                        handleInputChange(empId, "divideByDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* OT Month Days */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.otMonthDays}
-                      onChange={(e) =>
-                        handleInputChange(empId, "otMonthDays", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* PF Arrear */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.pfArrear}
-                      onChange={(e) =>
-                        handleInputChange(empId, "pfArrear", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Other Arrear */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.otherArrear}
-                      onChange={(e) =>
-                        handleInputChange(empId, "otherArrear", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Incentive */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.incentive}
-                      onChange={(e) =>
-                        handleInputChange(empId, "incentive", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Advance Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.advanceDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "advanceDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Uniform Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.uniformDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "uniformDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* BGV Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.bgvDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "bgvDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Room Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.roomDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "roomDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Fine Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.fineDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "fineDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Joining Kits */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.joiningKits}
-                      onChange={(e) =>
-                        handleInputChange(empId, "joiningKits", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Other Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.otherDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "otherDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  {/* Food Ded */}
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.foodDed}
-                      onChange={(e) =>
-                        handleInputChange(empId, "foodDed", e.target.value)
-                      }
-                      style={inputStyle}
-                    />
-                  </td>
-
-                  <td style={tdStyle}>
-                    <input
-                      type="text"
-                      disabled={!isChecked}
-                      value={inp.status || ""}
-                      onChange={(e) =>
-                        handleInputChange(empId, "status", e.target.value)
-                      }
-                      style={{
-                        ...inputStyle,
-                        width: "120px",
-                      }}
-                    />
-                  </td>
-
-                </tr>
+              // 🔥 GET ALL ATTENDANCE ROWS
+              const empAttendances = filteredAttendance.filter(
+                (a) => a.EmpID === empId
               );
+
+              const rows = empAttendances.length > 0 ? empAttendances : [{}];
+
+              return rows.map((att, index) => {
+                const attendanceId = att.AttendanceID || 0;
+
+const rowKey = `${empId}_${attendanceId}`;
+                const isChecked = selectedEmpIds.has(rowKey);
+
+                const inp = dayInputs[rowKey] || {
+                  ...baseExtraFields,
+
+                  workingDays: att?.WorkingDays ?? "",
+                  EL: att?.EL ?? "",
+                  CL: att?.CL ?? "",
+                  SL: att?.SL ?? "",
+                  weekDaysOff: att?.WeekDaysOff ?? "",
+                  otDays: att?.OtDays ?? "",
+                  otHours: att?.OtHours ?? "",
+                  totalDays: att?.PayableDays ?? "",
+
+                  nhDays: att?.NHDays ?? "",
+                  fhDays: att?.FHDays ?? "",
+                  holidays: att?.Holidays ?? "",
+                  divideByDays:
+                    att?.DivideByDays ??
+                    employeeSGMap[empId]?.divideByDays ??
+                    globalTotalDays,
+
+                  otMonthDays: att?.OtMonthDays ?? "",
+                  pfArrear: att?.PFArrear ?? "",
+                  otherArrear: att?.OtherArrear ?? "",
+                  incentive: att?.Incentive ?? "",
+
+                  advanceDed: att?.AdvanceDed ?? "",
+                  uniformDed: att?.UniformDed ?? "",
+                  bgvDed: att?.BGVDed ?? "",
+                  roomDed: att?.RoomDed ?? "",
+                  fineDed: att?.FineDed ?? "",
+                  joiningKits: att?.JoiningKits ?? "",
+                  otherDed: att?.OtherDed ?? "",
+                  foodDed: att?.FoodDed ?? "",
+
+                  status: att?.Status ?? "",
+                };
+
+                return (
+                  <tr key={rowKey}>
+                    <td style={tdStyle}>
+                      {(currentPage - 1) * recordsPerPage + idx + 1}.{index + 1}
+                    </td>
+
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>
+                      {empCode}
+                    </td>
+
+                    <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>
+                      {name}
+                    </td>
+
+                    {/* ✅ DESIGNATION FROM ATTENDANCE */}
+                    <td style={{ ...tdStyle, textAlign: "left" }}>
+                      {att?.Designation || "-"}
+                    </td>
+
+                    {/* Checkbox */}
+                    <td style={tdStyle}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => toggleCheckbox(rowKey)}
+                      />
+                    </td>
+
+                    {/* Working Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.workingDays}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "workingDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* EL */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.EL}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "EL", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* CL */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.CL}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "CL", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* SL */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.SL}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "SL", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Payable Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.totalDays ?? ""}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "totalDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Weekly Off */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.weekDaysOff}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "weekDaysOff", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* OT Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.otDays}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "otDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* OT Hours */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.otHours}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "otHours", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* NH Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.nhDays}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "nhDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* FH Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.fhDays}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "fhDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Holidays */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.holidays}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "holidays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Divide By Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.divideByDays ?? ""}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "divideByDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* OT Month Days */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.otMonthDays}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "otMonthDays", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* PF Arrear */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.pfArrear}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "pfArrear", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Other Arrear */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.otherArrear}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "otherArrear", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Incentive */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.incentive}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "incentive", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Advance Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.advanceDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "advanceDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Uniform Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.uniformDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "uniformDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* BGV Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.bgvDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "bgvDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Room Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.roomDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "roomDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Fine Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.fineDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "fineDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Joining Kits */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.joiningKits}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "joiningKits", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Other Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.otherDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "otherDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Food Ded */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.foodDed}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "foodDed", e.target.value)
+                        }
+                        style={inputStyle}
+                      />
+                    </td>
+
+                    {/* Status */}
+                    <td style={tdStyle}>
+                      <input
+                        type="text"
+                        disabled={!isChecked}
+                        value={inp.status || ""}
+                        onChange={(e) =>
+                          handleInputChange(rowKey, "status", e.target.value)
+                        }
+                        style={{ ...inputStyle, width: "120px" }}
+                      />
+                    </td>
+                  </tr>
+                );
+              });
             })}
           </tbody>
         </table>

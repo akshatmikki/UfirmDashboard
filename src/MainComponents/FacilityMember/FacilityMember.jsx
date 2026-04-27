@@ -99,6 +99,7 @@ const StaffPage = () => {
   const [selectedManagers, setSelectedManagers] = useState([]); // FacilityMemberIds[]
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState(null);
   const [deptSearch, setDeptSearch] = useState("");
+  const salaryDropdownRef = useRef(null);
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
   const [selectedFacilityMemberId, setSelectedFacilityMemberId] = useState(null);
@@ -207,14 +208,17 @@ const StaffPage = () => {
   const departmentFilterRef = useRef(null);
 
   const getCurrentOfficeIds = () => {
+    // 🚫 NO CLIENT SELECTED → RETURN EMPTY
+    if (!reduxClientId && !reduxPropertyId) {
+      return [];
+    }
+
     let officeIds = [];
 
-    if (Number(reduxPropertyId) > 0) {
-      officeIds = [Number(reduxPropertyId)];
-    } else if (selectedPropertyId.length > 0) {
-      officeIds = selectedPropertyId;
-    } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+    if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
       officeIds = reduxPropertyIds;
+    } else if (Number(reduxPropertyId) > 0) {
+      officeIds = [Number(reduxPropertyId)];
     } else if (clientPropertyIds.length > 0) {
       officeIds = clientPropertyIds;
     }
@@ -245,6 +249,16 @@ const StaffPage = () => {
 
   useEffect(() => {
     const loadUnits = async () => {
+      // 🚫 NO CLIENT SELECTED
+      if (!reduxClientId && !reduxPropertyId) {
+        setUnitList([]);
+        setSelectedUnitId(null);
+        setPropertyList([]);
+        setSelectedPropertyId([]);
+        setClientPropertyIds([]);
+        setStaff([]);
+        return;
+      }
       try {
         if (Number(reduxPropertyId) > 0) {
           setSelectedPropertyId([Number(reduxPropertyId)]);
@@ -310,12 +324,18 @@ const StaffPage = () => {
         } else {
           setSelectedPropertyId([]);
 
-          if (!Array.isArray(reduxPropertyIds) || reduxPropertyIds.length === 0) {
+          // 🔥 ALL PROPERTIES CASE
+          if (
+            (!reduxPropertyIds || reduxPropertyIds.length === 0) &&
+            (!reduxPropertyId || Number(reduxPropertyId) === 0)
+          ) {
             const ids = properties
               .map((p) => Number(p.PropertyId))
               .filter((id) => Number.isFinite(id) && id > 0);
+
             setClientPropertyIds(ids);
-          } else {
+          }
+          else {
             setClientPropertyIds([]);
           }
         }
@@ -394,22 +414,12 @@ const StaffPage = () => {
 
   useEffect(() => {
     const loadEmployees = async () => {
+      if (!reduxClientId && !reduxPropertyId) {
+        setStaff([]);
+        return;
+      }
       try {
-        let officeIds = [];
-
-        if (Number(reduxPropertyId) > 0) {
-          officeIds = [Number(reduxPropertyId)];
-        } else if (selectedPropertyId.length > 0) {
-          officeIds = selectedPropertyId;
-        } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
-          officeIds = reduxPropertyIds;
-        } else if (clientPropertyIds.length > 0) {
-          officeIds = clientPropertyIds;
-        }
-
-        officeIds = officeIds
-          .map((id) => Number(id))
-          .filter((id) => Number.isFinite(id) && id > 0);
+        const officeIds = getCurrentOfficeIds();
 
         if (!officeIds.length) {
           setStaff([]);
@@ -760,12 +770,11 @@ const StaffPage = () => {
     setSelectedManagers(
       latestRow?.FacilityMember?.ManagerIdList || []
     );
-    if (profile.Designation) {
-      fetchSalaryGroups(profile.Designation);
-    }
     const existingSG = latestRow?.FacilityMember?.SG_Link_ID || null;
+    if (profile.Designation) {
+      fetchSalaryGroups(profile.Designation, existingSG);
+    }
 
-    setSelectedSalaryGroup(existingSG);
     // Work History - Handle both single and array
     if (latestRow?.WorkHistories && Array.isArray(latestRow.WorkHistories) && latestRow.WorkHistories.length > 0) {
       setWorkHistories(
@@ -1044,6 +1053,15 @@ const StaffPage = () => {
         detail: "Designation is required"
       });
     }
+
+    // if (salaryGroups.length > 1 && !selectedSalaryGroup) {
+    //   setIsProcessing(false);
+    //   return toast.current.show({
+    //     severity: "warn",
+    //     summary: "Validation",
+    //     detail: "Please select a Salary Group for this designation"
+    //   });
+    // }
 
     if (!gender?.trim()) {
       setIsProcessing(false);
@@ -1758,7 +1776,7 @@ const StaffPage = () => {
     }
   };
 
-  const fetchSalaryGroups = async (designationValue) => {
+  const fetchSalaryGroups = async (designationValue, existingSG = null) => {
     // Clear previous selection first
     setSelectedSalaryGroup(null);
     setSalaryGroupDetails(null);
@@ -1783,19 +1801,34 @@ const StaffPage = () => {
         : [];
 
       setSalaryGroups(formatted);
+
       if (formatted.length === 0) {
         setSalaryGroupMessage(
           "No Salary Group available for this designation. You can still create employee without assigning it."
         );
-      } else {
-        setSalaryGroupMessage("");
       }
-
-      // 🔥 AUTO SELECT IF ONLY ONE
-      if (formatted.length === 1) {
+      else if (formatted.length === 1) {
+        // auto select
         setSelectedSalaryGroup(formatted[0].value);
         setSalaryGroupDetails(formatted[0].data);
         setShowSalaryGroupPopup(true);
+        setSalaryGroupMessage("");
+      }
+      else {
+        setSalaryGroupMessage("Multiple salary groups available. Select one to continue. (OPTIONAL SELECTION)");
+
+        // 🔥 PRESERVE EXISTING SG (EDIT CASE)
+        if (existingSG) {
+          const exists = formatted.find(sg => sg.value === existingSG);
+          if (exists) {
+            setSelectedSalaryGroup(existingSG);
+          }
+        }
+
+        // auto open dropdown
+        setTimeout(() => {
+          salaryDropdownRef.current?.show();
+        }, 100);
       }
 
     } catch (err) {
@@ -2208,16 +2241,20 @@ const StaffPage = () => {
                   value={designation}
                   options={designations || []}
                   onChange={(e) => {
-                    setDesignation(e.value);
+                    const newDesignation = e.value;
 
-                    if (!e.value) {
+                    setDesignation(newDesignation);
+
+                    // 🔥 HARD RESET
+                    setSelectedSalaryGroup(null);
+                    setSalaryGroupDetails(null);
+
+                    if (!newDesignation) {
                       setSalaryGroups([]);
-                      setSelectedSalaryGroup(null);
-                      setSalaryGroupDetails(null);
                       return;
                     }
 
-                    fetchSalaryGroups(e.value);
+                    fetchSalaryGroups(newDesignation);
                   }}
                   className="mb-3"
                   disabled={isLoadingDesignations}
@@ -2234,13 +2271,31 @@ const StaffPage = () => {
                   />
                 )}
 
+                {salaryGroupMessage && (
+                  <div
+                    style={{
+                      background: "#fff2f0",
+                      border: "1px solid #ffccc7",
+                      padding: "6px 10px",
+                      borderRadius: "6px",
+                      marginBottom: "10px",
+                      fontSize: "13px",
+                      color: "#cf1322"
+                    }}
+                  >
+                    {salaryGroupMessage}
+                  </div>
+                )}
                 {salaryGroups.length > 0 && (
                   <>
                     <label>Salary Group</label>
                     <Dropdown
+                      ref={salaryDropdownRef}
                       placeholder={isLoadingSalaryGroups ? "Loading..." : "Select Salary Group"}
                       value={selectedSalaryGroup}
                       options={salaryGroups}
+                      optionLabel="label"
+                      optionValue="value"
                       onChange={(e) => {
                         setSelectedSalaryGroup(e.value);
 
@@ -2257,11 +2312,6 @@ const StaffPage = () => {
                       disabled={isLoadingSalaryGroups}
                     />
                   </>
-                )}
-                {salaryGroupMessage && (
-                  <small style={{ color: "red" }}>
-                    {salaryGroupMessage}
-                  </small>
                 )}
                 <label>Reporting Managers</label>
                 <MultiSelect

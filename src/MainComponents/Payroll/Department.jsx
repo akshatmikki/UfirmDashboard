@@ -108,14 +108,32 @@ const DepartmentMaster = () => {
         return;
       }
 
+      // 🔥 DUPLICATE CHECK
+      const normalizedInput = formData.Name.trim().toLowerCase();
+
+      const isDuplicate = data.some(
+        (dept) =>
+          dept.Name.trim().toLowerCase() === normalizedInput &&
+          dept.Id !== formData.Id // allow same record in edit
+      );
+
+      if (isDuplicate) {
+        toast.current.show({
+          severity: "warn",
+          summary: "Duplicate",
+          detail: "Department already exists",
+        });
+        return;
+      }
+
       const payload = isEdit
         ? {
-            Id: formData.Id,
-            Name: formData.Name,
-          }
+          Id: formData.Id,
+          Name: formData.Name,
+        }
         : {
-            Name: formData.Name,
-          };
+          Name: formData.Name,
+        };
 
       if (isEdit) {
         await updateDepartment(formData.Id, payload);

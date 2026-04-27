@@ -58,6 +58,7 @@ export default function SGNEW() {
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [otStandalone, setOtStandalone] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [form, setForm] = useState({
     salaryGroupName: "",
@@ -114,11 +115,11 @@ export default function SGNEW() {
       try {
         if (!selectedUnitId) {
           setPropertyList([]);
-          setSelectedPropertyId([]);
+          // setSelectedPropertyId([]);
           return;
         }
 
-        setSelectedPropertyId([]);
+        // setSelectedPropertyId([]);
 
         const res = await getPropertiesByClientId(selectedUnitId);
         const list = res || [];
@@ -629,7 +630,7 @@ export default function SGNEW() {
 
     // 🔥 Store SG-based exclusions & designations
     setExcludedEmployeeIds(sg.ExcludedEmployeeIds || []);
-
+    setDesignation("");
     if (Array.isArray(sg.Designations) && sg.Designations.length > 0) {
       setDesignation(sg.Designations[0]); // auto-select designation
     }
@@ -810,6 +811,14 @@ export default function SGNEW() {
   const handleChange = (e) => {
     const { name, value } = e.target;
 
+    if (name === "salaryGroupName") {
+      setForm((prev) => ({
+        ...prev,
+        salaryGroupName: value.replace(/\s+/g, " "),
+      }));
+      return;
+    }
+
     // 🔥 NEW LOGIC (ADD THIS HERE)
     if (name === "salaryCycleFrom" || name === "salaryCycleTo") {
       const from = name === "salaryCycleFrom" ? value : form.salaryCycleFrom;
@@ -845,6 +854,18 @@ export default function SGNEW() {
       (!selectedSG || selectedSG.trim() === "")
     ) {
       alert("Please enter Salary Group Name or select an existing SG");
+      return;
+    }
+
+    const enteredName = form.salaryGroupName?.trim().toLowerCase();
+
+    const isDuplicate = salaryGroups.some(
+      (sg) => sg.SalaryGroup?.trim().toLowerCase() === enteredName
+    );
+
+    // ❌ BLOCK CREATION (ONLY when creating new)
+    if (!selectedSG && isDuplicate) {
+      alert("Salary Group with this name already exists!");
       return;
     }
 
@@ -923,6 +944,14 @@ export default function SGNEW() {
 
       // 🔄 reload SG list for selected properties
       await loadSG(selectedPropertyId);
+
+      // 🔥 refresh employees so SG name updates instantly
+      const allResults = await Promise.all(
+        selectedPropertyId.map((pid) => getEmployeesByOffice(pid))
+      );
+
+      const mergedEmployees = allResults.flat().filter(Boolean);
+      setEmployees(mergedEmployees);
 
       // 🔥 full reset
       resetAll();
@@ -1117,7 +1146,7 @@ export default function SGNEW() {
     setPreviewSG(null);
 
     // Only reset PROPERTY, not client
-    setSelectedPropertyId([]);
+    // setSelectedPropertyId([]);
     setShowPropertyDropdown(false);
 
     // ❌ REMOVE THIS LINE COMPLETELY
@@ -1181,9 +1210,19 @@ export default function SGNEW() {
     }
   };
 
-  const filteredEmployees = designation
-    ? employees.filter((e) => (e.Designation || e.Profile?.Designation) === designation)
-    : [];
+  const filteredEmployees = employees
+    .filter((e) =>
+      designation
+        ? (e.Designation || e.Profile?.Designation) === designation
+        : true
+    )
+    .filter((e) => {
+      const text = searchTerm.toLowerCase();
+      return (
+        e.Profile?.EmployeeName?.toLowerCase().includes(text) ||
+        e.Profile?.EmployeeCode?.toLowerCase().includes(text)
+      );
+    });
 
   const getEmployeeSalaryGroupName = (emp) => {
     const sgId = Number(emp.FacilityMember?.SG_Link_ID);
@@ -1561,6 +1600,7 @@ export default function SGNEW() {
           <input
             name="totalWorkingDays"
             value={form.totalWorkingDays}
+            disabled
             onChange={allowOnlyNumbers}
             className="form-control"
             style={{
@@ -1678,7 +1718,62 @@ export default function SGNEW() {
                 >
                   Exclude Employees
                 </div>
-
+                <input
+                  type="text"
+                  placeholder="Search employee..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "6px",
+                    marginBottom: 8,
+                    border: "1px solid #ccc",
+                    borderRadius: 6,
+                    fontSize: 12
+                  }}
+                />
+                <div
+                  style={{
+                    marginBottom: 8,
+                    padding: "6px 8px",
+                    borderRadius: 6,
+                    background: "#f1f5f9", // light grey background
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 13,
+                      fontWeight: 700, // 🔥 bold
+                      color: "#1e293b", // darker text
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        filteredEmployees.length > 0 &&
+                        filteredEmployees.every(emp =>
+                          excludedEmployeeIds.includes(emp.FacilityMember?.FacilityMemberId)
+                        )
+                      }
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          const allIds = filteredEmployees.map(
+                            (emp) => emp.FacilityMember?.FacilityMemberId
+                          );
+                          setExcludedEmployeeIds(allIds);
+                        } else {
+                          setExcludedEmployeeIds([]);
+                        }
+                      }}
+                    />
+                    Select All Employees
+                  </label>
+                </div>
                 {loadingEmployees ? (
                   <div style={{ fontSize: 12, color: "#555" }}>Loading...</div>
                 ) : employees.length === 0 ? (

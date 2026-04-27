@@ -348,6 +348,55 @@ export default function PropertyMaster() {
       });
       return;
     }
+
+    // 🔥 DUPLICATE PROPERTY NAME CHECK
+    // 🔥 CLEAN + NORMALIZE INPUT
+    const cleanedName = form.Name?.trim();
+    const newNameNormalized = normalizeText(cleanedName);
+
+    // 🔥 SKIP duplicate check if same name in edit
+    if (editId) {
+      const current = properties.find(p => p.PropertyId === editId);
+      const currentNormalized = normalizeText(current?.Name?.trim() || "");
+
+      if (currentNormalized !== newNameNormalized) {
+        const isDuplicate = properties.some((p) => {
+          const existingName = p.Name?.trim();
+          const existingNameNormalized = normalizeText(existingName);
+
+          if (p.PropertyId === editId) return false;
+
+          return existingNameNormalized === newNameNormalized;
+        });
+
+        if (isDuplicate) {
+          toast.current.show({
+            severity: "error",
+            summary: "Duplicate Error",
+            detail: `"${form.Name}" already exists (similar name detected)`,
+          });
+          return;
+        }
+      }
+    } else {
+      // CREATE MODE
+      const isDuplicate = properties.some((p) => {
+        const existingName = p.Name?.trim();
+        const existingNameNormalized = normalizeText(existingName);
+
+        return existingNameNormalized === newNameNormalized;
+      });
+
+      if (isDuplicate) {
+        toast.current.show({
+          severity: "error",
+          summary: "Duplicate Error",
+          detail: `"${form.Name}" already exists (similar name detected)`,
+        });
+        return;
+      }
+    }
+
     try {
       let finalCityId = form.CityId;
 
@@ -364,26 +413,27 @@ export default function PropertyMaster() {
           return;
         }
 
-        // ⚠️ You don’t have StateId in dropdown, so FIX THIS later
         const stateId = selectedState?.id;
 
         const res = await createOrGetCity({
-          CityName: form.CityId,
+          CityName: form.CityId.trim(), // 🔥 trim fix
           StateId: stateId,
           CreatedBy: 1,
         });
 
         finalCityId = res.CityId;
 
-        // 🔥 ADD THIS RIGHT HERE
+        // 🔥 update local city list
         setCities(prev => [
           ...prev,
-          { label: form.CityId, value: res.CityId }
+          { label: form.CityId.trim(), value: res.CityId }
         ]);
       }
 
       const finalForm = {
         ...form,
+        Name: form.Name.trim(), // 🔥 trim fix
+        State: form.State.trim(), // 🔥 trim fix
         CityId: finalCityId,
       };
 
@@ -407,10 +457,28 @@ export default function PropertyMaster() {
       loadData();
 
     } catch (err) {
+      let message = "Save failed";
+
+      // 🔥 HANDLE FETCH ERRORS (this is your case)
+      if (err?.message) {
+        message = err.message;
+      }
+
+      // 🔥 HANDLE AXIOS (future-proof)
+      else if (err?.response) {
+        if (typeof err.response.data === "string" && err.response.data) {
+          message = err.response.data;
+        } else if (err.response.data?.Message) {
+          message = err.response.data.Message;
+        } else if (err.response.status === 400) {
+          message = "Duplicate or invalid data.";
+        }
+      }
+
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: "Save failed",
+        detail: message,
       });
     }
   };
@@ -438,6 +506,7 @@ export default function PropertyMaster() {
   const filteredData = properties.filter((p) => {
     const k = searchText.toLowerCase();
     return (
+      p.PropertyId?.toString().includes(k) ||
       p.Name?.toLowerCase().includes(k) ||
       p.State?.toLowerCase().includes(k) ||
       p.Pincode?.toLowerCase().includes(k)
@@ -469,6 +538,14 @@ export default function PropertyMaster() {
       document.body.style.overflow = "";
     };
   }, [showForm]);
+
+  const normalizeText = (str) => {
+    return str
+      ?.toLowerCase()
+      .trim()
+      .replace(/\s+/g, "")        // remove multiple spaces
+      .replace(/[^a-z0-9]/g, ""); // remove symbols
+  };
 
   useEffect(() => {
     const loadLocationData = async () => {
@@ -514,6 +591,7 @@ export default function PropertyMaster() {
 
   const exportToExcel = () => {
     const headers = [
+      "Property ID",
       "Property Name",
       "Type",
       "Contact",
@@ -526,6 +604,7 @@ export default function PropertyMaster() {
     ];
 
     const rows = filteredData.map((p) => [
+      p.PropertyId ?? "",
       p.Name ?? "",
       p.PropertyTypeName ?? "",
       p.ContactNumber ? `="${p.ContactNumber}"` : "",
@@ -612,6 +691,7 @@ export default function PropertyMaster() {
             rows={8}
             stripedRows
           >
+            <Column field="PropertyId" header="Property ID" sortable />
             <Column field="Name" header="Property Name" sortable />
             <Column field="PropertyTypeName" header="Type" />
             <Column field="ContactNumber" header="Contact" />
@@ -664,6 +744,13 @@ export default function PropertyMaster() {
             <div className="col-md-6">
               <div className="card p-3 shadow-sm">
                 <h5 className="mb-3">Property Details</h5>
+
+                <label>Property ID</label>
+                <InputText
+                  className="w-100 mb-2"
+                  value={form.PropertyId}
+                  disabled
+                />
 
                 <label>Property Type</label>
                 <Dropdown
@@ -931,6 +1018,7 @@ export default function PropertyMaster() {
               <div className="card p-3 mb-3 shadow-sm">
                 <h5 className="mb-3 text-primary">Basic Details</h5>
                 <div className="row">
+                  <div className="col-md-6"><strong>Property ID:</strong> {viewData.PropertyId}</div>
                   <div className="col-md-6"><strong>Name:</strong> {viewData.Name}</div>
                   <div className="col-md-6"><strong>Type:</strong> {
                     propertyTypes.find(pt => pt.value === viewData.PropertyTypeId)?.label

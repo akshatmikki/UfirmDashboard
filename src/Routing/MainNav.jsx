@@ -38,6 +38,7 @@ import { getManagedEmployeesByIdentity } from "../Services/UserAccessService";
 import { normalizeRoles } from "../Common/roleUtils";
 import { ROLE_RULES } from "../Common/roleAccess";
 //redux
+import AgreementMaster from "../MainComponents/AgreementMaster/Agreementmaster.jsx";
 import departmentActions from "../redux/department/action";
 import { connect } from "react-redux";
 import { bindActionCreators } from "redux";
@@ -466,7 +467,9 @@ class MainNav extends React.Component {
       !ROLE_RULES.isHrRole(roles);
     const pathname =
       typeof window !== "undefined" ? window.location.pathname : "";
+    const isAdminRole = ROLE_RULES.isAdminRole(roles);
     const disablePropertyDropdownForPayroll =
+      !isAdminRole &&
       !isHrRole &&
       (pathname.startsWith("/Account/App/GenerateSalary") ||
         pathname.startsWith("/Account/App/AttendanceSheet"));
@@ -532,6 +535,7 @@ class MainNav extends React.Component {
       "/Account/App/EmployeeShiftMapping",
       "/Account/App/EmployeeTransfer",
       "/Account/App/FundsApproval",
+      "/Account/App/AgreementMaster",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -1322,21 +1326,17 @@ class MainNav extends React.Component {
                           </Link>
                         </li>
                         <li className="nav-item">
-
-                          <Link
-                            to="/Account/App/EmployeeTransfer"
-                            className="nav-link"
-                          >
+                          <Link to="/Account/App/AgreementMaster" className="nav-link">
                             <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Employee Transfer</p>
+                            <p>Agreement Master</p>
                           </Link>
                         </li>
                         <li className="nav-item">
-                          <Link to="/Account/App/FundsTransfer"
+                          <Link to="/Account/App/FundsApproval"
                             className="nav-link"
                           >
                             <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Funds Transfer</p>
+                            <p>Funds Approval</p>
                           </Link>
                         </li>
 
@@ -1551,15 +1551,15 @@ class MainNav extends React.Component {
                             <p>User </p>
                           </Link>
                         </li>
-                        <li className="nav-item">
+                        {/* <li className="nav-item">
                           <Link
                             to="/Account/App/Department"
                             className="nav-link"
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
-                            <p>Department </p>
+                            <p>Department</p>
                           </Link>
-                        </li>
+                        </li> */}
                         <li className="nav-item">
                           <Link to="/Account/App/KYC" className="nav-link">
                             <i className=" fas fa-caret-right nav-icon"></i>
@@ -1797,11 +1797,6 @@ class MainNav extends React.Component {
             <Route exact path="/Account/App/ticket">
               <TicketingDashboard />
             </Route>
-            <Route
-              exact
-              path="/Account/App/department"
-              render={() => <Redirect to="/Account/App/Department" />}
-            />
             <Route path="/Account/App/Department">
               <Department />
             </Route>
@@ -1864,7 +1859,9 @@ class MainNav extends React.Component {
             {/* <Route path="/Home">
                             <PropertyDashboard />
                         </Route> */}
-
+            <Route path="/Account/App/AgreementMaster">
+              <AgreementMaster />
+            </Route>
             <Route path="/Account/App/Complain">
               <ComplainManagement />
             </Route>
