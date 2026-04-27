@@ -462,13 +462,13 @@ export default function GenerateSalary() {
       if (!monthName) {
         setSalaryData([]);
         setLoadingSalaryData(false);
-        return [];
+        return;
       }
 
       if (!effectivePropertyId) {
         setSalaryData([]);
         setShowGrid(false);
-        return [];
+        return;
       }
 
       const data = await getFacilityMemberSalaryDetailsByClientBranch({
@@ -482,48 +482,11 @@ export default function GenerateSalary() {
       });
       setSalaryData(data || []);
       if ((data || []).length === 0) setShowGrid(false);
-      return data || [];
     } catch (error) {
       console.error("Failed to fetch salary details:", error);
       setSalaryData([]);
-      return [];
     } finally {
       setLoadingSalaryData(false);
-    }
-  };
-
-  const buildNetSalaryMap = async (facilityMemberIds = []) => {
-    const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
-    if (!monthName || !effectivePropertyId || !facilityMemberIds.length) return new Map();
-
-    try {
-      const data = await getFacilityMemberSalaryDetailsByClientBranch({
-        facilityMemberIds,
-        branchId: null,
-        clientId: selectedUnitId || reduxClientId || null,
-        propertyIds: String(effectivePropertyId),
-        month: monthName,
-        year: selectedYear,
-        requireGeneratedSalary: false,
-      });
-
-      const map = new Map();
-      for (const row of Array.isArray(data) ? data : []) {
-        const id = Number(row?.FacilityMemberId ?? row?.EmployeeId ?? 0);
-        if (!id) continue;
-
-        const allowanceKeys = getRowAllowanceKeys(row);
-        const deductionKeys = getRowDeductionKeys(row);
-        const totalAllowance = computeTotalAllowance(row, allowanceKeys);
-        const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
-        const net = row.NetSalary ?? (totalAllowance - totalDeduction);
-
-        map.set(id, Number(net) || 0);
-      }
-      return map;
-    } catch (error) {
-      console.error("Failed to compute net salary amount:", error);
-      return new Map();
     }
   };
 
@@ -1014,9 +977,6 @@ export default function GenerateSalary() {
       const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : null;
       const yearValue = selectedYear;
 
-      const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
-      const netMap = await buildNetSalaryMap(idsForNet);
-
       const payload = selectedEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
@@ -1025,8 +985,6 @@ export default function GenerateSalary() {
         Month: monthValue,
         Year: yearValue,
         is_active: true,
-        IsFreezed: false,
-        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
       await createGeneratedSalary(payload);
@@ -1076,9 +1034,6 @@ export default function GenerateSalary() {
       const monthValue = monthNames[selectedMonth - 1];
       const yearValue = selectedYear;
 
-      const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
-      const netMap = await buildNetSalaryMap(idsForNet);
-
       const payload = employeesToRegenerate.map((emp) => ({
         EmployeeId: emp.EmployeeId,
         EmployeeName: emp.EmployeeName,
@@ -1087,8 +1042,6 @@ export default function GenerateSalary() {
         Month: monthValue,
         Year: yearValue,
         is_active: true,
-        IsFreezed: false,
-        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
       await regenerateEmployeeSalary(payload);
@@ -1138,12 +1091,15 @@ export default function GenerateSalary() {
       return;
     }
 
-    for (const row of selectedRows) {
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidthMm = 210;
+    const pdfHeightMm = 297;
+    const payslipMaxWidthMm = pdfWidthMm * 0.88;
+    const payslipMaxHeightMm = pdfHeightMm * 0.88;
+
+    for (let index = 0; index < selectedRows.length; index++) {
+      const row = selectedRows[index];
       const payslipHtml = generatePayslipHTML(row);
-      const pdfWidthMm = 210;
-      const pdfHeightMm = 297;
-      const payslipMaxWidthMm = pdfWidthMm * 0.88;
-      const payslipMaxHeightMm = pdfHeightMm * 0.88;
 
       const container = document.createElement("div");
       container.style.position = "fixed";
@@ -1185,15 +1141,13 @@ export default function GenerateSalary() {
           renderWidthMm = renderHeightMm * imageAspectRatio;
         }
 
-        const pdf = new jsPDF("p", "mm", "a4");
+        if (index > 0) {
+          pdf.addPage();
+        }
         const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
         const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
 
         pdf.addImage(imgData, "PNG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
-
-        pdf.save(
-          `Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`
-        );
       } catch (error) {
         alert(
           "Failed to generate PDF for employee " +
@@ -1203,6 +1157,15 @@ export default function GenerateSalary() {
         document.body.removeChild(container);
       }
     }
+
+    const firstRow = selectedRows[0];
+    const lastRow = selectedRows[selectedRows.length - 1];
+    const fileName =
+      selectedRows.length === 1
+        ? `Payslip_${firstRow.EmployeeCode}_${firstRow.Month || "All"}_${firstRow.Year}.pdf`
+        : `Payslip_Group_${firstRow.Month || "All"}_${firstRow.Year}_${firstRow.EmployeeCode}_to_${lastRow.EmployeeCode}.pdf`;
+
+    pdf.save(fileName);
   };
 
   const handleFreezeSalary = () => {
@@ -1881,4 +1844,3 @@ export default function GenerateSalary() {
     </div>
   );
 }
-

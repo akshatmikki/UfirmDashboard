@@ -22,6 +22,12 @@ const AddNewUser = () => {
     const [userRoles, setUserRoles] = useState([]);
     const [branches, setBranches] = useState([]);
     const [userTypes,setUserTypes]=useState([]);
+    const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
+
+    const selectedRole = userRoles.find((r) => String(r.UserRoleId) === String(formData.roleId));
+    const isManager = (selectedRole?.UserRoleName ?? "").toLowerCase().includes("manager");
+    const isPropertyDisabled =
+        formData.roleId === "3" || formData.roleId === "4" || formData.roleId === "10";
 
     // Fetch dropdown data from API
     useEffect(() => {
@@ -64,11 +70,51 @@ const AddNewUser = () => {
         fetchDropdownData();
     }, []);
 
+    useEffect(() => {
+        if (isPropertyDisabled) {
+            if (selectedPropertyIds.length > 0) setSelectedPropertyIds([]);
+            if (formData.propertyId !== "") setFormData((prev) => ({ ...prev, propertyId: "" }));
+            return;
+        }
+
+        if (!isManager) {
+            const single = selectedPropertyIds[0] ?? (formData.propertyId ? String(formData.propertyId).split(",")[0] : "");
+            const next = single ? [single] : [];
+            if (selectedPropertyIds.join(",") !== next.join(",")) setSelectedPropertyIds(next);
+            if (formData.propertyId !== single) setFormData((prev) => ({ ...prev, propertyId: single }));
+            return;
+        }
+
+        const parsed = formData.propertyId
+            ? String(formData.propertyId)
+                  .split(",")
+                  .map((x) => x.trim())
+                  .filter(Boolean)
+            : [];
+        const next = selectedPropertyIds.length > 0 ? selectedPropertyIds : parsed;
+        const joined = next.join(",");
+        if (selectedPropertyIds.join(",") !== next.join(",")) setSelectedPropertyIds(next);
+        if (formData.propertyId !== joined) setFormData((prev) => ({ ...prev, propertyId: joined }));
+    }, [isManager, isPropertyDisabled, formData.propertyId, selectedPropertyIds]);
+
 
     // Handle input changes for text fields and dropdowns
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData((prev) => ({ ...prev, [name]: value }));
+    };
+
+    const handlePropertyChange = (e) => {
+        if (isManager) {
+            const values = Array.from(e.target.selectedOptions, (opt) => opt.value).filter(Boolean);
+            setSelectedPropertyIds(values);
+            setFormData((prev) => ({ ...prev, propertyId: values.join(",") }));
+            return;
+        }
+
+        const value = e.target.value;
+        setSelectedPropertyIds(value ? [value] : []);
+        setFormData((prev) => ({ ...prev, propertyId: value }));
     };
 
     // Handle file input change
@@ -90,6 +136,7 @@ const AddNewUser = () => {
             userTypeId:"",
             profileImage: null,
         });
+        setSelectedPropertyIds([]);
     };
 
     const handleSubmit = async (e) => {
@@ -224,12 +271,14 @@ const AddNewUser = () => {
                                 <select
                                     className="form-control"
                                     name="propertyId"
-                                    value={formData.propertyId}
-                                    onChange={handleInputChange}
+                                    value={isManager ? selectedPropertyIds : (selectedPropertyIds[0] ?? "")}
+                                    onChange={handlePropertyChange}
                                     required
-                                    disabled={formData.roleId==="3" || formData.roleId==="4"|| formData.roleId==="10" }
+                                    multiple={isManager}
+                                    size={isManager ? 6 : undefined}
+                                    disabled={isPropertyDisabled}
                                 >
-                                    <option value="">Select Property</option>
+                                    {!isManager && <option value="">Select Property</option>}
                                     {propertyNames.map((property) => (
                                         <option key={property.PropertyId} value={property.PropertyId}>
                                             {property.Name}

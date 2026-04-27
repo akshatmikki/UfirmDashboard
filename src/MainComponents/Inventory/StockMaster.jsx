@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Button } from 'primereact/button';
 import { Toast } from 'primereact/toast';
-import { getCategories, getStock, addStockQuantity } from '../../Services/InventoryService';
+import { getCategories, getStock, addStockQuantity, getItemsByCategory, uploadStockExcel } from '../../Services/InventoryService';
 import { useSelector } from "react-redux";
 import { Dialog } from 'primereact/dialog';
 import { Dropdown } from 'primereact/dropdown';
@@ -30,9 +30,13 @@ const StockMaster = () => {
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [showAddQtyDialog, setShowAddQtyDialog] = useState(false);
+    const fileInputRef = useRef(null);
     const [selectedItem, setSelectedItem] = useState(null);
     const [addQty, setAddQty] = useState(0);
+    const [addRate, setAddRate] = useState(0);
     const [addQtyDialogCategory, setAddQtyDialogCategory] = useState(null);
+    const [dialogItems, setDialogItems] = useState([]);
+    const [loadingDialogItems, setLoadingDialogItems] = useState(false);
 
     useEffect(() => {
         if (!propertyId) {
@@ -66,8 +70,35 @@ const StockMaster = () => {
         fetchCategoriesAsync();
     }, [propertyId]);
 
-    const displayedData = selectedCategory
-        ? filteredGridData.filter(item => item.CategoryId === selectedCategory)
+    useEffect(() => {
+        if (!showAddQtyDialog || !propertyId) return;
+
+        const fetchItems = async () => {
+            setLoadingDialogItems(true);
+            try {
+                let items = [];
+                if (addQtyDialogCategory) {
+                    items = await getItemsByCategory(propertyId, addQtyDialogCategory);
+                } else {
+                    // If "All" is selected or no category, we can either fetch all items or use current stock
+                    // For now, let's stick to the current stock if "All" is selected, 
+                    // or we could use getAllItems(propertyId)
+                    items = filteredGridData;
+                }
+                setDialogItems(items || []);
+            } catch (error) {
+                console.error("Error fetching dialog items:", error);
+                setDialogItems([]);
+            } finally {
+                setLoadingDialogItems(false);
+            }
+        };
+
+        fetchItems();
+    }, [addQtyDialogCategory, showAddQtyDialog, propertyId, filteredGridData]);
+
+    const displayedData = selectedCategory !== null
+        ? filteredGridData.filter(item => Number(item.CategoryId) === Number(selectedCategory))
         : filteredGridData;
 
     if (!propertyId || propertyId === 0) return null;
@@ -77,65 +108,96 @@ const StockMaster = () => {
     const visibleCategories = categories.slice(0, MAX_VISIBLE);
     const moreCategories = categories.slice(MAX_VISIBLE);
 
-    const filteredDialogItems = addQtyDialogCategory
-        ? filteredGridData.filter(item => item.CategoryId === addQtyDialogCategory)
-        : filteredGridData;
-
-    const itemOptions = filteredDialogItems.map(item => ({
-        label: `${item.ItemName} (${item.ItemDescription})`,
-        value: item.ItemId,
+    const itemOptions = dialogItems.map(item => ({
+        label: item.ItemName || item.Name, // API might return ItemName or Name depending on the endpoint
+        value: item.ItemId || item.Id,
     }));
 
     const selectedItemObj = filteredGridData.find(i => i.ItemId === selectedItem);
 
     const handleAddQuantity = async () => {
-    if (!selectedItem || !addQty) {
-        toast.current.show({
-            severity: 'warn',
-            summary: 'Warning',
-            detail: 'Please select item and quantity'
-        });
-        return;
-    }
+        if (!selectedItem || !addQty) {
+            toast.current.show({
+                severity: 'warn',
+                summary: 'Warning',
+                detail: 'Please select item and quantity'
+            });
+            return;
+        }
 
-    const payload = {
-        Id: 0,
-        PropertyId: propertyId,
-        ItemId: selectedItem,
-        MinQty: selectedItemObj?.MinStockLevel || 0,
-        CurrentQty: addQty
+        const payload = {
+            Id: 0,
+            PropertyId: propertyId,
+            ItemId: selectedItem,
+            MinQty: selectedItemObj?.MinStockLevel || 0,
+            CurrentQty: addQty,
+            CurrentRate: addQty > 0 ? (addRate || 0) : 0,
+        };
+
+        try {
+            await addStockQuantity(payload);
+
+            toast.current.show({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Quantity added successfully'
+            });
+
+            setShowAddQtyDialog(false);
+            setAddQty(0);
+            setSelectedItem(null);
+            setAddQtyDialogCategory(null);
+
+            // refresh stock list
+            const stockData = await getStock(propertyId);
+            const uniqueStock = Array.isArray(stockData)
+                ? Array.from(new Map(stockData.map(item => [item.ItemId, item])).values())
+                : [];
+            setFilteredGridData(uniqueStock);
+
+        } catch (error) {
+            toast.current.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.message || 'Failed to add quantity'
+            });
+        }
     };
 
-    try {
-        await addStockQuantity(payload);
 
-        toast.current.show({
-            severity: 'success',
-            summary: 'Success',
-            detail: 'Quantity added successfully'
-        });
+    const handleExcelUpload = async (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
 
-        setShowAddQtyDialog(false);
-        setAddQty(0);
-        setSelectedItem(null);
-        setAddQtyDialogCategory(null);
+        const formData = new FormData();
+        formData.append('propertyId', propertyId);
+        formData.append('file', file);
 
-        // refresh stock list
-        const stockData = await getStock(propertyId);
-        const uniqueStock = Array.isArray(stockData)
-            ? Array.from(new Map(stockData.map(item => [item.ItemId, item])).values())
-            : [];
-        setFilteredGridData(uniqueStock);
+        try {
+            await uploadStockExcel(formData);
+            toast.current.show({
+                severity: 'success',
+                summary: 'Success',
+                detail: 'Stock updated via Excel successfully'
+            });
 
-    } catch (error) {
-        toast.current.show({
-            severity: 'error',
-            summary: 'Error',
-            detail: error.message || 'Failed to add quantity'
-        });
-    }
-};
+            // refresh stock list
+            const stockData = await getStock(propertyId);
+            const uniqueStock = Array.isArray(stockData)
+                ? Array.from(new Map(stockData.map(item => [item.ItemId, item])).values())
+                : [];
+            setFilteredGridData(uniqueStock);
 
+        } catch (error) {
+            toast.current.show({
+                severity: 'error',
+                summary: 'Error',
+                detail: error.message || 'Excel upload failed'
+            });
+        } finally {
+            event.target.value = ''; // Reset input
+        }
+    };
 
     const dialogFooter = (
         <div>
@@ -149,17 +211,26 @@ const StockMaster = () => {
         <div className="content-wrapper">
             <Toast ref={toast} />
 
-            <div className="content-header">
-                <div className="row">
-                    <div className="col d-flex align-items-center">
-                        <h1 className="m-0 pl-3 text-dark" style={{ flex: 1 }}>Stock Page</h1>
-                        <Button label="Add Quantity" icon="pi pi-plus" className="p-button-success"
-                            onClick={() => setShowAddQtyDialog(true)} style={{ marginLeft: 16 }} />
+            <div className="content-header" style={{ padding: '20px 30px', background: '#f8f9fa', borderBottom: '1px solid #dee2e6', marginBottom: 20 }}>
+                <div className="d-flex justify-content-between align-items-center">
+                    <h1 className="m-0 text-dark" style={{ fontWeight: 600, letterSpacing: '-0.5px' }}>Stock Inventory</h1>
+                    <div className="d-flex gap-3">
+                        <Button label="Add Quantity" icon="pi pi-plus" className="p-button-success p-button-raised"
+                            onClick={() => setShowAddQtyDialog(true)} />
+                        <Button label="Upload Excel" icon="pi pi-upload" className="p-button-help p-button-raised"
+                            onClick={() => fileInputRef.current.click()} />
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            style={{ display: 'none' }}
+                            accept=".xls,.xlsx"
+                            onChange={handleExcelUpload}
+                        />
                     </div>
                 </div>
             </div>
 
-            <Dialog header="Add Quantity to Item" visible={showAddQtyDialog} style={{ width: '400px' }} modal
+            <Dialog header="Add Quantity to Item" visible={showAddQtyDialog} style={{ width: '450px' }} modal
                 onHide={() => setShowAddQtyDialog(false)} footer={dialogFooter}>
                 <div className="p-fluid">
                     <div className="p-field" style={{ marginBottom: 16 }}>
@@ -175,12 +246,20 @@ const StockMaster = () => {
                     <div className="p-field" style={{ marginBottom: 16 }}>
                         <label>Select Item</label>
                         <Dropdown value={selectedItem} options={itemOptions}
-                            onChange={e => setSelectedItem(e.value)} filter showClear />
+                            onChange={e => setSelectedItem(e.value)} filter showClear
+                            placeholder={loadingDialogItems ? "Loading items..." : "Select an item"}
+                            disabled={loadingDialogItems}
+                        />
                     </div>
 
                     <div className="p-field" style={{ marginBottom: 16 }}>
                         <label>Quantity to Add</label>
                         <InputNumber value={addQty} onValueChange={e => setAddQty(e.value)} min={1} showButtons />
+                    </div>
+
+                    <div className="p-field" style={{ marginBottom: 16 }}>
+                        <label>Current Rate</label>
+                        <InputNumber value={addRate} onValueChange={e => setAddRate(e.value)} min={0} step={0.01} />
                     </div>
 
                     {selectedItemObj && (
@@ -191,24 +270,23 @@ const StockMaster = () => {
                 </div>
             </Dialog>
 
-            {/* 🔹 CATEGORY BAR (UI SAME, ONLY ⋮ ADDED) */}
-            <div className="scroll-container" style={{ overflowX: 'auto', whiteSpace: 'nowrap', padding: '0 16px' }}>
-                <div className="scroll-row" style={{ display: 'inline-flex', gap: 5 }}>
-
+            {/* 🔹 CATEGORY BAR */}
+            <div className="category-container" style={{ padding: '0 30px', marginBottom: 25 }}>
+                <div className="d-flex align-items-center gap-2 overflow-auto" style={{ paddingBottom: 10, scrollbarWidth: 'none' }}>
                     <Button
-                        label="All"
-                        className={`p-button-rounded category-btn ${selectedCategory === null ? 'category-btn-active' : ''}`}
+                        label="All Categories"
+                        className={`p-button-rounded ${selectedCategory === null ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
                         onClick={() => setSelectedCategory(null)}
-                        style={{ minWidth: 120 }}
+                        style={{ minWidth: 140, transition: 'all 0.2s' }}
                     />
 
                     {visibleCategories.map(cat => (
                         <Button
                             key={cat.Id}
                             label={cat.Name}
-                            className={`p-button-rounded category-btn ${selectedCategory === cat.Id ? 'category-btn-active' : ''}`}
+                            className={`p-button-rounded ${selectedCategory === cat.Id ? 'p-button-primary' : 'p-button-outlined p-button-secondary'}`}
                             onClick={() => setSelectedCategory(cat.Id)}
-                            style={{ minWidth: 120 }}
+                            style={{ minWidth: 120, transition: 'all 0.2s' }}
                         />
                     ))}
 
@@ -217,42 +295,103 @@ const StockMaster = () => {
                             value={selectedCategory}
                             options={moreCategories.map(cat => ({ label: cat.Name, value: cat.Id }))}
                             onChange={e => setSelectedCategory(e.value)}
-                            placeholder="⋮"
-                            style={{ width: 60 }}
+                            placeholder="More Categories"
+                            style={{ width: 180 }}
+                            className="p-button-rounded"
                         />
                     )}
                 </div>
             </div>
 
-            {/* ITEM LIST — NO CHANGE */}
-            <div className="item-list" style={{ marginLeft: 32, marginTop: 10 }}>
+            {/* ITEM LIST */}
+            <div className="item-list-container" style={{ padding: '0 30px 40px' }}>
                 {displayedData.map(item => {
                     const received = item.CurrentQty || 0;
                     const minStock = item.MinStockLevel || 1;
                     const maxQty = 10 * minStock;
                     const receivedPercent = Math.min(received / maxQty, 1);
+                    const isLowStock = received < minStock;
 
                     return (
-                        <div key={item.ItemId} style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 20 }}>
-                            <div style={{ fontWeight: 'bold', fontSize: 17, minWidth: 120, textAlign: 'right' }}>
-                                {item.ItemName} :
+                        <div key={item.ItemId} className="stock-item-row" style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 20,
+                            marginBottom: 20,
+                            padding: '15px',
+                            background: '#fff',
+                            borderRadius: '12px',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                            transition: 'transform 0.2s, box-shadow 0.2s',
+                            cursor: 'default'
+                        }}>
+                            <div className="item-info" style={{
+                                minWidth: '300px',
+                                maxWidth: '300px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 2
+                            }}>
+                                <div style={{ fontWeight: '600', fontSize: '16px', color: '#333', lineHeight: '1.2' }}>
+                                    {item.ItemName}
+                                </div>
                             </div>
 
-                            <div style={{ height: 32, width: 900, background: '#eee', borderRadius: 8, position: 'relative' }}>
+                            <div className="progress-wrapper" style={{
+                                flex: 1,
+                                height: 36,
+                                background: '#f1f3f5',
+                                borderRadius: 18,
+                                position: 'relative',
+                                overflow: 'hidden',
+                                border: '1px solid #e9ecef'
+                            }}>
                                 <div style={{
                                     width: `${receivedPercent * 100}%`,
-                                    background: received < minStock ? '#FF0000' : '#43a047',
-                                    height: '100%'
+                                    background: isLowStock
+                                        ? 'linear-gradient(90deg, #ff6b6b, #fa5252)'
+                                        : 'linear-gradient(90deg, #51cf66, #40c057)',
+                                    height: '100%',
+                                    borderRadius: 18,
+                                    transition: 'width 0.6s cubic-bezier(0.4, 0, 0.2, 1)'
                                 }} />
 
                                 <div style={{
-                                    position: 'absolute', inset: 0, display: 'flex',
-                                    justifyContent: 'space-between', alignItems: 'center',
-                                    padding: '0 8px', fontSize: 14
+                                    position: 'absolute',
+                                    inset: 0,
+                                    display: 'flex',
+                                    justifyContent: 'flex-end',
+                                    alignItems: 'center',
+                                    padding: '0 20px',
+                                    fontSize: '13px',
+                                    fontWeight: '700',
+                                    color: receivedPercent > 0.8 ? '#fff' : '#495057',
+                                    textShadow: receivedPercent > 0.8 ? '0 1px 2px rgba(0,0,0,0.1)' : 'none'
                                 }}>
-                                    <span>{item.ItemDescription} | {item.BrandName}</span>
                                     <span>Quantity: {received}</span>
                                 </div>
+                            </div>
+
+                            <div style={{ minWidth: '100px', textAlign: 'right' }}>
+                                {isLowStock ? (
+                                    <span style={{
+                                        color: '#fa5252',
+                                        background: '#fff5f5',
+                                        padding: '4px 10px',
+                                        borderRadius: '20px',
+                                        fontSize: '12px',
+                                        fontWeight: '600'
+                                    }}>Low Stock</span>
+                                ) : (
+                                    <span style={{
+                                        color: '#40c057',
+                                        background: '#ebfbee',
+                                        padding: '4px 10px',
+                                        borderRadius: '20px',
+                                        fontSize: '12px',
+                                        fontWeight: '600'
+                                    }}>In Stock</span>
+                                )}
                             </div>
                         </div>
                     );

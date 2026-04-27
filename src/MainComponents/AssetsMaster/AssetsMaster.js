@@ -19,9 +19,9 @@ import QRCode from "react-qr-code";
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onload = () => resolve(reader.result.split(","));
+    reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = (error) => reject(error);
+    reader.readAsDataURL(file);
   });
 
 const RadioButtonGroup = ({ options, name, selectedValue, onChange }) => (
@@ -164,14 +164,39 @@ class AssetsMaster extends Component {
     return year && month && day ? `${day}-${month}-${year}` : normalized;
   };
 
+  getFileExtension = (fileName = "") => {
+    const rawName = String(fileName || "").trim();
+    if (!rawName || !rawName.includes(".")) return "";
+    const ext = rawName.split(".").pop();
+    return String(ext || "").trim().toLowerCase();
+  };
+
+  inferExtensionFromBase64 = (base64Payload = "") => {
+    const raw = String(base64Payload || "").trim();
+    if (!raw) return "";
+    // Common "magic numbers" in base64 form
+    if (raw.startsWith("JVBERi0")) return "pdf"; // %PDF
+    if (raw.startsWith("/9j/")) return "jpg"; // JPEG
+    if (raw.startsWith("iVBORw0KGgo")) return "png"; // PNG
+    if (raw.startsWith("R0lGOD")) return "gif"; // GIF
+    if (raw.startsWith("UklGR")) return "webp"; // WEBP (RIFF)
+    return "";
+  };
+
   getPreviewSrc = (fileData, ext = "png") => {
     if (!fileData) return "";
     const raw = String(fileData);
     if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) {
       return raw;
     }
-    const normalizedExt = String(ext || "png").toLowerCase();
-    const mimeType = normalizedExt === "pdf" ? "application/pdf" : `image/${normalizedExt === "jpg" ? "jpeg" : normalizedExt}`;
+
+    const inferredExt = this.inferExtensionFromBase64(raw);
+    const requestedExt = String(ext || "").toLowerCase();
+    const normalizedExt = (inferredExt && (!requestedExt || requestedExt === "png") ? inferredExt : requestedExt) || inferredExt || "png";
+    const mimeType =
+      normalizedExt === "pdf"
+        ? "application/pdf"
+        : `image/${normalizedExt === "jpg" ? "jpeg" : normalizedExt}`;
     return `data:${mimeType};base64,${raw}`;
   };
 
@@ -502,16 +527,16 @@ class AssetsMaster extends Component {
 
     if (this.state.ImageData?.name && this.state.ImageData?.size) {
       const fileD = await toBase64(this.state.ImageData);
-      assetImage = fileD[1];
+      assetImage = fileD;
       imageExt = this.state.ImageData.name.substring(this.state.ImageData.name.lastIndexOf(".") + 1);
     }
     if (this.state.AMCdoc?.name && this.state.AMCdoc?.size) {
       const fileD = await toBase64(this.state.AMCdoc);
-      amcImage = fileD[1];
+      amcImage = fileD;
     }
     if (this.state.WarrantyDocument?.name && this.state.WarrantyDocument?.size) {
       const fileD = await toBase64(this.state.WarrantyDocument);
-      warrantyImage = fileD[1];
+      warrantyImage = fileD;
     }
 
     if (ValidateControls()) {
@@ -864,8 +889,17 @@ class AssetsMaster extends Component {
       this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
       this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
     );
-    const amcSource = this.getPreviewSrc(this.state.AMCimage || asset.AMCdoc || asset.AMCimage, "png");
-    const warrantySource = this.getPreviewSrc(this.state.warrantyImage || asset.WarrantyDocument || asset.warrantyImage, "png");
+    const amcExt =
+      this.getFileExtension(this.state.amcFileName) ||
+      this.getFileExtension(asset.AMCdocName || asset.AMCimageName || "");
+    const warrantyExt =
+      this.getFileExtension(this.state.warrantyFileName) ||
+      this.getFileExtension(asset.WarrantyDocumentName || asset.warrantyImageName || "");
+    const amcSource = this.getPreviewSrc(this.state.AMCimage || asset.AMCdoc || asset.AMCimage, amcExt);
+    const warrantySource = this.getPreviewSrc(
+      this.state.warrantyImage || asset.WarrantyDocument || asset.warrantyImage,
+      warrantyExt
+    );
 
     return (
       <div className="asset-side-panel asset-details-view-panel">

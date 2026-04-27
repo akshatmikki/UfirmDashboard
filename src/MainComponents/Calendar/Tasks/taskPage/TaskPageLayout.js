@@ -133,6 +133,22 @@ const taskPageCss = `
 .task-schedule-preview-list{margin:0;padding-left:18px;}
 .task-schedule-error{margin-top:12px;padding:10px 12px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-weight:600;}
 .task-schedule-actions{display:flex;justify-content:flex-end;margin-top:12px;}
+
+/* Custom View Grid */
+.task-view-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px 12px; align-items: start; padding-top: 5px; }
+@media (max-width:1199.98px){.task-view-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
+@media (max-width:991.98px){.task-view-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
+@media (max-width:575.98px){.task-view-grid{grid-template-columns:1fr;}}
+.task-view-field { display: flex; flex-direction: column; gap: 4px; }
+.task-view-field--wide { grid-column: span 2; }
+.task-view-field--full { grid-column: 1 / -1; }
+.task-view-label { font-size: 13px; color: #64748b; font-weight: 500; margin: 0; }
+.task-view-value { font-size: 14px; color: #1e293b; margin: 0; word-break: break-word; }
+.task-priority-badge { font-size: 14px; font-weight: 600; }
+.task-priority-badge.high { color: #dc2626; }
+.task-priority-badge.medium { color: #d97706; }
+.task-priority-badge.low { color: #059669; }
+.task-status-badge { font-size: 13px; font-weight: 500; background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; }
 `;
 
 export function useSingleOpenSection(defaultKey = "details") {
@@ -167,7 +183,7 @@ export function useMultiOpenSections(defaultKeys = []) {
   return { isOpen, toggleSection };
 }
 
-export function TaskShell({ visible, title, onClose, footer, children, oneThird = false }) {
+export function TaskShell({ visible, title, priority, status, rightActions, onClose, footer, children, oneThird = false }) {
   const modalBodyRef = useRef(null);
   const wasVisibleRef = useRef(false);
 
@@ -205,12 +221,27 @@ export function TaskShell({ visible, title, onClose, footer, children, oneThird 
         <div className="row">
           <div className="col-12">
           <div className="card card-primary task-modal-card">
-            <div className="card-header">
+                        <div className="card-header">
               <div className="task-modal-header">
-                <h3 className="task-modal-title">{title}</h3>
-                <button className="btn btn-tool task-modal-close" onClick={onClose} type="button">
-                  <i className="fas fa-times" />
-                </button>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <h3 className="task-modal-title">{title}</h3>
+                  {priority && (
+                    <span className={`task-priority-badge ${String(priority).toLowerCase()}`}>
+                      {priority} {String(priority).toLowerCase().includes("priority") ? "" : "Priority"}
+                    </span>
+                  )}
+                  {status && (
+                    <span className="task-status-badge">
+                      {status}
+                    </span>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                  {rightActions}
+                  <button className="btn btn-tool task-modal-close" onClick={onClose} type="button" style={{ padding: "0" }}>
+                    <i className="fas fa-times" style={{ fontSize: "20px" }} />
+                  </button>
+                </div>
               </div>
             </div>
             <div className="task-modal-body" ref={modalBodyRef}>{children}</div>

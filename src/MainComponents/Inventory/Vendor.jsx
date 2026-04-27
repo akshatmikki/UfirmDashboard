@@ -26,6 +26,7 @@ const Vendor = (props) => {
     { sTitle: "Action", titleValue: "Action", Action: "Edit&View&Delete", Index: "0", orderable: false },
   ]
   const propertyId = useSelector((state) => state.Commonreducer.puidn)
+  const userId = useSelector((state) => state.Commonreducer.userId)
   const emptyVendorData = {
     Id: 0,
     Name: "",
@@ -35,10 +36,10 @@ const Vendor = (props) => {
     Address: "",
     GSTNumber: "",
     PANNumber: "",
-    PAN_DocumentPath: "",
-    GST_DocumentPath: "",
-    Brochure: "",
-    WebsiteURL: "",
+    PANFileUrl: "",
+    GSTCertificateUrl: "",
+    BrochureUrl: "",
+    WebsiteUrl: "",
     PropertyId: propertyId,
     IsApproved: false
   }
@@ -51,39 +52,33 @@ const Vendor = (props) => {
   const [selectedGSTFile, setSelectedGSTFile] = useState(null)
   const [selectedBrochureFile, setSelectedBrochureFile] = useState(null)
 
-  const handleFileChange = async (e) => {
+  const handleFileChange = (e) => {
     const { id, files } = e.target
     const file = files[0]
     if (file) {
       switch (id) {
-        case "PAN_DocumentPath":
+        case "PANFileUrl":
           setSelectedPANFile(file)
-          setVendorData((prevState) => ({ ...prevState, PAN_DocumentPath: selectedPANFile }))
           break
-        case "GST_DocumentPath":
+        case "GSTCertificateUrl":
           setSelectedGSTFile(file)
-          setVendorData((prevState) => ({ ...prevState, GST_DocumentPath: selectedGSTFile }))
           break
-        case "Brochure":
+        case "BrochureUrl":
           setSelectedBrochureFile(file)
-          setVendorData((prevState) => ({ ...prevState, Brochure: selectedBrochureFile}))
           break
         default:
           break
       }
     } else {
       switch (id) {
-        case "PAN_DocumentPath":
+        case "PANFileUrl":
           setSelectedPANFile(null)
-          setVendorData((prevState) => ({ ...prevState, PAN_DocumentPath: "" }))
           break
-        case "GST_DocumentPath":
+        case "GSTCertificateUrl":
           setSelectedGSTFile(null)
-          setVendorData((prevState) => ({ ...prevState, GST_DocumentPath: "" }))
           break
-        case "Brochure":
+        case "BrochureUrl":
           setSelectedBrochureFile(null)
-          setVendorData((prevState) => ({ ...prevState, Brochure: "" }))
           break
         default:
           break
@@ -93,36 +88,52 @@ const Vendor = (props) => {
 
   const handleCreateVendor = async (newVendor) => {
     try {
-      if (selectedPANFile) {
-        newVendor.PAN_DocumentPath = selectedPANFile
-      }
-      if (selectedGSTFile) {
-        newVendor.GST_DocumentPath = selectedGSTFile
-      }
-      if (selectedBrochureFile) {
-        newVendor.Brochure = selectedBrochureFile
-      }
-      await createVendor(newVendor)
-      appCommon.showtextalert("Vendor Saved Successfully!", "", "success")
-      handleCancel()
-      await getVendorList(propertyId)
+      const formData = new FormData();
+      formData.append("PropertyId", propertyId);
+      formData.append("Name", newVendor.Name);
+      formData.append("ContactPerson", newVendor.ContactPerson);
+      formData.append("ContactNumber", newVendor.ContactNumber);
+      formData.append("Email", newVendor.Email);
+      formData.append("Address", newVendor.Address);
+      formData.append("GSTNumber", newVendor.GSTNumber);
+      formData.append("PANNumber", newVendor.PANNumber);
+      formData.append("WebsiteUrl", newVendor.WebsiteUrl || "");
+      formData.append("CreatedBy", userId || 1);
+
+      if (selectedPANFile) formData.append("pan", selectedPANFile);
+      if (selectedGSTFile) formData.append("gst", selectedGSTFile);
+      if (selectedBrochureFile) formData.append("brochure", selectedBrochureFile);
+
+      await createVendor(formData);
+      appCommon.showtextalert("Vendor Saved Successfully!", "", "success");
+      handleCancel();
+      await getVendorList(propertyId);
     } catch (error) {
-      appCommon.showtextalert("Error Creating Vendor", error.message, "error")
+      appCommon.showtextalert("Error Creating Vendor", error.message, "error");
     }
-  }
+  };
 
   const handleUpdateVendor = async (id, updatedVendor) => {
     try {
-      if (selectedPANFile) {
-        updatedVendor.PAN_DocumentPath = selectedPANFile
-      }
-      if (selectedGSTFile) {
-        updatedVendor.GST_DocumentPath = selectedGSTFile
-      }
-      if (selectedBrochureFile) {
-        updatedVendor.Brochure = selectedBrochureFile
-      }
-      await updateVendor(id, updatedVendor)
+      const formData = new FormData();
+      formData.append("Id", id);
+      formData.append("PropertyId", propertyId);
+      formData.append("Name", updatedVendor.Name);
+      formData.append("ContactPerson", updatedVendor.ContactPerson);
+      formData.append("ContactNumber", updatedVendor.ContactNumber);
+      formData.append("Email", updatedVendor.Email);
+      formData.append("Address", updatedVendor.Address);
+      formData.append("GSTNumber", updatedVendor.GSTNumber);
+      formData.append("PANNumber", updatedVendor.PANNumber);
+      formData.append("WebsiteUrl", updatedVendor.WebsiteUrl || "");
+      formData.append("CreatedBy", userId || 1);
+      formData.append("IsApproved", updatedVendor.IsApproved ? "true" : "false");
+
+      if (selectedPANFile) formData.append("pan", selectedPANFile);
+      if (selectedGSTFile) formData.append("gst", selectedGSTFile);
+      if (selectedBrochureFile) formData.append("brochure", selectedBrochureFile);
+
+      await updateVendor(id, formData);
       appCommon.showtextalert("Vendor Updated Successfully!", "", "success")
       handleCancel()
       await getVendorList(propertyId)
@@ -295,12 +306,12 @@ const Vendor = (props) => {
   }
 
   const viewDocument = () => {
-    if(VendorData.PAN_DocumentPath && VendorData.PAN_DocumentPath !== "") {
-      window.open(VendorData.PAN_DocumentPath, "_blank")
-    } else if (VendorData.GST_DocumentPath && VendorData.GST_DocumentPath !== "") {
-      window.open(VendorData.GST_DocumentPath, "_blank")
-    } else if (VendorData.Brochure && VendorData.Brochure !== "") {
-      window.open(VendorData.Brochure, "_blank")
+    if(VendorData.PANFileUrl && VendorData.PANFileUrl !== "") {
+      window.open(VendorData.PANFileUrl, "_blank")
+    } else if (VendorData.GSTCertificateUrl && VendorData.GSTCertificateUrl !== "") {
+      window.open(VendorData.GSTCertificateUrl, "_blank")
+    } else if (VendorData.BrochureUrl && VendorData.BrochureUrl !== "") {
+      window.open(VendorData.BrochureUrl, "_blank")
     } else{
       appCommon.showtextalert("Error", "No document available to view.", "error")
     }
@@ -464,24 +475,24 @@ const Vendor = (props) => {
                       <label>Pan Card Document</label>
                       <div className="input-group">
                         <input
-                          id="PAN_DocumentPath"
+                          id="PANFileUrl"
                           name="DocumentPath"
                           required
                           placeholder="Select Pan Card Document"
                           type="file"
                           className="form-control"
                           onChange={handleFileChange}
-                          accept=".pdf, .doc, .docx, .jpg, .jpeg, .png"
+                          accept=".pdf, .jpg, .jpeg, .png"
                         />
-                        {selectedFile && (
+                        {selectedPANFile && (
                           <div className="input-group-append">
-                            <span className="input-group-text">{selectedFile.name}</span>
+                            <span className="input-group-text">{selectedPANFile.name}</span>
                           </div>
                         )}
                       </div>
-                      {VendorData.PAN_DocumentPath && pageMode === "Edit" && !selectedFile && (
+                      {VendorData.PANFileUrl && pageMode === "Edit" && !selectedPANFile && (
                         <small className="form-text text-muted">
-                          Current document: {VendorData.PAN_DocumentPath.substring(0, 50)}...
+                          Current document: {VendorData.PANFileUrl.substring(0, 50)}...
                         </small>
                       )}
                     </div>
@@ -489,24 +500,24 @@ const Vendor = (props) => {
                       <label>GST Document</label>
                       <div className="input-group">
                         <input
-                          id="GST_DocumentPath"
+                          id="GSTCertificateUrl"
                           name="DocumentPath"
                           required
                           placeholder="Select GST Document"
                           type="file"
                           className="form-control"
                           onChange={handleFileChange}
-                          accept=".pdf, .doc, .docx, .jpg, .jpeg, .png"
+                          accept=".pdf, .jpg, .jpeg, .png"
                         />
-                        {selectedFile && (
+                        {selectedGSTFile && (
                           <div className="input-group-append">
-                            <span className="input-group-text">{selectedFile.name}</span>
+                            <span className="input-group-text">{selectedGSTFile.name}</span>
                           </div>
                         )}
                       </div>
-                      {VendorData.GST_DocumentPath && pageMode === "Edit" && !selectedFile && (
+                      {VendorData.GSTCertificateUrl && pageMode === "Edit" && !selectedGSTFile && (
                         <small className="form-text text-muted">
-                          Current document: {VendorData.GST_DocumentPath.substring(0, 50)}...
+                          Current document: {VendorData.GSTCertificateUrl.substring(0, 50)}...
                         </small>
                       )}
                     </div>
@@ -514,36 +525,36 @@ const Vendor = (props) => {
                       <label>Brochure</label>
                       <div className="input-group">
                         <input
-                          id="Brochure"
+                          id="BrochureUrl"
                           name="DocumentPath"
                           required
                           placeholder="Select Brochure"
                           type="file"
                           className="form-control"
                           onChange={handleFileChange}
-                          accept=".pdf, .doc, .docx, .jpg, .jpeg, .png"
+                          accept=".pdf, .jpg, .jpeg, .png"
                         />
-                        {selectedFile && (
+                        {selectedBrochureFile && (
                           <div className="input-group-append">
-                            <span className="input-group-text">{selectedFile.name}</span>
+                            <span className="input-group-text">{selectedBrochureFile.name}</span>
                           </div>
                         )}
                       </div>
-                      {VendorData.Brochure && pageMode === "Edit" && !selectedFile && (
+                      {VendorData.BrochureUrl && pageMode === "Edit" && !selectedBrochureFile && (
                         <small className="form-text text-muted">
-                          Current document: {VendorData.Brochure.substring(0, 50)}...
+                          Current document: {VendorData.BrochureUrl.substring(0, 50)}...
                         </small>
                       )}
                     </div>
                     <div className="col-sm-6">
                       <label>Website URL</label>
                       <input
-                        id="WebsiteURL"
+                        id="WebsiteUrl"
                         required
                         placeholder="Enter Website URL"
                         type="text"
                         className="form-control"
-                        value={VendorData.WebsiteURL}
+                        value={VendorData.WebsiteUrl}
                         onChange={handleInputChange}
                       />
                     </div>
@@ -638,12 +649,12 @@ const Vendor = (props) => {
                           type="text"
                           className="form-control"
                           id="DocumentPath"
-                          value={VendorData.PAN_DocumentPath ? VendorData.PAN_DocumentPath.split("/").pop() : ""}
+                          value={VendorData.PANFileUrl ? VendorData.PANFileUrl.split("/").pop() : ""}
                           readOnly
                         />
-                        {VendorData.PAN_DocumentPath && (
+                        {VendorData.PANFileUrl && (
                           <div className="input-group-append">
-                            <button type="button" className="btn btn-outline-secondary" onClick={viewDocument}>
+                            <button type="button" className="btn btn-outline-secondary" onClick={() => window.open(VendorData.PANFileUrl, "_blank")}>
                               View
                             </button>
                           </div>
@@ -657,12 +668,12 @@ const Vendor = (props) => {
                           type="text"
                           className="form-control"
                           id="DocumentPath"
-                          value={VendorData.GST_DocumentPath ? VendorData.GST_DocumentPath.split("/").pop() : ""}
+                          value={VendorData.GSTCertificateUrl ? VendorData.GSTCertificateUrl.split("/").pop() : ""}
                           readOnly
                         />
-                        {VendorData.GST_DocumentPath && (
+                        {VendorData.GSTCertificateUrl && (
                           <div className="input-group-append">
-                            <button type="button" className="btn btn-outline-secondary" onClick={viewDocument}>
+                            <button type="button" className="btn btn-outline-secondary" onClick={() => window.open(VendorData.GSTCertificateUrl, "_blank")}>
                               View
                             </button>
                           </div>
@@ -676,12 +687,12 @@ const Vendor = (props) => {
                           type="text"
                           className="form-control"
                           id="DocumentPath"
-                          value={VendorData.Brochure ? VendorData.Brochure.split("/").pop() : ""}
+                          value={VendorData.BrochureUrl ? VendorData.BrochureUrl.split("/").pop() : ""}
                           readOnly
                         />
-                        {VendorData.Brochure && (
+                        {VendorData.BrochureUrl && (
                           <div className="input-group-append">
-                            <button type="button" className="btn btn-outline-secondary" onClick={viewDocument}>
+                            <button type="button" className="btn btn-outline-secondary" onClick={() => window.open(VendorData.BrochureUrl, "_blank")}>
                               View
                             </button>
                           </div>
@@ -693,8 +704,8 @@ const Vendor = (props) => {
                       <input
                         type="text"
                         className="form-control"
-                        id="WebsiteURL"
-                        value={VendorData.WebsiteURL}
+                        id="WebsiteUrl"
+                        value={VendorData.WebsiteUrl}
                         readOnly
                       />
                     </div>

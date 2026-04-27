@@ -1,4 +1,4 @@
-﻿import React, { Component } from "react";
+import React, { Component } from "react";
 import { connect } from "react-redux";
 import departmentAction from "../../../../src/redux/department/action.js";
 import { bindActionCreators } from "redux";
@@ -19,6 +19,7 @@ import { downloadExcel } from "react-export-table-to-excel";
 import { CSVLink } from "react-csv";
 import LayoutDataProvider from "../../../Routing/LayoutDataProvider";
 import { getFrequencyList } from "../../../Services/masterService";
+import * as XLSX from "xlsx";
 
 const $ = window.$;
 
@@ -313,6 +314,8 @@ class TaskList extends Component {
         return rData.map((q) => ({
           QuesId: q.QuestID,
           QuesName: q.QuestionName,
+          Action: q.Action,
+          Remark: q.Remarks,
         }));
       }
 
@@ -323,7 +326,144 @@ class TaskList extends Component {
     }
   };
 
+  handleCustomPropertyExport = async () => {
+    // Custom export for Property 43
+    // Group by Supervisor -> Task Name -> Matrix of Location x Questionnaires
+    if (this.state.exporting) return;
+    this.setState({ exporting: true });
+
+    try {
+      // 1. Fetch questions for ALL visible tasks.
+      const tasksWithQues = [];
+      for (const task of this.state.data) {
+        const questions = await this.fetchQuestionsForTask(task);
+        tasksWithQues.push({
+          ...task,
+          questionsList: questions || []
+        });
+      }
+
+      // 2. Group by Supervisor (AssignedTo)
+      const supervisorGroups = {};
+      tasksWithQues.forEach((t) => {
+        const sup = t.AssignedTo || "Unassigned";
+        if (!supervisorGroups[sup]) supervisorGroups[sup] = [];
+        supervisorGroups[sup].push(t);
+      });
+
+      const wb = XLSX.utils.book_new();
+
+      // 3. Process each Supervisor group
+      Object.keys(supervisorGroups).forEach((supervisorName) => {
+        const supTasks = supervisorGroups[supervisorName];
+        let sheetData = [];
+
+        // Group by Task Name
+        const taskNameGroups = {};
+        supTasks.forEach((t) => {
+          const tName = t.Name || "Unnamed Task";
+          if (!taskNameGroups[tName]) taskNameGroups[tName] = [];
+          taskNameGroups[tName].push(t);
+        });
+
+        Object.keys(taskNameGroups).forEach((taskName) => {
+          const tasksUnderName = taskNameGroups[taskName];
+          
+          // Gather unique question names across all tasks in this TaskName group
+          const uniqueQuesNamesSet = new Set();
+          tasksUnderName.forEach(t => {
+             t.questionsList.forEach(q => {
+               if (q.QuesName) uniqueQuesNamesSet.add(q.QuesName);
+             });
+          });
+          const quesNameArray = Array.from(uniqueQuesNamesSet);
+
+          // Add headers
+          sheetData.push([`Task Name: ${taskName}`]);
+          sheetData.push([`Supervisor: ${supervisorName}`]);
+          sheetData.push([]);
+          
+          const headerRow = ["Location", ...quesNameArray, "Remarks"];
+          sheetData.push(headerRow);
+
+          // Add rows for each location/task
+          tasksUnderName.forEach(task => {
+            const rowData = [];
+            rowData.push(task.Location || "");
+            
+            // Map the questions
+            quesNameArray.forEach(qName => {
+               const matchedQ = task.questionsList.find(q => q.QuesName === qName);
+               if (matchedQ) {
+                 const status = String(matchedQ.Action || "").toLowerCase();
+                 if (status === "completed" || status === "complete" || status === "done") {
+                   rowData.push("✔");
+                 } else {
+                   rowData.push("✘");
+                 }
+               } else {
+                 rowData.push(""); // No such question for this location
+               }
+            });
+
+            // Actionable remark or default task remark
+            let rowRemark = task.Remarks || "";
+            let specificRemarks = [];
+            task.questionsList.forEach(q => {
+              if (q.Remark && q.Remark.trim() !== "") {
+                const qStatus = String(q.Action || "").toLowerCase();
+                // "in which actionable remark will come" -> capturing all remarks for context
+                if (qStatus.includes("actionable") || qStatus.includes("pending")) {
+                   specificRemarks.push(`${q.QuesName}: ${q.Remark}`);
+                } else if (q.Remark.trim()) {
+                   specificRemarks.push(`${q.QuesName}: ${q.Remark}`);
+                }
+              }
+            });
+            if (specificRemarks.length > 0) {
+               rowRemark = specificRemarks.join(" | ");
+            }
+
+            rowData.push(rowRemark);
+            sheetData.push(rowData);
+          });
+          
+          sheetData.push([]); // blank row after table
+          sheetData.push([]);
+        });
+
+        // Ensure valid sheet name (Excel limits to 31 chars, no brackets)
+        let safeSheetName = supervisorName.replace(/[\[\]\*\\\/\?\:]/g, "").substring(0, 31) || "Sheet";
+        const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
+      });
+
+      XLSX.writeFile(wb, "TaskList_Supervisor_Report.xlsx");
+
+    } catch (err) {
+      console.error("Custom export failed:", err);
+      alert("Custom export failed: " + (err.message || String(err)));
+      appCommon.showtextalert("Export failed", "Please try again later", "error");
+    } finally {
+      this.setState({ exporting: false });
+    }
+  };
+
   handleExportWithQuestions = async () => {
+    // Redirect to custom export if property is 43
+    // Logging/alerting to debug why the user says it's not working
+    if (String(this.props.PropertyVal).includes("43") || String(this.state.propertyId).includes("43")) {
+      return this.handleCustomPropertyExport().catch(err => {
+         alert("Fatal error in custom export: " + err);
+         this.setState({ exporting: false });
+      });
+    }
+
+    // fallback alert to verify if we missed the ID
+    if (String(this.props.PropertyVal).includes("pilani") || String(this.props.PropertyVal).includes("Pilani")) {
+       return this.handleCustomPropertyExport();
+    }
+
     // 🛑 prevent double click
     if (this.state.exporting) return;
 
@@ -925,6 +1065,14 @@ class TaskList extends Component {
   }
   onCategorySelected = (val) => { };
 
+  handleStatusFilter = (status) => {
+    this.setState({ taskStatus: status }, () => {
+      if (typeof this.Filter === "function") {
+        this.Filter();
+      }
+    });
+  };
+
   // TaskStatusConfig() {
   //   let _this = this;
   //   $("#ticketMutliSelect").multiselect({
@@ -968,8 +1116,9 @@ class TaskList extends Component {
   };
 
   renderTaskCards = () => {
-    const { data, searchTerm } = this.state;
-    const filteredData = data.filter((task) => {
+    const { data, searchTerm, taskStatus } = this.state;
+    // Step 1: Base search filter
+    const baseFilteredData = data.filter((task) => {
       const searchStr = searchTerm.toLowerCase();
       return (
         task.TaskId.toString().includes(searchStr) ||
@@ -979,7 +1128,7 @@ class TaskList extends Component {
       );
     });
 
-    if (filteredData.length === 0) {
+    if (baseFilteredData.length === 0) {
       return (
         <div className="text-center p-5 w-100">
           <h5>No tasks found</h5>
@@ -987,8 +1136,8 @@ class TaskList extends Component {
       );
     }
 
-    // Grouping tasks by UpdatedOn
-    const groupedData = filteredData.reduce((groups, task) => {
+    // Step 2: Grouping tasks by UpdatedOn using base search data so counts stay full
+    const groupedData = baseFilteredData.reduce((groups, task) => {
       const date = task.UpdatedOn;
       if (!groups[date]) {
         groups[date] = [];
@@ -1008,10 +1157,26 @@ class TaskList extends Component {
       <div className="container-fluid p-0">
         {sortedDates.map((date, gIndex) => {
           const isExpanded = activeDate === date;
-          const tasks = groupedData[date];
-          const completedCount = tasks.filter(t => t.TaskStatus === 'Completed').length;
-          const pendingCount = tasks.filter(t => t.TaskStatus === 'Pending').length;
-          const actionableCount = tasks.filter(t => t.TaskStatus === 'Actionable').length;
+          const allTasks = groupedData[date];
+          
+          const completedCount = allTasks.filter(t => t.TaskStatus === 'Completed' || t.TaskStatus === 'Complete').length;
+          const pendingCount = allTasks.filter(t => t.TaskStatus === 'Pending').length;
+          const actionableCount = allTasks.filter(t => t.TaskStatus === 'Actionable').length;
+
+          // Step 3: Now apply local status filter to display
+          const displayTasks = allTasks.filter((task) => {
+            const tStatus = String(task.TaskStatus || "").trim().toLowerCase();
+            const sFilter = String(taskStatus || "None").trim().toLowerCase();
+            
+            if (sFilter === "none" || sFilter === "" || sFilter === "0") return true;
+            if (sFilter === "complete" || sFilter === "completed") {
+               return (tStatus === "complete" || tStatus === "completed");
+            }
+            return (tStatus === sFilter);
+          });
+
+          // Skip rendering the group if nothing matches the status
+          if (displayTasks.length === 0) return null;
 
           return (
             <div key={gIndex} className="mb-4">
@@ -1030,15 +1195,15 @@ class TaskList extends Component {
                   <i className="fa fa-calendar mr-2 text-primary" style={{ fontSize: "1.1rem" }}></i>
                   <h5 className="mb-0 font-weight-bold text-primary mr-3">{date}</h5>
                   <div className="d-flex align-items-center bg-white px-2 py-1 rounded shadow-sm border" style={{ fontSize: "12px" }}>
-                    <span className="mr-3">
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Complete"); }}>
                       <i className="fa fa-check-circle text-success mr-1"></i>
                       <b>{completedCount}</b> Completed
                     </span>
-                    <span className="mr-3">
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Pending"); }}>
                       <i className="fa fa-clock-o text-danger mr-1"></i>
                       <b>{pendingCount}</b> Pending
                     </span>
-                    <span className="mr-3">
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Actionable"); }}>
                       <i className="fa fa-clock-o text-danger mr-1"></i>
                       <b>{actionableCount}</b> Actionable
                     </span>
@@ -1056,7 +1221,7 @@ class TaskList extends Component {
               </div>
               {isExpanded && (
                 <div className="row animated fadeIn">
-                  {tasks.map((task, index) => (
+                  {displayTasks.map((task, index) => (
                     <div className="col-lg-4 col-md-6 mb-4" key={index}>
                       <div className="card h-100 shadow-sm border"
                         style={{
@@ -1172,8 +1337,9 @@ class TaskList extends Component {
   };
 
   renderTaskTable = () => {
-    const { data, searchTerm } = this.state;
-    const filteredData = data.filter((task) => {
+    const { data, searchTerm, taskStatus } = this.state;
+    // Step 1: Base search filter
+    const baseFilteredData = data.filter((task) => {
       const searchStr = searchTerm.toLowerCase();
       return (
         task.TaskId.toString().includes(searchStr) ||
@@ -1183,7 +1349,7 @@ class TaskList extends Component {
       );
     });
 
-    if (filteredData.length === 0) {
+    if (baseFilteredData.length === 0) {
       return (
         <div className="text-center p-5 w-100">
           <h5>No tasks found</h5>
@@ -1192,7 +1358,7 @@ class TaskList extends Component {
     }
 
     // Grouping tasks by UpdatedOn
-    const groupedData = filteredData.reduce((groups, task) => {
+    const groupedData = baseFilteredData.reduce((groups, task) => {
       const date = task.UpdatedOn;
       if (!groups[date]) {
         groups[date] = [];
@@ -1212,10 +1378,25 @@ class TaskList extends Component {
       <div className="container-fluid p-0">
         {sortedDates.map((date, gIndex) => {
           const isExpanded = activeDate === date;
-          const tasks = groupedData[date];
-          const completedCount = tasks.filter(t => t.TaskStatus === 'Completed').length;
-          const pendingCount = tasks.filter(t => t.TaskStatus === 'Pending').length;
-          const actionableCount = tasks.filter(t => t.TaskStatus === 'Actionable').length;
+          const allTasks = groupedData[date];
+          
+          const completedCount = allTasks.filter(t => t.TaskStatus === 'Completed' || t.TaskStatus === 'Complete').length;
+          const pendingCount = allTasks.filter(t => t.TaskStatus === 'Pending').length;
+          const actionableCount = allTasks.filter(t => t.TaskStatus === 'Actionable').length;
+
+          // Step 3: Now apply local status filter
+          const displayTasks = allTasks.filter((task) => {
+            const tStatus = String(task.TaskStatus || "").trim().toLowerCase();
+            const sFilter = String(taskStatus || "None").trim().toLowerCase();
+            
+            if (sFilter === "none" || sFilter === "" || sFilter === "0") return true;
+            if (sFilter === "complete" || sFilter === "completed") {
+               return (tStatus === "complete" || tStatus === "completed");
+            }
+            return (tStatus === sFilter);
+          });
+
+          if (displayTasks.length === 0) return null;
 
           return (
             <div key={gIndex} className="mb-4">
@@ -1234,15 +1415,15 @@ class TaskList extends Component {
                   <i className="fa fa-calendar mr-2 text-primary" style={{ fontSize: "1.1rem" }}></i>
                   <h5 className="mb-0 font-weight-bold text-primary mr-3">{date}</h5>
                   <div className="d-flex align-items-center bg-white px-2 py-1 rounded shadow-sm border" style={{ fontSize: "12px" }}>
-                    <span className="mr-3">
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Complete"); }}>
                       <i className="fa fa-check-circle text-success mr-1"></i>
                       <b>{completedCount}</b> Completed
                     </span>
-                    <span className="mr-3">
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Pending"); }}>
                       <i className="fa fa-clock-o text-danger mr-1"></i>
                       <b>{pendingCount}</b> Pending
                     </span>
-                    <span className="mr-3">
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Actionable"); }}>
                       <i className="fa fa-clock-o text-danger mr-1"></i>
                       <b>{actionableCount}</b> Actionable
                     </span>
@@ -1261,7 +1442,7 @@ class TaskList extends Component {
 
               {isExpanded && (
                 <div className="animated fadeIn">
-                  {tasks.map((task, index) => (
+                  {displayTasks.map((task, index) => (
                     <div key={index} className="card mb-3 shadow-sm border" style={{ borderRadius: "12px", background: "#fff", overflow: "hidden" }}>
                       <div className="card-body p-1">
                         {/* Row 1: Headers */}

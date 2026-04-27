@@ -121,25 +121,25 @@ const AttendanceBiometricReport = () => {
     };
 
     const calculateWorkingTime = (min, max) => {
-    const minM = parseTimeToMinutes(min);
-    const maxM = parseTimeToMinutes(max);
+        const minM = parseTimeToMinutes(min);
+        const maxM = parseTimeToMinutes(max);
 
-    if (minM == null || maxM == null || maxM <= minM)
-        return "Can't be determined";
+        if (minM == null || maxM == null || maxM <= minM)
+            return "Can't be determined";
 
-    const totalMin = maxM - minM;
-    const h = Math.floor(totalMin / 60);
-    const m = totalMin % 60;
+        const totalMin = maxM - minM;
+        const h = Math.floor(totalMin / 60);
+        const m = totalMin % 60;
 
-    return `${h}h ${m}m`;
-};
+        return `${h}h ${m}m`;
+    };
 
-const getStatus = (dayLog) => {
-    if (!dayLog?.MinTime || !dayLog?.MaxTime) {
-        return "Absent";
-    }
-    return "Present";
-};
+    const getStatus = (dayLog) => {
+        if (!dayLog?.MinTime || !dayLog?.MaxTime) {
+            return "Absent";
+        }
+        return "Present";
+    };
 
     const buildAttendanceWorkbookHtml = () => {
         const dateRange = getDatesInRange(fromDate, toDate);
@@ -214,7 +214,7 @@ const getStatus = (dayLog) => {
             items,
         }));
 
-const totalColumns = 4 + dateRange.length;
+        const totalColumns = 4 + dateRange.length;
         const getEmployeeMetrics = (employee) => {
             const normalWorkingDays = dateRange.length;
             let otDays = 0;
@@ -323,67 +323,67 @@ const totalColumns = 4 + dateRange.length;
         };
 
 
-       const employeeSummary = (employee) => {
-    let present = 0;
-    let absent = 0;
-    let workingMinutes = 0;
+        const employeeSummary = (employee) => {
+            let present = 0;
+            let absent = 0;
+            let workingMinutes = 0;
 
-    dateRange.forEach((date) => {
-        const d = employee.days[formatDate(date)];
+            dateRange.forEach((date) => {
+                const d = employee.days[formatDate(date)];
 
-        if (d?.MinTime && d?.MaxTime) {
-            present++;
-            const min = parseTimeToMinutes(d.MinTime);
-            const max = parseTimeToMinutes(d.MaxTime);
-            if (min != null && max != null && max > min) {
-                workingMinutes += (max - min);
-            }
-        } else {
-            absent++;
-        }
-    });
+                if (d?.MinTime && d?.MaxTime) {
+                    present++;
+                    const min = parseTimeToMinutes(d.MinTime);
+                    const max = parseTimeToMinutes(d.MaxTime);
+                    if (min != null && max != null && max > min) {
+                        workingMinutes += (max - min);
+                    }
+                } else {
+                    absent++;
+                }
+            });
 
-    const h = Math.floor(workingMinutes / 60);
-    const m = workingMinutes % 60;
+            const h = Math.floor(workingMinutes / 60);
+            const m = workingMinutes % 60;
 
-    return {
-        present,
-        absent,
-        workingHours: `${h}h ${m}m`
-    };
-};
-       const employeeRows = employees.map((employee, index) => {
+            return {
+                present,
+                absent,
+                workingHours: `${h}h ${m}m`
+            };
+        };
+        const employeeRows = employees.map((employee, index) => {
 
-    const summary = employeeSummary(employee);
+            const summary = employeeSummary(employee);
 
-    const dateHeader = dateRange.map(d =>
-        `<td class="body-cell">${d.toLocaleDateString("en-GB")}</td>`
-    ).join("");
+            const dateHeader = dateRange.map(d =>
+                `<td class="body-cell">${d.toLocaleDateString("en-GB")}</td>`
+            ).join("");
 
-    const inCells = dateRange.map((date) => {
-        const d = employee.days[formatDate(date)];
-        return `<td class="body-cell">${escapeHtml(d?.MinTime || "--")}</td>`;
-    }).join("");
+            const inCells = dateRange.map((date) => {
+                const d = employee.days[formatDate(date)];
+                return `<td class="body-cell">${escapeHtml(d?.MinTime || "--")}</td>`;
+            }).join("");
 
-    const outCells = dateRange.map((date) => {
-        const d = employee.days[formatDate(date)];
-        return `<td class="body-cell">${escapeHtml(d?.MaxTime || "--")}</td>`;
-    }).join("");
+            const outCells = dateRange.map((date) => {
+                const d = employee.days[formatDate(date)];
+                return `<td class="body-cell">${escapeHtml(d?.MaxTime || "--")}</td>`;
+            }).join("");
 
-    const wtCells = dateRange.map((date) => {
-        const d = employee.days[formatDate(date)];
-        return `<td class="body-cell">${escapeHtml(calculateWorkingTime(d?.MinTime, d?.MaxTime))}</td>`;
-    }).join("");
+            const wtCells = dateRange.map((date) => {
+                const d = employee.days[formatDate(date)];
+                return `<td class="body-cell">${escapeHtml(calculateWorkingTime(d?.MinTime, d?.MaxTime))}</td>`;
+            }).join("");
 
-    const statusCells = dateRange.map((date) => {
-        const d = employee.days[formatDate(date)];
-        return `<td class="body-cell">${escapeHtml(getStatus(d, date))}</td>`;
-    }).join("");
+            const statusCells = dateRange.map((date) => {
+                const d = employee.days[formatDate(date)];
+                return `<td class="body-cell">${escapeHtml(getStatus(d, date))}</td>`;
+            }).join("");
 
-    return `
+            return `
        <td colspan="${totalColumns}" class="summary-text-cell">
     <div style="font-weight:bold; font-size:18px;">
-        Employee: ${employee.employeeName}
+    Employee: ${employee.employeeName}, Employee ID: ${employee.employeeCode}
     </div>
     <div style="margin-top:4px; font-size:18px;">
        Present: ${summary.present}
@@ -417,7 +417,7 @@ const totalColumns = 4 + dateRange.length;
             ${statusCells}
         </tr>
     `;
-}).join("");
+        }).join("");
 
         const dayNumberHeaders = dateRange
             .map((date) => `<th class="header-cell day-cell">${date.getDate()}</th>`)
@@ -648,7 +648,7 @@ const totalColumns = 4 + dateRange.length;
                                 />
                             </div>
 
-<div className="col-md-4">
+                            <div className="col-md-4">
                                 <label>To Date</label>
                                 <Calendar
                                     value={toDate}

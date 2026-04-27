@@ -117,6 +117,7 @@ export default function TaskListView({ ctx }) {
                   completedTasks={ctx.state.completedTasks}
                   pendingTasks={ctx.state.pendingTasks}
                   actionableTasks={ctx.state.actionableTasks}
+                  onStatusClick={(status) => ctx.handleStatusFilter?.(status)}
                 />
 
                 <div className="card-header p-2 task-list-filter-shell">
