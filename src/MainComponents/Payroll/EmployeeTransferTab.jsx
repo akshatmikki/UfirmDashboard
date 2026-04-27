@@ -8,7 +8,7 @@ import { InputText } from "primereact/inputtext";
 
 import { getEmployeesByOffices } from "../../Services/PayrollService";
 import { getAllProperties } from "../../Services/PropertyService";
-import { transferEmployees } from "../../Services/EmployeeTransfer";
+import { transferEmployees, transferPreview } from "../../Services/EmployeeTransfer";
 
 const EmployeeTransferTab = () => {
   const toast = useRef(null);
@@ -20,6 +20,10 @@ const EmployeeTransferTab = () => {
   const [properties, setProperties] = useState([]);
   const [newProperty, setNewProperty] = useState("");
   const [globalFilter, setGlobalFilter] = useState("");
+
+  const [previewData, setPreviewData] = useState([]);
+  const [showPopup, setShowPopup] = useState(false);
+  const [decisions, setDecisions] = useState({});
 
   // 🔹 Fetch employees
   useEffect(() => {
@@ -69,13 +73,37 @@ const EmployeeTransferTab = () => {
       return;
     }
 
+    const ids = selectedEmployees.map((emp) => emp.FacilityMemberId);
+
+    try {
+      // 🔥 STEP 1: call preview
+      const preview = await transferPreview({
+        FacilityMemberIds: ids,
+        NewPropertyId: Number(newProperty),
+      });
+
+      setPreviewData(preview);
+      setShowPopup(true);
+    } catch (err) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: err.message,
+      });
+    }
+  };
+
+  const confirmTransfer = async () => {
     try {
       const ids = selectedEmployees.map((emp) => emp.FacilityMemberId);
+
+      const decisionArray = Object.values(decisions);
 
       await transferEmployees({
         FacilityMemberIds: ids,
         CurrentPropertyId: reduxPropertyId,
         NewPropertyId: Number(newProperty),
+        Decisions: decisionArray,
       });
 
       toast.current.show({
@@ -84,6 +112,8 @@ const EmployeeTransferTab = () => {
         detail: "Employees transferred successfully",
       });
 
+      setShowPopup(false);
+      setDecisions({});
       setSelectedEmployees([]);
       fetchEmployees();
     } catch (err) {
@@ -154,6 +184,81 @@ const EmployeeTransferTab = () => {
           <Column field="Name" header="Name" />
           <Column field="Designation" header="Designation" />
         </DataTable>
+
+        {showPopup && (
+          <div className="card" style={{ marginTop: 20, border: "2px solid #ccc" }}>
+            <h3>Resolve Transfer Decisions</h3>
+
+            {previewData.map((emp) => {
+              const current = decisions[emp.FacilityMemberId] || {};
+
+              return (
+                <div key={emp.FacilityMemberId} style={{ marginBottom: 15 }}>
+                  <b>
+                    {emp.CurrentDesignation}
+                    {!emp.HasMatchingDesignationInNewProperty && " → Select New"}
+                  </b>
+
+                  {/* 🔹 DESIGNATION SELECTION */}
+                  {!emp.HasMatchingDesignationInNewProperty && (
+                    <select
+                      value={current.SelectedDesignation || ""}
+                      onChange={(e) =>
+                        setDecisions((prev) => ({
+                          ...prev,
+                          [emp.FacilityMemberId]: {
+                            ...prev[emp.FacilityMemberId],
+                            FacilityMemberId: emp.FacilityMemberId,
+                            SelectedDesignation: e.target.value,
+                          },
+                        }))
+                      }
+                    >
+                      <option value="">Keep Original</option>
+                      {emp.AvailableDesignations.map((d, i) => (
+                        <option key={i} value={d}>
+                          {d}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* 🔹 SG SELECTION */}
+                  {emp.RequiresSGSelection && (
+                    <select
+                      value={current.SelectedSGId || ""}
+                      onChange={(e) =>
+                        setDecisions((prev) => ({
+                          ...prev,
+                          [emp.FacilityMemberId]: {
+                            ...prev[emp.FacilityMemberId],
+                            FacilityMemberId: emp.FacilityMemberId,
+                            SelectedSGId: Number(e.target.value),
+                          },
+                        }))
+                      }
+                    >
+                      <option value="">No SG</option>
+                      {emp.SalaryGroups.map((sg) => (
+                        <option key={sg.SGId} value={sg.SGId}>
+                          {sg.SGName || `SG ${sg.SGId}`}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {/* 🔹 AUTO SG */}
+                  {emp.AutoAssignSG && <span>Auto SG Assigned</span>}
+
+                  {/* 🔹 NO SG */}
+                  {emp.NoSGAvailable && <span>No SG Available</span>}
+                </div>
+              );
+            })}
+
+            <Button label="Confirm Transfer" onClick={confirmTransfer} />
+          </div>
+        )}
 
         <Button
           label="Transfer Selected"

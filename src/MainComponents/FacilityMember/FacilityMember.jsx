@@ -1355,7 +1355,7 @@ const StaffPage = () => {
         UpdatedBy: 1,
         UpdatedOn: now,
         oldID: "0",
-        SG_Link_ID: selectedSalaryGroup || "0",
+        SG_Link_ID: selectedSalaryGroup ? Number(selectedSalaryGroup) : null,
         tax_amount: 0,
         ManagerIdList: selectedManagers
       },

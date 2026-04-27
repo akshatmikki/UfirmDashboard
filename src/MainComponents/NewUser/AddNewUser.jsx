@@ -27,7 +27,7 @@ const AddNewUser = () => {
     const selectedRole = userRoles.find((r) => String(r.UserRoleId) === String(formData.roleId));
     const isManager = (selectedRole?.UserRoleName ?? "").toLowerCase().includes("manager");
     const isPropertyDisabled =
-        formData.roleId === "3" || formData.roleId === "4" || formData.roleId === "10";
+        !isManager && (formData.roleId === "3" || formData.roleId === "4" || formData.roleId === "10");
 
     // Fetch dropdown data from API
     useEffect(() => {
@@ -268,6 +268,11 @@ const AddNewUser = () => {
                             {/* Property Name Dropdown */}
                             <div className="form-group col-md-6">
                                 <label>Property Name</label>
+                                {isManager && (
+                                    <small className="form-text text-muted">
+                                        Select one or more properties (Ctrl/⌘ + click).
+                                    </small>
+                                )}
                                 <select
                                     className="form-control"
                                     name="propertyId"
