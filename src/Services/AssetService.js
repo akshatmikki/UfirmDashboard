@@ -1,6 +1,6 @@
 import axios from "axios";
 const API_URL = 'https://api.urest.in:8096/';
- //const API_URL = 'http://localhost:62929/';
+ //const API_URL = 'https://api.urest.in:8096/';
 export  const fetchAssets = async (propertyId = 0) => {
     try {
         const response = await fetch(`${API_URL}GetAssets?propertyId=${propertyId}`);

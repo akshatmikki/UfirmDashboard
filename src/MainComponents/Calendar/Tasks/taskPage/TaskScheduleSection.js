@@ -69,6 +69,13 @@ function formatDateYmd(d) {
   return `${yyyy}-${mm}-${dd}`;
 }
 
+function toDateInputValue(value) {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return formatDateYmd(value);
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? "" : formatDateYmd(parsed);
+}
+
 function formatTimeHhMm(d) {
   if (!(d instanceof Date) || Number.isNaN(d.getTime())) return "";
   const hh = String(d.getHours()).padStart(2, "0");
@@ -100,6 +107,8 @@ export default function TaskScheduleSection({
   const [repeatCount, setRepeatCount] = useState("");
   const [intervalValue, setIntervalValue] = useState("");
   const [intervalUnit, setIntervalUnit] = useState("Hours");
+  const [repeatDateFrom, setRepeatDateFrom] = useState(() => toDateInputValue(baseDate));
+  const [repeatDateTo, setRepeatDateTo] = useState(() => toDateInputValue(baseDate));
   const [inlineError, setInlineError] = useState("");
   const [dirty, setDirty] = useState(false);
 
@@ -111,9 +120,18 @@ export default function TaskScheduleSection({
   const canShowRemove = useMemo(() => {
     return (
       (mode === "shift" && selectedShiftIds.length > 0) ||
-      (mode === "custom" && (customStart || customEnd || repeatCount || intervalValue))
+      (mode === "custom" && (customStart || customEnd || repeatCount || intervalValue)) ||
+      repeatDateFrom ||
+      repeatDateTo
     );
-  }, [customEnd, customStart, intervalValue, mode, repeatCount, selectedShiftIds.length]);
+  }, [customEnd, customStart, intervalValue, mode, repeatCount, repeatDateFrom, repeatDateTo, selectedShiftIds.length]);
+
+  useEffect(() => {
+    const nextDate = toDateInputValue(baseDate);
+    if (!nextDate) return;
+    setRepeatDateFrom((prev) => prev || nextDate);
+    setRepeatDateTo((prev) => prev || nextDate);
+  }, [baseDate]);
 
   const shiftRange = useMemo(() => {
     if (!selectedShiftRows.length) return { from: "", to: "", crossesMidnight: false };
@@ -151,8 +169,10 @@ export default function TaskScheduleSection({
     setRepeatCount("");
     setIntervalValue("");
     setIntervalUnit("Hours");
+    setRepeatDateFrom(toDateInputValue(baseDate));
+    setRepeatDateTo(toDateInputValue(baseDate));
     setDirty(true);
-  }, []);
+  }, [baseDate]);
 
   const onAssign = useCallback(() => {
     setInlineError("");
@@ -246,6 +266,15 @@ export default function TaskScheduleSection({
   }, [baseDate, customEnd, customStart, intervalMinutes, mode, repeatCount, selectedShiftRows]);
 
   const schedulePayload = useMemo(() => {
+    const repeatNumber = Number(repeatCount);
+    const repetitionValue = Number.isFinite(repeatNumber) && repeatNumber > 0
+      ? Math.min(5, Math.floor(repeatNumber))
+      : 0;
+    const intervalNumber = Number(intervalValue);
+    const repetitionInterval = Number.isFinite(intervalNumber) && intervalNumber > 0
+      ? Math.floor(intervalNumber)
+      : 0;
+
     return {
       dirty,
       mode,
@@ -266,8 +295,16 @@ export default function TaskScheduleSection({
         time: formatTimeHhMm(o.taskTime),
         range: o.range,
       })),
+      repetition: {
+        enabled: Boolean(repetitionValue && repetitionInterval && repeatDateFrom && repeatDateTo),
+        DateFrom: repeatDateFrom || "",
+        DateTo: repeatDateTo || "",
+        Repetition: repetitionValue,
+        Repetition_Interval: repetitionInterval,
+        Repetition_Interval_Unit: String(intervalUnit || ""),
+      },
     };
-  }, [customEnd, customStart, dirty, intervalUnit, intervalValue, mode, occurrences, repeatCount, selectedShiftIds]);
+  }, [customEnd, customStart, dirty, intervalUnit, intervalValue, mode, occurrences, repeatCount, repeatDateFrom, repeatDateTo, selectedShiftIds]);
 
   useEffect(() => {
     onScheduleUpdate?.(schedulePayload);
@@ -393,10 +430,30 @@ export default function TaskScheduleSection({
               onChange={(e) => { setInlineError(""); setDirty(true); setRepeatCount(e.target.value); }}
             >
               <option value="">- times</option>
-              {Array.from({ length: 10 }).map((_, i) => (
+              {Array.from({ length: 5 }).map((_, i) => (
                 <option key={String(i + 1)} value={String(i + 1)}>{i + 1} times</option>
               ))}
             </select>
+          </div>
+
+          <div className="task-schedule-field" style={{ marginTop: 14 }}>
+            <div className="task-schedule-field-label">Date range</div>
+            <div className="task-schedule-field-sub">Choose the repetition start and end dates</div>
+            <div className="task-schedule-interval-row">
+              <input
+                className="form-control"
+                type="date"
+                value={repeatDateFrom}
+                onChange={(e) => { setInlineError(""); setDirty(true); setRepeatDateFrom(e.target.value); }}
+              />
+              <input
+                className="form-control"
+                type="date"
+                value={repeatDateTo}
+                min={repeatDateFrom || undefined}
+                onChange={(e) => { setInlineError(""); setDirty(true); setRepeatDateTo(e.target.value); }}
+              />
+            </div>
           </div>
 
           <div className="task-schedule-field" style={{ marginTop: 14 }}>

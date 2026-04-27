@@ -4,6 +4,7 @@ import swal from "sweetalert";
 import * as appCommon from "../../../../Common/AppCommon.js";
 import { createTaskWithQuestions } from "../../../../Services/notificationService";
 import { replaceTaskFrequencyMappings } from "../../../../Services/taskFrequencyMappingService";
+import { saveTaskShiftRepetitions } from "../../../../Services/taskShiftRepetitionMappingService";
 import useEditTaskLookups from "./useEditTaskLookups";
 import useEditTaskQuestions from "./useEditTaskQuestions";
 
@@ -33,6 +34,13 @@ function getMissingRequiredField(form = {}) {
   if (!String(form.assignTo || "").trim()) return "assignTo";
   if (!String(form.occurence || "").trim()) return "occurence";
   return "";
+}
+
+function getFrequencyIdFromOccurrence(frequencyData = [], occurrenceValue = "") {
+  const selected = (frequencyData || []).find(
+    (item) => String(item?.Occurence || "").trim() === String(occurrenceValue || "").trim(),
+  );
+  return Number(selected?.Id ?? selected?.FrequencyId ?? 0) || 0;
 }
 
 export default function useEditTaskController({ rowData, categoryData }) {
@@ -163,7 +171,9 @@ export default function useEditTaskController({ rowData, categoryData }) {
 
       if (schedule?.dirty && rowData?.TaskId) {
         try {
-          await replaceTaskFrequencyMappings(rowData.TaskId, schedule?.mappings || []);
+          const frequencyId = getFrequencyIdFromOccurrence(lookups.frequencyData, form.occurence);
+          const mappingRes = await replaceTaskFrequencyMappings(rowData.TaskId, frequencyId, schedule?.mappings || []);
+          await saveTaskShiftRepetitions(mappingRes?.createdMappings || [], schedule?.mappings || [], schedule?.repetition || {});
         } catch (e) {
           appCommon.showtextalert(
             "Task updated, but schedule not saved",
@@ -180,7 +190,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
     } finally {
       setSaving(false);
     }
-  }, [form, q, rowData?.TaskId, saving, schedule]);
+  }, [form, lookups.frequencyData, q, rowData?.TaskId, saving, schedule]);
 
   return {
     form,

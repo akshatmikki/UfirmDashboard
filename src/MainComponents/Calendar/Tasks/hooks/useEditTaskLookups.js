@@ -168,5 +168,5 @@ export default function useEditTaskLookups({
     if (assetId) populateAssetDetails(assetId);
   }, [assetId, populateAssetDetails]);
 
-  return { subCategory, assign, propertyData, assets, shifts, occurrenceOptions, onAssetChange };
+  return { subCategory, assign, propertyData, assets, shifts, occurrenceOptions, frequencyData, onAssetChange };
 }

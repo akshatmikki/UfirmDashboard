@@ -503,7 +503,7 @@ formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
              const openDocument = (filePath) => {
   if (!filePath) return;
 
-  const baseUrl = "http://localhost:62929/"; // ⚠️ apna backend URL
+  const baseUrl = "https://api.urest.in:8096/"; // ⚠️ apna backend URL
 
   const fullUrl = baseUrl + filePath.replace(/\\/g, "/");
 

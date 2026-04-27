@@ -7,6 +7,41 @@ const toId = (value) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+const toDateOnly = (value) => {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const yyyy = value.getFullYear();
+    const mm = String(value.getMonth() + 1).padStart(2, "0");
+    const dd = String(value.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const yyyy = parsed.getFullYear();
+  const mm = String(parsed.getMonth() + 1).padStart(2, "0");
+  const dd = String(parsed.getDate()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd}`;
+};
+
+const toTimeOnly = (value) => {
+  if (!value) return "";
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    const hh = String(value.getHours()).padStart(2, "0");
+    const mm = String(value.getMinutes()).padStart(2, "0");
+    const ss = String(value.getSeconds()).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
+  const raw = String(value).trim();
+  if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) return raw;
+  if (/^\d{2}:\d{2}$/.test(raw)) return `${raw}:00`;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return "";
+  const hh = String(parsed.getHours()).padStart(2, "0");
+  const mm = String(parsed.getMinutes()).padStart(2, "0");
+  const ss = String(parsed.getSeconds()).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+};
+
 export const getTaskFrequencyMappingsByTaskId = async (taskId) => {
   const id = toId(taskId);
   if (!id) return [];
@@ -41,22 +76,23 @@ export const deleteTaskFrequencyMapping = async (id) => {
   return res.data;
 };
 
-export const replaceTaskFrequencyMappings = async (taskId, mappings = []) => {
+export const replaceTaskFrequencyMappings = async (taskId, frequencyId, mappings = []) => {
   const id = toId(taskId);
   if (!id) throw new Error("TaskId missing");
+  const freqId = toId(frequencyId);
+  if (!freqId) throw new Error("FrequencyId missing");
 
   const existing = await getTaskFrequencyMappingsByTaskId(id);
   await Promise.all((existing || []).map((m) => deleteTaskFrequencyMapping(m?.Id)));
 
   const payloads = (mappings || []).map((m) => ({
     TaskId: id,
-    ShiftId: toId(m.ShiftId),
-    TaskDate: m.TaskDate ?? null,
-    TaskTime: m.TaskTime ?? null,
-    IsActive: true,
+    FrequencyId: freqId,
+    TaskDate: toDateOnly(m.TaskDate),
+    TaskTime: toTimeOnly(m.TaskTime),
   }));
 
-  await Promise.all(payloads.map((p) => createTaskFrequencyMapping(p)));
-  return { ok: true };
+  const createdMappings = await Promise.all(payloads.map((p) => createTaskFrequencyMapping(p)));
+  return { ok: true, createdMappings };
 };
 

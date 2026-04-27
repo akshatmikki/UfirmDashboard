@@ -1,6 +1,6 @@
 
 const BASE_URL = "https://api.urest.in:8096";
-//const BASE_URL = "http://localhost:62929";
+//const BASE_URL = "https://api.urest.in:8096";
 
 export const fetchSubCatTaskCounts = async (propertyId, fromDate, toDate) => {
     const url = `${BASE_URL}/GetAllTaskStatusBySubCat?propId=${propertyId}&dateFrom=${fromDate}&dateTo=${toDate}`;

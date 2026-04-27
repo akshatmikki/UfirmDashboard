@@ -3,6 +3,7 @@ import moment from "moment";
 import * as appCommon from "../../../../Common/AppCommon.js";
 import { createTaskWithQuestions } from "../../../../Services/notificationService";
 import { replaceTaskFrequencyMappings } from "../../../../Services/taskFrequencyMappingService";
+import { saveTaskShiftRepetitions } from "../../../../Services/taskShiftRepetitionMappingService";
 import useAddTaskLookups from "./useAddTaskLookups";
 
 const emptyQuestion = { QuestionName: "" };
@@ -33,6 +34,13 @@ function getMissingRequiredField(form = {}) {
   if (!String(form.assignTo || "").trim()) return "assignTo";
   if (!String(form.occurence || "").trim()) return "occurence";
   return "";
+}
+
+function getFrequencyIdFromOccurrence(frequencyData = [], occurrenceValue = "") {
+  const selected = (frequencyData || []).find(
+    (item) => String(item?.Occurence || "").trim() === String(occurrenceValue || "").trim(),
+  );
+  return Number(selected?.Id ?? selected?.FrequencyId ?? 0) || 0;
 }
 
 export default function useAddTaskController({ PropertyId, categoryData, type }) {
@@ -189,7 +197,9 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
           );
         } else {
           try {
-            await replaceTaskFrequencyMappings(createdTaskId, schedule?.mappings || []);
+            const frequencyId = getFrequencyIdFromOccurrence(lookups.frequencyData, form.occurence);
+            const mappingRes = await replaceTaskFrequencyMappings(createdTaskId, frequencyId, schedule?.mappings || []);
+            await saveTaskShiftRepetitions(mappingRes?.createdMappings || [], schedule?.mappings || [], schedule?.repetition || {});
           } catch (e) {
             appCommon.showtextalert(
               "Task created, but schedule not saved",
@@ -207,7 +217,7 @@ export default function useAddTaskController({ PropertyId, categoryData, type })
     } finally {
       setIsSaving(false);
     }
-  }, [form, getCreatedTaskId, hasAtLeastOneQuestion, isDateRangeValid, isSaving, isTimeRangeValid, quesValues, schedule, type]);
+  }, [form, getCreatedTaskId, hasAtLeastOneQuestion, isDateRangeValid, isSaving, isTimeRangeValid, lookups.frequencyData, quesValues, schedule, type]);
 
   return {
     form,
