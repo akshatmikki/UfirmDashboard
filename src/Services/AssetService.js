@@ -45,3 +45,25 @@ export const getServiceHistory=async (assetId)=>{
         throw error;
     }
 }
+
+export const saveAssetAMC = async (model) => {
+  try {
+    const response = await fetch("http://localhost:62929/ManageAssetAMC", {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(model),
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error saving asset AMC:", error);
+    throw error;
+  }
+};

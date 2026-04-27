@@ -14,6 +14,7 @@ import { withRouter } from "react-router-dom";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 import QRCode from "react-qr-code";
+import { saveAssetAMC } from "../../Services/AssetService";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -76,6 +77,11 @@ class AssetsMaster extends Component {
       AMCdoc: null,
       AMCimage: "",
       amcFileName: "",
+      amcDateFrom: "",
+      amcDateTo: "",
+      amcTotalAmount: "",
+      amcContractType: "",
+      showAmcDetailsForm: false,
       WarrantyDocument: null,
       warrantyImage: "",
       warrantyFileName: "",
@@ -98,6 +104,7 @@ class AssetsMaster extends Component {
       deleteTarget: null,
       showSuccessModal: false,
       successType: "",
+      showAmcModal: false,
       PurchaseDate: "",
       WarrantyDate: "",
       currentPage: 1,
@@ -280,6 +287,8 @@ class AssetsMaster extends Component {
       Capacity: this.state.Capacity,
       capacity: this.state.Capacity,
       AMCdoc: this.state.AMCimage,
+      AMCDateFrom: this.state.amcDateFrom,
+      AMCDateTo: this.state.amcDateTo,
       WarrantyDocument: this.state.warrantyImage,
       status: this.state.status,
       category: this.state.category,
@@ -392,6 +401,11 @@ class AssetsMaster extends Component {
         AMCdoc: null,
         AMCimage: "",
         amcFileName: "",
+        amcDateFrom: "",
+        amcDateTo: "",
+        amcTotalAmount: "",
+        amcContractType: "",
+        showAmcDetailsForm: false,
         WarrantyDocument: null,
         warrantyImage: "",
         warrantyFileName: "",
@@ -429,6 +443,10 @@ class AssetsMaster extends Component {
       AssetType: rowData.AssetType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
       AMCimage: rowData.AMCdoc || rowData.AMCimage || "",
+      amcDateFrom: this.normalizeDate(rowData.AMCDateFrom || rowData.AmcDateFrom || rowData.DateFrom),
+      amcDateTo: this.normalizeDate(rowData.AMCDateTo || rowData.AmcDateTo || rowData.DateTo),
+      amcTotalAmount: rowData.AMCTotalAmount || rowData.AmcTotalAmount || rowData.TotalAmount || "",
+      amcContractType: rowData.AMCContractType || rowData.AmcContractType || rowData.ContractType || "",
       warrantyImage: rowData.WarrantyDocument || rowData.warrantyImage || "",
       assetImageFileName:
         rowData.AssetImageName ||
@@ -526,6 +544,59 @@ class AssetsMaster extends Component {
   });
 };
 
+  openAmcModal = () => {
+    const asset = this.getSelectedAssetRecord();
+    if (!asset) return;
+    this.setState({
+      showAmcModal: true,
+      AMCdoc: null,
+      AMCimage: asset.AMCdoc || asset.AMCimage || "",
+      amcDateFrom: this.normalizeDate(asset.AMCDateFrom || asset.AmcDateFrom || asset.DateFrom),
+      amcDateTo: this.normalizeDate(asset.AMCDateTo || asset.AmcDateTo || asset.DateTo),
+      amcTotalAmount: asset.AMCTotalAmount || asset.AmcTotalAmount || asset.TotalAmount || "",
+      amcContractType: asset.AMCContractType || asset.AmcContractType || asset.ContractType || "",
+      amcFileName:
+        asset.AMCdocName ||
+        asset.AMCimageName ||
+        ((asset.AMCdoc || asset.AMCimage) ? "Existing document" : ""),
+    });
+  };
+
+  closeAmcModal = () => this.setState({ showAmcModal: false });
+
+  handleAmcSave = async () => {
+    const asset = this.getSelectedAssetRecord();
+    if (!asset) return;
+
+    let amcFile = this.state.AMCimage;
+    if (this.state.AMCdoc?.name && this.state.AMCdoc?.size) {
+      amcFile = await toBase64(this.state.AMCdoc);
+    }
+
+    try {
+      const response = await saveAssetAMC({
+        Id: Number(asset.Id) || 0,
+        AMCFromDate: this.state.amcDateFrom,
+        AMCToDate: this.state.amcDateTo,
+        AMCTotalAmount: Number(this.state.amcTotalAmount) || 0,
+        AMCContractType: this.state.amcContractType,
+        AMCFile: amcFile || "",
+      });
+
+      this.setState(
+        {
+          showAmcModal: false,
+          AMCimage: response?.AMCFile || amcFile || "",
+          amcFileName: response?.AMCFile ? String(response.AMCFile).split("\\").pop() : this.state.amcFileName,
+        },
+        this.loadHomagePageData
+      );
+      appCommon.showtextalert(response?.Message || "AMC Details Saved Successfully", "", "success");
+    } catch (error) {
+      appCommon.showtextalert("Unable to save AMC details", "", "error");
+    }
+  };
+
   handleSave = async () => {
     let assetImage = this.state.AssetImage;
     let imageExt = this.state.ImageExt;
@@ -601,6 +672,11 @@ class AssetsMaster extends Component {
         AMCdoc: null,
         AMCimage: "",
         amcFileName: "",
+        amcDateFrom: "",
+        amcDateTo: "",
+        amcTotalAmount: "",
+        amcContractType: "",
+        showAmcDetailsForm: false,
         WarrantyDocument: null,
         warrantyImage: "",
         warrantyFileName: "",
@@ -610,6 +686,7 @@ class AssetsMaster extends Component {
         serviceReminderDay: "",
         PurchaseDate: "",
         WarrantyDate: "",
+        showAmcModal: false,
         showAddQrPreview: false,
       },
       this.loadHomagePageData
@@ -1148,6 +1225,14 @@ class AssetsMaster extends Component {
                     <span className="asset-doc-link-text disabled">AMC Contract</span>
                   )}
                 </div>
+                <div className="asset-doc-link-item">
+                  <div className="asset-doc-icon-wrapper">
+                    <i className="fa fa-plus-square-o" />
+                  </div>
+                  <button type="button" className="asset-doc-link-text" onClick={this.openAmcModal}>
+                    Add AMC details
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -1552,14 +1637,7 @@ class AssetsMaster extends Component {
                   <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
                 </div>
               </div>
-              <div className="form-group asset-form-group-custom">
-                <label>AMC Contract</label>
-                <div className="asset-file-input-wrapper">
-                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
-                  <i className="fa fa-file-text-o asset-file-icon" />
-                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
-                </div>
-              </div>
+
             </div>
           </div>
 
@@ -1569,6 +1647,8 @@ class AssetsMaster extends Component {
           </div>
         </div>
       </div>
+            
+
     );
   };
 
@@ -1695,6 +1775,85 @@ class AssetsMaster extends Component {
     );
   };
 
+  renderAmcModal = () => {
+    if (!this.state.showAmcModal) return null;
+
+    return (
+      <div className="spare-add-backdrop" onClick={this.closeAmcModal}>
+        <div className="asset-master-main-card" style={{ maxWidth: "640px" }} onClick={(e) => e.stopPropagation()}>
+          <div className="asset-side-panel-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div className="spare-add-title">
+              <span className="spare-add-icon" style={{ background: "rgba(33, 150, 243, 0.12)", color: "#1f4f82" }}>
+                <i className="fa fa-file-text-o" aria-hidden="true" />
+              </span>
+              Add AMC details
+            </div>
+            <button type="button" className="spare-add-close" onClick={this.closeAmcModal}>
+              <i className="fa fa-times" aria-hidden="true" />
+            </button>
+          </div>
+          <div className="asset-side-panel-body">
+            <div className="asset-add-amc-grid">
+              <div className="form-group asset-form-group-custom">
+                <label>Date From</label>
+                <CustomDatePicker value={this.state.amcDateFrom} onChange={(e) => this.setState({ amcDateFrom: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>Date To</label>
+                <CustomDatePicker value={this.state.amcDateTo} onChange={(e) => this.setState({ amcDateTo: e.target.value })} />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>AMC Total Amount</label>
+                <input
+                  type="text"
+                  className="form-control"
+                  placeholder="Enter total amount"
+                  value={this.state.amcTotalAmount}
+                  onChange={(e) => this.setState({ amcTotalAmount: e.target.value })}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom">
+                <label>AMC Contract</label>
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.amcContractType}
+                  onChange={(e) => this.setState({ amcContractType: e.target.value })}
+                  placeholder="Select contract"
+                  options={[
+                    { label: "Monthly", value: "Monthly" },
+                    { label: "Quaterly", value: "Quaterly" },
+                    { label: "Half Yearly", value: "Half Yearly" },
+                    { label: "Yearly", value: "Yearly" },
+                  ]}
+                />
+              </div>
+
+              <div className="form-group asset-form-group-custom asset-add-span-2">
+                <label>Document Upload</label>
+                <div className="asset-file-input-wrapper">
+                  <input type="text" className="form-control" placeholder="Upload file" value={this.state.amcFileName || ""} readOnly />
+                  <i className="fa fa-file-text-o asset-file-icon" />
+                  <input type="file" className="asset-file-hidden" onChange={this.onAMCFileChange} />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="asset-dialog-actions asset-dialog-actions-right">
+            <button type="button" className="btn btn-light" onClick={this.closeAmcModal}>
+              Cancel
+            </button>
+            <button type="button" className="btn btn-primary" onClick={this.handleAmcSave}>
+              Save
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
 
   renderSidePanel = () => {
     if (this.state.PageMode === "View") return this.renderAssetDetailsPanel();
@@ -1801,6 +1960,7 @@ class AssetsMaster extends Component {
         {this.renderCancelConfirmModal()}
         {this.renderDeleteConfirmModal()}
         {this.renderSuccessModal()}
+        {this.renderAmcModal()}
       </div>
     );
   }
