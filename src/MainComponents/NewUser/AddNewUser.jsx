@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {fetchBranches, fetchCities, fetchProperties, fetchRoles, fetchUserTypes, submitUserForm} from "./createNewUserService";
 
 
@@ -23,11 +23,14 @@ const AddNewUser = () => {
     const [branches, setBranches] = useState([]);
     const [userTypes,setUserTypes]=useState([]);
     const [selectedPropertyIds, setSelectedPropertyIds] = useState([]);
+    const [isPropertyMenuOpen, setIsPropertyMenuOpen] = useState(false);
 
     const selectedRole = userRoles.find((r) => String(r.UserRoleId) === String(formData.roleId));
     const isManager = (selectedRole?.UserRoleName ?? "").toLowerCase().includes("manager");
     const isPropertyDisabled =
         !isManager && (formData.roleId === "3" || formData.roleId === "4" || formData.roleId === "10");
+    const prevIsManagerRef = useRef(false);
+    const hasAutoSelectedAllRef = useRef(false);
 
     // Fetch dropdown data from API
     useEffect(() => {
@@ -71,9 +74,28 @@ const AddNewUser = () => {
     }, []);
 
     useEffect(() => {
+        const prev = prevIsManagerRef.current;
+
+        if (!prev && isManager) {
+            hasAutoSelectedAllRef.current = false;
+            setSelectedPropertyIds([]);
+            setFormData((p) => ({ ...p, propertyId: "" }));
+            if (isPropertyMenuOpen) setIsPropertyMenuOpen(false);
+        }
+
+        if (prev && !isManager) {
+            hasAutoSelectedAllRef.current = false;
+            if (isPropertyMenuOpen) setIsPropertyMenuOpen(false);
+        }
+
+        prevIsManagerRef.current = isManager;
+    }, [isManager, isPropertyMenuOpen]);
+
+    useEffect(() => {
         if (isPropertyDisabled) {
             if (selectedPropertyIds.length > 0) setSelectedPropertyIds([]);
             if (formData.propertyId !== "") setFormData((prev) => ({ ...prev, propertyId: "" }));
+            if (isPropertyMenuOpen) setIsPropertyMenuOpen(false);
             return;
         }
 
@@ -82,6 +104,7 @@ const AddNewUser = () => {
             const next = single ? [single] : [];
             if (selectedPropertyIds.join(",") !== next.join(",")) setSelectedPropertyIds(next);
             if (formData.propertyId !== single) setFormData((prev) => ({ ...prev, propertyId: single }));
+            if (isPropertyMenuOpen) setIsPropertyMenuOpen(false);
             return;
         }
 
@@ -96,6 +119,19 @@ const AddNewUser = () => {
         if (selectedPropertyIds.join(",") !== next.join(",")) setSelectedPropertyIds(next);
         if (formData.propertyId !== joined) setFormData((prev) => ({ ...prev, propertyId: joined }));
     }, [isManager, isPropertyDisabled, formData.propertyId, selectedPropertyIds]);
+
+    useEffect(() => {
+        if (!isManager) return;
+        if (isPropertyDisabled) return;
+        if (propertyNames.length === 0) return;
+        if (hasAutoSelectedAllRef.current) return;
+        if (selectedPropertyIds.length > 0) return;
+
+        const allIds = propertyNames.map((p) => String(p.PropertyId));
+        setSelectedPropertyIds(allIds);
+        setFormData((prev) => ({ ...prev, propertyId: allIds.join(",") }));
+        hasAutoSelectedAllRef.current = true;
+    }, [isManager, isPropertyDisabled, propertyNames, selectedPropertyIds.length]);
 
 
     // Handle input changes for text fields and dropdowns
@@ -116,6 +152,37 @@ const AddNewUser = () => {
         setSelectedPropertyIds(value ? [value] : []);
         setFormData((prev) => ({ ...prev, propertyId: value }));
     };
+
+    const handlePropertyCheckboxToggle = (propertyId) => {
+        const next = selectedPropertyIds.includes(propertyId)
+            ? selectedPropertyIds.filter((x) => x !== propertyId)
+            : [...selectedPropertyIds, propertyId];
+        setSelectedPropertyIds(next);
+        setFormData((prev) => ({ ...prev, propertyId: next.join(",") }));
+    };
+
+    const handleSelectAllProperties = () => {
+        const allIds = propertyNames.map((p) => String(p.PropertyId));
+        setSelectedPropertyIds(allIds);
+        setFormData((prev) => ({ ...prev, propertyId: allIds.join(",") }));
+    };
+
+    const handleClearAllProperties = () => {
+        setSelectedPropertyIds([]);
+        setFormData((prev) => ({ ...prev, propertyId: "" }));
+    };
+
+    const selectedPropertyLabels = selectedPropertyIds
+        .map((id) => propertyNames.find((p) => String(p.PropertyId) === String(id))?.Name)
+        .filter(Boolean);
+    const propertyDropdownLabel =
+        propertyNames.length > 0 && selectedPropertyIds.length === propertyNames.length
+            ? "All properties selected"
+            : selectedPropertyLabels.length === 0
+              ? "Select properties"
+              : selectedPropertyLabels.length <= 2
+                ? selectedPropertyLabels.join(", ")
+                : `${selectedPropertyLabels.slice(0, 2).join(", ")} (+${selectedPropertyLabels.length - 2})`;
 
     // Handle file input change
     const handleFileChange = (e) => {
@@ -268,28 +335,86 @@ const AddNewUser = () => {
                             {/* Property Name Dropdown */}
                             <div className="form-group col-md-6">
                                 <label>Property Name</label>
-                                {isManager && (
-                                    <small className="form-text text-muted">
-                                        Select one or more properties (Ctrl/⌘ + click).
-                                    </small>
+                                {isManager ? (
+                                    <div className="dropdown">
+                                        <input
+                                            type="hidden"
+                                            name="propertyId"
+                                            value={formData.propertyId}
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            className="form-control text-left d-flex justify-content-between align-items-center"
+                                            onClick={() => setIsPropertyMenuOpen((v) => !v)}
+                                            disabled={isPropertyDisabled}
+                                        >
+                                            <span className="text-truncate" style={{ maxWidth: "85%" }}>
+                                                {propertyDropdownLabel}
+                                            </span>
+                                            <span className="ml-2">▾</span>
+                                        </button>
+                                        {isPropertyMenuOpen && (
+                                            <div
+                                                className="dropdown-menu show w-100 p-2"
+                                                style={{ maxHeight: 260, overflowY: "auto" }}
+                                            >
+                                                <div className="d-flex justify-content-between mb-2">
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-link p-0"
+                                                        onClick={handleSelectAllProperties}
+                                                    >
+                                                        Select all
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-sm btn-link p-0"
+                                                        onClick={handleClearAllProperties}
+                                                    >
+                                                        Clear
+                                                    </button>
+                                                </div>
+
+                                                {propertyNames.map((property) => {
+                                                    const id = String(property.PropertyId);
+                                                    const checked = selectedPropertyIds.includes(id);
+                                                    return (
+                                                        <label
+                                                            key={property.PropertyId}
+                                                            className="dropdown-item d-flex align-items-center mb-0"
+                                                            style={{ cursor: "pointer" }}
+                                                        >
+                                                            <input
+                                                                type="checkbox"
+                                                                className="mr-2"
+                                                                checked={checked}
+                                                                onChange={() => handlePropertyCheckboxToggle(id)}
+                                                            />
+                                                            <span className="text-truncate">{property.Name}</span>
+                                                        </label>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                ) : (
+                                    <select
+                                        className="form-control"
+                                        name="propertyId"
+                                        value={selectedPropertyIds[0] ?? ""}
+                                        onChange={handlePropertyChange}
+                                        required
+                                        disabled={isPropertyDisabled}
+                                    >
+                                        <option value="">Select Property</option>
+                                        {propertyNames.map((property) => (
+                                            <option key={property.PropertyId} value={property.PropertyId}>
+                                                {property.Name}
+                                            </option>
+                                        ))}
+                                    </select>
                                 )}
-                                <select
-                                    className="form-control"
-                                    name="propertyId"
-                                    value={isManager ? selectedPropertyIds : (selectedPropertyIds[0] ?? "")}
-                                    onChange={handlePropertyChange}
-                                    required
-                                    multiple={isManager}
-                                    size={isManager ? 6 : undefined}
-                                    disabled={isPropertyDisabled}
-                                >
-                                    {!isManager && <option value="">Select Property</option>}
-                                    {propertyNames.map((property) => (
-                                        <option key={property.PropertyId} value={property.PropertyId}>
-                                            {property.Name}
-                                        </option>
-                                    ))}
-                                </select>
                             </div>
                         </div>
                         <div className="row">
