@@ -28,7 +28,7 @@ export const searchEmployees = async (data) => {
     const response = await api.post("/search", data);
     return response.data;
   } catch (error) {
-    return handleApiError(error);
+    handleApiError(error);
   }
 };
 
@@ -42,6 +42,19 @@ export const transferEmployees = async (data) => {
     const response = await api.post("/transfer", data);
     return response.data;
   } catch (error) {
-    return handleApiError(error);
+    handleApiError(error);
+  }
+};
+
+export const transferPreview = async (data) => {
+  try {
+    if (!data?.FacilityMemberIds?.length || !data?.NewPropertyId) {
+      throw new Error("Invalid preview request");
+    }
+
+    const response = await api.post("/transfer-preview", data);
+    return response.data || [];
+  } catch (error) {
+    handleApiError(error);
   }
 };

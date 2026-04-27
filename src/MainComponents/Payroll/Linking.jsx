@@ -88,9 +88,10 @@ export default function DesignationLinking() {
       const employees = (data || [])
         .map((item) => ({
           FacilityMemberId: item.FacilityMember?.FacilityMemberId,
-          SG_Link_ID: item.FacilityMember?.SG_Link_ID
-            ? parseInt(item.FacilityMember.SG_Link_ID)
-            : null,
+          SG_Link_ID:
+            item.FacilityMember?.SG_Link_ID != null
+              ? parseInt(item.FacilityMember.SG_Link_ID)
+              : null,
 
           Designation: item.Profile?.Designation || "",
           EmployeeName: item.Profile?.EmployeeName || "",
@@ -696,7 +697,7 @@ export default function DesignationLinking() {
                     {filteredEmployees.map((emp) => {
                       const assignedGroup = getGroupNameById(emp.SG_Link_ID);
                       const isAssignedToCurrent =
-                        emp.SG_Link_ID &&
+                        emp.SG_Link_ID !== null &&
                         parseInt(emp.SG_Link_ID) === parseInt(salaryGroup);
 
                       return (
@@ -721,7 +722,6 @@ export default function DesignationLinking() {
                                   emp.FacilityMemberId
                                 ) || isAssignedToCurrent
                               }
-                              disabled={isAssignedToCurrent}
                               onChange={() =>
                                 toggleEmployee(emp.FacilityMemberId)
                               }

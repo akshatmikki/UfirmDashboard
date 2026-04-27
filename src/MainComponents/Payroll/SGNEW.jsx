@@ -41,7 +41,6 @@ export default function SGNEW() {
   const [loadingEmployees, setLoadingEmployees] = useState(false);
   const [designations, setDesignations] = useState([]);
   const [excludedEmployeeIds, setExcludedEmployeeIds] = useState([]);
-  const [designationTouched, setDesignationTouched] = useState(false);
   const [pfLimit, setPfLimit] = useState("");
   const [esiLimit, setEsiLimit] = useState("");
   const [perDayOD, setPerDayOD] = useState({});
@@ -869,6 +868,24 @@ export default function SGNEW() {
       return;
     }
 
+    // 🚫 BLOCK same SG assigned to different designation
+    if (form.salaryGroupName && designation) {
+      const existing = salaryGroups.find(
+        (sg) =>
+          sg.SalaryGroup === form.salaryGroupName &&
+          Array.isArray(sg.Designations) &&
+          sg.Designations.length > 0 &&
+          sg.Designations[0] !== designation
+      );
+
+      if (existing) {
+        alert(
+          `This Salary Group is already assigned to "${existing.Designations[0]}".`
+        );
+        return;
+      }
+    }
+
     try {
       const adModel = buildADModel();
 
@@ -1127,7 +1144,6 @@ export default function SGNEW() {
     setDesignation("");
     setExcludeEmployees(false);
     setExcludedEmployeeIds([]);
-    setDesignationTouched(false);
     setPfLimit("");
     setEsiLimit("");
     setDeductionAllowanceMap({}); // 🔥 RESET PF / ESI CHECKBOX STATE
@@ -1647,7 +1663,6 @@ export default function SGNEW() {
 
               setDesignation(newDesignation);
               setExcludeEmployees(false);
-              setDesignationTouched(false);
             }}
             style={{
               width: 170,
@@ -1754,15 +1769,34 @@ export default function SGNEW() {
                   >
                     <input
                       type="checkbox"
-                      checked={
-                        filteredEmployees.length > 0 &&
-                        filteredEmployees.every(emp =>
-                          excludedEmployeeIds.includes(emp.FacilityMember?.FacilityMemberId)
-                        )
-                      }
+                      checked={(() => {
+                        const currentSGId = salaryGroups.find(
+                          (s) => s.SalaryGroup === selectedSG
+                        )?.SalaryGroup_IDs?.[0];
+
+                        const validEmployees = filteredEmployees.filter(emp =>
+                          Number(emp.FacilityMember?.SG_Link_ID) !== Number(currentSGId)
+                        );
+
+                        return (
+                          validEmployees.length > 0 &&
+                          validEmployees.every(emp =>
+                            excludedEmployeeIds.includes(emp.FacilityMember?.FacilityMemberId)
+                          )
+                        );
+                      })()}
                       onChange={(e) => {
                         if (e.target.checked) {
-                          const allIds = filteredEmployees.map(
+                          const currentSGId = salaryGroups.find(
+                            (s) => s.SalaryGroup === selectedSG
+                          )?.SalaryGroup_IDs?.[0];
+
+                          const validEmployees = filteredEmployees.filter(emp => {
+                            const empSGId = Number(emp.FacilityMember?.SG_Link_ID);
+                            return empSGId !== Number(currentSGId);
+                          });
+
+                          const allIds = validEmployees.map(
                             (emp) => emp.FacilityMember?.FacilityMemberId
                           );
                           setExcludedEmployeeIds(allIds);
@@ -1782,87 +1816,103 @@ export default function SGNEW() {
                   </div>
                 ) : (
                   <div style={{ maxHeight: 180, overflowY: "auto" }}>
-                    {filteredEmployees.map((emp, idx) => (
-                      <div
-                        key={idx}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 6,
-                          fontSize: 13,
-                          marginBottom: 6,
-                        }}
-                      >
-                        {/* CHECKBOX */}
-                        <input
-                          type="checkbox"
-                          checked={excludedEmployeeIds.includes(
-                            emp.FacilityMember?.FacilityMemberId
-                          )}
-                          onChange={(e) => {
-                            const empId = emp.FacilityMember?.FacilityMemberId;
+                    {filteredEmployees.map((emp, idx) => {
+                      const currentSGId = salaryGroups.find(
+                        (s) => s.SalaryGroup === selectedSG
+                      )?.SalaryGroup_IDs?.[0];
 
-                            if (!designationTouched) {
-                              setExcludedEmployeeIds([]);
-                            }
+                      const empSGId = Number(emp.FacilityMember?.SG_Link_ID);
 
-                            setDesignationTouched(true);
+                      const isSameSG =
+                        selectedSG && Number(currentSGId) === empSGId;
 
-                            setExcludedEmployeeIds((prev) =>
-                              e.target.checked
-                                ? [...prev, empId]
-                                : prev.filter((id) => id !== empId)
-                            );
-                          }}
-                        />
-
-                        <span
-                          style={{ cursor: "pointer", fontWeight: 600 }}
-                          onClick={() => {
-                            const empId = emp.FacilityMember?.FacilityMemberId;
-
-                            if (!designationTouched) {
-                              setExcludedEmployeeIds([]);
-                            }
-
-                            setDesignationTouched(true);
-
-                            setExcludedEmployeeIds((prev) =>
-                              prev.includes(empId)
-                                ? prev.filter((id) => id !== empId)
-                                : [...prev, empId]
-                            );
-                          }}
-                        >
-                          {emp.Profile?.EmployeeName}
-                        </span>
-
-                        <span
+                      return (
+                        <div
+                          key={idx}
                           style={{
-                            cursor: "pointer",
-                            color: "#0f766e",
-                            fontWeight: 500,
-                          }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-
-                            const sgId = Number(emp.FacilityMember?.SG_Link_ID);
-
-                            const sg = salaryGroups.find(
-                              (s) =>
-                                Array.isArray(s.SalaryGroup_IDs) &&
-                                s.SalaryGroup_IDs.some(
-                                  (id) => Number(id) === sgId
-                                )
-                            );
-
-                            if (sg) setPreviewSG(sg);
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 6,
+                            fontSize: 13,
+                            marginBottom: 6,
+                            opacity: isSameSG ? 0.5 : 1,
+                            cursor: isSameSG ? "not-allowed" : "pointer",
                           }}
                         >
-                          ({getEmployeeSalaryGroupName(emp)})
-                        </span>
-                      </div>
-                    ))}
+                          {/* CHECKBOX */}
+                          <input
+                            type="checkbox"
+                            disabled={isSameSG}
+                            checked={
+                              isSameSG
+                                ? false
+                                : excludedEmployeeIds.includes(emp.FacilityMember?.FacilityMemberId)
+                            }
+                            onChange={(e) => {
+                              if (isSameSG) return;
+                              const empId = emp.FacilityMember?.FacilityMemberId;
+
+                              setExcludedEmployeeIds((prev) =>
+                                e.target.checked
+                                  ? [...prev, empId]
+                                  : prev.filter((id) => id !== empId)
+                              );
+                            }}
+                          />
+
+                          <span
+                            style={{ cursor: "pointer", fontWeight: 600 }}
+                            onClick={() => {
+                              if (isSameSG) return;
+                              const empId = emp.FacilityMember?.FacilityMemberId;
+
+                              setExcludedEmployeeIds((prev) =>
+                                prev.includes(empId)
+                                  ? prev.filter((id) => id !== empId)
+                                  : [...prev, empId]
+                              );
+                            }}
+                          >
+                            {emp.Profile?.EmployeeName}
+
+                            {isSameSG && (
+                              <span style={{
+                                fontSize: 11,
+                                color: "#dc2626",
+                                marginLeft: 6
+                              }}>
+                                (Assigned)
+                              </span>
+                            )}
+                          </span>
+
+                          <span
+                            style={{
+                              cursor: "pointer",
+                              color: "#0f766e",
+                              fontWeight: 500,
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+
+                              const sgId = Number(emp.FacilityMember?.SG_Link_ID);
+
+                              const sg = salaryGroups.find(
+                                (s) =>
+                                  Array.isArray(s.SalaryGroup_IDs) &&
+                                  s.SalaryGroup_IDs.some(
+                                    (id) => Number(id) === sgId
+                                  )
+                              );
+
+                              if (sg) setPreviewSG(sg);
+                            }}
+                          >
+                            ({getEmployeeSalaryGroupName(emp)})
+                          </span>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
