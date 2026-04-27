@@ -1,7 +1,7 @@
 // services/assetNotificationService.js
 
 const BASE_URL = "https://api.urest.in:8096/api/Asset";
-// const BASE_URL = "http://localhost:62929/api/Asset";
+// const BASE_URL = "https://api.urest.in:8096/api/Asset";
 
 export const fetchAssetNotifications = async (propertyId) => {
     if (!propertyId || propertyId === 0) {
@@ -42,7 +42,7 @@ export const fetchAssetNotifications = async (propertyId) => {
 
 export const sendAssetResponse = async (responseData) => {
     const apiUrl = 'https://api.urest.in:8096/FMAssetResponse';
-    // const apiUrl = 'http://localhost:62929/FMAssetResponse';
+    // const apiUrl = 'https://api.urest.in:8096/FMAssetResponse';
 
     try {
         const response = await fetch(apiUrl, {

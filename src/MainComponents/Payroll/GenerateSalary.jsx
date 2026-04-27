@@ -1091,12 +1091,15 @@ export default function GenerateSalary() {
       return;
     }
 
-    for (const row of selectedRows) {
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pdfWidthMm = 210;
+    const pdfHeightMm = 297;
+    const payslipMaxWidthMm = pdfWidthMm * 0.88;
+    const payslipMaxHeightMm = pdfHeightMm * 0.88;
+
+    for (let index = 0; index < selectedRows.length; index++) {
+      const row = selectedRows[index];
       const payslipHtml = generatePayslipHTML(row);
-      const pdfWidthMm = 210;
-      const pdfHeightMm = 297;
-      const payslipMaxWidthMm = pdfWidthMm * 0.88;
-      const payslipMaxHeightMm = pdfHeightMm * 0.88;
 
       const container = document.createElement("div");
       container.style.position = "fixed";
@@ -1138,15 +1141,13 @@ export default function GenerateSalary() {
           renderWidthMm = renderHeightMm * imageAspectRatio;
         }
 
-        const pdf = new jsPDF("p", "mm", "a4");
+        if (index > 0) {
+          pdf.addPage();
+        }
         const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
         const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
 
         pdf.addImage(imgData, "PNG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
-
-        pdf.save(
-          `Payslip_${row.EmployeeCode}_${row.Month || "All"}_${row.Year}.pdf`
-        );
       } catch (error) {
         alert(
           "Failed to generate PDF for employee " +
@@ -1156,6 +1157,15 @@ export default function GenerateSalary() {
         document.body.removeChild(container);
       }
     }
+
+    const firstRow = selectedRows[0];
+    const lastRow = selectedRows[selectedRows.length - 1];
+    const fileName =
+      selectedRows.length === 1
+        ? `Payslip_${firstRow.EmployeeCode}_${firstRow.Month || "All"}_${firstRow.Year}.pdf`
+        : `Payslip_Group_${firstRow.Month || "All"}_${firstRow.Year}_${firstRow.EmployeeCode}_to_${lastRow.EmployeeCode}.pdf`;
+
+    pdf.save(fileName);
   };
 
   const handleFreezeSalary = () => {

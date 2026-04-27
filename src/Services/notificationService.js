@@ -2,7 +2,7 @@
 import axios from "axios";
 const API_BASE = "https://api.urest.in:8096/api";
 const BASE_URL = "https://api.urest.in:8096/api/notification";
-// const BASE_URL = "http://localhost:62929/api/notification";
+// const BASE_URL = "https://api.urest.in:8096/api/notification";
 
 const endpoints = {
   task: "FMTaskNotification",

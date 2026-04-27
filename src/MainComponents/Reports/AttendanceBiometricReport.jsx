@@ -383,7 +383,7 @@ const totalColumns = 4 + dateRange.length;
     return `
        <td colspan="${totalColumns}" class="summary-text-cell">
     <div style="font-weight:bold; font-size:18px;">
-        Employee: ${employee.employeeName}
+    Employee: ${employee.employeeName}, Employee ID: ${employee.employeeCode}
     </div>
     <div style="margin-top:4px; font-size:18px;">
        Present: ${summary.present}

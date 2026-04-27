@@ -248,7 +248,7 @@ const RentalAssets = ({ propId, history }) => {
   const fetchRentalAssets = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:62929/api/Asset/GetRentalAssetData?PropId=${propId}`);
+      const res = await fetch(`https://api.urest.in:8096/api/Asset/GetRentalAssetData?PropId=${propId}`);
       const data = await res.json();
       setRentalAssets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -492,7 +492,7 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = isReturnMode ? "http://localhost:62929/ManageRentInAsset" : "http://localhost:62929/ManageRentOutAsset";
+    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
     const payload = isReturnMode
       ? {
         AssetId: selectedAsset.Id || 0,

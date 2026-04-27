@@ -148,5 +148,5 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
     if (selectedCategory) loadSubCategory(selectedCategory);
   }, [loadSubCategory, selectedCategory]);
 
-  return { subCategory, assign, propertyData, assets, shifts, occurrenceOptions, onAssetChange };
+  return { subCategory, assign, propertyData, assets, shifts, occurrenceOptions, frequencyData, onAssetChange };
 }
