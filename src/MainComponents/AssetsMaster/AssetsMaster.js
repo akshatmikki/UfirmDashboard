@@ -8,7 +8,6 @@ import * as appCommon from "../../Common/AppCommon.js";
 import { DELETE_CONFIRMATION_MSG } from "../../Contants/Common";
 import { CreateValidator, ValidateControls } from "./Validation.js";
 import DocumentUploader from "../../ReactComponents/FileUploader/DocumentUploader.jsx";
-import ExportToCSV from "../../ReactComponents/ExportToCSV/ExportToCSV.js";
 import "../Calendar/Tasks/taskList/components/TaskListView.css";
 import "./AssetsMaster.css";
 import { withRouter } from "react-router-dom";
@@ -199,6 +198,14 @@ class AssetsMaster extends Component {
         : `image/${normalizedExt === "jpg" ? "jpeg" : normalizedExt}`;
     return `data:${mimeType};base64,${raw}`;
   };
+
+  escapeHtml = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
 
   openDocumentUrl = (src) => {
     if (!src) return;
@@ -760,6 +767,107 @@ class AssetsMaster extends Component {
       Location: item.Location,
       ServiceReminderDay: item.serviceReminderDay,
     }));
+
+  exportOwnedAssetsToExcel = (rows) => {
+    const exportRows = this.getExportData(rows);
+    const headers = [
+      "Id",
+      "Name",
+      "Description",
+      "QRCode",
+      "AssetType",
+      "Manufacturer",
+      "AssetModel",
+      "IsMoveable",
+      "IsRented",
+      "LastServiceDate",
+      "NextServiceDate",
+      "IsRentable",
+      "AssetValue",
+      "Capacity",
+      "Status",
+      "Category",
+      "Location",
+      "ServiceReminderDay",
+      "Image",
+    ];
+
+    const tableRows = exportRows
+      .map((row, index) => {
+        const sourceRow = rows?.[index] || {};
+        const imageSource = sourceRow.AssetImage || sourceRow.Image;
+        const imageExt = sourceRow.ImageExt || sourceRow.extension || "png";
+        const previewSrc = imageSource ? this.getPreviewSrc(imageSource, imageExt) : "";
+
+        return `
+          <tr style="height:90px;">
+            <td>${this.escapeHtml(row.Id)}</td>
+            <td>${this.escapeHtml(row.Name)}</td>
+            <td>${this.escapeHtml(row.Description)}</td>
+            <td>${this.escapeHtml(row.QRCode)}</td>
+            <td>${this.escapeHtml(row.AssetType)}</td>
+            <td>${this.escapeHtml(row.Manufacturer)}</td>
+            <td>${this.escapeHtml(row.AssetModel)}</td>
+            <td>${this.escapeHtml(row.IsMoveable)}</td>
+            <td>${this.escapeHtml(row.IsRented)}</td>
+            <td>${this.escapeHtml(row.LastServiceDate)}</td>
+            <td>${this.escapeHtml(row.NextServiceDate)}</td>
+            <td>${this.escapeHtml(row.IsRentable)}</td>
+            <td>${this.escapeHtml(row.AssetValue)}</td>
+            <td>${this.escapeHtml(row.Capacity)}</td>
+            <td>${this.escapeHtml(row.Status)}</td>
+            <td>${this.escapeHtml(row.Category)}</td>
+            <td>${this.escapeHtml(row.Location)}</td>
+            <td>${this.escapeHtml(row.ServiceReminderDay)}</td>
+            <td style="width:90px;height:90px;text-align:center;vertical-align:middle;overflow:hidden;padding:4px;">
+              ${previewSrc ? `<div style="width:80px;height:80px;overflow:hidden;margin:0 auto;display:flex;align-items:center;justify-content:center;"><img src="${previewSrc}" alt="" width="70" height="70" style="display:block;width:70px;height:70px;margin:0 auto;border:none;" /></div>` : ""}
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const tableHeaders = headers.map((header) => `<th>${this.escapeHtml(header)}</th>`).join("");
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head>
+          <meta charSet="utf-8" />
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Owned Assets</x:Name>
+                  <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            table { border-collapse: collapse; table-layout: fixed; }
+            th, td { border: 1px solid #d0d7de; padding: 8px; vertical-align: middle; overflow: hidden; }
+            th { background: #f3f4f6; font-weight: 600; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeaders}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "AssetsMaster.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
 
@@ -1671,7 +1779,10 @@ class AssetsMaster extends Component {
                   Filter
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
                 </button>
-                <ExportToCSV data={this.getExportData(filteredGridData)} fileName="AssetsMaster.csv" />
+                <button type="button" className="asset-export-btn" onClick={() => this.exportOwnedAssetsToExcel(filteredGridData)}>
+                  <i className="fa fa-external-link" aria-hidden="true" style={{ marginRight: "6px" }} />
+                  Export
+                </button>
                 <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>
                   <i className="fa fa-plus" aria-hidden="true" />
                   Add asset
