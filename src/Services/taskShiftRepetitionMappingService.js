@@ -37,6 +37,10 @@ export const createTaskShiftRepetitionMapping = async (model) => {
 export const saveTaskShiftRepetitions = async (createdMappings = [], sourceMappings = [], repetition = {}) => {
   if (!repetition?.enabled) return [];
 
+  if ((sourceMappings || []).length && (createdMappings || []).length < (sourceMappings || []).length) {
+    throw new Error("TaskFrequencyMapping IDs could not be resolved for all schedule rows.");
+  }
+
   const items = (createdMappings || [])
     .map((created, index) => {
       const source = sourceMappings[index] || {};
