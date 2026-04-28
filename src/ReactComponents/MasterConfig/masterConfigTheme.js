@@ -23,6 +23,12 @@ export const masterConfigCss = `
 .mc-badge{display:inline-flex;align-items:center;justify-content:center;height:22px;min-width:30px;padding:0 8px;border-radius:999px;background:#d9e8f7;color:#365676;font-weight:700;font-size:13px;}
 .mc-actions{display:flex;gap:10px;align-items:center;}
 .mc-act{border:0;background:transparent;padding:0;color:#9eb0bf;font-size:14px;}
+.mc-pager{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;padding:0 4px;}
+.mc-pager-left,.mc-pager-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.mc-pager-label{font-size:12px;color:#55606c;font-weight:700;}
+.mc-pager-select{height:30px;border:1px solid #d8dee6;border-radius:4px;background:#fff;color:#3f4750;padding:0 8px;font-size:13px;}
+.mc-pager-meta{font-size:12px;color:#6a737d;font-weight:700;}
+.mc-pager-page{font-size:12px;color:#55606c;font-weight:700;min-width:120px;text-align:center;}
 .mc-side{background:#fff;border:1px solid #d7dde4;border-radius:9px;display:flex;flex-direction:column;align-self:start;min-height:0;max-height:none;}
 .mc-side-head{display:flex;align-items:center;gap:8px;padding:10px 10px;border-bottom:1px solid #e7ecf1;font-weight:700;color:#333c45;}
 .mc-side-head .mc-ico{width:26px;height:26px;border-radius:50%;background:#d9ebfa;color:#2a5a86;display:flex;align-items:center;justify-content:center;}

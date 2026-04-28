@@ -57,6 +57,20 @@ function Field({ field, value, onChange, context }) {
   const options =
     typeof field.options === "function" ? field.options(context) : Array.isArray(field.options) ? field.options : null;
 
+  if (type === "file") {
+    const accept = field.accept || undefined;
+    return (
+      <input
+        className="mc-input"
+        type="file"
+        disabled={disabled}
+        readOnly={readOnly}
+        accept={accept}
+        onChange={(e) => onChange(e?.target?.files?.[0] ?? null)}
+      />
+    );
+  }
+
   if (type === "textarea") {
     return (
       <textarea
@@ -137,6 +151,8 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
   const tab = tabMap.get(tabId) || tabs[0];
 
   const [query, setQuery] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({});
@@ -192,6 +208,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
 
   useEffect(() => {
     setQuery("");
+    setPage(1);
     setSelectedRow(null);
     setMode("view");
     setShowAdd(false);
@@ -211,8 +228,39 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
     return qFilter(rows, query, keys);
   }, [query, rows, tab]);
 
+  useEffect(() => {
+    setPage(1);
+  }, [query, tabId]);
+
+  const totalRows = filteredRows.length;
+  const safePageSize = Math.max(1, Number(pageSize) || 10);
+  const totalPages = Math.max(1, Math.ceil(totalRows / safePageSize));
+  const safePage = Math.min(Math.max(1, page), totalPages);
+
+  useEffect(() => {
+    if (safePage !== page) setPage(safePage);
+  }, [page, safePage]);
+
+  const pagedRows = useMemo(() => {
+    const start = (safePage - 1) * safePageSize;
+    return filteredRows.slice(start, start + safePageSize);
+  }, [filteredRows, safePage, safePageSize]);
+
   const onSelect = useCallback(
     (row) => {
+      const clickedId = getRowId(tab, row);
+      const currentId = selectedRow ? getRowId(tab, selectedRow) : null;
+      if (currentId != null && clickedId === currentId) {
+        setSelectedRow(null);
+        setMode("view");
+        const initial =
+          typeof tab?.initialForm === "function"
+            ? tab.initialForm({ context, meta })
+            : tab?.fields?.reduce((acc, f) => ({ ...acc, [f.key]: "" }), {});
+        setForm(initial || {});
+        return;
+      }
+
       setSelectedRow(row);
       setMode("view");
       const next =
@@ -221,7 +269,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
           : tab?.fields?.reduce((acc, f) => ({ ...acc, [f.key]: getByPath(row, f.key) ?? "" }), {});
       setForm(next || {});
     },
-    [context, meta, tab]
+    [context, getRowId, meta, selectedRow, tab]
   );
 
   const onEdit = useCallback(
@@ -344,13 +392,13 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
                 </tr>
               </thead>
               <tbody>
-                {loading && filteredRows.length === 0 ? (
+                {loading && totalRows === 0 ? (
                   <tr>
                     <td className="mc-empty" colSpan={(tab?.columns?.length || 0) + 1}>
                       Loading...
                     </td>
                   </tr>
-                ) : filteredRows.length === 0 ? (
+                ) : totalRows === 0 ? (
                   <tr>
                     <td className="mc-empty" colSpan={(tab?.columns?.length || 0) + 1}>
                       No data found.
@@ -358,7 +406,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
                   </tr>
                 ) : null}
 
-                {filteredRows.map((r) => (
+                {pagedRows.map((r) => (
                   <tr
                     key={String(getRowId(tab, r))}
                     className={selectedId != null && String(selectedId) === String(getRowId(tab, r)) ? "mc-row-active" : ""}
@@ -397,6 +445,65 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
                 ))}
               </tbody>
             </table>
+
+            {totalRows > 0 ? (
+              <div className="mc-pager">
+                <div className="mc-pager-left">
+                  <span className="mc-pager-label">Rows per page</span>
+                  <select
+                    className="mc-pager-select"
+                    value={safePageSize}
+                    onChange={(e) => {
+                      setPageSize(Number(e.target.value) || 10);
+                      setPage(1);
+                    }}
+                  >
+                    {[10, 25, 50, 100].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                  <span className="mc-pager-meta">
+                    {Math.min((safePage - 1) * safePageSize + 1, totalRows)}-{Math.min(safePage * safePageSize, totalRows)} of{" "}
+                    {totalRows}
+                  </span>
+                </div>
+
+                <div className="mc-pager-right">
+                  <button className="mc-btn ghost" type="button" onClick={() => setPage(1)} disabled={safePage <= 1}>
+                    <i className="fas fa-angle-double-left" />
+                  </button>
+                  <button
+                    className="mc-btn ghost"
+                    type="button"
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    disabled={safePage <= 1}
+                  >
+                    <i className="fas fa-angle-left" />
+                  </button>
+                  <span className="mc-pager-page">
+                    Page {safePage} / {totalPages}
+                  </span>
+                  <button
+                    className="mc-btn ghost"
+                    type="button"
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={safePage >= totalPages}
+                  >
+                    <i className="fas fa-angle-right" />
+                  </button>
+                  <button
+                    className="mc-btn ghost"
+                    type="button"
+                    onClick={() => setPage(totalPages)}
+                    disabled={safePage >= totalPages}
+                  >
+                    <i className="fas fa-angle-double-right" />
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
 

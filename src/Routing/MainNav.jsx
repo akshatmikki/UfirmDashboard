@@ -86,6 +86,7 @@ import ItemMasterPage from "../MainComponents/Inventory/itemPage";
 import PurchaseOrderPage from "../MainComponents/Inventory/PurchaseOrderMaster";
 import StockPage from "../MainComponents/Inventory/StockMaster";
 import StockItemsPage from "../pages/StockItemsPage";
+import InventoryMasterConfigPage from "../pages/InventoryMasterConfigPage.jsx";
 import AttendanceMaster from "../MainComponents/Attendance/attendance.jsx";
 import Leave from "../MainComponents/Attendance/Leaves.jsx";
 import Compoff from "../MainComponents/Attendance/Compoff.jsx";
@@ -893,6 +894,12 @@ class MainNav extends React.Component {
                       </a>
                       <ul className="nav nav-treeview">
                         <li className="nav-item">
+                          <Link to="/Account/App/Inventory" className="nav-link">
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Inventory Master Config</p>
+                          </Link>
+                        </li>
+                        {/* <li className="nav-item">
                           <Link to="/Account/App/Category" className="nav-link">
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Category</p>
@@ -911,7 +918,7 @@ class MainNav extends React.Component {
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Vendors</p>
                           </Link>
-                        </li>
+                        </li> */}
                         <li className="nav-item">
                           <Link to="/Account/App/RateCard" className="nav-link">
                             <i className=" fas fa-caret-right nav-icon"></i>
@@ -1940,6 +1947,9 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/Category">
               <CategoryPage />
+            </Route>
+            <Route path="/Account/App/Inventory">
+              <InventoryMasterConfigPage />
             </Route>
             <Route path="/Account/App/Item">
               <ItemMasterPage />
