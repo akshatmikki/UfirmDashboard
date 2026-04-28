@@ -1606,6 +1606,31 @@
   grid-column: 1 / -1;
 }
 
+.asset-add-amc-trigger {
+  width: 100%;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px dashed rgba(30, 49, 67, 0.28);
+  background: #f8fbff;
+  color: #1e3143;
+}
+
+.asset-add-amc-panel {
+  border: 1px solid #d9e1ea;
+  border-radius: 12px;
+  padding: 16px;
+  background: #fbfdff;
+}
+
+.asset-add-amc-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px 14px;
+}
+
 .asset-add-footer {
   display: flex;
   gap: 4px;

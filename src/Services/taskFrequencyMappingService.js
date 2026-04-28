@@ -92,7 +92,21 @@ export const replaceTaskFrequencyMappings = async (taskId, frequencyId, mappings
     TaskTime: toTimeOnly(m.TaskTime),
   }));
 
-  const createdMappings = await Promise.all(payloads.map((p) => createTaskFrequencyMapping(p)));
-  return { ok: true, createdMappings };
+  await Promise.all(payloads.map((p) => createTaskFrequencyMapping(p)));
+
+  const refreshedMappings = await getTaskFrequencyMappingsByTaskId(id);
+  const createdMappings = payloads
+    .map((payload) =>
+      (refreshedMappings || []).find(
+        (mapping) =>
+          toId(mapping?.TaskId) === id &&
+          toId(mapping?.FrequencyId) === freqId &&
+          toDateOnly(mapping?.TaskDate) === payload.TaskDate &&
+          toTimeOnly(mapping?.TaskTime) === payload.TaskTime,
+      ),
+    )
+    .filter(Boolean);
+
+  return { ok: true, createdMappings, refreshedMappings };
 };
 

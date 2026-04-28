@@ -116,10 +116,13 @@ const SparePage = () => {
     try {
       const res = await fetch(`https://api.urest.in:8096/GetAssets?propertyId=${propertyId}`);
       const data = await res.json();
-      const combined = [
-        ...(Array.isArray(data?.PassedServiceDates) ? data.PassedServiceDates : []),
-        ...(Array.isArray(data?.UpcomingServiceDates) ? data.UpcomingServiceDates : []),
-      ];
+      const directAssets = Array.isArray(data) ? data : [];
+      const combined = directAssets.length
+        ? directAssets
+        : [
+            ...(Array.isArray(data?.PassedServiceDates) ? data.PassedServiceDates : []),
+            ...(Array.isArray(data?.UpcomingServiceDates) ? data.UpcomingServiceDates : []),
+          ];
       setAssets(combined);
     } catch {
       setAssets([]);

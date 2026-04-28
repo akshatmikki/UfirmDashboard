@@ -1,20 +1,39 @@
 import ServiceProvider from '../../Common/ServiceProvider.js';
 let srv = new ServiceProvider();
+const LOCAL_MANAGE_ASSETS_URL = 'http://localhost:62929/ManageAssets';
 class DataProvider {       
     manageDocumentTypeMaster(model,type) {
         let url = '';
         switch (type) {
             case 'I':
-                url = `ManageAssets`;
-                return srv.CallPostNewService(url, model[0]);
+                return fetch(LOCAL_MANAGE_ASSETS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(model[0])
+                });
  
             case 'U':
-                url = `ManageAssets`;
-                return srv.CallPostNewService(url, model[0]);
+                return fetch(LOCAL_MANAGE_ASSETS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(model[0])
+                });
 
             case 'D':
-                url = `ManageAssets`;
-                return srv.CallPostNewService(url, model[0]);
+                return fetch(LOCAL_MANAGE_ASSETS_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(model[0])
+                });
 
             case 'R':
                 url = `GetAssets?propertyId=${model[0].propertyId}`;
