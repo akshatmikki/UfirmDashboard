@@ -73,6 +73,18 @@ const EmployeeTransferTab = () => {
       return;
     }
 
+    // 🔥 CHECK SAME DESIGNATION
+    const designations = [...new Set(selectedEmployees.map(e => e.Designation))];
+
+    if (designations.length > 1) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Validation",
+        detail: "Please select employees with same designation only",
+      });
+      return;
+    }
+
     const ids = selectedEmployees.map((emp) => emp.FacilityMemberId);
 
     try {
@@ -80,6 +92,7 @@ const EmployeeTransferTab = () => {
       const preview = await transferPreview({
         FacilityMemberIds: ids,
         NewPropertyId: Number(newProperty),
+        Decisions: [],
       });
 
       setPreviewData(preview);
@@ -97,7 +110,11 @@ const EmployeeTransferTab = () => {
     try {
       const ids = selectedEmployees.map((emp) => emp.FacilityMemberId);
 
-      const decisionArray = Object.values(decisions);
+      const decisionArray = selectedEmployees.map(emp => ({
+        FacilityMemberId: emp.FacilityMemberId,
+        SelectedDesignation: decisions.SelectedDesignation,
+        SelectedSGId: decisions.SelectedSGId,
+      }));
 
       await transferEmployees({
         FacilityMemberIds: ids,
@@ -185,34 +202,55 @@ const EmployeeTransferTab = () => {
           <Column field="Designation" header="Designation" />
         </DataTable>
 
-        {showPopup && (
+        {showPopup && previewData.length > 0 && (
           <div className="card" style={{ marginTop: 20, border: "2px solid #ccc" }}>
             <h3>Resolve Transfer Decisions</h3>
 
-            {previewData.map((emp) => {
-              const current = decisions[emp.FacilityMemberId] || {};
+            {(() => {
+              const emp = previewData[0]; // 🔥 SINGLE REFERENCE (all same designation)
 
               return (
-                <div key={emp.FacilityMemberId} style={{ marginBottom: 15 }}>
+                <div style={{ marginBottom: 15 }}>
                   <b>
                     {emp.CurrentDesignation}
                     {!emp.HasMatchingDesignationInNewProperty && " → Select New"}
                   </b>
 
-                  {/* 🔹 DESIGNATION SELECTION */}
+                  {/* 🔹 DESIGNATION SELECTION (ONE FOR ALL) */}
                   {!emp.HasMatchingDesignationInNewProperty && (
                     <select
-                      value={current.SelectedDesignation || ""}
-                      onChange={(e) =>
-                        setDecisions((prev) => ({
-                          ...prev,
-                          [emp.FacilityMemberId]: {
-                            ...prev[emp.FacilityMemberId],
-                            FacilityMemberId: emp.FacilityMemberId,
-                            SelectedDesignation: e.target.value,
-                          },
-                        }))
-                      }
+                      value={decisions.SelectedDesignation || ""}
+                      onChange={async (e) => {
+                        const newDesi = e.target.value;
+
+                        const updatedDecisions = {
+                          ...decisions,
+                          SelectedDesignation: newDesi,
+                        };
+
+                        setDecisions(updatedDecisions);
+
+                        try {
+                          const ids = selectedEmployees.map((e) => e.FacilityMemberId);
+
+                          const preview = await transferPreview({
+                            FacilityMemberIds: ids,
+                            NewPropertyId: Number(newProperty),
+                            Decisions: selectedEmployees.map(emp => ({
+                              FacilityMemberId: emp.FacilityMemberId,
+                              SelectedDesignation: newDesi,
+                            })),
+                          });
+
+                          setPreviewData(preview);
+                        } catch (err) {
+                          toast.current.show({
+                            severity: "error",
+                            summary: "Error",
+                            detail: err.message,
+                          });
+                        }
+                      }}
                     >
                       <option value="">Keep Original</option>
                       {emp.AvailableDesignations.map((d, i) => (
@@ -223,38 +261,32 @@ const EmployeeTransferTab = () => {
                     </select>
                   )}
 
-                  {/* 🔹 SG SELECTION */}
-                  {emp.RequiresSGSelection && (
+                  {/* 🔹 SG SELECTION (ONE FOR ALL) */}
+                  {(emp.RequiresSGSelection || emp.AutoAssignSG) && (
                     <select
-                      value={current.SelectedSGId || ""}
+                      value={decisions.SelectedSGId ?? ""}
                       onChange={(e) =>
                         setDecisions((prev) => ({
                           ...prev,
-                          [emp.FacilityMemberId]: {
-                            ...prev[emp.FacilityMemberId],
-                            FacilityMemberId: emp.FacilityMemberId,
-                            SelectedSGId: Number(e.target.value),
-                          },
+                          SelectedSGId:
+                            e.target.value === "" ? null : Number(e.target.value),
                         }))
                       }
                     >
                       <option value="">No SG</option>
                       {emp.SalaryGroups.map((sg) => (
                         <option key={sg.SGId} value={sg.SGId}>
-                          {sg.SGName || `SG ${sg.SGId}`}
+                          {sg.SGName}
                         </option>
                       ))}
                     </select>
                   )}
 
-                  {/* 🔹 AUTO SG */}
-                  {emp.AutoAssignSG && <span>Auto SG Assigned</span>}
-
                   {/* 🔹 NO SG */}
                   {emp.NoSGAvailable && <span>No SG Available</span>}
                 </div>
               );
-            })}
+            })()}
 
             <Button label="Confirm Transfer" onClick={confirmTransfer} />
           </div>
