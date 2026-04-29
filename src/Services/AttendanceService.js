@@ -39,6 +39,18 @@ export const getAttendance = async (
     }
 };
 
+// Dashboard attendance chart summary (Present/Absent/Leave counts)
+export const getAttendanceSummaryCount = async (propertyId, fromDate, toDate) => {
+    try {
+        const response = await api.get(
+            `/attendance-summary-count?propertyId=${propertyId}&fromDate=${fromDate}&toDate=${toDate}`
+        );
+        return response.data;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
 
 const BASE_URL = "https://api.urest.in:8096/api/UfirmEmployee";
 

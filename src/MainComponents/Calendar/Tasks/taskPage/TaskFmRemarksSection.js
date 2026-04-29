@@ -46,9 +46,9 @@ export default function TaskFmRemarksSection({
     const list = questions || [];
     return list.filter((q) => {
       const rawStatus = effectiveStatusMap[String(q.id)] || effectiveStatusMap[q.id];
-      // If we don't have per-question status yet, don't hide questions (prevents blank UI on first load).
-      if (rawStatus == null || String(rawStatus).trim() === "") return true;
-      return isActionableStatus(rawStatus);
+      // Show only actionable questions. If per-question status is missing, fall back to overall status.
+      const effective = rawStatus == null || String(rawStatus).trim() === "" ? normalizedStatus : rawStatus;
+      return isActionableStatus(effective);
     });
   }, [effectiveStatusMap, isActionableStatus, normalizedStatus, questions]);
 
@@ -98,14 +98,25 @@ export default function TaskFmRemarksSection({
       }
     };
 
-    // Run immediately + after layout settles (e.g. when the container was previously hidden).
+    // Run repeatedly until the modal/layout is actually visible; otherwise some browsers keep the old scrollTop.
+    let raf = 0;
+    let attempts = 0;
+    const tick = () => {
+      if (!mounted || !el) return;
+      const isVisible = el.offsetParent !== null && el.clientHeight > 0;
+      if (isVisible) reset();
+      if (attempts++ < 24 && (!isVisible || el.scrollTop !== 0)) {
+        raf = window.requestAnimationFrame(tick);
+      }
+    };
+
     reset();
-    const frame = window.requestAnimationFrame(reset);
-    const t1 = window.setTimeout(reset, 0);
-    const t2 = window.setTimeout(reset, 50);
+    raf = window.requestAnimationFrame(tick);
+    const t1 = window.setTimeout(tick, 0);
+    const t2 = window.setTimeout(tick, 120);
     return () => {
       mounted = false;
-      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(raf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
@@ -172,6 +183,7 @@ export default function TaskFmRemarksSection({
                   key={String(q.id)}
                   type="button"
                   className={`fm-q-item ${isActive ? "is-active" : ""}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setOpenQuestionId(Number(q.id))}
                   title={q.name}
                   tabIndex={-1}

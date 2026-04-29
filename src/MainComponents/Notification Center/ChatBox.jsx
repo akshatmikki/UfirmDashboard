@@ -7,6 +7,7 @@ const styles = {
     maxHeight: "250px",
     overflowY: "auto",
     padding: "10px",
+    overscrollBehavior: "contain",
   },
   chatRow: {
     display: "flex",
@@ -64,7 +65,7 @@ const ChatBox = ({
   const [servicedBy, setServicedBy] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
 
-  const chatEndRef = useRef(null);
+  const chatScrollRef = useRef(null);
 
   
 
@@ -174,8 +175,26 @@ const ChatBox = ({
   }, [context, status]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [remarks]);
+    const el = chatScrollRef.current;
+    if (!el) return;
+
+    // Keep scrolling scoped to the chat container (avoid scrolling the entire modal/window).
+    const scrollToBottom = () => {
+      try {
+        el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+      } catch (_) {
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+
+    scrollToBottom();
+    const raf = window.requestAnimationFrame(scrollToBottom);
+    const t = window.setTimeout(scrollToBottom, 0);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+    };
+  }, [remarks?.length]);
 
   const stripHtml = (html) => html.replace(/<[^>]*>/g, "");
 
@@ -257,9 +276,9 @@ const ChatBox = ({
             style={{
               ...styles.chatScroll,
               maxHeight: fillHeight ? "none" : chatScrollMaxHeight || styles.chatScroll.maxHeight,
-              height: fillHeight ? "100%" : undefined,
               flex: 1,
             }}
+            ref={chatScrollRef}
           >
             {remarks.length === 0 ? (
               <p style={{ color: "#6c757d" }}>No remarks available</p>
@@ -294,7 +313,7 @@ const ChatBox = ({
 
                         return (
                           <>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
+                            <div style={{ fontWeight: 400, color: "#000" }}>
                               {label}:{" "}
                               <span style={{ fontWeight: 400, color: "#000", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 {message}
@@ -322,7 +341,6 @@ const ChatBox = ({
                 );
               })
             )}
-            <div ref={chatEndRef} />
           </div>
         )}
 

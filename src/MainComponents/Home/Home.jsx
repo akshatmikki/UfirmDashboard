@@ -8,7 +8,7 @@ import {
   fetchSubCatTaskCounts,
   fetchAssetServiceRecords,
 } from "../../Services/DashboardServices";
-import { getAttendance } from "../../Services/AttendanceService";
+import { getAttendanceSummaryCount } from "../../Services/AttendanceService";
 import { getTaskPriorityCountDash } from "../../Services/TaskPriorityService";
 import { getTopDebitExpenses, getTopCreditExpenses, getTop5Expenses } from "../../Services/ExpenseReportService";
 import { Link, useHistory } from "react-router-dom";
@@ -129,42 +129,29 @@ const Home = ({ PropertyId }) => {
   );
 
 
-  const taskStatusCount = useCallback(async (model, initialDate, finalDate) => {
-    try {
-      const resp = await apiProvider.manageDashTaskStatusCnt(
-        model,
-        initialDate,
-        finalDate
-      );
-      if (resp && resp.ok && resp.status === 200) {
-        const data = await resp.json();
-        const defaultCounts = { Actionable: 0, Completed: 0, Pending: 0 };
-        let total = 0;
+  const computeTaskStatusFromSubCatData = useCallback((data) => {
+    const defaultCounts = { Actionable: 0, Completed: 0, Pending: 0 };
 
-        data.forEach((task) => {
-          if (defaultCounts.hasOwnProperty(task.TaskStatus)) {
-            defaultCounts[task.TaskStatus] = task.Count;
-          }
-          total += task.Count;
-        });
+    // API returns per-subcategory counts like:
+    // { [subCatId]: { Actionable: n, Completed: n, Pending: n }, ... }
+    Object.values(data || {}).forEach((counts) => {
+      if (!counts || typeof counts !== "object") return;
+      defaultCounts.Actionable += Number(counts.Actionable || 0);
+      defaultCounts.Completed += Number(counts.Completed || 0);
+      defaultCounts.Pending += Number(counts.Pending || 0);
+    });
 
-        setTaskStatus([
-          { Title: "Actionable", Value: defaultCounts.Actionable },
-          { Title: "Completed", Value: defaultCounts.Completed },
-          { Title: "Pending", Value: defaultCounts.Pending },
-        ]);
-        setTotalTasks(total);
-      } else {
-        setTaskStatus([
-          { Title: "Actionable", Value: 0 },
-          { Title: "Completed", Value: 0 },
-          { Title: "Pending", Value: 0 },
-        ]);
-        setTotalTasks(0);
-      }
-    } catch (error) {
-      console.error("Error fetching task status:", error);
-    }
+    const total =
+      defaultCounts.Actionable + defaultCounts.Completed + defaultCounts.Pending;
+
+    return {
+      taskStatus: [
+        { Title: "Actionable", Value: defaultCounts.Actionable },
+        { Title: "Completed", Value: defaultCounts.Completed },
+        { Title: "Pending", Value: defaultCounts.Pending },
+      ],
+      totalTasks: total,
+    };
   }, []);
 
   const taskPriorityCount = useCallback(
@@ -249,22 +236,15 @@ const Home = ({ PropertyId }) => {
   const getAttendanceData = useCallback(
     async (model, initialDate, finalDate) => {
       try {
-        const data = await getAttendance(
+        const data = await getAttendanceSummaryCount(
           model[0].PropertyId,
           initialDate,
           finalDate
-        ); // not 'resp'
-        if (!Array.isArray(data)) {
-          throw new Error("Attendance data is not an array");
-        }
+        );
 
-        const presentCount = data.filter(
-          (emp) => emp.Status === "Present"
-        ).length;
-        const absentCount = data.filter(
-          (emp) => emp.Status === "Absent"
-        ).length;
-        const leaveCount = data.filter((emp) => emp.Status === "Leave").length;
+        const presentCount = Number(data?.PresentCount || 0);
+        const absentCount = Number(data?.AbsentCount || 0);
+        const leaveCount = Number(data?.LeaveCount || 0);
 
         const attendanceStatus = [
           { Title: "Present", Value: presentCount },
@@ -291,6 +271,11 @@ const Home = ({ PropertyId }) => {
   const loadSubCatData = async (propertyId, fromDate, toDate) => {
     const data = await fetchSubCatTaskCounts(propertyId, fromDate, toDate);
     setSubCategoryTaskData(data);
+
+    const { taskStatus: nextTaskStatus, totalTasks: nextTotalTasks } =
+      computeTaskStatusFromSubCatData(data);
+    setTaskStatus(nextTaskStatus);
+    setTotalTasks(nextTotalTasks);
   };
 
   const loadServiceCategoryData = useCallback(
@@ -320,6 +305,28 @@ const Home = ({ PropertyId }) => {
     }
   };
 
+  const withChartLoadingMany = async (keys, callback) => {
+    const list = Array.isArray(keys) ? keys : [keys];
+    setChartLoading((prev) => {
+      const next = { ...prev };
+      list.forEach((k) => {
+        next[k] = true;
+      });
+      return next;
+    });
+    try {
+      return await callback();
+    } finally {
+      setChartLoading((prev) => {
+        const next = { ...prev };
+        list.forEach((k) => {
+          next[k] = false;
+        });
+        return next;
+      });
+    }
+  };
+
   const getDates = async (initialDate, finalDate) => {
     setInitialDate(initialDate);
     setFinalDate(finalDate);
@@ -328,11 +335,8 @@ const Home = ({ PropertyId }) => {
 
     try {
       await Promise.all([
-        withChartLoading("subCategory", () =>
+        withChartLoadingMany(["subCategory", "tasks"], () =>
           loadSubCatData(model[0].PropertyId, initialDate, finalDate)
-        ),
-        withChartLoading("tasks", () =>
-          taskStatusCount(model, initialDate, finalDate)
         ),
         withChartLoading("priority", () =>
           taskPriorityCount(model, initialDate, finalDate)
@@ -400,9 +404,6 @@ const Home = ({ PropertyId }) => {
       try {
         await Promise.all([
           withChartLoading("complains", () => manageDashboardCnt(model)),
-          withChartLoading("tasks", () =>
-            taskStatusCount(model, initialDate, finalDate)
-          ),
           withChartLoading("priority", () =>
             taskPriorityCount(model, initialDate, finalDate)
           ),
@@ -415,7 +416,7 @@ const Home = ({ PropertyId }) => {
           withChartLoading("expenses", () =>
             getExpenseChartsData(model, initialDate, finalDate)
           ),
-          withChartLoading("subCategory", () =>
+          withChartLoadingMany(["subCategory", "tasks"], () =>
             loadSubCatData(model[0].PropertyId, initialDate, finalDate)
           ),
           withChartLoading("dgServices", () =>
