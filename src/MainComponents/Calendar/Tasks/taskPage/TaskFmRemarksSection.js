@@ -39,16 +39,17 @@ export default function TaskFmRemarksSection({
 
   const isActionableStatus = (value) => {
     const s = String(value || "").trim().toLowerCase();
-    return s === "actionable" || s === "in-progress" || s === "in progress";
+    return s === "actionable";
   };
 
   const visibleQuestions = useMemo(() => {
     const list = questions || [];
     return list.filter((q) => {
       const rawStatus = effectiveStatusMap[String(q.id)] || effectiveStatusMap[q.id];
-      // Show only actionable questions. If per-question status is missing, fall back to overall status.
-      const effective = rawStatus == null || String(rawStatus).trim() === "" ? normalizedStatus : rawStatus;
-      return isActionableStatus(effective);
+      // Only show questions that have an explicit status set in the notification map.
+      // If a question has no status entry, it means it hasn't been 'actioned' yet.
+      if (rawStatus == null || String(rawStatus).trim() === "") return false;
+      return isActionableStatus(rawStatus);
     });
   }, [effectiveStatusMap, isActionableStatus, normalizedStatus, questions]);
 
@@ -168,7 +169,7 @@ export default function TaskFmRemarksSection({
         </div>
       ) : null}
 
-      <div className="fm-remarks-split" style={compact ? { flex: 1, minHeight: 0 } : undefined}>
+      <div className="fm-remarks-split" style={compact ? { flex: 1, minHeight: 0, display: "flex" } : { display: "flex" }}>
         <div className="fm-questions" role="navigation" aria-label="Task questionnaire">
           <div className="fm-questions-head">Task Questionnaire</div>
           <div className="fm-questions-list" ref={listRef}>
@@ -206,7 +207,7 @@ export default function TaskFmRemarksSection({
           </div>
         </div>
 
-        <div className="fm-chat" aria-label="FM remarks thread">
+        <div className="fm-chat" aria-label="FM remarks thread" style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           {openQuestionId ? (
             <>
               <div className="fm-chat-head">
@@ -215,17 +216,29 @@ export default function TaskFmRemarksSection({
                   <span className="fm-chat-question">
                     {(visibleQuestions || []).find((q) => Number(q.id) === Number(openQuestionId))?.name || ""}
                   </span>
+                  <span className="fm-chat-date text-muted ml-2" style={{ fontSize: '13px', fontWeight: 'normal' }}>
+                    ({fmSelectedDate})
+                  </span>
                 </div>
                 <div className="fm-chat-actions">
-                  <button className="btn btn-info btn-sm" type="button" onClick={() => onViewImage?.(openQuestionId)}>
+                  <button className="btn btn-info btn-sm mr-2" type="button" onClick={() => onViewImage?.(openQuestionId)}>
                     <i className="fa fa-eye mr-1" /> View Image
                   </button>
+                  {isCurrentActionable ? (
+                    <button 
+                      className="btn btn-success btn-sm" 
+                      type="button" 
+                      onClick={() => onSend?.("Marked as completed", "Completed", Number(openQuestionId))}
+                    >
+                      <i className="fa fa-check mr-1" /> Mark as Complete
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
               {loading ? <p className="text-muted mb-2">Loading remarks...</p> : null}
 
-              <div className="fm-chat-box">
+              <div className="fm-chat-box" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
                 <ChatBox
                   remarks={remarks}
                   status={currentStatus}

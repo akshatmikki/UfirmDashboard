@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import moment from "moment";
 import { useEditTaskController, useTaskFmRemarks } from "../../taskHooks";
-import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection } from "../TaskPageLayout";
+import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection, useMultiOpenSections } from "../TaskPageLayout";
 import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import TaskFmRemarksSection from "../TaskFmRemarksSection";
@@ -12,7 +12,13 @@ import EditQuestion from "../../EditQuestion";
 
 export default function EditTaskPage(props) {
   const { visible, closeModal, rowData, categoryData, onTaskUpdated } = props;
-  const { openSection, toggleSection } = useSingleOpenSection(null);
+  const normalizedTaskStatus = String(rowData?.TaskStatus || "").trim().toLowerCase();
+  const isActionable =
+    normalizedTaskStatus === "actionable" ||
+    normalizedTaskStatus === "in-progress" ||
+    normalizedTaskStatus === "in progress";
+
+  const { isOpen, toggleSection } = useMultiOpenSections(["details", "checklist", "assets", "schedule", "fmRemarks"]);
   const ctrl = useEditTaskController({ rowData, categoryData });
   
   const fmCtrl = useTaskFmRemarks({
@@ -22,12 +28,6 @@ export default function EditTaskPage(props) {
     initialTaskDate: ctrl.initialTaskDate,
     onTaskUpdated,
   });
-
-  const normalizedTaskStatus = String(rowData?.TaskStatus || "").trim().toLowerCase();
-  const isActionable =
-    normalizedTaskStatus === "actionable" ||
-    normalizedTaskStatus === "in-progress" ||
-    normalizedTaskStatus === "in progress";
   const [invalidField, setInvalidField] = useState("");
   const [inlineError, setInlineError] = useState("");
   const [successInfo, setSuccessInfo] = useState(null);
@@ -113,7 +113,7 @@ export default function EditTaskPage(props) {
   return (
     <div>
       <TaskShell visible={visible} title="Edit Task" onClose={closeModal} footer={footer}>
-        <TaskSection title="Task Details" isOpen>
+        <TaskSection title="Task Details" isOpen={isOpen("details")} onToggle={() => toggleSection("details")}>
           <TaskDetailsForm
             showTaskId
             taskId={rowData?.TaskId}
@@ -164,22 +164,22 @@ export default function EditTaskPage(props) {
 
         
 
-        <TaskInlineSection
+        <TaskSection
           title="Checklist"
-          actionLabel="Add procedure"
-          onAction={q.openAddQuestion}
+          isOpen={isOpen("checklist")}
+          onToggle={() => toggleSection("checklist")}
         >
           <TaskQuestionsEditSection
             questions={questions}
             onEditQuestion={q.openEditQuestion}
             onDeleteQuestion={ctrl.requestDeleteQuestion}
           />
-        </TaskInlineSection>
+        </TaskSection>
 
-        <TaskInlineSection
-          title="Assets (Optional)"
-          actionLabel="Add asset"
-          onAction={() => ctrl.lookups.onAssetChange?.(ctrl.form.assetId || "")}
+        <TaskSection
+          title="Assets"
+          isOpen={isOpen("assets")}
+          onToggle={() => toggleSection("assets")}
         >
           <TaskAssetSection
             taskName={ctrl.form.taskName}
@@ -194,8 +194,8 @@ export default function EditTaskPage(props) {
             assetPhoto={ctrl.form.assetPhoto}
             QRCode={ctrl.form.QRCode}
           />
-        </TaskInlineSection>
-        <TaskInlineSection title="Schedule (Optional)">
+        </TaskSection>
+        <TaskSection title="Schedule" isOpen={isOpen("schedule")} onToggle={() => toggleSection("schedule")}>
           <TaskScheduleSection
             embedded
             shifts={ctrl.lookups?.shifts}
@@ -205,9 +205,9 @@ export default function EditTaskPage(props) {
             }}
             onScheduleUpdate={(s) => ctrl.setSchedule?.(s)}
           />
-        </TaskInlineSection>
+        </TaskSection>
         {isActionable && (
-          <TaskSection title="Fm Remarks" isOpen={openSection === "fmRemarks"} onToggle={() => toggleSection("fmRemarks")}>
+          <TaskSection title="Fm Remarks" isOpen={isOpen("fmRemarks")} onToggle={() => toggleSection("fmRemarks")}>
             <TaskFmRemarksSection
               taskName={rowData?.Name || ctrl.form.taskName}
               location={rowData?.Location || ctrl.form.location}

@@ -148,7 +148,13 @@ export default function attachRenderTable(TaskList) {
               return aId - bId;
             });
 
-          if (displayTasks.length === 0) return null;
+          const isFilterActive = hasActiveStatusFilter(effectiveFilter);
+          const isCompletedActive = isFilterActive && (normalizeStatus(effectiveFilter) === "complete" || normalizeStatus(effectiveFilter) === "completed");
+          const isPendingActive = isFilterActive && normalizeStatus(effectiveFilter) === "pending";
+          const isActionableActive = isFilterActive && (normalizeStatus(effectiveFilter) === "actionable" || normalizeStatus(effectiveFilter) === "in-progress" || normalizeStatus(effectiveFilter) === "in progress");
+
+          // Don't hide the header if tasks exist for this date but are filtered out by status
+          if (displayTasks.length === 0 && !isFilterActive) return null;
 
           const isExpanded = activeDate === date;
           const { completed, pending, actionable } = getStatusCounts(tasks);
@@ -158,10 +164,6 @@ export default function attachRenderTable(TaskList) {
           const currentPage = Math.min(tablePage, totalPages);
           const startIndex = (currentPage - 1) * tablePageSize;
           const pagedTasks = isExpanded ? displayTasks.slice(startIndex, startIndex + tablePageSize) : [];
-          const isFilterActive = hasActiveStatusFilter(effectiveFilter);
-          const isCompletedActive = isFilterActive && (normalizeStatus(effectiveFilter) === "complete" || normalizeStatus(effectiveFilter) === "completed");
-          const isPendingActive = isFilterActive && normalizeStatus(effectiveFilter) === "pending";
-          const isActionableActive = isFilterActive && (normalizeStatus(effectiveFilter) === "actionable" || normalizeStatus(effectiveFilter) === "in-progress" || normalizeStatus(effectiveFilter) === "in progress");
 
           return (
             <div key={date} className="mb-3">

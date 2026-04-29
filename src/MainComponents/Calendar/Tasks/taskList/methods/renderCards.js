@@ -148,7 +148,13 @@ export default function attachRenderCards(TaskList) {
               return aId - bId;
             });
 
-          if (displayTasks.length === 0) return null;
+          const isFilterActive = hasActiveStatusFilter(effectiveFilter);
+          const isCompletedActive = isFilterActive && (normalizeStatus(effectiveFilter) === "complete" || normalizeStatus(effectiveFilter) === "completed");
+          const isPendingActive = isFilterActive && normalizeStatus(effectiveFilter) === "pending";
+          const isActionableActive = isFilterActive && (normalizeStatus(effectiveFilter) === "actionable" || normalizeStatus(effectiveFilter) === "in-progress" || normalizeStatus(effectiveFilter) === "in progress");
+
+          // Don't hide the header if tasks exist for this date but are filtered out by status
+          if (displayTasks.length === 0 && !isFilterActive) return null;
 
           const isExpanded = activeDate === date;
           const { completed, pending, actionable } = getStatusCounts(tasks);
@@ -158,10 +164,6 @@ export default function attachRenderCards(TaskList) {
           const currentPage = Math.min(cardPage, totalPages);
           const startIndex = (currentPage - 1) * cardPageSize;
           const pagedTasks = isExpanded ? displayTasks.slice(startIndex, startIndex + cardPageSize) : [];
-          const isFilterActive = hasActiveStatusFilter(effectiveFilter);
-          const isCompletedActive = isFilterActive && (normalizeStatus(effectiveFilter) === "complete" || normalizeStatus(effectiveFilter) === "completed");
-          const isPendingActive = isFilterActive && normalizeStatus(effectiveFilter) === "pending";
-          const isActionableActive = isFilterActive && (normalizeStatus(effectiveFilter) === "actionable" || normalizeStatus(effectiveFilter) === "in-progress" || normalizeStatus(effectiveFilter) === "in progress");
 
           return (
             <div key={date} className="mb-3">
@@ -225,7 +227,13 @@ export default function attachRenderCards(TaskList) {
               {isExpanded ? (
                 <>
                   <div className="task-grid">
-                    {pagedTasks.map((task, index) => (
+                    {displayTasks.length === 0 ? (
+                      <div className="task-filter-empty-state">
+                        <i className="fa fa-filter mr-2" />
+                        No tasks found for the selected status filter
+                      </div>
+                    ) : (
+                      pagedTasks.map((task, index) => (
                       <div
                         key={`${task.TaskId}-${index}`}
                         className={`task-card ${getStatusClass(task.TaskStatus)}`}
@@ -324,7 +332,7 @@ export default function attachRenderCards(TaskList) {
                           </div>
                         </div>
                       </div>
-                    ))}
+                    )))}
                   </div>
 
                   {displayTasks.length > cardPageSize ? (
