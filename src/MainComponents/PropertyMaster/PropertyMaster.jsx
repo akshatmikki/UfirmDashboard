@@ -71,6 +71,15 @@ export default function PropertyMaster() {
     ClientID: 0,
     ServiceIds: [],
     BranchCode: 0,
+    DeployDate: null,
+GSTNumber: "",
+PANNumber: "",
+ClientName: "",
+ClientNumber: "",
+ClientEmail: "",
+RenewDate: null,
+UnitFieldOfficerName: "",
+UnitFieldOfficerEmail: "",
 
     // NEW (ADDED)
     SalaryCycleDayFrom: 1,
@@ -225,6 +234,15 @@ export default function PropertyMaster() {
       ClientID: 0,
       ServiceIds: [],
       BranchCode: 0,
+      DeployDate: null,
+GSTNumber: "",
+PANNumber: "",
+ClientName: "",
+ClientNumber: "",
+ClientEmail: "",
+RenewDate: null,
+UnitFieldOfficerName: "",
+UnitFieldOfficerEmail: "",
 
       // ✅ KEEP NEW FIELDS
       SalaryCycleDayFrom: 1,
@@ -273,6 +291,16 @@ export default function PropertyMaster() {
         SalaryCycleDayTo: data.Salarycycledayto ?? 30,
         ExcludeSunday: data.Excludesunday === true,
         MonthSundays: data.MonthSunday ?? 0,
+        // ✅ NEW FIELDS
+DeployDate: data.DeployDate || null,
+GSTNumber: data.GSTNumber || "",
+PANNumber: data.PANNumber || "",
+ClientName: data.ClientName || "",
+ClientNumber: data.ClientNumber || "",
+ClientEmail: data.ClientEmail || "",
+RenewDate: data.RenewDate || null,
+UnitFieldOfficerName: data.UnitFieldOfficerName || "",
+UnitFieldOfficerEmail: data.UnitFieldOfficerEmail || "",
 
         CreatedBy: data.CreatedBy,
         IsActive: 1,
@@ -305,6 +333,15 @@ export default function PropertyMaster() {
         ExcludeSunday: data.Excludesunday,
         MonthSundays: data.MonthSunday,
         CityName: cityObj ? cityObj.label : "—",
+        DeployDate: data.DeployDate,
+GSTNumber: data.GSTNumber,
+PANNumber: data.PANNumber,
+ClientName: data.ClientName,
+ClientNumber: data.ClientNumber,
+ClientEmail: data.ClientEmail,
+RenewDate: data.RenewDate,
+UnitFieldOfficerName: data.UnitFieldOfficerName,
+UnitFieldOfficerEmail: data.UnitFieldOfficerEmail,
       });
 
       setViewDialogVisible(true);
@@ -913,6 +950,78 @@ export default function PropertyMaster() {
                   }
                 />
 
+                <hr />
+<h5 className="mb-3">Client & Compliance</h5>
+
+<label>Deploy Date</label>
+<InputText
+  type="date"
+  className="w-100 mb-2"
+  value={form.DeployDate || ""}
+  onChange={(e) => setForm({ ...form, DeployDate: e.target.value })}
+/>
+
+<label>GST Number</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.GSTNumber}
+  onChange={(e) => setForm({ ...form, GSTNumber: e.target.value })}
+/>
+
+<label>PAN Number</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.PANNumber}
+  onChange={(e) => setForm({ ...form, PANNumber: e.target.value })}
+/>
+
+<label>Client Officer Name</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.ClientName}
+  onChange={(e) => setForm({ ...form, ClientName: e.target.value })}
+/>
+
+<label>Client Number</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.ClientNumber}
+  onChange={(e) => setForm({ ...form, ClientNumber: e.target.value })}
+/>
+
+<label>Client Email</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.ClientEmail}
+  onChange={(e) => setForm({ ...form, ClientEmail: e.target.value })}
+/>
+
+<label>Renew Date</label>
+<InputText
+  type="date"
+  className="w-100 mb-2"
+  value={form.RenewDate || ""}
+  onChange={(e) => setForm({ ...form, RenewDate: e.target.value })}
+/>
+
+<label>Unit Field Officer Name</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.UnitFieldOfficerName}
+  onChange={(e) =>
+    setForm({ ...form, UnitFieldOfficerName: e.target.value })
+  }
+/>
+
+<label>Unit Field Officer Email</label>
+<InputText
+  className="w-100 mb-2"
+  value={form.UnitFieldOfficerEmail}
+  onChange={(e) =>
+    setForm({ ...form, UnitFieldOfficerEmail: e.target.value })
+  }
+/>
+
                 {/* <label>Shift Hours</label>
                 <InputText
                   type="number"
@@ -1106,6 +1215,25 @@ export default function PropertyMaster() {
                     ).join(", ")
                     : "—"}
                 </div>
+                <div className="card p-3 mt-3 shadow-sm">
+  <h5 className="mb-3 text-primary">Compliance Details</h5>
+
+  <div className="row">
+    <div className="col-md-6"><strong>Deploy Date:</strong> {viewData.DeployDate || "—"}</div>
+    <div className="col-md-6"><strong>Renew Date:</strong> {viewData.RenewDate || "—"}</div>
+
+    <div className="col-md-6"><strong>GST:</strong> {viewData.GSTNumber || "—"}</div>
+    <div className="col-md-6"><strong>PAN:</strong> {viewData.PANNumber || "—"}</div>
+
+    <div className="col-md-6"><strong>Client Officer Name:</strong> {viewData.ClientName || "—"}</div>
+    <div className="col-md-6"><strong>Client Number:</strong> {viewData.ClientNumber || "—"}</div>
+
+    <div className="col-md-6"><strong>Client Email:</strong> {viewData.ClientEmail || "—"}</div>
+
+    <div className="col-md-6"><strong>Officer Name:</strong> {viewData.UnitFieldOfficerName || "—"}</div>
+    <div className="col-md-6"><strong>Officer Email:</strong> {viewData.UnitFieldOfficerEmail || "—"}</div>
+  </div>
+</div>
               </div>
 
             </div>
