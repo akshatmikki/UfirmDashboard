@@ -48,7 +48,7 @@ export const getServiceHistory=async (assetId)=>{
 
 export const saveAssetAMC = async (model) => {
   try {
-    const response = await fetch("http://localhost:62929/ManageAssetAMC", {
+    const response = await fetch(`${API_URL}ManageAssetAMC`, {
       method: "POST",
       headers: {
         Accept: "application/json",

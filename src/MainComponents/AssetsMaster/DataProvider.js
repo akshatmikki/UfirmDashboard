@@ -1,12 +1,13 @@
 import ServiceProvider from '../../Common/ServiceProvider.js';
 let srv = new ServiceProvider();
-const LOCAL_MANAGE_ASSETS_URL = 'http://localhost:62929/ManageAssets';
+const ASSET_API_BASE_URL = 'https://api.urest.in:8096/';
+const MANAGE_ASSETS_URL = `${ASSET_API_BASE_URL}ManageAssets`;
 class DataProvider {       
     manageDocumentTypeMaster(model,type) {
         let url = '';
         switch (type) {
             case 'I':
-                return fetch(LOCAL_MANAGE_ASSETS_URL, {
+                return fetch(MANAGE_ASSETS_URL, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -16,7 +17,7 @@ class DataProvider {
                 });
  
             case 'U':
-                return fetch(LOCAL_MANAGE_ASSETS_URL, {
+                return fetch(MANAGE_ASSETS_URL, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
@@ -26,7 +27,7 @@ class DataProvider {
                 });
 
             case 'D':
-                return fetch(LOCAL_MANAGE_ASSETS_URL, {
+                return fetch(MANAGE_ASSETS_URL, {
                     method: 'POST',
                     headers: {
                         'Accept': 'application/json',
