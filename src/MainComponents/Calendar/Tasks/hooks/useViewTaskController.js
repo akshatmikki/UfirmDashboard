@@ -153,22 +153,28 @@ export default function useViewTaskController({ rowData }) {
     const type = "R";
     const taskId = rowData?.TaskId;
     if (!taskId) return;
-    const parsed = rowData?.UpdatedOn
-      ? moment(
-          rowData.UpdatedOn,
-          ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
-          true,
-        )
-      : null;
-    const updatedOn = parsed?.isValid() ? parsed.format("YYYY-MM-DD") : null;
+    const parseTaskDate = (value) => {
+      if (!value) return null;
+      const strict = moment(
+        value,
+        ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+        true,
+      );
+      if (strict.isValid()) return strict;
+      const loose = moment(value);
+      return loose.isValid() ? loose : null;
+    };
+
+    const parsed = parseTaskDate(rowData?.UpdatedOn) || parseTaskDate(rowData?.DateFrom);
+    const updatedOn = parsed ? parsed.format("YYYY-MM-DD") : null;
     const model = [{ CmdType: type, Id: taskId, date: updatedOn }];
 
     Api.manageQues(model, type).then((resp) => {
       if (!resp.ok || resp.status !== 200) return;
       resp.json().then((rData) => {
         const list = (rData || []).map((e) => ({
-          QuesId: e.QuestID,
-          QuesName: e.QuestionName,
+          QuesId: e.QuestID ?? e.QuestId ?? e.QuestionId ?? e.QuesId ?? e.QuesID ?? e.id,
+          QuesName: e.QuestionName ?? e.QuesName ?? e.Question ?? e.name,
           Action: e.Action,
           Remark: e.Remarks,
         }));

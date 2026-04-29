@@ -37,7 +37,16 @@ const styles = {
   },
 };
 
-const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
+const ChatBox = ({
+  remarks = [],
+  onSend,
+  status,
+  context,
+  assetData,
+  fillHeight = false,
+  containerMaxHeight,
+  chatScrollMaxHeight,
+}) => {
   let statusOptions = [];
   if (context === "task") statusOptions = ["Actionable", "Completed"];
   else if (context === "ticket")
@@ -236,7 +245,8 @@ const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
           context === "asset"
             ? {}
             : {
-                maxHeight: "300px",
+                maxHeight: fillHeight ? "none" : containerMaxHeight || "300px",
+                height: fillHeight ? "100%" : undefined,
                 display: "flex",
                 flexDirection: "column",
               }
@@ -246,6 +256,8 @@ const ChatBox = ({ remarks = [], onSend, status, context, assetData }) => {
           <div
             style={{
               ...styles.chatScroll,
+              maxHeight: fillHeight ? "none" : chatScrollMaxHeight || styles.chatScroll.maxHeight,
+              height: fillHeight ? "100%" : undefined,
               flex: 1,
             }}
           >

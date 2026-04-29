@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 const taskPageCss = `
-.task-page-shell{position:fixed;inset:0;z-index:1050;background:rgba(244,246,249,.95);padding:40px 0 0;overflow:hidden;display:flex;align-items:flex-start;justify-content:center;zoom: 0.9;}
+.task-page-shell{position:fixed;inset:0;z-index:1050;background:rgba(244,246,249,.95);padding:40px 0 0;overflow:hidden;display:flex;align-items:flex-start;justify-content:center;zoom:0.9;}
 .task-page-shell--one-third{justify-content:flex-end;}
 .task-page-shell--one-third .task-page-content{width:min(560px,33vw);min-width:460px;}
 .task-page-content{width:min(1260px,96vw);height:min(720px,92vh);margin-top:0;}
@@ -14,6 +14,14 @@ const taskPageCss = `
 .task-modal-close i{color:#aabbd0;font-size:20px;}
 .task-modal-body{flex:1;overflow-y:auto;overflow-x:hidden;padding:0;background:#fff;}
 .task-modal-footer{background:#fff;border-top:1px solid #e9ecef;padding:12px 18px;display:flex;justify-content:flex-end;gap:10px;}
+.task-page-shell--fm{padding:24px 0 0;zoom:0.85;}
+.task-page-shell--fm .task-page-content{width:min(1120px,96vw);height:min(700px,92vh);}
+.task-page-shell--fm .task-modal-card{border-radius:12px;box-shadow:0 18px 45px rgba(15,23,42,.18);}
+.task-page-shell--fm .task-modal-header{padding:10px 14px;border-bottom:1px solid #d1d9e6;}
+.task-page-shell--fm .task-modal-title{font-size:16px;font-weight:600;color:#0f172a;}
+.task-page-shell--fm .task-modal-body{display:flex;flex-direction:column;min-height:0;overflow:hidden;}
+.task-page-shell--fm .task-modal-footer{display:none;}
+.task-page-shell--fm .task-modal-close i{color:#64748b;font-size:22px;}
 .task-section{border:0;border-top:1px solid #e5e7eb;border-radius:0;background:#fff;box-shadow:none;margin-bottom:0;}
 .task-section-title{padding:5px 12px;font-weight:600;border-bottom:1px solid #e9ecef;border-radius:0;width:100%;min-width:0;text-align:center;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;background:#fff;color:#25518b;font-size:15px;}
 .task-section-title--blue{background:#fff;border-bottom-color:#e9ecef;padding:5px 10px;font-size:15px;min-height:34px;}
@@ -149,6 +157,54 @@ const taskPageCss = `
 .task-priority-badge.medium { color: #d97706; }
 .task-priority-badge.low { color: #059669; }
 .task-status-badge { font-size: 13px; font-weight: 500; background-color: #f1f5f9; color: #475569; padding: 2px 8px; border-radius: 4px; }
+
+/* FM Remarks split layout */
+.fm-remarks-split{display:grid;grid-template-columns:320px minmax(0,1fr);gap:0;border:1px solid #d9e3ef;border-radius:12px;overflow:hidden;background:#fff;min-height:460px;margin-top:8px;}
+.task-page-shell--fm .fm-remarks-split{margin-top:0;border:0;border-radius:0;min-height:0;flex:1;}
+.task-page-shell--fm .fm-questions-head{display:none;}
+.task-page-shell--fm .fm-questions{background:#fff;}
+.task-page-shell--fm .fm-questions-list{padding-top:6px;}
+.task-page-shell--fm .fm-q-item:first-child{margin-top:4px;}
+.task-page-shell--fm .fm-questions-list{scroll-padding-top:12px;}
+.task-page-shell--fm .fm-q-item{padding:12px 14px;}
+.task-page-shell--fm .fm-q-index{width:22px;height:22px;border-radius:999px;background:#0ea5e9;color:#fff;}
+.task-page-shell--fm .fm-q-badge{background:#1e3a8a;color:#fff;}
+.task-page-shell--fm .fm-q-badge.is-actionable{background:#1e3a8a;color:#fff;}
+.task-page-shell--fm .fm-q-dot{display:none;}
+.task-page-shell--fm .fm-remarks-compact{flex:1;min-height:0;}
+.fm-questions{background:#f8fafc;border-right:1px solid #d9e3ef;display:flex;flex-direction:column;min-width:0;}
+.fm-questions-head{padding:10px 12px;font-weight:700;color:#1f3d5a;font-size:13px;border-bottom:1px solid #e2e8f0;background:#f1f5f9;}
+.fm-questions-list{flex:1;overflow:auto;}
+.fm-q-item{width:100%;border:0;background:transparent;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;text-align:left;border-bottom:1px solid #eef2f7;color:#334155;position:relative;}
+.fm-q-item:hover{background:#eef6ff;}
+.fm-q-item.is-active{background:#dbeafe;}
+.fm-q-item.is-active::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:#2563eb;}
+.fm-q-name{display:flex;align-items:flex-start;gap:10px;min-width:0;}
+.fm-q-index{width:22px;height:22px;border-radius:6px;background:#e2e8f0;color:#1f3d5a;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+.fm-q-text{font-weight:600;font-size:13px;line-height:1.25;white-space:normal;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.fm-q-meta{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+.fm-q-dot{width:10px;height:10px;border-radius:999px;background:#1d4ed8;box-shadow:0 0 0 3px rgba(29,78,216,.12);}
+.fm-q-badge{height:22px;border-radius:999px;padding:0 10px;background:#e2e8f0;color:#334155;font-weight:800;font-size:12px;display:inline-flex;align-items:center;justify-content:center;}
+.fm-q-badge.is-actionable{background:#dcfce7;color:#166534;}
+.fm-q-empty{padding:12px;color:#64748b;font-weight:600;font-size:13px;}
+.fm-chat{background:#f1f5f9;display:flex;flex-direction:column;min-width:0;position:relative;}
+.task-page-shell--fm .fm-chat{background:#9fb4bf;}
+.fm-chat-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;background:#fff;border-bottom:1px solid #d9e3ef;}
+.fm-chat-title{display:flex;align-items:center;gap:10px;min-width:0;}
+.fm-chat-pill{background:rgba(37,99,235,.16);color:#1e3a8a;border-radius:999px;padding:3px 10px;font-weight:800;font-size:12px;flex:0 0 auto;}
+.fm-chat-question{color:#0f172a;font-weight:800;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.fm-chat-actions .btn{border-radius:8px;}
+.fm-chat-box{flex:1;min-height:0;padding:10px;display:flex;}
+.fm-chat-box .alert{flex:1;min-height:0;margin:0;border-color:#d9e3ef;background:#fff;}
+.fm-chat-box .alert .btn{border-radius:10px;}
+.fm-chat-empty{flex:1;display:flex;align-items:center;justify-content:center;color:#64748b;font-weight:700;}
+.task-page-shell--fm .fm-chat-box{padding:12px;}
+.task-page-shell--fm .fm-chat-box .container{margin-top:0 !important;padding:0 !important;max-width:none !important;}
+.task-page-shell--fm .fm-chat-box .alert{border-radius:10px;border:0;background:transparent;padding:0;}
+.task-page-shell--fm .fm-chat-box .alert-info{display:none;}
+.task-page-shell--fm .fm-chat-box .alert-secondary{border:0;background:transparent;}
+.task-page-shell--fm .fm-chat-box textarea.form-control{border-radius:10px;}
+@media (max-width:991.98px){.fm-remarks-split{grid-template-columns:1fr;}.fm-questions{border-right:0;border-bottom:1px solid #d9e3ef;}}
 `;
 
 export function useSingleOpenSection(defaultKey = "details") {
@@ -183,9 +239,11 @@ export function useMultiOpenSections(defaultKeys = []) {
   return { isOpen, toggleSection };
 }
 
-export function TaskShell({ visible, title, priority, status, rightActions, onClose, footer, children, oneThird = false }) {
+export function TaskShell({ visible, title, priority, status, rightActions, onClose, footer, children, oneThird = false, variant }) {
   const modalBodyRef = useRef(null);
   const wasVisibleRef = useRef(false);
+  const shellRef = useRef(null);
+  const prevWindowScrollRef = useRef(0);
 
   useEffect(() => {
     if (!visible) return undefined;
@@ -204,9 +262,20 @@ export function TaskShell({ visible, title, priority, status, rightActions, onCl
     wasVisibleRef.current = visible;
     if (!justOpened) return undefined;
 
+    prevWindowScrollRef.current = window.scrollY || window.pageYOffset || 0;
+
     const frame = window.requestAnimationFrame(() => {
       if (modalBodyRef.current) {
         modalBodyRef.current.scrollTop = 0;
+      }
+      // Prevent the underlying page from jumping when focus moves into the modal.
+      try {
+        shellRef.current?.focus?.({ preventScroll: true });
+      } catch {
+        shellRef.current?.focus?.();
+      }
+      if (typeof window.scrollTo === "function") {
+        window.scrollTo(0, prevWindowScrollRef.current);
       }
     });
     return () => window.cancelAnimationFrame(frame);
@@ -215,7 +284,13 @@ export function TaskShell({ visible, title, priority, status, rightActions, onCl
   if (!visible) return null;
 
   return (
-    <div className={`task-page-shell ${oneThird ? "task-page-shell--one-third" : ""}`}>
+    <div
+      ref={shellRef}
+      tabIndex={-1}
+      className={`task-page-shell ${oneThird ? "task-page-shell--one-third" : ""} ${
+        variant ? `task-page-shell--${variant}` : ""
+      }`.trim()}
+    >
       <style>{taskPageCss}</style>
       <div className="task-page-content">
         <div className="row">
@@ -225,12 +300,12 @@ export function TaskShell({ visible, title, priority, status, rightActions, onCl
               <div className="task-modal-header">
                 <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                   <h3 className="task-modal-title">{title}</h3>
-                  {priority && (
+                  {variant !== "fm" && priority && (
                     <span className={`task-priority-badge ${String(priority).toLowerCase()}`}>
                       {priority} {String(priority).toLowerCase().includes("priority") ? "" : "Priority"}
                     </span>
                   )}
-                  {status && (
+                  {variant !== "fm" && status && (
                     <span className="task-status-badge">
                       {status}
                     </span>

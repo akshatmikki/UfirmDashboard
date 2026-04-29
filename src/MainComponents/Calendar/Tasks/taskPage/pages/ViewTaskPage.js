@@ -18,7 +18,11 @@ export default function ViewTaskPage(props) {
     onTaskUpdated,
   });
 
-  const isActionable = String(rowData?.TaskStatus || "").toLowerCase().includes("actionable");
+  const normalizedTaskStatus = String(rowData?.TaskStatus || "").trim().toLowerCase();
+  const isActionable =
+    normalizedTaskStatus === "actionable" ||
+    normalizedTaskStatus === "in-progress" ||
+    normalizedTaskStatus === "in progress";
   const fmOnly = String(viewOnlySection || "").toLowerCase() === "fmremarks";
 
   const fmQuestions = useMemo(
@@ -33,7 +37,7 @@ export default function ViewTaskPage(props) {
     [questions],
   );
 
-  const footer = (
+  const footer = fmOnly ? null : (
     <button className="btn btn-secondary" type="button" onClick={closeModal}>
       Close
     </button>
@@ -83,17 +87,26 @@ export default function ViewTaskPage(props) {
     <div>
       <TaskShell 
         visible={visible} 
-        title={fmOnly ? "FM remarks" : "Task details"}
+        title={
+          fmOnly
+            ? `${rowData?.Name || "FM remarks"}${rowData?.TaskId ? ` (${rowData.TaskId})` : ""}${
+                propertyLabel && propertyLabel !== "-" ? ` \u2013 ${propertyLabel}` : ""
+              }`
+            : "Task details"
+        }
         priority={rowData?.Priority} 
         status={rowData?.TaskStatus}
+        variant={fmOnly ? "fm" : undefined}
         rightActions={
-          <>
-            <button type="button" style={{ border:"none", background:"transparent", display:"flex", alignItems:"center", gap:"6px", color:"#0369a1", fontWeight:"600", padding:"0", fontSize:"15px" }}>
-              <i className="far fa-edit" /> Edit
-            </button>
-            <button type="button" style={{ border:"none", background:"transparent", color:"#94a3b8", padding:"0", fontSize:"18px" }}><i className="far fa-edit" /></button>
-             <button type="button" style={{ border:"none", background:"transparent", color:"#94a3b8", padding:"0", fontSize:"18px" }}><i className="far fa-trash-alt" /></button>
-          </>
+          fmOnly ? null : (
+            <>
+              <button type="button" style={{ border:"none", background:"transparent", display:"flex", alignItems:"center", gap:"6px", color:"#0369a1", fontWeight:"600", padding:"0", fontSize:"15px" }}>
+                <i className="far fa-edit" /> Edit
+              </button>
+              <button type="button" style={{ border:"none", background:"transparent", color:"#94a3b8", padding:"0", fontSize:"18px" }}><i className="far fa-edit" /></button>
+              <button type="button" style={{ border:"none", background:"transparent", color:"#94a3b8", padding:"0", fontSize:"18px" }}><i className="far fa-trash-alt" /></button>
+            </>
+          )
         }
         onClose={closeModal} 
         footer={footer}
@@ -188,12 +201,9 @@ export default function ViewTaskPage(props) {
         ) : null}
 
         {isActionable ? (
-          <TaskSection
-            title="Fm Remarks"
-            isOpen={fmOnly ? true : openSection === "fmRemarks"}
-            onToggle={fmOnly ? undefined : () => toggleSection("fmRemarks")}
-          >
+          fmOnly ? (
             <TaskFmRemarksSection
+              compact
               taskName={rowData?.Name}
               location={rowData?.Location}
               questions={fmQuestions}
@@ -209,7 +219,32 @@ export default function ViewTaskPage(props) {
               questionIdsWithRemarks={fmCtrl.questionIdsWithRemarks}
               onSend={fmCtrl.sendFmRemark}
             />
-          </TaskSection>
+          ) : (
+            <TaskSection
+              title="Fm Remarks"
+              isOpen={openSection === "fmRemarks"}
+              onToggle={() => toggleSection("fmRemarks")}
+            >
+              <TaskFmRemarksSection
+                taskName={rowData?.Name}
+                location={rowData?.Location}
+                questions={fmQuestions}
+                selectedQuestionId={fmCtrl.selectedQuestionId}
+                onSelectQuestion={fmCtrl.onSelectQuestion}
+                onViewImage={(qid) => ctrl.openViewImage?.({ QuesId: qid, TaskId: rowData?.TaskId })}
+                fmSelectedDate={fmCtrl.fmSelectedDate}
+                onDateChange={fmCtrl.onDateChange}
+                loading={fmCtrl.loading}
+                remarks={fmCtrl.remarks}
+                chatStatus={rowData?.TaskStatus}
+                questionStatusMap={fmCtrl.questionStatusMap}
+                questionIdsWithRemarks={fmCtrl.questionIdsWithRemarks}
+                onSend={fmCtrl.sendFmRemark}
+              />
+            </TaskSection>
+          )
+        ) : fmOnly ? (
+          <p className="text-muted mb-0">FM remarks are available only for actionable tasks.</p>
         ) : (
           <TaskSection title="Fm Remarks" isOpen>
             <p className="text-muted mb-0">FM remarks are available only for actionable tasks.</p>

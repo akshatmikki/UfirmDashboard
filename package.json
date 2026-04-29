@@ -65,7 +65,8 @@
     "react-spinners": "^0.10.6",
     "react-table": "^7.7.0",
     "react-trello": "^2.2.10",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xlsx-js-style": "^1.2.0"
   },
   "scripts": {
     "start": "react-scripts start",

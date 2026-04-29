@@ -23,7 +23,11 @@ export default function EditTaskPage(props) {
     onTaskUpdated,
   });
 
-  const isActionable = String(rowData?.TaskStatus || "").toLowerCase().includes("actionable");
+  const normalizedTaskStatus = String(rowData?.TaskStatus || "").trim().toLowerCase();
+  const isActionable =
+    normalizedTaskStatus === "actionable" ||
+    normalizedTaskStatus === "in-progress" ||
+    normalizedTaskStatus === "in progress";
   const [invalidField, setInvalidField] = useState("");
   const [inlineError, setInlineError] = useState("");
   const [successInfo, setSuccessInfo] = useState(null);

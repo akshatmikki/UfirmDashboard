@@ -72,18 +72,39 @@ export default function attachExportMethods(TaskList) {
     // Custom multi-sheet export: one tab per Supervisor, grouped by Task Name
     // Columns: Location | Q1 | Q2 | ... | Remarks
     // ✔ = completed/done, ✘ = otherwise
-    const XLSX = await import("xlsx");
+    const XLSXMod = await import("xlsx-js-style");
+    const XLSX = XLSXMod.default || XLSXMod;
 
     if (this.state.exporting) return;
     this.setState({ exporting: true });
 
     try {
-      // 1. Fetch questions for all visible tasks
-      const tasksWithQues = [];
-      for (const task of this.state.data) {
-        const questions = await this.fetchQuestionsForTask(task);
-        tasksWithQues.push({ ...task, questionsList: questions || [] });
-      }
+      // 1. Fetch questions for all visible tasks (concurrent + cached)
+      const tasks = Array.isArray(this.state.data) ? this.state.data : [];
+      const questionCache = new Map();
+      const tasksWithQues = new Array(tasks.length);
+      let cursor = 0;
+
+      const worker = async () => {
+        while (true) {
+          const idx = cursor;
+          cursor += 1;
+          if (idx >= tasks.length) return;
+
+          const task = tasks[idx];
+          const cacheKey = `${task?.TaskId || ""}|${task?.UpdatedOn || task?.DateFrom || ""}`;
+
+          if (!questionCache.has(cacheKey)) {
+            const fetched = await this.fetchQuestionsForTask(task);
+            questionCache.set(cacheKey, fetched || []);
+          }
+
+          tasksWithQues[idx] = { ...task, questionsList: questionCache.get(cacheKey) || [] };
+        }
+      };
+
+      const workerCount = Math.min(EXPORT_CONCURRENCY, Math.max(1, tasks.length));
+      await Promise.all(Array.from({ length: workerCount }, () => worker()));
 
       // 2. Group by Supervisor
       const supervisorGroups = {};
@@ -95,9 +116,30 @@ export default function attachExportMethods(TaskList) {
 
       const wb = XLSX.utils.book_new();
 
+      const applyFullBorders = (ws) => {
+        if (!ws || !ws["!ref"]) return;
+        const range = XLSX.utils.decode_range(ws["!ref"]);
+        const border = {
+          top: { style: "thin", color: { rgb: "000000" } },
+          bottom: { style: "thin", color: { rgb: "000000" } },
+          left: { style: "thin", color: { rgb: "000000" } },
+          right: { style: "thin", color: { rgb: "000000" } },
+        };
+        const alignment = { wrapText: true, shrinkToFit: true, vertical: "center" };
+
+        for (let r = range.s.r; r <= range.e.r; r += 1) {
+          for (let c = range.s.c; c <= range.e.c; c += 1) {
+            const addr = XLSX.utils.encode_cell({ r, c });
+            if (!ws[addr]) ws[addr] = { t: "s", v: "" };
+            ws[addr].s = { ...(ws[addr].s || {}), border, alignment };
+          }
+        }
+      };
+
       Object.keys(supervisorGroups).forEach((supervisorName) => {
         const supTasks = supervisorGroups[supervisorName];
         let sheetData = [];
+        const headerRowIndexes = [];
 
         // Group by Task Name within supervisor (ignore case and internal whitespace)
         const taskNameGroups = {};
@@ -138,7 +180,10 @@ export default function attachExportMethods(TaskList) {
           sheetData.push([]);
 
           // Header row — Location | Date | <Questions...> | Remarks
-          sheetData.push(["LOCATION", "DATE", ...qDisplayNames, "REMARKS"]);
+          const signatureHeaders = ["ENDUSER SIGN & NAME", "VENDOR REP SIGN & NAME"];
+          const baseHeaders = ["LOCATION", "DATE", ...qDisplayNames, "REMARKS", ...signatureHeaders];
+          headerRowIndexes.push(sheetData.length);
+          sheetData.push(baseHeaders);
 
           // One row per task (location + date)
           tasksUnderName.forEach((task) => {
@@ -180,15 +225,37 @@ export default function attachExportMethods(TaskList) {
             // Join multiple remarks with a newline for a multiline cell effect
             const combinedRemarks = specificRemarks.length > 0 ? specificRemarks.join("\n") : finalTaskRemark;
             row.push(combinedRemarks);
+            row.push("");
+            row.push("");
             sheetData.push(row);
           });
 
+          sheetData.push(["CHECKED & VERIFIED BY (EMU)", "", ...new Array(baseHeaders.length - 2).fill("")]);
           sheetData.push([]);
           sheetData.push([]);
         });
 
         const safeSheetName = supervisorName.replace(/[\[\]*\\/\?:]/g, "").substring(0, 31) || "Sheet";
         const ws = XLSX.utils.aoa_to_sheet(sheetData);
+        const maxCols = (sheetData || []).reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
+        ws["!cols"] = Array.from({ length: maxCols }, (_, idx) => {
+          if (idx === 0) return { wch: 18 }; // LOCATION
+          if (idx === 1) return { wch: 11 }; // DATE
+          if (idx >= maxCols - 2) return { wch: 20 }; // signature columns
+          if (idx === maxCols - 3) return { wch: 24 }; // REMARKS
+          return { wch: 8 }; // question columns
+        });
+        // Print layout: fit to one page width so columns don't get cropped in PDF/print.
+        ws["!pageSetup"] = { orientation: "landscape", fitToWidth: 1, fitToHeight: 0, paperSize: 9 };
+        ws["!margins"] = { left: 0.2, right: 0.2, top: 0.4, bottom: 0.4, header: 0.2, footer: 0.2 };
+        if (headerRowIndexes.length) {
+          const maxRows = sheetData.length;
+          ws["!rows"] = Array.from({ length: maxRows }, () => ({}));
+          headerRowIndexes.forEach((r) => {
+            if (ws["!rows"][r]) ws["!rows"][r] = { ...ws["!rows"][r], hpt: 26 };
+          });
+        }
+        applyFullBorders(ws);
         XLSX.utils.book_append_sheet(wb, ws, safeSheetName);
       });
 
