@@ -864,12 +864,12 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                       <tbody>
                         {paginatedSpares.map((row) => {
                           const meta = statusMeta(row?.Status);
-                          const asset = assetById.get(Number(row.AssetID));
+                          const asset = assetById.get(Number(row.SpareID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
                           const isOverdueFiltered = filterServiceStatus === "Overdue";
                           return (
                             <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
-                              <td>{row.AssetID || "-"}</td>
+                              <td>{row.SpareID || "-"}</td>
                               <td>{row.SpareType || "-"}</td>
                               <td>{asset?.Name || asset?.name || "-"}</td>
                               <td>{formatDisplayDate(row.ExpiryDate)}</td>
