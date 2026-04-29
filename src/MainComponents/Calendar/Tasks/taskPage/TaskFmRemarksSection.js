@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import ChatBox from "../../../Notification Center/ChatBox";
 
 export default function TaskFmRemarksSection({
@@ -57,6 +57,11 @@ export default function TaskFmRemarksSection({
     [questionIdsWithRemarks],
   );
 
+  const visibleQuestionsSignature = useMemo(
+    () => (visibleQuestions || []).map((q) => String(q.id)).join("|"),
+    [visibleQuestions],
+  );
+
   useEffect(() => {
     if (!visibleQuestions?.length) {
       setOpenQuestionId(null);
@@ -78,15 +83,23 @@ export default function TaskFmRemarksSection({
     });
   }, [normalizedStatus, questionStatusMap, visibleQuestions]);
 
-  useEffect(() => {
-    if (!listRef.current) return;
+  useLayoutEffect(() => {
+    if (!listRef.current) return undefined;
+
     // Ensure the list starts at the top so the first visible question isn't hidden by a retained scroll position.
     const el = listRef.current;
     let mounted = true;
     const reset = () => {
       if (!mounted || !el) return;
-      el.scrollTop = 0;
+      try {
+        el.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      } catch (_) {
+        el.scrollTop = 0;
+      }
     };
+
+    // Run immediately + after layout settles (e.g. when the container was previously hidden).
+    reset();
     const frame = window.requestAnimationFrame(reset);
     const t1 = window.setTimeout(reset, 0);
     const t2 = window.setTimeout(reset, 50);
@@ -96,7 +109,7 @@ export default function TaskFmRemarksSection({
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
-  }, [fmSelectedDate, taskName, location, visibleQuestions?.length]);
+  }, [compact, fmSelectedDate, taskName, location, visibleQuestionsSignature]);
 
   useEffect(() => {
     if (!openQuestionId) return;
