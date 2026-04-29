@@ -402,19 +402,65 @@ const RentalAssets = ({ propId, history }) => {
     setShowDeleteModal(true);
   };
 
-  const handleConfirmDelete = () => {
+  const handleConfirmDelete = async () => {
     if (!deleteTarget) return;
-    setRentalAssets((prev) => prev.filter((item) => Number(item.Id) !== Number(deleteTarget.Id)));
-    if (Number(selectedAssetId) === Number(deleteTarget.Id)) {
-      setSelectedAssetId(null);
-      setPanelMode("details");
+
+    const payload = {
+      Id: deleteTarget.Id || 0,
+      Name: deleteTarget.Name || "",
+      Description: deleteTarget.Description || "",
+      QRCode: deleteTarget.QRCode || "",
+      AssetType: deleteTarget.AssetType || deleteTarget.Type || deleteTarget.LeaseType || "",
+      Manufacturer: deleteTarget.Manufacturer || "",
+      AssetModel: deleteTarget.AssetModel || deleteTarget.Model || "",
+      IsMoveable: deleteTarget.IsMoveable ?? false,
+      IsRented: deleteTarget.IsRented ?? false,
+      Flag: "D",
+      AssetImage: deleteTarget.AssetImage || deleteTarget.Image || "",
+      LastServiceDate: normalizeDate(deleteTarget.LastServiceDate || ""),
+      NextServiceDate: normalizeDate(deleteTarget.NextServiceDate || ""),
+      IsRentable: deleteTarget.IsRentable ?? true,
+      AssetValue: deleteTarget.AssetValue || deleteTarget.MonthlyRent || deleteTarget.Cost || 0,
+      Capacity: deleteTarget.Capacity || deleteTarget.capacity || "",
+      capacity: deleteTarget.Capacity || deleteTarget.capacity || "",
+      AMCdoc: deleteTarget.AMCdoc || deleteTarget.AMCimage || "",
+      status: deleteTarget.Status ?? false,
+      category: deleteTarget.Category || deleteTarget.category || "",
+      location: deleteTarget.Location || deleteTarget.OutFrom || "",
+      serviceReminderDay: deleteTarget.serviceReminderDay || "",
+      propertyId: propId,
+      PurchaseDate: normalizeDate(deleteTarget.PurchaseDate || ""),
+      WarrantyDate: normalizeDate(deleteTarget.WarrantyDate || deleteTarget.ExpiryDate || deleteTarget.ReturnDate || ""),
+    };
+
+    try {
+      const resp = await fetch("https://api.urest.in:8096/ManageAssets", {
+        method: "POST",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        throw new Error("Failed to delete rental asset");
+      }
+
+      await fetchRentalAssets();
+      if (Number(selectedAssetId) === Number(deleteTarget.Id)) {
+        setSelectedAssetId(null);
+        setPanelMode("details");
+      }
+      if (Number(historyAsset?.Id) === Number(deleteTarget.Id)) {
+        setShowHistoryModal(false);
+        setHistoryAsset(null);
+      }
+      setShowDeleteModal(false);
+      setDeleteTarget(null);
+    } catch (error) {
+      console.error(error);
     }
-    if (Number(historyAsset?.Id) === Number(deleteTarget.Id)) {
-      setShowHistoryModal(false);
-      setHistoryAsset(null);
-    }
-    setShowDeleteModal(false);
-    setDeleteTarget(null);
   };
 
   const handleSaveEdit = async () => {
