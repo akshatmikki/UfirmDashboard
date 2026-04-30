@@ -152,6 +152,7 @@ const StaffPage = () => {
     others: []
   });
   const [family, setFamily] = useState("");
+  const [spouseName, setSpouseName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [workHistories, setWorkHistories] = useState([
@@ -707,6 +708,7 @@ const StaffPage = () => {
     setEsiNumber("");
     setProfileImage(null);
     setFamily("");
+    setSpouseName("");
     setWorkHistories([
       {
         CompanyName: "",
@@ -771,6 +773,8 @@ const StaffPage = () => {
     setAddressLine2(profile.AddressLine2 || "");
     setCity(profile.City || "");
     setStateName(profile.State || "");
+    setFamily(profile.FatherName || "");
+    setSpouseName(profile.SpouseName || "");
     setSelectedFacilityMemberId(latestRow?.FacilityMember?.FacilityMemberId || "");
     setSelectedManagers(
       latestRow?.FacilityMember?.ManagerIdList || []
@@ -816,10 +820,6 @@ const StaffPage = () => {
     setPanNumber(fin.PANNumber || "");
     setPfNumber(fin.PFNumber || "");
     setEsiNumber(fin.ESINumber || "");
-
-    // Employee List
-    const empList = latestRow?.EmployeeList || {};
-    setFamily(empList.FatherName || "");
 
     setDocuments({
       profileImage: [],
@@ -878,6 +878,7 @@ const StaffPage = () => {
       "EMPCODE *",
       "EMP NAME *",
       "F/H NAME",
+      "SPOUSE NAME",
       "DOB",
       "DOJ *",
       "GENDER *",
@@ -938,7 +939,8 @@ const StaffPage = () => {
     const exportData = filteredStaff.map((row) => ({
       "EMPCODE": row?.Profile?.EmployeeCode || "",
       "EMP NAME": row?.Profile?.EmployeeName || "",
-      "F/H NAME": row?.EmployeeList?.FatherName || "",
+      "F/H NAME": row?.Profile?.FatherName || "",
+      "SPOUSE NAME": row?.Profile?.SpouseName || "",
       "DOB": row?.Profile?.DateOfBirth?.slice(0, 10) || "",
       "DOJ": row?.WorkHistories?.[0]?.StartDate
         ? new Date(row.WorkHistories[0].StartDate)
@@ -1320,6 +1322,8 @@ const StaffPage = () => {
         AddressLine2: addressLine2 || "",
         City: city || "",
         State: stateName || "",
+        FatherName: family?.trim() || null,
+        SpouseName: spouseName?.trim() || null,
       },
 
       WorkHistories: formattedWorkHistories,
@@ -1367,6 +1371,7 @@ const StaffPage = () => {
 
       EmployeeList: {
         FatherName: family?.trim() || null,
+        SpouseName: spouseName?.trim() || null,
         IsDeleted: false,
         Approved: true,
         Designation:
@@ -2378,6 +2383,17 @@ const StaffPage = () => {
                   className="mb-3"
                 />
 
+                <label>Spouse Name</label>
+                <InputText
+                  placeholder="Spouse Name"
+                  value={spouseName}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^A-Za-z\s.'-]/g, "");
+                    setSpouseName(val);
+                  }}
+                  className="mb-3"
+                />
+
                 <label>Pan Card <span className="required-asterisk">*</span></label>
                 <InputText
                   placeholder="ABCDE1234F"
@@ -2776,7 +2792,14 @@ const StaffPage = () => {
 
                   <label>Father's Name</label>
                   <InputText
-                    value={viewData.EmployeeList?.FatherName || ""}
+                    value={viewData.Profile?.FatherName || ""}
+                    readOnly
+                    className="mb-3"
+                  />
+
+                  <label>Spouse Name</label>
+                  <InputText
+                    value={viewData.Profile?.SpouseName || ""}
                     readOnly
                     className="mb-3"
                   />
