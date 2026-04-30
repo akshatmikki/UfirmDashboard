@@ -215,11 +215,14 @@ const StaffPage = () => {
 
     let officeIds = [];
 
-    if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
-      officeIds = reduxPropertyIds;
-    } else if (Number(reduxPropertyId) > 0) {
+    // Prioritize the synchronous redux single-property selection over any async local state
+    if (Number(reduxPropertyId) > 0) {
       officeIds = [Number(reduxPropertyId)];
-    } else if (clientPropertyIds.length > 0) {
+    } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+      officeIds = reduxPropertyIds;
+    } else if (selectedPropertyId && selectedPropertyId.length > 0) {
+      officeIds = selectedPropertyId;
+    } else if (clientPropertyIds && clientPropertyIds.length > 0) {
       officeIds = clientPropertyIds;
     }
 
@@ -412,6 +415,8 @@ const StaffPage = () => {
     loadDesignations();
   }, []);
 
+  const officeIdsStr = JSON.stringify(getCurrentOfficeIds());
+
   useEffect(() => {
     const loadEmployees = async () => {
       if (!reduxClientId && !reduxPropertyId) {
@@ -419,7 +424,7 @@ const StaffPage = () => {
         return;
       }
       try {
-        const officeIds = getCurrentOfficeIds();
+        const officeIds = JSON.parse(officeIdsStr);
 
         if (!officeIds.length) {
           setStaff([]);
@@ -440,7 +445,7 @@ const StaffPage = () => {
     };
 
     loadEmployees();
-  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, clientPropertyIds, reloadEmployeesToken]);
+  }, [officeIdsStr, reloadEmployeesToken]);
 
   useEffect(() => {
     const loadBranch = async () => {

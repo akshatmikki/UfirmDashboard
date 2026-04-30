@@ -1071,6 +1071,80 @@ export default function GenerateSalary() {
     ]);
   };
 
+  const buildPayload = (emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId) => {
+    const row = rowDataMap.get(emp.EmployeeId) || {};
+    return {
+      EmployeeId: emp.EmployeeId,
+      EmployeeName: emp.EmployeeName,
+      OfficeId: effectivePropertyId || emp.PropertyId,
+      CreatedOn: new Date().toISOString(),
+      Month: monthValue,
+      Year: yearValue,
+      is_active: true,
+      IsFreezed: false,
+      GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
+
+      // Earnings
+      Basic: Number(row.Basic) || 0,
+      DA: Number(row.DA) || 0,
+      HRA: Number(row.HRA) || 0,
+      Gratuity: Number(row.Gratuity) || 0,
+      OTDaysAmount: Number(row.OTDaysAmount) || 0,
+      OTHoursAmount: Number(row.OTHoursAmount) || 0,
+      AdjAmtIncentive: Number(row["AdjAmt/Incentive"]) || Number(row.AdjAmtIncentive) || 0,
+      PFArrear: Number(row.PFArrear) || 0,
+      OthArrear: Number(row.OthArrear) || 0,
+      Bonus: Number(row.Bonus) || 0,
+      SeparateBonus: Number(row.SEPARATEBONUS) || Number(row.SeparateBonus) || 0,
+      LeaveWages: Number(row.LEAVEWAGES) || Number(row.LeaveWages) || 0,
+      Conv: Number(row.CONV) || Number(row.Conv) || 0,
+      OthAll: Number(row.OTHALL) || Number(row.OthAll) || 0,
+      NHAmount: Number(row.NHAmount) || 0,
+      FHAmount: Number(row.FHAmount) || 0,
+      EducationAllowance: Number(row.EduAll) || Number(row.EducationAllowance) || 0,
+      PerformanceAllowance: Number(row.PerfAll) || Number(row.PerformanceAllowance) || 0,
+      SpecialAllowance: Number(row.SplAll) || Number(row.SpecialAllowance) || 0,
+      WashingAllowance: Number(row.WASH) || Number(row.WashingAllowance) || 0,
+      TotalEarning: Number(row.TotalAllowance) || 0,
+
+      // Deductions
+      PF: Number(row.PF) || 0,
+      ESI: Number(row.ESI) || 0,
+      LWF: Number(row.LWF) || Number(row.LwfAmount) || 0,
+      PFT: Number(row.PftAmount) || Number(row.PFT) || 0,
+      Advance: Number(row.AdvanceAmount) || Number(row.Advance) || 0,
+      OthDed: Number(row.OthDeduction) || Number(row.OthDed) || 0,
+      DocDed: Number(row.DocDeduction) || Number(row.DocDed) || 0,
+      Food: Number(row.FOOD) || Number(row.Food) || 0,
+      Maintenance: Number(row.MaintDeduction) || Number(row.Maintenance) || 0,
+      Fine: Number(row.Fine) || 0,
+      AcmdDed: Number(row.AccommodationDeduction) || Number(row.AcmdDed) || 0,
+      IncomeTax: Number(row.IncomeTax) || 0,
+      Uniform: Number(row.UNIFORM) || Number(row.Uniform) || 0,
+      BGV: Number(row.BGV) || 0,
+      Room: Number(row.Room) || 0,
+      JoiningKits: Number(row.Joiningkits) || Number(row.JoiningKits) || 0,
+      LoanEMI: Number(row.LoanEMI) || 0,
+      TotalDeduction: Number(row.TotalDeduction) || 0,
+
+      // Attendance
+      WorkingDays: Number(row.WorkingDays) || 0,
+      HoDays: Number(row.HoDays) || 0,
+      WeeklyOffs: Number(row.WeeklyOffs) || 0,
+      OTDays: Number(row.OTDays) || 0,
+      OTHours: Number(row.OTHours) || 0,
+      DutyDays: Number(row.DutyDays) || 0,
+      SalDays: Number(row.SalDays) || 0,
+      NHDays: Number(row.NHDays) || 0,
+      FHDays: Number(row.FHDays) || 0,
+
+      // Leave
+      EL: Number(row.EL) || 0,
+      CL: Number(row.CL) || 0,
+      SL: Number(row.SL) || 0,
+    };
+  };
+
   const handleGenerateFromGrid = async () => {
     if (selectedEmployees.length === 0) {
       alert("Please select at least one employee");
@@ -1085,17 +1159,7 @@ export default function GenerateSalary() {
       const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
       const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
-      const payload = selectedEmployees.map((emp) => ({
-        EmployeeId: emp.EmployeeId,
-        EmployeeName: emp.EmployeeName,
-        OfficeId: effectivePropertyId || emp.PropertyId,
-        CreatedOn: new Date().toISOString(),
-        Month: monthValue,
-        Year: yearValue,
-        is_active: true,
-        IsFreezed: false,
-        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
-      }));
+      const payload = selectedEmployees.map((emp) => buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId));
 
       const formData = new FormData();
       formData.append("employees", JSON.stringify(payload));
@@ -1171,17 +1235,7 @@ export default function GenerateSalary() {
       const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
       const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
-      const payload = employeesToRegenerate.map((emp) => ({
-        EmployeeId: emp.EmployeeId,
-        EmployeeName: emp.EmployeeName,
-        OfficeId: effectivePropertyId || emp.PropertyId,
-        CreatedOn: new Date().toISOString(),
-        Month: monthValue,
-        Year: yearValue,
-        is_active: true,
-        IsFreezed: false,
-        GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
-      }));
+      const payload = employeesToRegenerate.map((emp) => buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId));
 
       const formData = new FormData();
       formData.append("employees", JSON.stringify(payload));
