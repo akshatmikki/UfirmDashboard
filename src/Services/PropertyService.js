@@ -26,7 +26,7 @@ export async function getAllProperties() {
 // --------------------------------------------------
 export async function getPropertyById(propertyId) {
   try {
-    const response = await fetch(`http://localhost:62929/api/property/${propertyId}`, {
+    const response = await fetch(`https://api.urest.in:8096/api/property/${propertyId}`, {
       method: "GET",
       headers: { Accept: "application/json" },
     });
