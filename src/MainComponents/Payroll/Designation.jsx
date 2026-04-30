@@ -63,12 +63,15 @@ const DesignationMaster = () => {
     };
 
     const filteredData = data.filter((item) => {
-        if (!globalFilter) return true;
+    if (!globalFilter) return true;
 
-        return normalize(item.DesignationName).includes(
-            normalize(globalFilter)
-        );
-    });
+    const search = normalize(globalFilter);
+
+    return (
+        normalize(item.DesignationName).includes(search) ||
+        item.Designation_ID?.toString().includes(globalFilter)
+    );
+});
 
     const openAdd = () => {
         setFormData({
@@ -310,12 +313,14 @@ const DesignationMaster = () => {
                                 <Column
                                     field="Designation_ID"
                                     header="Designation ID"
+                                    sortable
                                     style={{ minWidth: "180px" }}
                                 />
 
                                 <Column
                                     field="DesignationName"
                                     header="Designation Name"
+                                    sortable
                                     style={{ minWidth: "260px" }}
                                 />
 
