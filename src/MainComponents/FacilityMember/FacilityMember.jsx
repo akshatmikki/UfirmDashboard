@@ -1672,6 +1672,26 @@ const StaffPage = () => {
     { label: "Delhi", value: "Delhi" },
   ];
 
+  const indianBanks = [
+    { label: "State Bank of India", value: "State Bank of India" },
+    { label: "HDFC Bank", value: "HDFC Bank" },
+    { label: "ICICI Bank", value: "ICICI Bank" },
+    { label: "Axis Bank", value: "Axis Bank" },
+    { label: "Punjab National Bank", value: "Punjab National Bank" },
+    { label: "Bank of Baroda", value: "Bank of Baroda" },
+    { label: "Canara Bank", value: "Canara Bank" },
+    { label: "Union Bank of India", value: "Union Bank of India" },
+    { label: "Kotak Mahindra Bank", value: "Kotak Mahindra Bank" },
+    { label: "IndusInd Bank", value: "IndusInd Bank" },
+    { label: "Yes Bank", value: "Yes Bank" },
+    { label: "IDFC First Bank", value: "IDFC First Bank" },
+    { label: "Indian Bank", value: "Indian Bank" },
+    { label: "Central Bank of India", value: "Central Bank of India" },
+    { label: "UCO Bank", value: "UCO Bank" },
+    { label: "Bandhan Bank", value: "Bandhan Bank" },
+    { label: "RBL Bank", value: "RBL Bank" },
+  ];
+
   const header = (
     <div className="d-flex justify-content-between align-items-center p-2">
       <h5 className="m-0">Facility Member</h5>
@@ -2439,11 +2459,15 @@ const StaffPage = () => {
                 />
 
                 <label>Bank Name</label>
-                <InputText
-                  placeholder="Bank Name"
+                <Dropdown
                   value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
+                  options={indianBanks}
+                  onChange={(e) => setBankName(e.value)}
+                  placeholder="Select Bank"
                   className="mb-3"
+                  filter
+                  editable
+                  showClear
                 />
 
                 <label>UAN Number</label>

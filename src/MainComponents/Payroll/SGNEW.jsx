@@ -58,6 +58,7 @@ export default function SGNEW() {
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [otStandalone, setOtStandalone] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
   const [form, setForm] = useState({
     salaryGroupName: "",
@@ -147,6 +148,9 @@ export default function SGNEW() {
   }, [selectedUnitId]);
 
   useEffect(() => {
+    setSelectedSG("");
+    resetSalaryGroupForm();
+
     if (!selectedPropertyId || selectedPropertyId.length === 0) {
       setSalaryGroups([]);
       return;
@@ -843,6 +847,8 @@ export default function SGNEW() {
   };
 
   const handleSave = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
     // ✅ VALIDATION FIRST
     if (!selectedPropertyId || selectedPropertyId.length === 0) {
       alert("Please select at least one Property");
@@ -889,9 +895,9 @@ export default function SGNEW() {
     try {
       const adModel = buildADModel();
 
-      // 🔑 detect update by SG name
+      // 🔑 detect update by SG ID
       const existingSG = salaryGroups.find(
-        (sg) => sg.SalaryGroup === form.salaryGroupName,
+        (sg) => sg.SalaryGroup === selectedSG
       );
 
       const isUpdate = !!existingSG;
@@ -975,6 +981,8 @@ export default function SGNEW() {
     } catch (err) {
       alert("Save failed! Check console.");
       console.error(err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -1429,11 +1437,17 @@ export default function SGNEW() {
                         onChange={(e) => {
                           const checked = e.target.checked;
 
-                          setSelectedPropertyId((prev) =>
-                            checked
+                          setSelectedPropertyId((prev) => {
+                            const updated = checked
                               ? [...prev, p.PropertyId]
-                              : prev.filter((id) => id !== p.PropertyId),
-                          );
+                              : prev.filter((id) => id !== p.PropertyId);
+
+                            return updated;
+                          });
+                          // ADD THIS RESET
+                          setSelectedSG("");
+                          setSalaryGroups([]);
+                          resetSalaryGroupForm();
                         }}
                       />
                       {p.PropertyName}
@@ -1569,7 +1583,7 @@ export default function SGNEW() {
             <button
               className="btn btn-sm btn-primary"
               onClick={handleSave}
-              disabled={!canSave}
+              disabled={!canSave || isSaving}
               style={{
                 padding: "6px 14px",
                 fontSize: 13,
@@ -1578,7 +1592,7 @@ export default function SGNEW() {
                 cursor: canSave ? "pointer" : "not-allowed"
               }}
             >
-              Save
+              {isSaving ? "Saving..." : "Save"}
             </button>
             <button
               className="btn btn-sm btn-danger"
@@ -3738,7 +3752,7 @@ export default function SGNEW() {
           <button
             className="btn btn-primary"
             onClick={handleSave}
-            disabled={!canSave}
+            disabled={!canSave || isSaving}
             style={{
               padding: "10px 150px",
               fontSize: 16,
@@ -3746,7 +3760,7 @@ export default function SGNEW() {
               cursor: canSave ? "pointer" : "not-allowed"
             }}
           >
-            Save
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
       </div>
