@@ -186,7 +186,7 @@ export const updateVendor = async (id, vendor) => {
     try {
         const response = await api.put(`/vendor/${id}`, vendor, {
             headers: {
-                ...(vendor instanceof FormData ? { 'Content-Type': null } : { 'Content-Type': 'application/json' }),
+                ...(vendor instanceof FormData ? { 'Content-Type': undefined } : { 'Content-Type': 'application/json' }),
             },
         });
         return response.data;

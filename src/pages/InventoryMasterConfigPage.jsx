@@ -349,6 +349,7 @@ export default function InventoryMasterConfigPage() {
           fd.append("PANNumber", String(form?.PANNumber ?? ""));
           fd.append("WebsiteUrl", String(form?.WebsiteUrl ?? ""));
           fd.append("CreatedBy", String(context?.userId || 1));
+          fd.append("ApprovedBy", String(context?.userId || 1));
           fd.append("IsApproved", asBool(form?.IsApproved) ? "true" : "false");
 
           if (form?.PANFile instanceof File) fd.append("pan", form.PANFile);

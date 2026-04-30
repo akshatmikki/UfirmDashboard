@@ -492,7 +492,7 @@ class MainNav extends React.Component {
     const hideAttendanceForPropertyManager =
       ROLE_RULES.shouldHideAttendanceForPropertyManager(roles);
     const canAccessCompOff =
-      ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles);
+      ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles) || ROLE_RULES.isHrRole(roles);
 
     // Restrict "HR-only" users to a safe allow-list. If the user has HR plus another
     // functional role (ex: HR + Manager), don't apply the HR-only restriction.
@@ -517,6 +517,7 @@ class MainNav extends React.Component {
       "/Account/App/FacilityMember",
       "/Account/App/Facility",
       "/Account/App/Attendance",
+      "/Account/App/CompOff",
       "/Account/App/leave",
       "/Account/App/leavemaster",
       "/Account/App/EmployeeLeaveRemaining",
@@ -621,7 +622,7 @@ class MainNav extends React.Component {
               )}
             </form>
             <div className="navbar-nav  ml-auto ">
-              <Notification />
+              {!isHrRole && <Notification />}
               <div className="nav-item dropdown">
                 <a
                   href="#"

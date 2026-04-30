@@ -971,19 +971,19 @@ export const getPropertyById = async (propertyId) => {
 
 // Get employees with ungenerated salary for a given office ID, month, and year
 const URL = "https://api.urest.in:8096/api";
-export const getUngeneratedSalaryByOffice = async (officeId, month, year) => {
-  const url = `${URL}/employee/ungeneratedSalary/${officeId}/${month}/${year}`;
-  try {
-    const response = await axios.get(url, {
-      withCredentials: false,
-      headers: { Accept: "application/json" },
-    });
-    return response.data;
-  } catch (error) {
-    console.error("Error in getUngeneratedSalaryByOffice:", error);
-    throw error;
-  }
-};
+// export const getUngeneratedSalaryByOffice = async (officeId, month, year) => {
+//   const url = `${URL}/employee/ungeneratedSalary/${officeId}/${month}/${year}`;
+//   try {
+//     const response = await axios.get(url, {
+//       withCredentials: false,
+//       headers: { Accept: "application/json" },
+//     });
+//     return response.data;
+//   } catch (error) {
+//     console.error("Error in getUngeneratedSalaryByOffice:", error);
+//     throw error;
+//   }
+// };
 
 
 // Get facility member salary details

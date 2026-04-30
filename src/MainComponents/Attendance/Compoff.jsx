@@ -57,7 +57,7 @@ const Compoff = () => {
   const isManagerRole = useMemo(() => ROLE_RULES.isManagerRole(roleSource), [roleSource]);
   const isAdminRole = useMemo(() => ROLE_RULES.isAdminRole(roleSource), [roleSource]);
   const isHrRole = useMemo(() => ROLE_RULES.isHrRole(roleSource), [roleSource]);
-  const applyManagerFilter = isManagerRole && !isAdminRole && !isHrRole && !managedEmployeesIsAdmin;
+  const applyManagerFilter = (isManagerRole || isHrRole) && !isAdminRole && !managedEmployeesIsAdmin;
 
   const managedEmployeeIdSet = useMemo(() => {
     const idSet = new Set();
