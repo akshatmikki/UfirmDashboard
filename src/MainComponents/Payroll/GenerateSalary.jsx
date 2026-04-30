@@ -495,7 +495,7 @@ export default function GenerateSalary() {
 
   const buildNetSalaryMap = async (facilityMemberIds = []) => {
     const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
-    if (!monthName || !effectivePropertyId || !facilityMemberIds.length) return new Map();
+    if (!monthName || !effectivePropertyId || !facilityMemberIds.length) return { netMap: new Map(), rowDataMap: new Map() };
 
     try {
       const data = await getFacilityMemberSalaryDetailsByClientBranch({
@@ -508,7 +508,8 @@ export default function GenerateSalary() {
         requireGeneratedSalary: false,
       });
 
-      const map = new Map();
+      const netMap = new Map();
+      const rowDataMap = new Map();
       for (const row of Array.isArray(data) ? data : []) {
         const id = Number(row?.FacilityMemberId ?? row?.EmployeeId ?? 0);
         if (!id) continue;
@@ -519,12 +520,17 @@ export default function GenerateSalary() {
         const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
         const net = row.NetSalary ?? (totalAllowance - totalDeduction);
 
-        map.set(id, Number(net) || 0);
+        row.TotalAllowance = totalAllowance;
+        row.TotalDeduction = totalDeduction;
+        row.NetSalary = net;
+
+        netMap.set(id, Number(net) || 0);
+        rowDataMap.set(id, row);
       }
-      return map;
+      return { netMap, rowDataMap };
     } catch (error) {
       console.error("Failed to compute net salary amount:", error);
-      return new Map();
+      return { netMap: new Map(), rowDataMap: new Map() };
     }
   };
 
@@ -997,6 +1003,67 @@ export default function GenerateSalary() {
     }
   };
 
+  const generatePdfBlobForEmployee = async (row) => {
+    if (!row) return null;
+    const pdfWidthMm = 210;
+    const pdfHeightMm = 297;
+    const payslipMaxWidthMm = pdfWidthMm * 0.88;
+    const payslipMaxHeightMm = pdfHeightMm * 0.88;
+
+    const payslipHtml = generatePayslipHTML(row);
+    const container = document.createElement("div");
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    container.style.width = `${payslipMaxWidthMm}mm`;
+    container.style.minHeight = `${payslipMaxHeightMm}mm`;
+    container.style.padding = "10px";
+    container.style.background = "#fff";
+    container.style.boxSizing = "border-box";
+
+    container.innerHTML = `
+      <style>
+        body { font-size: 13px !important; }
+        .info-table td { padding: 2px 5px !important; font-size: 13px !important; }
+        .pay-slip-table td { padding: 5px 6px !important; font-size: 13px !important; }
+        .pay-slip-table th { padding: 6px !important; font-size: 13px !important; }
+      </style>
+      ${payslipHtml}
+    `;
+
+    document.body.appendChild(container);
+    try {
+      const canvas = await html2canvas(container, {
+        scale: 1.5, // Reduced from 3 to make it much faster
+        useCORS: true,
+        scrollY: 0,
+        logging: false, // Turn off logging
+      });
+
+      const imgData = canvas.toDataURL("image/jpeg", 0.9); // Use JPEG for smaller size and speed
+      const imageAspectRatio = canvas.width / canvas.height;
+      let renderWidthMm = payslipMaxWidthMm;
+      let renderHeightMm = renderWidthMm / imageAspectRatio;
+
+      if (renderHeightMm > payslipMaxHeightMm) {
+        renderHeightMm = payslipMaxHeightMm;
+        renderWidthMm = renderHeightMm * imageAspectRatio;
+      }
+
+      const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
+      const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
+
+      const pdf = new jsPDF("p", "mm", "a4");
+      pdf.addImage(imgData, "JPEG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
+      return pdf.output("blob");
+    } catch (error) {
+      console.error("Failed to generate PDF", error);
+      return null;
+    } finally {
+      document.body.removeChild(container);
+    }
+  };
+
   const handleMoveAllToSelected = () => {
     setSelectedEmployees((prev) => [
       ...prev,
@@ -1016,7 +1083,7 @@ export default function GenerateSalary() {
       const yearValue = selectedYear;
 
       const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
-      const netMap = await buildNetSalaryMap(idsForNet);
+      const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
       const payload = selectedEmployees.map((emp) => ({
         EmployeeId: emp.EmployeeId,
@@ -1030,7 +1097,31 @@ export default function GenerateSalary() {
         GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
-      await createGeneratedSalary(payload);
+      const formData = new FormData();
+      formData.append("employees", JSON.stringify(payload));
+
+      const pdfPromises = selectedEmployees.map(async (emp) => {
+        const row = rowDataMap.get(emp.EmployeeId);
+        if (!row) return null;
+        const pdfBlob = await generatePdfBlobForEmployee(row);
+        if (pdfBlob) {
+          return { emp, pdfBlob };
+        }
+        return null;
+      });
+
+      const pdfResults = await Promise.all(pdfPromises);
+      pdfResults.forEach((res) => {
+        if (res && res.pdfBlob) {
+          formData.append(
+            "file",
+            res.pdfBlob,
+            `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+          );
+        }
+      });
+
+      await createGeneratedSalary(formData);
 
       alert(`Successfully generated salary for ${selectedEmployees.length} employee(s)`);
       setSelectedEmployees([]);
@@ -1078,7 +1169,7 @@ export default function GenerateSalary() {
       const yearValue = selectedYear;
 
       const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
-      const netMap = await buildNetSalaryMap(idsForNet);
+      const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
       const payload = employeesToRegenerate.map((emp) => ({
         EmployeeId: emp.EmployeeId,
@@ -1092,7 +1183,31 @@ export default function GenerateSalary() {
         GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
       }));
 
-      await regenerateEmployeeSalary(payload);
+      const formData = new FormData();
+      formData.append("employees", JSON.stringify(payload));
+
+      const pdfPromises = employeesToRegenerate.map(async (emp) => {
+        const row = rowDataMap.get(emp.EmployeeId);
+        if (!row) return null;
+        const pdfBlob = await generatePdfBlobForEmployee(row);
+        if (pdfBlob) {
+          return { emp, pdfBlob };
+        }
+        return null;
+      });
+
+      const pdfResults = await Promise.all(pdfPromises);
+      pdfResults.forEach((res) => {
+        if (res && res.pdfBlob) {
+          formData.append(
+            "file",
+            res.pdfBlob,
+            `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+          );
+        }
+      });
+
+      await regenerateEmployeeSalary(formData);
 
       const ids = employeesToRegenerate.map((e) => e.EmployeeId);
       await fetchGeneratedEmployees();

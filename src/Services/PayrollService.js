@@ -620,15 +620,19 @@ export async function getEmployeeGeneratedSalaries(officeId) {
 
 // POST to create generated salary entry
 export async function createGeneratedSalary(employees) {
+  const isFormData = employees instanceof FormData;
+  const headers = { Accept: "application/json" };
+  
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(
     "https://api.urest.in:8096/api/employee/generatedSalary",
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(employees),
+      headers,
+      body: isFormData ? employees : JSON.stringify(employees),
     }
   );
 
@@ -1010,15 +1014,19 @@ export const getFacilityMemberSalaryDetails = async (facilityMemberIds, month, y
 
 // Regenerate employee salary entry (POST)
 export async function regenerateEmployeeSalary(employees) {
+  const isFormData = employees instanceof FormData;
+  const headers = { Accept: "application/json" };
+  
+  if (!isFormData) {
+    headers["Content-Type"] = "application/json";
+  }
+
   const response = await fetch(
     "https://api.urest.in:8096/api/employee/regeneratedSalary",
     {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json",
-      },
-      body: JSON.stringify(employees),
+      headers,
+      body: isFormData ? employees : JSON.stringify(employees),
     }
   );
 
