@@ -127,22 +127,26 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
   let salaryStartFrom = Number(salaryStartFromRaw) || 0;
   let salaryEndTo = Number(salaryEndToRaw) || 0;
 
+  // Use the previous month as the reference month for the cycle end
+  const refMonth = month === 1 ? 12 : month - 1;
+  const refYear = month === 1 ? year - 1 : year;
+
   // Match backend behavior:
   // If both are <=0, default to full month.
   if (salaryStartFrom <= 0 && salaryEndTo <= 0) {
     salaryStartFrom = 1;
-    salaryEndTo = getDaysInMonth(month, year);
+    salaryEndTo = getDaysInMonth(refMonth, refYear);
   }
 
   let startDate;
   if (salaryStartFrom <= salaryEndTo) {
-    startDate = safeDate(year, month, salaryStartFrom);
+    startDate = safeDate(refYear, refMonth, salaryStartFrom);
   } else {
-    const prevMonth = month === 1 ? 12 : month - 1;
-    const prevYear = month === 1 ? year - 1 : year;
+    const prevMonth = refMonth === 1 ? 12 : refMonth - 1;
+    const prevYear = refMonth === 1 ? refYear - 1 : refYear;
     startDate = safeDate(prevYear, prevMonth, salaryStartFrom);
   }
-  const endDate = safeDate(year, month, salaryEndTo || getDaysInMonth(month, year));
+  const endDate = safeDate(refYear, refMonth, salaryEndTo || getDaysInMonth(refMonth, refYear));
 
   const totalDays = Math.max(
     1,
@@ -163,7 +167,7 @@ function clampWorkingDaysToMonth(value, month, year) {
   if (value === "" || value === null || value === undefined) return "";
   const num = Number(value);
   if (!Number.isFinite(num)) return "";
-  return Math.min(num, getDaysInMonth(month, year));
+  return Math.min(num, 31);
 }
 
 export default function AttendanceSheet() {
@@ -266,25 +270,25 @@ filteredAttendance.forEach((att) => {
 });
 
 const finalEmployees = Object.values(allEmployeesMap);
-  useEffect(() => {
-    const days = getDaysInMonth(month, year);
-    setGlobalTotalDays(days);
-  }, [month, year]);
+const totalDaysInSelectedMonth = getDaysInMonth(
+  month === 1 ? 12 : month - 1,
+  month === 1 ? year - 1 : year
+);
 
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
+const [globalTotalDays, setGlobalTotalDays] = useState(
+  totalDaysInSelectedMonth
+);
 
-  useEffect(() => {
-    const days = getDaysInMonth(month, year);
-    setGlobalTotalDays(days);
-  }, [month, year]);
+useEffect(() => {
+  const refMonth = month === 1 ? 12 : month - 1;
+  const refYear = month === 1 ? year - 1 : year;
+  const days = getDaysInMonth(refMonth, refYear);
+  setGlobalTotalDays(days);
+}, [month, year]);
 
-  const totalDaysInSelectedMonth = getDaysInMonth(month, year);
-
-  const [globalTotalDays, setGlobalTotalDays] = useState(
-    totalDaysInSelectedMonth
-  );
+useEffect(() => {
+  setCurrentPage(1);
+}, [searchTerm]);
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -1016,27 +1020,19 @@ filtered.forEach((att) => {
   );
 
   mappedInputs[key] = {
-    workingDays: clampWorkingDaysToMonth(att.WorkingDays ?? "", month, year),
+    workingDays: att.WorkingDays ?? "",
     EL: att.EL ?? "",
     CL: att.CL ?? "",
     SL: att.SL ?? "",
     weekDaysOff: att.WeekDaysOff ?? "",
     otDays: att.OtDays ?? "",
-    otHours:
-      att?.OtHours !== null &&
-      att?.OtHours !== undefined &&
-      att?.OtHours !== ""
-        ? att.OtHours
-        : otMatch?.TotalOTHours ?? "",
+    otHours: att.OtHours ?? "",
     totalDays: att.PayableDays ?? "",
     manualTotalDays: false,
     nhDays: att.NHDays ?? "",
     fhDays: att.FHDays ?? "",
     holidays: att.Holidays ?? "",
-    divideByDays:
-      att.DivideByDays ??
-      employeeSGMap[empId]?.divideByDays ??
-      globalTotalDays,
+    divideByDays: att.DivideByDays ?? "",
     otMonthDays: att.OtMonthDays ?? "",
     pfArrear: att.PFArrear ?? "",
     otherArrear: att.OtherArrear ?? "",
@@ -1136,7 +1132,12 @@ filtered.forEach((att) => {
       updated.manualTotalDays = true;
     }
 
-    const monthDaysLimit = getDaysInMonth(month, year);
+    const refMonth = month === 1 ? 12 : month - 1;
+    const refYear = month === 1 ? year - 1 : year;
+    
+    // 🔥 We allow up to 31 days to account for cross-month cycles like 21 Jan to 20 Feb (31 days).
+    // The exact cycle days could be computed per employee, but 31 is the absolute max days in a cycle.
+    const monthDaysLimit = 31;
 
     // 🔥 VALIDATION (same logic, just no empId dependency)
 
@@ -1293,7 +1294,7 @@ filtered.forEach((att) => {
         if (existing) {
           // 🔹 UPDATE using PUT
           updatePromises.push(
-            updateAttendance(empId, currMonthYear, model).catch((err) => {
+            updateAttendance(existing.AttendanceID || attendanceId, model).catch((err) => {
               const status = err?.response?.status;
               if (status === 404) {
                 newEmployees.push(model);
@@ -1427,11 +1428,20 @@ filtered.forEach((att) => {
     setDeleting(true);
 
     try {
-      await deleteMultipleAttendance(
-        Array.from(selectedEmpIds),
-        getMonthYearString(month, year),
-        effectiveSinglePropertyId
-      );
+      const attendanceIds = Array.from(selectedEmpIds)
+        .map(rowKey => {
+          const parts = String(rowKey).split("_");
+          return parts.length > 1 ? Number(parts[1]) : 0;
+        })
+        .filter(id => id > 0);
+
+      if (attendanceIds.length > 0) {
+        await deleteMultipleAttendance(attendanceIds);
+      } else {
+        alert("No valid attendance records selected for deletion. Unsaved records cannot be deleted.");
+        setDeleting(false);
+        return;
+      }
 
       await reloadAttendanceData();
 
@@ -2161,10 +2171,9 @@ const rowKey = `${empId}_${attendanceId}`;
                   nhDays: att?.NHDays ?? "",
                   fhDays: att?.FHDays ?? "",
                   holidays: att?.Holidays ?? "",
-                  divideByDays:
-                    att?.DivideByDays ??
-                    employeeSGMap[empId]?.divideByDays ??
-                    globalTotalDays,
+                  divideByDays: att?.AttendanceID
+                    ? att.DivideByDays ?? ""
+                    : employeeSGMap[empId]?.divideByDays ?? globalTotalDays,
 
                   otMonthDays: att?.OtMonthDays ?? "",
                   pfArrear: att?.PFArrear ?? "",

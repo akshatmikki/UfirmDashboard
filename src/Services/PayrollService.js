@@ -622,7 +622,7 @@ export async function getEmployeeGeneratedSalaries(officeId) {
 export async function createGeneratedSalary(employees) {
   const isFormData = employees instanceof FormData;
   const headers = { Accept: "application/json" };
-  
+
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
@@ -888,10 +888,10 @@ export const createAttendance = async (model) => {
   }
 };
 
-export const updateAttendance = async (empId, monthyear, model) => {
+export const updateAttendance = async (attendanceId, model) => {
   try {
     const response = await axios.put(
-      `${BASE_URL}/${empId}/${monthyear}`,
+      `${BASE_URL}/${attendanceId}`,
       model,
       { withCredentials: false }
     );
@@ -903,12 +903,10 @@ export const updateAttendance = async (empId, monthyear, model) => {
 };
 
 // Delete multiple attendance records
-export const deleteMultipleAttendance = async (empIds, monthyear, propertyId) => {
+export const deleteMultipleAttendance = async (attendanceIds) => {
   const response = await axios.delete(`${BASE_URL}/delete-multiple`, {
     params: {
-      empIds: empIds.join(","),   // "277,278,300"
-      monthyear: monthyear,       // "2025-11"
-      propertyId: propertyId      // 🔥 REQUIRED NOW
+      attendanceIds: attendanceIds.join(",")
     },
     headers: { "Content-Type": "application/json" },
     withCredentials: false,
@@ -1016,7 +1014,7 @@ export const getFacilityMemberSalaryDetails = async (facilityMemberIds, month, y
 export async function regenerateEmployeeSalary(employees) {
   const isFormData = employees instanceof FormData;
   const headers = { Accept: "application/json" };
-  
+
   if (!isFormData) {
     headers["Content-Type"] = "application/json";
   }
