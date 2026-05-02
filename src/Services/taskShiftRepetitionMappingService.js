@@ -45,12 +45,13 @@ export const saveTaskShiftRepetitions = async (createdMappings = [], sourceMappi
     throw new Error("TaskFrequencyMapping ID could not be resolved for shift schedule rows.");
   }
 
+  const effectiveDateTo = repetition?.DateTo || "";
   const items = (sourceMappings || [])
     .map((source) => ({
       TaskFrequencyId: taskFrequencyId,
       ShiftId: toId(source?.ShiftId),
       DateFrom: repetition?.DateFrom,
-      DateTo: repetition?.DateTo,
+      DateTo: effectiveDateTo,
       Repetition: repetition?.Repetition,
       Repetition_Interval: repetition?.Repetition_Interval,
       Repetition_Interval_Unit: repetition?.Repetition_Interval_Unit,
