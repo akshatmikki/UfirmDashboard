@@ -512,7 +512,7 @@ export default function TaskScheduleSection({
               <ul className="task-schedule-preview-list">
                 {schedulePayload.preview.map((p) => (
                   <li key={`${p.shiftName}-${p.date}-${p.time}`}>
-                    <strong>{p.shiftName}</strong> — {p.date} {p.time} ({p.range})
+                    <strong>{p.shiftName}</strong> — {p.time} ({p.range})
                   </li>
                 ))}
               </ul>
@@ -545,3 +545,4 @@ export default function TaskScheduleSection({
     </div>
   );
 }
+
