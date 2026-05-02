@@ -124,7 +124,8 @@ export default function PFReport() {
                     requireGeneratedSalary: true,
                 });
 
-                setEmployees(Array.isArray(data) ? data : []);
+                const filtered = (Array.isArray(data) ? data : []).filter(emp => emp.PF > 0);
+                setEmployees(filtered);
             } catch (error) {
                 console.error("PF report fetch failed", error);
                 setEmployees([]);
@@ -145,9 +146,20 @@ export default function PFReport() {
         });
 
         let csvContent = "";
+        let totalGross = 0;
+        let totalPFWage = 0;
+        let total12 = 0;
+        let total367 = 0;
+        let total833 = 0;
+        let total13 = 0;
+        let totalLWF = 0;
 
         // Title
-        csvContent += `PF Report - ${monthName} ${year}\n\n`;
+        const selectedUnitName =
+            propertyList.find(p => p.PropertyId === selectedPropertyId)?.PropertyName || "All Units";
+
+        csvContent += `PF Report - ${monthName} ${year}\n`;
+        csvContent += `Unit: ${selectedUnitName}\n\n`;
 
         // Headers
         const headers = [
@@ -170,26 +182,59 @@ export default function PFReport() {
         csvContent += headers.join(",") + "\n";
 
         // Data Rows
-        employees.forEach((emp, index) => {
-            const row = [
-                index + 1,
-                emp.EmployeeCode || "-",
-                emp.FacilityMemberName || "-",
-                emp.Designation || "-",
-                emp.WorkingDays || 0,
-                emp.ProratedTotalGross || 0,
-                emp.Basic || 0,
-                emp.Basic || 0,
-                emp.Basic || 0,
-                Math.round((emp.Basic || 0) * 0.12),
-                Math.round((emp.Basic || 0) * 0.0367),
-                Math.round((emp.Basic || 0) * 0.0833),
-                Math.round((emp.Basic || 0) * 0.13),
-                emp.LwfEmployeeAmount || 0,
-            ];
+        employees
+            .filter(emp => emp.PF > 0)
+            .forEach((emp, index) => {
+                const pfWage =
+                    emp.PFLimit > 0 && emp.PFLimit < emp.PFVariableSum
+                        ? emp.PFLimit
+                        : emp.PFVariableSum;
+                totalGross += emp.TotalGross || 0;
+                totalPFWage += pfWage;
+                total12 += Math.round(pfWage * 0.12);
+                total367 += Math.round(pfWage * 0.0367);
+                total833 += Math.round(pfWage * 0.0833);
+                total13 += Math.round(pfWage * 0.13);
+                totalLWF += emp.LwfEmployeeAmount || 0;
+                const row = [
+                    index + 1,
+                    emp.EmployeeCode || "-",
+                    emp.FacilityMemberName || "-",
+                    emp.Designation || "-",
+                    emp.WorkingDays || 0,
+                    emp.TotalGross || 0,
+                    pfWage,
+                    pfWage,
+                    pfWage,
+                    Math.round(pfWage * 0.12),
+                    Math.round(pfWage * 0.0367),
+                    Math.round(pfWage * 0.0833),
+                    Math.round(pfWage * 0.13),
+                    emp.LwfEmployeeAmount || 0,
+                ];
 
-            csvContent += row.join(",") + "\n";
-        });
+                csvContent += row.join(",") + "\n";
+            });
+        csvContent += "\n";
+
+        const totalRow = [
+            "TOTAL",
+            "",
+            "",
+            "",
+            "",
+            totalGross,
+            totalPFWage,
+            totalPFWage,
+            totalPFWage,
+            total12,
+            total367,
+            total833,
+            total13,
+            totalLWF
+        ];
+
+        csvContent += totalRow.join(",") + "\n";
 
         const blob = new Blob([csvContent], {
             type: "text/csv;charset=utf-8;",
@@ -201,7 +246,7 @@ export default function PFReport() {
         link.href = url;
         link.setAttribute(
             "download",
-            `PF_Report_${monthName}_${year}.csv`
+            `PF_Report_${selectedUnitName}_${monthName}_${year}.csv`
         );
 
         document.body.appendChild(link);
@@ -350,24 +395,30 @@ export default function PFReport() {
                                 </td>
                             </tr>
                         ) : (
-                            employees.map((emp, index) => (
-                                <tr key={emp.FacilityMemberId}>
-                                    <td>{index + 1}</td>
-                                    <td>{emp.EmployeeCode || "-"}</td>
-                                    <td>{emp.FacilityMemberName || "-"}</td>
-                                    <td>{emp.Designation || "-"}</td>
-                                    <td>{emp.WorkingDays}</td>
-                                    <td>{emp.ProratedTotalGross}</td>
-                                    <td>{emp.Basic}</td>
-                                    <td>{emp.Basic}</td>
-                                    <td>{emp.Basic}</td>
-                                    <td>{Math.round(emp.Basic * 0.12)}</td>
-                                    <td>{Math.round(emp.Basic * 0.0367)}</td>
-                                    <td>{Math.round(emp.Basic * 0.0833)}</td>
-                                    <td>{Math.round(emp.Basic * 0.13)}</td>
-                                    <td>{emp.LwfEmployeeAmount || 0}</td>
-                                </tr>
-                            ))
+                            employees.map((emp, index) => {
+                                const pfWage =
+                                    emp.PFLimit > 0 && emp.PFLimit < emp.PFVariableSum
+                                        ? emp.PFLimit
+                                        : emp.PFVariableSum;
+                                return (
+                                    <tr key={emp.FacilityMemberId}>
+                                        <td>{index + 1}</td>
+                                        <td>{emp.EmployeeCode || "-"}</td>
+                                        <td>{emp.FacilityMemberName || "-"}</td>
+                                        <td>{emp.Designation || "-"}</td>
+                                        <td>{emp.WorkingDays}</td>
+                                        <td>{emp.TotalGross}</td>
+                                        <td>{pfWage}</td>
+                                        <td>{pfWage}</td>
+                                        <td>{pfWage}</td>
+                                        <td>{Math.round(pfWage * 0.12)}</td>
+                                        <td>{Math.round(pfWage * 0.0367)}</td>
+                                        <td>{Math.round(pfWage * 0.0833)}</td>
+                                        <td>{Math.round(pfWage * 0.13)}</td>
+                                        <td>{emp.LwfEmployeeAmount || 0}</td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>
