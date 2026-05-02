@@ -105,7 +105,8 @@ export default function ESIReport() {
           requireGeneratedSalary: true,
         });
 
-        setEmployees(Array.isArray(data) ? data : []);
+        const filtered = (Array.isArray(data) ? data : []).filter(emp => emp.ESI > 0);
+        setEmployees(filtered);
       } catch (error) {
         console.error("ESI report fetch failed", error);
         setEmployees([]);
@@ -126,8 +127,17 @@ export default function ESIReport() {
     });
 
     let csvContent = "";
+    let totalGross = 0;
+    let totalESIWage = 0;
+    let total075 = 0;
+    let total325 = 0;
+    let totalLWF = 0;
 
-    csvContent += `ESI Report - ${monthName} ${year}\n\n`;
+    const selectedUnitName =
+      propertyList.find(p => p.PropertyId === selectedPropertyId)?.PropertyName || "All Units";
+
+    csvContent += `ESI Report - ${monthName} ${year}\n`;
+    csvContent += `Unit: ${selectedUnitName}\n\n`;
 
     const headers = [
       "S.No",
@@ -143,21 +153,48 @@ export default function ESIReport() {
 
     csvContent += headers.join(",") + "\n";
 
-    employees.forEach((emp, index) => {
-      const row = [
-        index + 1,
-        emp.EmployeeCode || "-",
-        emp.FacilityMemberName || "-",
-        emp.WorkingDays || 0,
-        emp.ProratedTotalGross || 0,
-        emp.ProratedTotalGross || 0,
-        Math.ceil((emp.ProratedTotalGross || 0) * 0.0075),
-        Math.ceil((emp.ProratedTotalGross || 0) * 0.0325),
-        emp.LwfEmployeeAmount || 0,
-      ];
+    employees
+      .filter(emp => emp.ESI > 0)
+      .forEach((emp, index) => {
+        const esiWage =
+          emp.ESILimit > 0 && emp.ESILimit < emp.ESIVariableSum
+            ? emp.ESILimit
+            : emp.ESIVariableSum;
+        totalGross += emp.TotalGross || 0;
+        totalESIWage += esiWage;
+        total075 += Math.ceil(esiWage * 0.0075);
+        total325 += Math.ceil(esiWage * 0.0325);
+        totalLWF += emp.LwfEmployeeAmount || 0;
+        const row = [
+          index + 1,
+          emp.EmployeeCode || "-",
+          emp.FacilityMemberName || "-",
+          emp.WorkingDays || 0,
+          emp.TotalGross || 0,
+          esiWage,
+          Math.ceil(esiWage * 0.0075),
+          Math.ceil(esiWage * 0.0325),
+          emp.LwfEmployeeAmount || 0,
+        ];
 
-      csvContent += row.join(",") + "\n";
-    });
+        csvContent += row.join(",") + "\n";
+      });
+
+    csvContent += "\n";
+
+    const totalRow = [
+      "TOTAL",
+      "",
+      "",
+      "",
+      totalGross,
+      totalESIWage,
+      total075,
+      total325,
+      totalLWF
+    ];
+
+    csvContent += totalRow.join(",") + "\n";
 
     const blob = new Blob([csvContent], {
       type: "text/csv;charset=utf-8;",
@@ -169,7 +206,7 @@ export default function ESIReport() {
     link.href = url;
     link.setAttribute(
       "download",
-      `ESI_Report_${monthName}_${year}.csv`
+      `ESI_Report_${selectedUnitName}_${monthName}_${year}.csv`
     );
 
     document.body.appendChild(link);
@@ -313,21 +350,28 @@ export default function ESIReport() {
                 </td>
               </tr>
             ) : (
-              employees.map((emp, index) => (
-                <tr key={emp.FacilityMemberId}>
-                  <td>{index + 1}</td>
-                  <td>{emp.EmployeeCode || "-"}</td>
-                  <td>{emp.FacilityMemberName || "-"}</td>
-                  <td>{emp.WorkingDays}</td>
-                  <td>{emp.ProratedTotalGross}</td>
-                  <td>{emp.ProratedTotalGross}</td>
-                  <td>{Math.ceil(emp.ProratedTotalGross * 0.0075)}</td>
-                  <td>{Math.ceil(emp.ProratedTotalGross * 0.0325)}</td>
-                  {/* <td>{Math.round(emp.ProratedTotalGross * 0.0075)}</td>
+              employees.map((emp, index) => {
+                const esiWage =
+                  emp.ESILimit > 0 && emp.ESILimit < emp.ESIVariableSum
+                    ? emp.ESILimit
+                    : emp.ESIVariableSum;
+
+                return (
+                  <tr key={emp.FacilityMemberId}>
+                    <td>{index + 1}</td>
+                    <td>{emp.EmployeeCode || "-"}</td>
+                    <td>{emp.FacilityMemberName || "-"}</td>
+                    <td>{emp.WorkingDays}</td>
+                    <td>{emp.TotalGross}</td>
+                    <td>{esiWage}</td>
+                    <td>{Math.ceil(esiWage * 0.0075)}</td>
+                    <td>{Math.ceil(esiWage * 0.0325)}</td>
+                    {/* <td>{Math.round(emp.ProratedTotalGross * 0.0075)}</td>
                   <td>{Math.round(emp.ProratedTotalGross * 0.0325)}</td> */}
-                  <td>{emp.LwfEmployeeAmount || 0}</td>
-                </tr>
-              ))
+                    <td>{emp.LwfEmployeeAmount || 0}</td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
