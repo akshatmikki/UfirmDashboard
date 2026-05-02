@@ -1291,10 +1291,12 @@ filtered.forEach((att) => {
             String(a.monthyear) === String(currMonthYear)
         );
 
-        if (existing) {
+        const currentAttendanceId = existing?.AttendanceID || attendanceId;
+
+        if (existing && currentAttendanceId !== -1) {
           // 🔹 UPDATE using PUT
           updatePromises.push(
-            updateAttendance(existing.AttendanceID || attendanceId, model).catch((err) => {
+            updateAttendance(currentAttendanceId, model).catch((err) => {
               const status = err?.response?.status;
               if (status === 404) {
                 newEmployees.push(model);
