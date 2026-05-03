@@ -589,8 +589,18 @@ export default function GenerateSalary() {
 
       const norm = normalizeKeyName(k);
 
-      // 🚫 Do not include ESINumber EVER
-      if (norm === "ESINUMBER") continue;
+      // 🚫 Do not include system/limit fields
+      if (
+        norm === "ESINUMBER" ||
+        norm === "PFVARIABLESUM" ||
+        norm === "PFLIMIT" ||
+        norm === "ESIVARIABLESUM" ||
+        norm === "ESILIMIT" ||
+        norm === "TOTALGROSS" ||
+        norm === "OTAMOUNT"
+      ) {
+        continue;
+      }
 
       const val = Number(row[k]);
       if (!Number.isNaN(val) && val > 0) {
@@ -817,7 +827,7 @@ export default function GenerateSalary() {
           <td >PF</td>
           <td class="v-light">${row.PF || 0}</td>
           <td >Working Days</td>
-          <td>${row.WorkingDays || ""}</td>
+          <td>${row.AttendanceTotalWorkingDays || ""}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>DA</td>
@@ -857,7 +867,7 @@ export default function GenerateSalary() {
           <td>OthDed</td>
           <td class="v-light">${row.OthDeduction || 0}</td>
           <td>Duty Days</td>
-          <td>${row.AttendanceTotalWorkingDays || 0}</td>
+          <td>${row.WorkingDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>AdjAmt/Incentive</td>
@@ -903,7 +913,7 @@ export default function GenerateSalary() {
           <td>Leave Wages</td>
           <td class="v-bold">${row.LEAVE|| 0}</td>
           <td>IncomeTax</td>
-          <td class="v-light">${row.IncomeTax || 0}</td>
+          <td class="v-light">${row.INCOMETAX || row.IncomeTax || 0}</td>
           <td>CL</td>
           <td>${row.CL || 0}</td>
         </tr>
@@ -1119,7 +1129,7 @@ export default function GenerateSalary() {
       Maintenance: Number(row.MaintDeduction) || Number(row.Maintenance) || 0,
       Fine: Number(row.Fine) || 0,
       AcmdDed: Number(row.AccommodationDeduction) || Number(row.AcmdDed) || 0,
-      IncomeTax: Number(row.IncomeTax) || 0,
+      IncomeTax: Number(row.INCOMETAX) || Number(row.IncomeTax) || 0,
       Uniform: Number(row.UNIFORM) || Number(row.Uniform) || 0,
       BGV: Number(row.BGV) || 0,
       Room: Number(row.Room) || 0,
@@ -1128,12 +1138,12 @@ export default function GenerateSalary() {
       TotalDeduction: Number(row.TotalDeduction) || 0,
 
       // Attendance
-      WorkingDays: Number(row.WorkingDays) || 0,
+      WorkingDays: Number(row.AttendanceTotalWorkingDays) || 0,
       HoDays: Number(row.HoDays) || 0,
       WeeklyOffs: Number(row.WeeklyOffs) || 0,
       OTDays: Number(row.OTDays) || 0,
       OTHours: Number(row.OTHours) || 0,
-      DutyDays: Number(row.DutyDays) || 0,
+      DutyDays: Number(row.WorkingDays) || 0,
       SalDays: Number(row.SalDays) || 0,
       NHDays: Number(row.NHDays) || 0,
       FHDays: Number(row.FHDays) || 0,
@@ -1142,6 +1152,14 @@ export default function GenerateSalary() {
       EL: Number(row.EL) || 0,
       CL: Number(row.CL) || 0,
       SL: Number(row.SL) || 0,
+
+      // Added Pre-fields
+      PFVariableSum: Number(row.PFVariableSum) || 0,
+      ESIVariableSum: Number(row.ESIVariableSum) || 0,
+      PFLimit: Number(row.PFLimit) || 0,
+      ESILimit: Number(row.ESILimit) || 0,
+      TotalGross: Number(row.TotalGross) || 0,
+      OTAmount: Number(row.OTAmount) || 0,
     };
   };
 

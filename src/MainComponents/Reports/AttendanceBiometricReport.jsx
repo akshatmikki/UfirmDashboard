@@ -8,17 +8,63 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { ProgressSpinner } from "primereact/progressspinner";
 import { Card } from "primereact/card";
+import { Dialog } from "primereact/dialog";
+import { InputText } from "primereact/inputtext";
 
-import { fetchDevices, fetchDeviceLogsinBetween } from "../../Services/ReportService";
+import { fetchDevices, fetchDeviceLogsByMonth } from "../../Services/ReportService";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 
 const AttendanceBiometricReport = () => {
+    const currentMonth = new Date().getMonth() + 1;
+    const currentYear = new Date().getFullYear();
+    const [month, setMonth] = useState(currentMonth);
+    const [year, setYear] = useState(currentYear);
+
+    const months = Array.from({ length: 12 }, (_, i) => i + 1);
+    const years = Array.from({ length: 5 }, (_, i) => currentYear - i);
+    const monthNames = [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ];
+
     const [devices, setDevices] = useState([]);
     const [loading, setLoading] = useState(false);
     const [selectedDevice, setSelectedDevice] = useState(null);
     const [selectedDeviceName, setSelectedDeviceName] = useState("");
-    const [fromDate, setFromDate] = useState(null);
-    const [toDate, setToDate] = useState(null);
+    
+    const [fromDate, setFromDate] = useState(new Date(currentYear, currentMonth - 1, 1));
+    const [toDate, setToDate] = useState(new Date(currentYear, currentMonth, 0));
     const [logs, setLogs] = useState([]);
+    
+    const [selectedDate, setSelectedDate] = useState(null);
+    const [isModalVisible, setIsModalVisible] = useState(false);
+    const [modalData, setModalData] = useState([]);
+    const [uniqueEmployees, setUniqueEmployees] = useState([]);
+    const [globalFilter, setGlobalFilter] = useState("");
+
+    useEffect(() => {
+        if (logs.length > 0) {
+            const employeesMap = new Map();
+            logs.forEach(log => {
+                if (log.EmployeeCode && !employeesMap.has(log.EmployeeCode)) {
+                    employeesMap.set(log.EmployeeCode, {
+                        code: log.EmployeeCode,
+                        name: log.EmployeeName
+                    });
+                }
+            });
+            const empList = Array.from(employeesMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+            setUniqueEmployees(empList);
+        } else {
+            setUniqueEmployees([]);
+        }
+    }, [logs]);
+
+    useEffect(() => {
+        setFromDate(new Date(year, month - 1, 1));
+        setToDate(new Date(year, month, 0));
+    }, [month, year]);
     useEffect(() => {
         const loadDevices = async () => {
             try {
@@ -98,11 +144,7 @@ const AttendanceBiometricReport = () => {
     };
 
     const hasMinimumWorkingHours = (dayLog) => {
-        if (!dayLog?.MinTime || !dayLog?.MaxTime) return false;
-        const minMinutes = parseTimeToMinutes(dayLog.MinTime);
-        const maxMinutes = parseTimeToMinutes(dayLog.MaxTime);
-        if (minMinutes == null || maxMinutes == null || maxMinutes <= minMinutes) return false;
-        return (maxMinutes - minMinutes) >= 8 * 60;
+        return !!dayLog?.MinTime;
     };
 
     const getOtDisplay = (dayLog) => {
@@ -135,7 +177,7 @@ const AttendanceBiometricReport = () => {
     };
 
     const getStatus = (dayLog) => {
-        if (!dayLog?.MinTime || !dayLog?.MaxTime) {
+        if (!dayLog?.MinTime) {
             return "Absent";
         }
         return "Present";
@@ -331,12 +373,14 @@ const AttendanceBiometricReport = () => {
             dateRange.forEach((date) => {
                 const d = employee.days[formatDate(date)];
 
-                if (d?.MinTime && d?.MaxTime) {
+                if (d?.MinTime) {
                     present++;
-                    const min = parseTimeToMinutes(d.MinTime);
-                    const max = parseTimeToMinutes(d.MaxTime);
-                    if (min != null && max != null && max > min) {
-                        workingMinutes += (max - min);
+                    if (d?.MaxTime) {
+                        const min = parseTimeToMinutes(d.MinTime);
+                        const max = parseTimeToMinutes(d.MaxTime);
+                        if (min != null && max != null && max > min) {
+                            workingMinutes += (max - min);
+                        }
                     }
                 } else {
                     absent++;
@@ -557,31 +601,30 @@ const AttendanceBiometricReport = () => {
     };
 
     // ================= LOAD LOGS =================
-    const handleSearch = async () => {
-        if (!selectedDevice || !fromDate || !toDate) return;
+    useEffect(() => {
+        const fetchLogs = async () => {
+            if (!selectedDevice || !fromDate || !toDate) return;
 
-        try {
-            setLoading(true);
+            try {
+                setLoading(true);
+                const monthYear = `${year}-${String(month).padStart(2, "0")}`;
+                const data = await fetchDeviceLogsByMonth(selectedDevice, monthYear);
 
-            const data = await fetchDeviceLogsinBetween(
-                selectedDevice,
-                formatDate(fromDate),
-                formatDate(toDate)
-            );
+                const enriched = data.map((row) => ({
+                    DeviceName: selectedDeviceName,
+                    ...row,
+                }));
 
-            // Add DeviceName in each row
-            const enriched = data.map((row) => ({
-                DeviceName: selectedDeviceName,
-                ...row,
-            }));
+                setLogs(enriched);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoading(false);
+            }
+        };
 
-            setLogs(enriched);
-        } catch (error) {
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
-    };
+        fetchLogs();
+    }, [selectedDevice, selectedDeviceName, month, year, fromDate, toDate]);
 
     // ================= DOWNLOAD EXCEL =================
     const downloadExcel = () => {
@@ -638,33 +681,41 @@ const AttendanceBiometricReport = () => {
                             </div>
 
                             <div className="col-md-4">
-                                <label>From Date</label>
-                                <Calendar
-                                    value={fromDate}
-                                    onChange={(e) => setFromDate(e.value)}
-                                    dateFormat="yy-mm-dd"
-                                    showIcon
-                                    className="w-100"
-                                />
+                                <label>Month</label>
+                                <select
+                                    value={month}
+                                    onChange={(e) => setMonth(Number(e.target.value))}
+                                    className="form-select w-100"
+                                    style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #ced4da" }}
+                                >
+                                    {months.map((m) => (
+                                        <option key={m} value={m}>
+                                            {monthNames[m - 1]}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
 
                             <div className="col-md-4">
-                                <label>To Date</label>
-                                <Calendar
-                                    value={toDate}
-                                    onChange={(e) => setToDate(e.value)}
-                                    dateFormat="yy-mm-dd"
-                                    showIcon
-                                    className="w-100"
-                                />
-                            </div>
-                            <div className="col-md-4">
-                                <Button
-                                    label="Search"
-                                    icon="pi pi-search"
-                                    className="p-button-primary"
-                                    onClick={handleSearch}
-                                />
+                                <label>Year</label>
+                                <select
+                                    value={year}
+                                    onChange={(e) => {
+                                        const newY = Number(e.target.value);
+                                        setYear(newY);
+                                        if (newY === currentYear && month > currentMonth) {
+                                            setMonth(currentMonth);
+                                        }
+                                    }}
+                                    className="form-select w-100"
+                                    style={{ padding: "8px 12px", borderRadius: "6px", border: "1px solid #ced4da" }}
+                                >
+                                    {years.map((y) => (
+                                        <option key={y} value={y}>
+                                            {y}
+                                        </option>
+                                    ))}
+                                </select>
                             </div>
                         </div>
 
@@ -675,24 +726,207 @@ const AttendanceBiometricReport = () => {
                             </div>
                         )}
 
-                        {/* TABLE */}
-                        {!loading && logs.length > 0 && (
-                            <DataTable
-                                value={logs}
-                                paginator
-                                rows={10}
-                                stripedRows
-                                showGridlines
-                                responsiveLayout="scroll"
-                            >
-                                <Column field="DeviceName" header="Device Name" />
-                                <Column field="EmployeeCode" header="Employee Code" />
-                                <Column field="EmployeeName" header="Employee Name" />
-                                <Column field="LogDate" header="Log Date" />
-                                <Column field="MinTime" header="Min Time" />
-                                <Column field="MaxTime" header="Max Time" />
-                            </DataTable>
-                        )}
+                        {/* CALENDAR GRID */}
+                        {!loading && logs.length > 0 && (() => {
+                            const dateRange = getDatesInRange(fromDate, toDate);
+                            
+                            const logsByDate = {};
+                            logs.forEach(log => {
+                                const dStr = normalizeLogDate(log.LogDate);
+                                if (dStr) {
+                                    if (!logsByDate[dStr]) logsByDate[dStr] = [];
+                                    logsByDate[dStr].push(log);
+                                }
+                            });
+
+                            const startDayIndex = fromDate.getDay(); 
+                            const startOffset = startDayIndex === 0 ? 6 : startDayIndex - 1;
+                            const blankDays = Array.from({ length: startOffset }, (_, i) => i);
+                            const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+                            const openModal = (dStr, dailyLogs, isSunday) => {
+                                const details = uniqueEmployees.map(emp => {
+                                    const empLogs = dailyLogs.filter(l => l.EmployeeCode === emp.code);
+                                    let checkIn = "--";
+                                    let checkOut = "--";
+                                    let status = isSunday ? "Holiday" : "Absent";
+
+                                    if (empLogs.length > 0) {
+                                        empLogs.forEach(l => {
+                                            if (l.MinTime) {
+                                                const eMin = parseTimeToMinutes(checkIn);
+                                                const iMin = parseTimeToMinutes(l.MinTime);
+                                                if (checkIn === "--" || (iMin != null && iMin < eMin)) checkIn = l.MinTime;
+                                                status = "Present";
+                                            }
+                                            if (l.MaxTime) {
+                                                const eMax = parseTimeToMinutes(checkOut);
+                                                const iMax = parseTimeToMinutes(l.MaxTime);
+                                                if (checkOut === "--" || (iMax != null && iMax > eMax)) checkOut = l.MaxTime;
+                                                status = "Present";
+                                            }
+                                        });
+                                    }
+
+                                    let wt = "--";
+                                    if (checkIn !== "--" && checkOut !== "--") {
+                                        const inMin = parseTimeToMinutes(checkIn);
+                                        const outMin = parseTimeToMinutes(checkOut);
+                                        if (inMin != null && outMin != null && outMin >= inMin) {
+                                            const diff = outMin - inMin;
+                                            const h = Math.floor(diff / 60);
+                                            const m = diff % 60;
+                                            wt = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
+                                        }
+                                    }
+
+                                    return {
+                                        employeeName: emp.name,
+                                        checkIn,
+                                        checkOut,
+                                        workingTime: wt,
+                                        status
+                                    };
+                                });
+
+                                setModalData(details);
+                                setSelectedDate(dStr);
+                                setIsModalVisible(true);
+                            };
+
+                            const renderModalHeader = () => {
+                                if (!selectedDate) return null;
+                                const [y, m, d] = selectedDate.split("-");
+                                const formattedDate = `${Number(d)}/${Number(m)}/${y}`;
+
+                                return (
+                                    <div className="d-flex justify-content-between align-items-center w-100" style={{ paddingRight: "2rem" }}>
+                                        <h4 className="m-0" style={{ color: "#1e293b", fontWeight: "bold" }}>Attendance Details - {formattedDate}</h4>
+                                        <div className="d-flex align-items-center" style={{ gap: "10px" }}>
+                                            <span className="p-input-icon-left">
+                                                <i className="pi pi-search" />
+                                                <InputText
+                                                    value={globalFilter}
+                                                    onChange={(e) => setGlobalFilter(e.target.value)}
+                                                    placeholder="Search..."
+                                                    className="p-inputtext-sm"
+                                                    style={{ width: "200px" }}
+                                                />
+                                            </span>
+                                            <Button 
+                                                label="Export to Daily" 
+                                                icon="pi pi-file-excel" 
+                                                className="p-button-success" 
+                                                onClick={() => {
+                                                    const ws = XLSX.utils.json_to_sheet(modalData);
+                                                    const wb = XLSX.utils.book_new();
+                                                    XLSX.utils.book_append_sheet(wb, ws, "Daily Report");
+                                                    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+                                                    const blob = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+                                                    saveAs(blob, `Daily_Attendance_${selectedDate}.xlsx`);
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <div className="mt-4">
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px", marginBottom: "8px" }}>
+                                        {days.map(d => (
+                                            <div key={d} style={{ background: "#e2e8f0", padding: "10px", textAlign: "center", fontWeight: "bold", borderRadius: "4px" }}>
+                                                {d}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "8px" }}>
+                                        {blankDays.map(b => (
+                                            <div key={`blank-${b}`} style={{ background: "#f8fafc", padding: "10px", borderRadius: "4px", minHeight: "100px", border: "1px solid #e2e8f0" }}></div>
+                                        ))}
+                                        {dateRange.map((date) => {
+                                            const dStr = formatDate(date);
+                                            const dailyLogs = logsByDate[dStr] || [];
+                                            const dateNum = date.getDate();
+                                            const isSunday = date.getDay() === 0;
+
+                                            const presentEmployees = new Set();
+                                            dailyLogs.forEach(l => {
+                                                if (l.MinTime) presentEmployees.add(l.EmployeeCode);
+                                            });
+                                            const presentCount = presentEmployees.size;
+                                            const absentCount = uniqueEmployees.length - presentCount;
+
+                                            return (
+                                                <div key={dStr} 
+                                                    style={{ 
+                                                        background: "#fff", 
+                                                        padding: "10px", 
+                                                        borderRadius: "4px", 
+                                                        minHeight: "100px", 
+                                                        border: "1px solid #cbd5e1",
+                                                        display: "flex",
+                                                        flexDirection: "column",
+                                                        position: "relative",
+                                                        cursor: "pointer",
+                                                        transition: "box-shadow 0.2s"
+                                                    }}
+                                                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = "0 4px 6px -1px rgba(0, 0, 0, 0.1)"}
+                                                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = "none"}
+                                                    onClick={() => openModal(dStr, dailyLogs, isSunday)}
+                                                >
+                                                    <div style={{ fontWeight: "bold", marginBottom: "8px", color: isSunday ? "#e53e3e" : "#1e293b", fontSize: "16px" }}>
+                                                        {dateNum}
+                                                    </div>
+                                                    <div style={{ fontSize: "14px", display: "flex", flexDirection: "column", gap: "6px", flexGrow: 1, marginTop: "auto" }}>
+                                                        <div style={{ color: "#16a34a", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                                                            <i className="pi pi-check" style={{ fontSize: "12px" }}></i> P: {presentCount}
+                                                        </div>
+                                                        <div style={{ color: "#dc2626", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                                                            <i className="pi pi-times" style={{ fontSize: "12px" }}></i> A: {absentCount}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+
+                                    {/* MODAL / DIALOG */}
+                                    <Dialog 
+                                        header={renderModalHeader} 
+                                        visible={isModalVisible} 
+                                        style={{ width: "80vw" }} 
+                                        onHide={() => {
+                                            setIsModalVisible(false);
+                                            setGlobalFilter("");
+                                        }}
+                                    >
+                                        <DataTable 
+                                            value={modalData} 
+                                            paginator 
+                                            rows={10} 
+                                            stripedRows 
+                                            showGridlines 
+                                            responsiveLayout="scroll"
+                                            globalFilter={globalFilter}
+                                            emptyMessage="No employees found."
+                                        >
+                                            <Column field="employeeName" header="Employee Name" sortable />
+                                            <Column field="checkIn" header="Check In" sortable />
+                                            <Column field="checkOut" header="Check Out" sortable />
+                                            <Column field="workingTime" header="Working Time" sortable />
+                                            <Column field="status" header="Status" sortable body={(rowData) => {
+                                                let color = "#1e293b";
+                                                if (rowData.status === "Present") color = "#16a34a";
+                                                if (rowData.status === "Absent") color = "#dc2626";
+                                                if (rowData.status === "Holiday") color = "#2563eb";
+                                                return <span style={{ color, fontWeight: "bold" }}>{rowData.status}</span>;
+                                            }} />
+                                        </DataTable>
+                                    </Dialog>
+                                </div>
+                            );
+                        })()}
                     </Card>
                 </div>
             </section>

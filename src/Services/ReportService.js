@@ -1,4 +1,4 @@
-export const fetchDmrReport = async (propertyId,fromDate,toDate) => {
+export const fetchDmrReport = async (propertyId, fromDate, toDate) => {
   const query = new URLSearchParams({
     propertyId,
     fromDate,
@@ -105,6 +105,29 @@ export const fetchDeviceLogsinBetween = async (deviceId, fromDate, toDate) => {
 
   const response = await fetch(
     `https://api.urest.in:8096/api/device/GetDeviceLogsInBetween?${query}`,
+    {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch device logs");
+  }
+
+  return await response.json();
+};
+
+export const fetchDeviceLogsByMonth = async (deviceId, monthYear) => {
+  const query = new URLSearchParams({
+    deviceId,
+    monthYear,
+  }).toString();
+
+  const response = await fetch(
+    `https://api.urest.in:8096/api/device/GetDeviceLogsByMonth?${query}`,
     {
       method: "GET",
       headers: {

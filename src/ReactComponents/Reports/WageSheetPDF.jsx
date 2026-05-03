@@ -29,7 +29,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
 
     doc.setFontSize(7);
     doc.text(`Wages Period Month : ${month}`, 10, 25);
-    doc.text(`${unitName}`, pageWidth / 2, 25, { align: "center" });
+    doc.text(`Unit Name : ${unitName}`, pageWidth / 2, 25, { align: "center" });
 
     doc.line(10, 28, pageWidth - 10, 28);
   };
