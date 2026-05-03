@@ -24,6 +24,29 @@ const toBase64 = (file) =>
     reader.readAsDataURL(file);
   });
 
+const toBase64FromUrl = async (url) => {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch existing file: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return toBase64(blob);
+};
+
+const normalizeUploadValue = async (currentValue, selectedFile) => {
+  if (selectedFile?.name && selectedFile?.size) {
+    return toBase64(selectedFile);
+  }
+
+  const value = String(currentValue || "").trim();
+  if (!value) return "";
+  if (value.startsWith("data:")) return value;
+  if (/^https?:\/\//i.test(value)) {
+    return toBase64FromUrl(value);
+  }
+  return value;
+};
+
 const RadioButtonGroup = ({ options, name, selectedValue, onChange }) => (
   <div className="asset-radio-group">
     {options.map((opt) => (
@@ -143,6 +166,22 @@ class AssetsMaster extends Component {
     return raw.length >= 10 ? raw.substring(0, 10) : raw;
   };
 
+  getApiBoolean = (value, fallback = false) => {
+    const normalized = this.normalizeBoolean(value);
+    return typeof normalized === "boolean" ? normalized : fallback;
+  };
+
+  getAssetStatusPayload = () => {
+    const rawStatus = String(this.state.status ?? "").trim();
+    if (!rawStatus) {
+      return { Status: false, AssetStatus: "" };
+    }
+    if (rawStatus === "true" || rawStatus === "false") {
+      return { Status: rawStatus === "true", AssetStatus: "" };
+    }
+    return { Status: true, AssetStatus: rawStatus };
+  };
+
   normalizeBoolean = (value) => {
     if (value === true || value === "true" || value === 1 || value === "1") return true;
     if (value === false || value === "false" || value === 0 || value === "0") return false;
@@ -176,6 +215,18 @@ class AssetsMaster extends Component {
     const ext = rawName.split(".").pop();
     return String(ext || "").trim().toLowerCase();
   };
+
+  getAmcDocumentValue = (item = {}) =>
+    item?.AMCdoc || item?.AMCimage || item?.AMCFile || item?.AmcFile || item?.AMCDocument || item?.AmcDocument || "";
+
+  getAmcDocumentName = (item = {}) =>
+    item?.AMCdocName ||
+    item?.AMCimageName ||
+    item?.AMCFileName ||
+    item?.AmcFileName ||
+    item?.AMCDocumentName ||
+    item?.AmcDocumentName ||
+    "";
 
   inferExtensionFromBase64 = (base64Payload = "") => {
     const raw = String(base64Payload || "").trim();
@@ -268,7 +319,9 @@ class AssetsMaster extends Component {
   };
 
   getModel = (type, overrides = {}) => [
-    {
+    (() => {
+      const statusPayload = this.getAssetStatusPayload();
+      return {
       Id: this.state.Id,
       Name: this.state.Name,
       Description: this.state.Description,
@@ -276,29 +329,31 @@ class AssetsMaster extends Component {
       AssetType: this.state.AssetType,
       Manufacturer: this.state.ManufacturerName,
       AssetModel: this.state.AssetModel,
-      IsMoveable: this.state.IsMoveable,
-      IsRented: this.state.IsRented,
+      IsMoveable: this.getApiBoolean(this.state.IsMoveable),
+      IsRented: this.getApiBoolean(this.state.IsRented),
       Flag: type,
       AssetImage: this.state.AssetImage,
       LastServiceDate: this.state.LastServiceDate,
       NextServiceDate: this.state.NextServiceDate,
-      IsRentable: this.state.IsRentable,
+      IsRentable: this.getApiBoolean(this.state.IsRentable),
       AssetValue: this.state.AssetValue,
       Capacity: this.state.Capacity,
-      capacity: this.state.Capacity,
       AMCdoc: this.state.AMCimage,
       AMCDateFrom: this.state.amcDateFrom,
       AMCDateTo: this.state.amcDateTo,
       WarrantyDocument: this.state.warrantyImage,
-      status: this.state.status,
-      category: this.state.category,
-      location: this.state.location,
+      AssetStatus: statusPayload.AssetStatus,
+      Status: statusPayload.Status,
+      Category: this.state.category,
+      Location: this.state.location,
       serviceReminderDay: this.state.serviceReminderDay,
-      propertyId: this.props.PropertyId,
+      PropertyId: Number(this.props.PropertyId) || 0,
+      propertyId: Number(this.props.PropertyId) || 0,
       PurchaseDate: this.state.PurchaseDate,
       WarrantyDate: this.state.WarrantyDate,
       ...overrides,
-    },
+      };
+    })(),
   ];
 
   loadHomagePageData = () => {
@@ -442,7 +497,7 @@ class AssetsMaster extends Component {
       Capacity: rowData.Capacity ?? rowData.capacity ?? "",
       AssetType: rowData.AssetType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
-      AMCimage: rowData.AMCdoc || rowData.AMCimage || "",
+      AMCimage: this.getAmcDocumentValue(rowData),
       amcDateFrom: this.normalizeDate(rowData.AMCDateFrom || rowData.AmcDateFrom || rowData.DateFrom),
       amcDateTo: this.normalizeDate(rowData.AMCDateTo || rowData.AmcDateTo || rowData.DateTo),
       amcTotalAmount: rowData.AMCTotalAmount || rowData.AmcTotalAmount || rowData.TotalAmount || "",
@@ -452,10 +507,7 @@ class AssetsMaster extends Component {
         rowData.AssetImageName ||
         rowData.ImageName ||
         ((rowData.AssetImage || rowData.Image) ? `Existing image${rowData.ImageExt ? `.${rowData.ImageExt}` : ""}` : ""),
-      amcFileName:
-        rowData.AMCdocName ||
-        rowData.AMCimageName ||
-        ((rowData.AMCdoc || rowData.AMCimage) ? "Existing document" : ""),
+      amcFileName: this.getAmcDocumentName(rowData) || (this.getAmcDocumentValue(rowData) ? "Existing document" : ""),
       warrantyFileName:
         rowData.WarrantyDocumentName ||
         rowData.warrantyImageName ||
@@ -550,15 +602,12 @@ class AssetsMaster extends Component {
     this.setState({
       showAmcModal: true,
       AMCdoc: null,
-      AMCimage: asset.AMCdoc || asset.AMCimage || "",
+      AMCimage: this.getAmcDocumentValue(asset),
       amcDateFrom: this.normalizeDate(asset.AMCDateFrom || asset.AmcDateFrom || asset.DateFrom),
       amcDateTo: this.normalizeDate(asset.AMCDateTo || asset.AmcDateTo || asset.DateTo),
       amcTotalAmount: asset.AMCTotalAmount || asset.AmcTotalAmount || asset.TotalAmount || "",
       amcContractType: asset.AMCContractType || asset.AmcContractType || asset.ContractType || "",
-      amcFileName:
-        asset.AMCdocName ||
-        asset.AMCimageName ||
-        ((asset.AMCdoc || asset.AMCimage) ? "Existing document" : ""),
+      amcFileName: this.getAmcDocumentName(asset) || (this.getAmcDocumentValue(asset) ? "Existing document" : ""),
     });
   };
 
@@ -603,18 +652,17 @@ class AssetsMaster extends Component {
     let amcImage = this.state.AMCimage;
     let warrantyImage = this.state.warrantyImage;
 
+    try {
+      assetImage = await normalizeUploadValue(this.state.AssetImage, this.state.ImageData);
+      amcImage = await normalizeUploadValue(this.state.AMCimage, this.state.AMCdoc);
+      warrantyImage = await normalizeUploadValue(this.state.warrantyImage, this.state.WarrantyDocument);
+    } catch (error) {
+      appCommon.showtextalert("Unable to prepare uploaded document. Please reselect the file and try again.", "", "error");
+      return;
+    }
+
     if (this.state.ImageData?.name && this.state.ImageData?.size) {
-      const fileD = await toBase64(this.state.ImageData);
-      assetImage = fileD;
       imageExt = this.state.ImageData.name.substring(this.state.ImageData.name.lastIndexOf(".") + 1);
-    }
-    if (this.state.AMCdoc?.name && this.state.AMCdoc?.size) {
-      const fileD = await toBase64(this.state.AMCdoc);
-      amcImage = fileD;
-    }
-    if (this.state.WarrantyDocument?.name && this.state.WarrantyDocument?.size) {
-      const fileD = await toBase64(this.state.WarrantyDocument);
-      warrantyImage = fileD;
     }
 
     if (ValidateControls()) {
@@ -1074,13 +1122,11 @@ class AssetsMaster extends Component {
       this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
       this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
     );
-    const amcExt =
-      this.getFileExtension(this.state.amcFileName) ||
-      this.getFileExtension(asset.AMCdocName || asset.AMCimageName || "");
+    const amcExt = this.getFileExtension(this.state.amcFileName) || this.getFileExtension(this.getAmcDocumentName(asset));
     const warrantyExt =
       this.getFileExtension(this.state.warrantyFileName) ||
       this.getFileExtension(asset.WarrantyDocumentName || asset.warrantyImageName || "");
-    const amcSource = this.getPreviewSrc(this.state.AMCimage || asset.AMCdoc || asset.AMCimage, amcExt);
+    const amcSource = this.getPreviewSrc(this.state.AMCimage || this.getAmcDocumentValue(asset), amcExt);
     const warrantySource = this.getPreviewSrc(
       this.state.warrantyImage || asset.WarrantyDocument || asset.warrantyImage,
       warrantyExt
@@ -1388,6 +1434,15 @@ class AssetsMaster extends Component {
                 <input type="text" className="form-control" value={this.state.assetImageFileName || ""} readOnly />
                 <i className="fa fa-picture-o asset-file-icon" />
                 <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
+              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Warranty document</label>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={this.state.warrantyFileName || ""} readOnly />
+                <i className="fa fa-file-text-o asset-file-icon" />
+                <input type="file" className="asset-file-hidden" onChange={this.onWarrantyFileChange} />
               </div>
             </div>
 

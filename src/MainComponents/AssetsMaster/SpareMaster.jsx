@@ -26,6 +26,8 @@ function getEmptySpareRow() {
     Warranty: null,
     WarrantyFileName: "",
     Remarks: "",
+    QRCode: "",              
+    showQR: false 
   };
 }
 
@@ -184,6 +186,35 @@ const SparePage = () => {
     setShowCancelConfirm(true);
   };
 
+  const generateQRCode = (index) => {
+  const uniqueQR = "SPARE-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+
+  setSpareRows(prev => {
+    const updated = [...prev];
+    updated[index].QRCode = uniqueQR;
+    updated[index].showQR = false;
+    return updated;
+  });
+};
+const toggleQR = (index) => {
+  setSpareRows(prev => {
+    const updated = [...prev];
+    updated[index].showQR = !updated[index].showQR;
+    return updated;
+  });
+};
+const fileToBase64 = (file) => {
+  return new Promise((resolve, reject) => {
+    if (!file) return resolve("");
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file); // 🔥 IMPORTANT
+
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = error => reject(error);
+  });
+};
+
   const toIsoOrEmpty = (value) => {
     if (!value) return "";
     if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString();
@@ -213,6 +244,7 @@ formData.append("PropertyID", propertyId);
 formData.append("AssetID", assetId);
 formData.append("SpareType", row.SpareType);
 formData.append("Rating", row.Rating);
+formData.append("QRCode", row.QRCode);
 formData.append("BackupTime", row.BackupTime);
 formData.append("Status", row.Status);
 formData.append("Quantity", row.Quantity);
@@ -221,15 +253,12 @@ formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
 formData.append("SerialNumber", row.SerialNumber);
 formData.append("VendorName", row.VendorName);
 
-// 🔥 CHANGE 1: KEY NAME FIX
-if (row.InvoiceNo instanceof File) {
-  formData.append("InvoiceFile", row.InvoiceNo);  // ✅ FIXED
-}
 
-// 🔥 CHANGE 2: KEY NAME FIX
-if (row.Warranty instanceof File) {
-  formData.append("WarrantyFile", row.Warranty);  // ✅ FIXED
-}
+const invoiceBase64 = await fileToBase64(row.InvoiceNo);
+const warrantyBase64 = await fileToBase64(row.Warranty);
+
+formData.append("InvoiceFile", invoiceBase64);   // ✅ BASE64
+formData.append("WarrantyFile", warrantyBase64); // ✅ BASE64
 
 formData.append("InvoiceNo", "");   // optional text field
 formData.append("Warranty", "");    // optional text field
@@ -384,14 +413,19 @@ await SpareService.create(formData);
       formData.append("ExpiryDate", toIsoOrEmpty(editForm.ExpiryDate));
       formData.append("SerialNumber", editForm.SerialNumber);
       formData.append("VendorName", editForm.VendorName || "");
-      if (editForm.InvoiceFile instanceof File) {
-  formData.append("InvoiceFile", editForm.InvoiceFile);
+      const invoiceBase64 = await fileToBase64(editForm.InvoiceFile);
+const warrantyBase64 = await fileToBase64(editForm.WarrantyFile);
+
+// ✅ NEW FILE ONLY TAB BHEJO
+if (invoiceBase64) {
+  formData.append("InvoiceFile", invoiceBase64);
 }
 
-if (editForm.WarrantyFile instanceof File) {
-  formData.append("WarrantyFile", editForm.WarrantyFile);
+if (warrantyBase64) {
+  formData.append("WarrantyFile", warrantyBase64);
 }
 
+// ✅ VERY IMPORTANT (OLD FILE PRESERVE)
 formData.append("InvoiceFilePath", selectedRow?.InvoiceFilePath || "");
 formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
       formData.append("Remarks", editForm.Remarks);
@@ -421,8 +455,7 @@ formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
   const selectedStatusLabel = String(selectedRow?.Status || "").trim() || selectedStatus.label;
-  const selectedQrValue = useMemo(() => String(selectedRow?.SpareID || "").trim(), [selectedRow]);
-
+const selectedQrValue = selectedRow?.QRCode || selectedRow?.SpareID;
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
     return (
@@ -969,10 +1002,32 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                           </button>
                         </div>
 
-                        <button type="button" className="spare-add-generate">
-                          <i className="fa fa-qrcode mr-1" aria-hidden="true" />
-                          Generate QR code
-                        </button>
+                       <div className="asset-qr-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+  <button
+    type="button"
+    className="spare-add-generate"
+    onClick={() => {
+      if (!row.QRCode) {
+        generateQRCode(index);
+        return;
+      }
+      toggleQR(index);
+    }}
+  >
+    <i className="fa fa-qrcode" />
+    {!row.QRCode ? "Generate QR code" : row.showQR ? "Hide QR code" : "View QR code"}
+  </button>
+  {row.QRCode && row.showQR ? (
+    <div className="asset-add-qr-block" style={{ justifyContent: "flex-start", marginTop: "8px", marginBottom: "0" }}>
+      <div className="asset-add-qr-preview">
+        <QRCode value={row.QRCode} size={84} />
+      </div>
+    </div>
+  ) : null}
+
+</div>
+
+{/* ✅ QR preview ALWAYS BELOW buttons */}
 
                         <div className="spare-add-grid">
                           <div className="spare-add-field">

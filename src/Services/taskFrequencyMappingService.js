@@ -85,28 +85,34 @@ export const replaceTaskFrequencyMappings = async (taskId, frequencyId, mappings
   const existing = await getTaskFrequencyMappingsByTaskId(id);
   await Promise.all((existing || []).map((m) => deleteTaskFrequencyMapping(m?.Id)));
 
-  const payloads = (mappings || []).map((m) => ({
+  const firstMapping = Array.isArray(mappings) ? mappings.find((m) => m) : null;
+  if (!firstMapping) {
+    return { ok: true, createdMappings: [], refreshedMappings: [] };
+  }
+
+  const payload = {
     TaskId: id,
     FrequencyId: freqId,
-    TaskDate: toDateOnly(m.TaskDate),
-    TaskTime: toTimeOnly(m.TaskTime),
-  }));
+    TaskDate: toDateOnly(firstMapping.TaskDate),
+    TaskTime: toTimeOnly(firstMapping.TaskTime),
+  };
 
-  await Promise.all(payloads.map((p) => createTaskFrequencyMapping(p)));
+  await createTaskFrequencyMapping(payload);
 
   const refreshedMappings = await getTaskFrequencyMappingsByTaskId(id);
-  const createdMappings = payloads
-    .map((payload) =>
-      (refreshedMappings || []).find(
-        (mapping) =>
-          toId(mapping?.TaskId) === id &&
-          toId(mapping?.FrequencyId) === freqId &&
-          toDateOnly(mapping?.TaskDate) === payload.TaskDate &&
-          toTimeOnly(mapping?.TaskTime) === payload.TaskTime,
-      ),
-    )
-    .filter(Boolean);
+  const createdMapping =
+    (refreshedMappings || []).find(
+      (mapping) =>
+        toId(mapping?.TaskId) === id &&
+        toId(mapping?.FrequencyId) === freqId &&
+        toDateOnly(mapping?.TaskDate) === payload.TaskDate &&
+        toTimeOnly(mapping?.TaskTime) === payload.TaskTime,
+    ) || null;
 
-  return { ok: true, createdMappings, refreshedMappings };
+  return {
+    ok: true,
+    createdMappings: createdMapping ? [createdMapping] : [],
+    refreshedMappings,
+  };
 };
 

@@ -2339,7 +2339,7 @@
 .asset-side-panel-form-edit .asset-form-group-custom .form-control {
   height: 36px;
   border-radius: 6px !important;
-  background: #edf0f3 !important;
+  background: #fafafa !important;
   border: 1px solid #d1dae5 !important;
   color: #5a5b5d;
   font-family: Inter, sans-serif;
@@ -2380,7 +2380,7 @@
   padding: 0 12px;
   border: 0;
   border-right: 1px solid #d1dae5;
-  background: #edf0f3;
+  background: #fafafa;
   color: #131720;
   font-family: Inter, sans-serif;
   font-size: 14px;
@@ -3475,9 +3475,12 @@ button.asset-doc-link-text:hover {
 .asset-add-modal .form-control,
 .spare-add-modal .form-control,
 .asset-success-modal .form-control,
-.asset-delete-modal .form-control,
-.asset-side-panel-form-edit .form-control {
+.asset-delete-modal .form-control {
   background-color: #EDF0F3 !important;
+}
+
+.asset-side-panel-form-edit .form-control {
+  background-color: #FAFAFA !important;
 }
 
 /* Figma Explicit Dimensional Overrides for Big Popups */

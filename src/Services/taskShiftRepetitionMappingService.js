@@ -36,24 +36,26 @@ export const createTaskShiftRepetitionMapping = async (model) => {
 
 export const saveTaskShiftRepetitions = async (createdMappings = [], sourceMappings = [], repetition = {}) => {
   if (!repetition?.enabled) return [];
-
-  if ((sourceMappings || []).length && (createdMappings || []).length < (sourceMappings || []).length) {
-    throw new Error("TaskFrequencyMapping IDs could not be resolved for all schedule rows.");
+  const taskFrequencyId = toId(
+    createdMappings?.[0]?.Id ??
+      createdMappings?.[0]?.TaskFrequencyId ??
+      createdMappings?.[0]?.taskFrequencyId,
+  );
+  if (!taskFrequencyId) {
+    throw new Error("TaskFrequencyMapping ID could not be resolved for shift schedule rows.");
   }
 
-  const items = (createdMappings || [])
-    .map((created, index) => {
-      const source = sourceMappings[index] || {};
-      return {
-        TaskFrequencyId: toId(created?.Id ?? created?.TaskFrequencyId ?? created?.taskFrequencyId),
-        ShiftId: toId(source?.ShiftId),
-        DateFrom: repetition?.DateFrom,
-        DateTo: repetition?.DateTo,
-        Repetition: repetition?.Repetition,
-        Repetition_Interval: repetition?.Repetition_Interval,
-        Repetition_Interval_Unit: repetition?.Repetition_Interval_Unit,
-      };
-    })
+  const effectiveDateTo = repetition?.DateTo || "";
+  const items = (sourceMappings || [])
+    .map((source) => ({
+      TaskFrequencyId: taskFrequencyId,
+      ShiftId: toId(source?.ShiftId),
+      DateFrom: repetition?.DateFrom,
+      DateTo: effectiveDateTo,
+      Repetition: repetition?.Repetition,
+      Repetition_Interval: repetition?.Repetition_Interval,
+      Repetition_Interval_Unit: repetition?.Repetition_Interval_Unit,
+    }))
     .filter((item) => item.TaskFrequencyId && item.DateFrom && item.DateTo && item.Repetition && item.Repetition_Interval);
 
   return Promise.all(items.map((item) => createTaskShiftRepetitionMapping(item)));

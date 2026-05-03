@@ -2046,6 +2046,50 @@ export default function GenerateSalary() {
                       })
                     )}
                   </tbody>
+
+                  {currentItems.length > 0 && (
+                    <tfoot style={{ background: "#f8fafc", fontWeight: "bold", borderTop: "2px solid #b0b8cc" }}>
+                      <tr>
+                        <td colSpan="4" style={{ ...cell, textAlign: "right", paddingRight: 15 }}>Total:</td>
+                        
+                        {/* Attendance Totals */}
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.AttendanceTotalWorkingDays || 0), 0)}</td>
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.ShiftHours || 0), 0)}</td>
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.WorkingDays || 0), 0)}</td>
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.WeekDaysOff || 0), 0)}</td>
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.LeaveDays || 0), 0)}</td>
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.OTDays || 0), 0)}</td>
+                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.OTHours || 0), 0)}</td>
+
+                        {/* Allowance Totals */}
+                        {allAllowanceHeaders.map((key) => (
+                          <td key={`total-all-${key}`} style={cellCenter}>
+                            {currentItems.reduce((s, r) => s + Number(r[key] || 0), 0).toLocaleString()}
+                          </td>
+                        ))}
+
+                        {/* Deduction Totals */}
+                        {allDeductionHeaders.map((key) => (
+                          <td key={`total-ded-${key}`} style={cellCenter}>
+                            {key === "NoDeduction" ? "-" : currentItems.reduce((s, r) => s + Number(r[key] || 0), 0).toLocaleString()}
+                          </td>
+                        ))}
+
+                        {/* Net Salary Total */}
+                        <td style={netCell}>
+                          ₹{currentItems.reduce((s, r) => {
+                            const allowanceKeys = getRowAllowanceKeys(r);
+                            const deductionKeys = getRowDeductionKeys(r);
+                            const totalAllowance = computeTotalAllowance(r, allowanceKeys);
+                            const totalDeduction = r.TotalDeduction ?? computeTotalDeduction(r, deductionKeys);
+                            return s + (r.NetSalary ?? (totalAllowance - totalDeduction));
+                          }, 0).toLocaleString()}
+                        </td>
+
+                        <td style={actionCell}></td>
+                      </tr>
+                    </tfoot>
+                  )}
                 </table>
               </div>
 

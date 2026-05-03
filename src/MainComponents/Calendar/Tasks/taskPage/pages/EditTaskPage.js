@@ -200,6 +200,7 @@ export default function EditTaskPage(props) {
             embedded
             shifts={ctrl.lookups?.shifts}
             baseDate={ctrl.form.startDate}
+            dueDate={ctrl.form.endDate}
             onAssignTimes={({ startTime, endTime }) => {
               ctrl.updateForm({ startTime, endTime });
             }}
