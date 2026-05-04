@@ -291,7 +291,7 @@ class AssetsMaster extends Component {
     const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
     const today = new Date().toISOString().slice(0, 10);
     const rawServiceStatus = String(item?.ServiceStatus || item?.serviceStatus || "").trim();
-    const serviceStatus = rawServiceStatus || (!nextServiceDate ? "" : nextServiceDate < today ? "Overdue" : "Upcoming");
+    const serviceStatus = rawServiceStatus || (!nextServiceDate ? "Due" : nextServiceDate < today ? "Overdue" : "Upcoming");
     if (typeof rawStatus === "string" && rawStatus && rawStatus !== "true" && rawStatus !== "false") {
       return { label: rawStatus, key: rawStatus.toLowerCase().replace(/\s+/g, "-"), serviceStatus };
     }
@@ -369,13 +369,12 @@ class AssetsMaster extends Component {
         if (!resp.ok || resp.status !== 200) return null;
         return resp.json().then((rData) => {
           const isDirectList = Array.isArray(rData);
+          const noServiceDateAssets = isDirectList ? [] : Array.isArray(rData?.NoServiceDate) ? rData.NoServiceDate : [];
           const dueServiceAssets = isDirectList ? rData : Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
           const upcomingServiceAssets = isDirectList ? [] : Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
-          const merged = [...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
+          const merged = [...noServiceDateAssets, ...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
             const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
             const statusMeta = this.getAssetStatusMeta(item);
-            const today = new Date().toISOString().slice(0, 10);
-            const isOverdue = nextServiceDate && nextServiceDate < today;
             const displayDate = this.formatDisplayDate(nextServiceDate);
 
             return {
@@ -403,7 +402,12 @@ class AssetsMaster extends Component {
              return dateA.localeCompare(dateB);
            });
 
-          this.setState({ GridData: merged, DueGridData: dueServiceAssets, isLoading: false, nextAddAssetId: this.getNextAssetId(merged) });
+          this.setState({
+            GridData: merged,
+            DueGridData: [...noServiceDateAssets, ...dueServiceAssets],
+            isLoading: false,
+            nextAddAssetId: this.getNextAssetId(merged),
+          });
         });
       })
       .catch(() => this.setState({ isLoading: false }));
