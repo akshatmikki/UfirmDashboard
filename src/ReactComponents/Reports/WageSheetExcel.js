@@ -18,9 +18,9 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     acc.Gross += emp.ProratedTotalGross || 0;
     acc.PF += emp.PF || 0;
     acc.ESI += emp.ESI || 0;
-    acc.LWF += emp.LwfEmployeeAmount || 0;
-    acc.PT += emp.PT || 0;
-    acc.Advance += emp.Advance || 0;
+    acc.LWF += emp.LwfAmount ?? 0;
+    acc.PT += emp.PftAmount ?? 0;
+    acc.Advance += emp.AdvanceDed ?? 0;
     acc.Food += emp.Food || 0;
     acc.Maintenance += emp.Maintenance || 0;
     acc.Uniform += emp.Uniform || 0;
@@ -66,9 +66,9 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
 
     "PF": emp.PF || 0,
     "ESI": emp.ESI || 0,
-    "LWF": emp.LwfEmployeeAmount || 0,
-    "PT": emp.PT || 0,
-    "Advance": emp.Advance || 0,
+    "LWF": emp.LwfAmount ?? 0,
+    "PT": emp.PftAmount ?? 0,
+    "Advance": emp.AdvanceDed ?? 0,
     "Food": emp.Food || 0,
     "Maintenance": emp.Maintenance || 0,
     "Uniform": emp.Uniform || 0,

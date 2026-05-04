@@ -121,6 +121,7 @@ export default function GenerateSalary() {
   const [designations, setDesignations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [generatingBatchStatus, setGeneratingBatchStatus] = useState("");
   const [creatingPayslipPdf, setCreatingPayslipPdf] = useState(false);
   const [generatedEmployees, setGeneratedEmployees] = useState([]);
   const [loadingGenerated, setLoadingGenerated] = useState(false);
@@ -664,338 +665,191 @@ export default function GenerateSalary() {
   <html>
     <head>
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 15px; }
-        .header-row { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;}
-        .header-left { text-align: left; line-height: 1.5;}
-        .co-bold { font-size: 17px; font-weight: 800; letter-spacing: 1px;}
-        .header-right { text-align: right; font-size: 13px; max-width: 460px; line-height: 1.5;}
-        .est-header { font-size: 14px; font-weight: 700;}
-        .est-address { font-size: 15px; font-weight: normal; }
-        .center-title { text-align: center; font-size: 20px; font-weight: bold; margin: 15px 0 12px 0;}
-        .info-table { width: 100%; margin-bottom: 7px;}
-        .info-table td { padding: 3px 7px; border: none; font-size: 15px;}
-        .summary-table { width: 100%; margin-bottom: 12px;}
-        .summary-table td { padding: 3px 7px; border: none; font-size: 15px;}
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 11px; line-height: 1.2; }
+        .co-bold { font-size: 14px; font-weight: 800; }
+        .info-table { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
+        .info-table td { padding: 2px 5px; border: none; font-size: 11px;}
         table.pay-slip-table {
-          width: 100%; border-collapse: collapse; margin-top: 10px;
+          width: 100%; border-collapse: collapse; margin-top: 6px;
         }
         table.pay-slip-table th {
-          background: #fff; font-weight: bold; border-top: 2.8px double #111; border-bottom: 2.8px double #111;
-          border-left: none; border-right: none;
+          background: #fff; font-weight: bold; border-top: 1.5px solid #111; border-bottom: 1.5px solid #111;
           text-align: left;
-          padding: 10px 9px;
+          padding: 4px 6px;
+          font-size: 11px;
         }
         table.pay-slip-table td {
-          font-size: 15px; border: none; padding: 9px 9px;
+          font-size: 10.5px; border: none; padding: 2px 6px;
         }
-        /* vertical lines, custom: */
-        .v-bold { border-right: 2.8px solid #111 !important; }
+        .v-bold { border-right: 1.5px solid #111 !important; }
         .v-light { border-right: 1px solid #bababa !important; }
-        /* No horizontal border for mid rows: */
         .no-horiz-border td { border-top: none !important; }
-        /* double line for last row */
-        .double-bottom td { border-bottom: 2.8px double #111 !important; padding-bottom: 9px;}
+        .double-bottom td { border-bottom: 1.5px solid #111 !important; padding-bottom: 4px;}
         .bold-top {
-        border-top: 2.8px double #111 !important;
-        font-size: 17px;
-        font-weight: 600;
-        }
-        .net-salary {
-          color: #169c12; font-size: 19px; font-weight: bold; margin-top: 18px; text-align:center; letter-spacing:0.5px;
+          border-top: 1.5px solid #111 !important;
+          font-size: 11px;
+          font-weight: 600;
         }
         .leave-title {
-          border-top: 2.8px solid #111 !important;
-          border-bottom: 2.8px solid #111 !important;
-          padding-top: 6px;
-          padding-bottom: 6px;
+          border-top: 1px solid #111 !important;
+          border-bottom: 1px solid #111 !important;
+          padding-top: 3px;
+          padding-bottom: 3px;
         }
       </style>
     </head>
     <body>
-      <div style="border-bottom: 3px solid #1e293b; padding-bottom: 14px; margin-bottom: 18px;">
+      <div style="border-bottom: 2px solid #1e293b; padding-bottom: 8px; margin-bottom: 10px;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-
-          <!-- LEFT: Company Registered Address -->
-          <div style="flex:1; line-height:1.5;">
-            <img src="/Assets/Urest-logo.png" style="height:55px; margin-bottom:8px;" />
-            <div style="font-size:17px; font-weight:800; letter-spacing:1px;">
-              UFIRM TECHNOLOGIES PVT. LTD.
-            </div>
-            <div style="font-size:14px;">
-              H-64, SEC-63
-            </div>
-            <div style="font-size:14px;">
-              NOIDA, UP
-            </div>
+          <div style="flex:1.5; line-height:1.4;">
+            <img src="/Assets/Urest-logo.png" style="height:45px; margin-bottom:4px;" />
+            <div class="co-bold" style="white-space: nowrap;">UFIRM TECHNOLOGIES PVT. LTD.</div>
+            <div style="font-size:10px;">H-64, SEC-63, NOIDA, UP - 201301</div>
           </div>
-
-          <!-- CENTER: Title -->
-          <div style="flex:1; text-align:center; padding-top:10px;">
-            <div style="font-size:24px; font-weight:800; letter-spacing:2px;">
-              SALARY SLIP
-            </div>
-            <div style="font-size:14px; margin-top:6px; color:#444;">
+          <div style="flex:1; text-align:center; padding-top:5px;">
+            <div style="font-size:18px; font-weight:800; letter-spacing:1px;">SALARY SLIP</div>
+            <div style="font-size:10px; margin-top:2px; color:#444;">
               For the Month of <b>${safe(row.Month)} ${safe(row.Year)}</b>
             </div>
           </div>
-
-          <!-- RIGHT: Establishment + Principal Employer -->
-          <div style="flex:1; text-align:right; font-size:13px; line-height:1.6;">
-
-            <!-- Establishment -->
-            <div style="font-weight:800; font-size:14px; margin-bottom:6px;">
-              Name and Address of Establishment in under which contract is carried on:
-            </div>
-            <div>
-              ${safe(row.PropertyName)}
-            </div>
-            <div>
-              ${safe(row.AddressLine1)}
-              ${row.Landmark ? ", " + safe(row.Landmark) : ""}
-            </div>
-            <div>
-              ${row.ContactNumber ? "Contact: " + row.ContactNumber : ""}
-            </div>
-            <div style="margin-bottom:10px;">
-              ${row.Pincode ? "PIN: " + row.Pincode : ""}
-            </div>
-
-            <!-- Principal Employer -->
-            <div style="font-weight:800; font-size:14px; margin-top:8px;">
-              Name and Address of Principal Employer :
-            </div>
-            <div>
-              ${safe(row.ClientName)}
-            </div>
-            <div>
-              ${safe(row.ClientAddress)}
-            </div>
-
+          <div style="flex:1.5; text-align:right; font-size:10px; line-height:1.4;">
+            <div style="font-weight:800; font-size:11px;">Establishment:</div>
+            <div>${safe(row.PropertyName)} - ${safe(row.Pincode)}</div>
+            <div style="font-size:9px;">${safe(row.AddressLine1)}${row.Landmark ? ", " + safe(row.Landmark) : ""}</div>
+            <div style="margin-top:2px;"><b>Principal:</b> ${safe(row.ClientName)}</div>
           </div>
         </div>
       </div>          
       <table class="info-table">
-  <tr>
-    <td><b>Employee Name:</b></td>
-    <td>${safe(row.FacilityMemberName)}</td>
-    <td><b>Bank Name:</b></td>
-    <td>${safe(row.BankName)}</td>
-    <td><b>Acc/Card No.:</b></td>
-    <td>${safe(row.BankAccountNumber)}</td>
-  </tr>
-  <tr>
-    <td><b>Emp Code:</b></td>
-    <td>${safe(row.EmployeeCode)}</td>
-    <td><b>IFSC Code:</b></td>
-    <td>${safe(row.BankIFSCCode)}</td>
-    <td><b>PF No.:</b></td>
-    <td>${safe(row.PF_number)}</td>
-  </tr>
-  <tr>
-    <td><b>Father's Name:</b></td>
-    <td>${safe(row.FatherName)}</td>
-    <td><b>Pay Mode:</b></td>
-    <td>${"Bank Transfer"}</td>
-    <td><b>UAN No.:</b></td>
-    <td>${safe(row.UANNumber)}</td>
-  </tr>
-  <tr>
-    <td><b>Designation:</b></td>
-    <td>${safe(row.Designation)}</td>
-    <td><b>ESI No.:</b></td>
-    <td>${safe(row.ESINumber)}</td>
-    <td><b>Mobile No.:</b></td>
-    <td>${isValidMobile(row.MobileNumber) ? row.MobileNumber : "-"}</td>
-  </tr>
-  <tr>
-    <td><b>Joining Date:</b></td>
-    <td>${safeDate(row.DateOfJoining)}</td>
-  </tr>
-</table>
+        <tr>
+          <td><b>Employee Name:</b></td><td>${safe(row.FacilityMemberName)}</td>
+          <td><b>Bank Name:</b></td><td>${safe(row.BankName)}</td>
+          <td><b>Acc/Card No.:</b></td><td>${safe(row.BankAccountNumber)}</td>
+        </tr>
+        <tr>
+          <td><b>Emp Code:</b></td><td>${safe(row.EmployeeCode)}</td>
+          <td><b>IFSC Code:</b></td><td>${safe(row.BankIFSCCode)}</td>
+          <td><b>PF No.:</b></td><td>${safe(row.PF_number)}</td>
+        </tr>
+        <tr>
+          <td><b>Father's Name:</b></td><td>${safe(row.FatherName)}</td>
+          <td><b>Pay Mode:</b></td><td>Bank Transfer</td>
+          <td><b>UAN No.:</b></td><td>${safe(row.UANNumber)}</td>
+        </tr>
+        <tr>
+          <td><b>Designation:</b></td><td>${safe(row.Designation)}</td>
+          <td><b>ESI No.:</b></td><td>${safe(row.ESINumber)}</td>
+          <td><b>Mobile No.:</b></td><td>${isValidMobile(row.MobileNumber) ? row.MobileNumber : "-"}</td>
+        </tr>
+        <tr>
+          <td><b>Joining Date:</b></td><td>${safeDate(row.DateOfJoining)}</td>
+        </tr>
+      </table>
       <table class="pay-slip-table">
         <tr>
-          <th>EARNING</th>
-          <th class="v-bold">AMOUNT</th>
-          <th>DEDUCTION</th>
-          <th class="v-light">AMOUNT</th>
-          <th>ATTENDANCE</th>
-          <th>VALUE</th>
+          <th>EARNING</th><th class="v-bold">AMOUNT</th>
+          <th>DEDUCTION</th><th class="v-light">AMOUNT</th>
+          <th>ATTENDANCE</th><th>VALUE</th>
         </tr>
         <tr>
-          <td>Basic</td>
-          <td class="v-bold">${row.Basic || row.ProRatedSalary || 0}</td>
-          <td >PF</td>
-          <td class="v-light">${row.PF || 0}</td>
-          <td >Working Days</td>
-          <td>${row.AttendanceTotalWorkingDays || ""}</td>
+          <td>Basic</td><td class="v-bold">${row.Basic || row.MonthlyBaseSalary || row.MonthlyBase || row.ProRatedSalary || 0}</td>
+          <td>PF</td><td class="v-light">${row.PF || 0}</td>
+          <td>Working Days</td><td>${row.AttendanceTotalWorkingDays || "0"}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>DA</td>
-          <td class="v-bold">${row.DA || 0}</td>
-          <td>ESI</td>
-          <td class="v-light">${row.ESI || 0}</td>
-          <td>Ho.Days</td>
-          <td>${row.HoDays || 0}</td>
+          <td>DA</td><td class="v-bold">${row.DA || 0}</td>
+          <td>ESI</td><td class="v-light">${row.ESI || 0}</td>
+          <td>Ho.Days</td><td>${row.HoDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>HRA</td>
-          <td class="v-bold">${row.HRA || 0}</td>
-          <td>LWF</td>
-          <td class="v-light">${row.LwfAmount || 0}</td>
-          <td>Weekly Offs</td>
-          <td>${row.WeekDaysOff || 0}</td>
+          <td>HRA</td><td class="v-bold">${row.HRA || 0}</td>
+          <td>LWF</td><td class="v-light">${row.LWF || row.LwfAmount || row.LwfEmployeeAmount || 0}</td>
+          <td>Weekly Offs</td><td>${row.WeekDaysOff || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Gratuity</td>
-          <td class="v-bold">${row.Gratuity || 0}</td>
-          <td >PFT</td>
-          <td class="v-light">${row.PftAmount || 0}</td>
-          <td>OTDays</td>
-          <td>${row.OTDays || 0}</td>
+          <td>Gratuity</td><td class="v-bold">${row.Gratuity || 0}</td>
+          <td>PFT</td><td class="v-light">${row.PftAmount || 0}</td>
+          <td>OTDays</td><td>${row.OTDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>OTDaysAmount</td>
-          <td class="v-bold">${row.OTDaysAmount || 0}</td>
-          <td>Adv.</td>
-          <td class="v-light">${row.AdvanceDed || 0}</td>
-          <td>OTHours</td>
-          <td>${row.OTHours || 0}</td>
+          <td>OTDaysAmount</td><td class="v-bold">${row.OTDaysAmount || 0}</td>
+          <td>Adv.</td><td class="v-light">${row.AdvanceDed || row.AdvanceAmount || row.Advance || row.LoanAdvanceAmount || 0}</td>
+          <td>OTHours</td><td>${row.OTHours || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>OTHoursAmount</td>
-          <td class="v-bold">${row.OTHoursAmount || 0}</td>
-          <td>OthDed</td>
-          <td class="v-light">${row.OthDeduction || 0}</td>
-          <td>Duty Days</td>
-          <td>${row.WorkingDays || 0}</td>
+          <td>OTHoursAmount</td><td class="v-bold">${row.OTHoursAmount || 0}</td>
+          <td>OthDed</td><td class="v-light">${row.OthDeduction || row.OthDed || 0}</td>
+          <td>Duty Days</td><td>${row.WorkingDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>AdjAmt/Incentive</td>
-          <td class="v-bold">${row.AdjAmt || row.Incentive || 0}</td>
-          <td>DocDed</td>
-          <td class="v-light">${row.DocDeduction || 0}</td>
-          <td>Sal Days</td>
-          <td>${row.SalDays || 0}</td>
+          <td>AdjAmt/Incentive</td><td class="v-bold">${row.AdjAmt || row.Incentive || 0}</td>
+          <td>DocDed</td><td class="v-light">${row.DocDeduction || 0}</td>
+          <td>Sal Days</td><td>${row.SalDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>PFArrear</td>
-          <td class="v-bold">${row.PFArrear || 0}</td>
-          <td>Food</td>
-          <td class="v-light">${row.FOOD || 0}</td>
-          <td>NH Days</td>
-          <td>${row.NHDays || 0}</td>
+          <td>PFArrear</td><td class="v-bold">${row.PFArrear || 0}</td>
+          <td>Food</td><td class="v-light">${row.FOOD || row.Food || 0}</td>
+          <td>NH Days</td><td>${row.NHDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>OthArrear</td>
-          <td class="v-bold">${row.OthArrear || 0}</td>
-          <td>Maint.</td>
-          <td class="v-light">${row.MaintDeduction || 0}</td>
-          <td class="leave-title">FH Days</td>
-          <td class="leave-title">${row.FHDays || 0}</td>
+          <td>NH Amount</td><td class="v-bold">${row.NHAmount || 0}</td>
+          <td>Maint.</td><td class="v-light">${row.MaintDeduction || row.Maintenance || 0}</td>
+          <td>FH Days</td><td>${row.FHDays || 0}</td>
+        </tr>
+        <tr class="no-horiz-border">
+          <td>FH Amount</td><td class="v-bold">${row.FHAmount || 0}</td>
+          <td>Uniform</td><td class="v-light">${row.UNIFORM || row.Uniform || 0}</td>
+          <td class="leave-title"><b>LEAVE STATUS</b></td><td class="leave-title"></td>
         </tr>  
         <tr class="no-horiz-border">
-          <td>Bonus</td>
-          <td class="v-bold">${row.Bonus || 0}</td>
-          <td>Fine</td>
-          <td class="v-light">${row.Fine || 0}</td>
-          <td class="leave-title"><b>LEAVE STATUS</b></td>
-          <td class="leave-title"></td>
+          <td>Bonus</td><td class="v-bold">${row.Bonus || row.BONUS || 0}</td>
+          <td>Fine</td><td class="v-light">${row.Fine || 0}</td>
+          <td>EL</td><td>${row.EL || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Separate Bonus</td>
-          <td class="v-bold">${row.SEPARATEBONUS || 0}</td>
-          <td>Acmd.Ded</td>
-          <td class="v-light">${row.AccommodationDeduction || 0}</td>
-          <td>EL</td>
-          <td>${row.EL || 0}</td>
+          <td>Separate Bonus</td><td class="v-bold">${row.SEPARATEBONUS || row.SeparateBonus || 0}</td>
+          <td>Acmd.Ded</td><td class="v-light">${row.AccommodationDeduction || row.AcmdDed || 0}</td>
+          <td>CL</td><td>${row.CL || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Leave Wages</td>
-          <td class="v-bold">${row.LEAVE|| 0}</td>
-          <td>IncomeTax</td>
-          <td class="v-light">${row.INCOMETAX || row.IncomeTax || 0}</td>
-          <td>CL</td>
-          <td>${row.CL || 0}</td>
+          <td>Leave Wages</td><td class="v-bold">${row.LEAVE || row.LEAVEWAGES || row.LeaveWages || 0}</td>
+          <td>IncomeTax</td><td class="v-light">${row.INCOMETAX || row.IncomeTax || 0}</td>
+          <td>SL</td><td>${row.SL || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Conv</td>
-          <td class="v-bold">${row.CONV || 0}</td>
-          <td>Uniform</td>
-          <td class="v-light">${row.UNIFORM || 0}</td>
-          <td>SL</td>
-          <td>${row.SL || 0}</td>
+          <td>Conv</td><td class="v-bold">${row.CONV || row.Conv || 0}</td>
+          <td>Loan EMI</td><td class="v-light">${row.LoanEMI || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>OthAll</td>
-          <td class="v-bold">${row.OTHALL || 0}</td>
-          <td>BGV</td>
-          <td>${row.BGV || 0}</td>
-        </tr>
-          <tr class="no-horiz-border">
-          <td>NHAmount</td>
-          <td class="v-bold">${row.NHAmount || 0}</td>
-          <td>Room</td>
-          <td>${row.Room || 0}</td>
+          <td>Edu. All.</td><td class="v-bold">${row.EduAll || row.EducationAllowance || 0}</td>
+          <td>Room</td><td class="v-light">${row.Room || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>FHAmount</td>
-          <td class="v-bold">${row.FHAmount || 0}</td>
-          <td>Joining Kits</td>
-          <td>${row.Joiningkits || 0}</td>
+          <td>Perf. All.</td><td class="v-bold">${row.PerfAll || row.PerformanceAllowance || 0}</td>
+          <td>Joining Kits</td><td class="v-light">${row.Joiningkits || row.JoiningKits || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Education Allowance</td>
-          <td class="v-bold">${row.EduAll || 0}</td>
-          <td>Loan EMI</td>
-          <td>${row.LoanEMI || 0}</td>
+          <td>Spl. All.</td><td class="v-bold">${row.SplAll || row.SpecialAllowance || 0}</td>
+          <td>BGV</td><td class="v-light">${row.BGV || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Performance Allowance</td>
-          <td class="v-bold">${row.PerfAll || 0}</td>
-          <td></td>
-          <td></td>
+          <td>Wash. All.</td><td class="v-bold">${row.WASH || row.WashingAllowance || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Special Allowance</td>
-          <td class="v-bold">${row.SplAll || 0}</td>
-          <td></td>
-          <td></td>
+          <td>OthAll</td><td class="v-bold">${row.OTHALL || row.OthAll || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Washing Allowance</td>
-          <td class="v-bold">${row.WASH || 0}</td>
-          <td></td>
-          <td></td>
+          <td>OthArrear</td><td class="v-bold">${row.OthArrear || row.OtherArrear || 0}</td>
         </tr>
         <tr class="bold-top double-bottom">
-          <td><b>Total Earning</b></td>
-          <td class="v-bold"><b>${totalAllowance}</b></td>
-          <td ><b>Total Deduction</b></td>
-          <td><b>${row.TotalDeduction ?? totalDeduction}</b></td>
-          <td style="text-align:right; font-weight:800; font-size:20px;">
-            Net Salary :
-          </td>
-          <td style="text-align:right; font-weight:800; font-size:22px;">
-            ₹ ${row.NetSalary || (totalAllowance - totalDeduction)}
-          </td>
-        </tr>
-        <tr>
-          <td colspan="6" style="padding-top:12px; font-size:14px;">
-            This is a computer generated advice and does not require a signature.
-          </td>
-        </tr>
-        <tr>
-          <td colspan="6" style="padding-top:8px;">
-            <div style="border-bottom:3px solid #111; border-image: repeating-linear-gradient(
-              to right,
-              #111,
-              #111 12px,
-              transparent 12px,
-              transparent 22px
-            ) 1;"></div>
+          <td><b>Total Earnings</b></td><td class="v-bold"><b>${totalAllowance}</b></td>
+          <td><b>Total Deductions</b></td><td class="v-light"><b>${row.TotalDeduction ?? totalDeduction}</b></td>
+          <td colspan="2" style="text-align:right;">
+            <b>Net Salary: ₹ ${row.NetSalary || (totalAllowance - totalDeduction)}</b>
           </td>
         </tr>
       </table>
+      <div style="font-size:9px; margin-top:8px; text-align:center;">This is a computer generated advice and does not require a signature.</div>
     </body>
   </html>
   `;
@@ -1026,17 +880,16 @@ export default function GenerateSalary() {
     container.style.left = "-9999px";
     container.style.top = "0";
     container.style.width = `${payslipMaxWidthMm}mm`;
-    container.style.minHeight = `${payslipMaxHeightMm}mm`;
     container.style.padding = "10px";
     container.style.background = "#fff";
     container.style.boxSizing = "border-box";
 
     container.innerHTML = `
       <style>
-        body { font-size: 13px !important; }
-        .info-table td { padding: 2px 5px !important; font-size: 13px !important; }
-        .pay-slip-table td { padding: 5px 6px !important; font-size: 13px !important; }
-        .pay-slip-table th { padding: 6px !important; font-size: 13px !important; }
+        body { font-size: 11px !important; }
+        .info-table td { padding: 2px 4px !important; font-size: 11px !important; }
+        .pay-slip-table td { padding: 2px 5px !important; font-size: 10.5px !important; }
+        .pay-slip-table th { padding: 4px 5px !important; font-size: 11px !important; }
       </style>
       ${payslipHtml}
     `;
@@ -1044,13 +897,13 @@ export default function GenerateSalary() {
     document.body.appendChild(container);
     try {
       const canvas = await html2canvas(container, {
-        scale: 1.5, // Reduced from 3 to make it much faster
+        scale: 1.5,
         useCORS: true,
         scrollY: 0,
-        logging: false, // Turn off logging
+        logging: false,
       });
 
-      const imgData = canvas.toDataURL("image/jpeg", 0.9); // Use JPEG for smaller size and speed
+      const imgData = canvas.toDataURL("image/jpeg", 0.9);
       const imageAspectRatio = canvas.width / canvas.height;
       let renderWidthMm = payslipMaxWidthMm;
       let renderHeightMm = renderWidthMm / imageAspectRatio;
@@ -1061,7 +914,7 @@ export default function GenerateSalary() {
       }
 
       const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
-      const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
+      const yOffsetMm = 10; // Top aligned
 
       const pdf = new jsPDF("p", "mm", "a4");
       pdf.addImage(imgData, "JPEG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
@@ -1095,52 +948,52 @@ export default function GenerateSalary() {
       GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
 
       // Earnings
-      Basic: Number(row.Basic) || 0,
+      Basic: Number(row.Basic || row.MonthlyBaseSalary || row.MonthlyBase || row.ProRatedSalary) || 0,
       DA: Number(row.DA) || 0,
       HRA: Number(row.HRA) || 0,
       Gratuity: Number(row.Gratuity) || 0,
       OTDaysAmount: Number(row.OTDaysAmount) || 0,
       OTHoursAmount: Number(row.OTHoursAmount) || 0,
-      AdjAmtIncentive: Number(row["AdjAmt/Incentive"]) || Number(row.AdjAmtIncentive) || 0,
+      AdjAmtIncentive: Number(row["AdjAmt/Incentive"]) || Number(row.AdjAmtIncentive) || Number(row.AdjAmt) || Number(row.Incentive) || 0,
       PFArrear: Number(row.PFArrear) || 0,
-      OthArrear: Number(row.OthArrear) || 0,
-      Bonus: Number(row.Bonus) || 0,
-      SeparateBonus: Number(row.SEPARATEBONUS) || Number(row.SeparateBonus) || 0,
-      LeaveWages: Number(row.LEAVEWAGES) || Number(row.LeaveWages) || 0,
-      Conv: Number(row.CONV) || Number(row.Conv) || 0,
-      OthAll: Number(row.OTHALL) || Number(row.OthAll) || 0,
+      OthArrear: Number(row.OthArrear || row.OtherArrear) || 0,
+      Bonus: Number(row.Bonus || row.BONUS) || 0,
+      SeparateBonus: Number(row.SEPARATEBONUS || row.SeparateBonus) || 0,
+      LeaveWages: Number(row.LEAVEWAGES || row.LeaveWages || row.LEAVE) || 0,
+      Conv: Number(row.CONV || row.Conv) || 0,
+      OthAll: Number(row.OTHALL || row.OthAll) || 0,
       NHAmount: Number(row.NHAmount) || 0,
       FHAmount: Number(row.FHAmount) || 0,
-      EducationAllowance: Number(row.EduAll) || Number(row.EducationAllowance) || 0,
-      PerformanceAllowance: Number(row.PerfAll) || Number(row.PerformanceAllowance) || 0,
-      SpecialAllowance: Number(row.SplAll) || Number(row.SpecialAllowance) || 0,
-      WashingAllowance: Number(row.WASH) || Number(row.WashingAllowance) || 0,
-      TotalEarning: Number(row.TotalAllowance) || 0,
+      EducationAllowance: Number(row.EduAll || row.EducationAllowance) || 0,
+      PerformanceAllowance: Number(row.PerfAll || row.PerformanceAllowance) || 0,
+      SpecialAllowance: Number(row.SplAll || row.SpecialAllowance) || 0,
+      WashingAllowance: Number(row.WASH || row.WashingAllowance) || 0,
+      TotalEarning: Number(row.TotalAllowance || row.TotalGross || row.TotalGrossSalary) || 0,
 
       // Deductions
       PF: Number(row.PF) || 0,
       ESI: Number(row.ESI) || 0,
-      LWF: Number(row.LWF) || Number(row.LwfAmount) || 0,
-      PFT: Number(row.PftAmount) || Number(row.PFT) || 0,
-      Advance: Number(row.AdvanceAmount) || Number(row.Advance) || 0,
-      OthDed: Number(row.OthDeduction) || Number(row.OthDed) || 0,
-      DocDed: Number(row.DocDeduction) || Number(row.DocDed) || 0,
-      Food: Number(row.FOOD) || Number(row.Food) || 0,
-      Maintenance: Number(row.MaintDeduction) || Number(row.Maintenance) || 0,
+      LWF: Number(row.LWF || row.LwfAmount || row.LwfEmployeeAmount) || 0,
+      PFT: Number(row.PftAmount || row.PFT) || 0,
+      Advance: Number(row.AdvanceDed || row.AdvanceAmount || row.Advance || row.LoanAdvanceAmount) || 0,
+      OthDed: Number(row.OthDeduction || row.OthDed) || 0,
+      DocDed: Number(row.DocDeduction || row.DocDed) || 0,
+      Food: Number(row.FOOD || row.Food) || 0,
+      Maintenance: Number(row.MaintDeduction || row.Maintenance) || 0,
       Fine: Number(row.Fine) || 0,
-      AcmdDed: Number(row.AccommodationDeduction) || Number(row.AcmdDed) || 0,
-      IncomeTax: Number(row.INCOMETAX) || Number(row.IncomeTax) || 0,
-      Uniform: Number(row.UNIFORM) || Number(row.Uniform) || 0,
+      AcmdDed: Number(row.AccommodationDeduction || row.AcmdDed) || 0,
+      IncomeTax: Number(row.INCOMETAX || row.IncomeTax) || 0,
+      Uniform: Number(row.UNIFORM || row.Uniform) || 0,
       BGV: Number(row.BGV) || 0,
       Room: Number(row.Room) || 0,
-      JoiningKits: Number(row.Joiningkits) || Number(row.JoiningKits) || 0,
+      JoiningKits: Number(row.Joiningkits || row.JoiningKits) || 0,
       LoanEMI: Number(row.LoanEMI) || 0,
       TotalDeduction: Number(row.TotalDeduction) || 0,
 
       // Attendance
       WorkingDays: Number(row.AttendanceTotalWorkingDays) || 0,
       HoDays: Number(row.HoDays) || 0,
-      WeeklyOffs: Number(row.WeeklyOffs) || 0,
+      WeeklyOffs: Number(row.WeeklyOffs || row.WeekDaysOff) || 0,
       OTDays: Number(row.OTDays) || 0,
       OTHours: Number(row.OTHours) || 0,
       DutyDays: Number(row.WorkingDays) || 0,
@@ -1170,44 +1023,60 @@ export default function GenerateSalary() {
     }
 
     setGenerating(true);
+    setGeneratingBatchStatus(`Starting...`);
+
     try {
       const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : null;
       const yearValue = selectedYear;
 
       const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
+      setGeneratingBatchStatus("Fetching details...");
       const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
-      const payload = selectedEmployees.map((emp) => buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId));
+      const CHUNK_SIZE = 5;
+      const totalEmployees = selectedEmployees.length;
 
-      const formData = new FormData();
-      formData.append("employees", JSON.stringify(payload));
+      for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
+        const chunk = selectedEmployees.slice(i, i + CHUNK_SIZE);
+        const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
+        const totalBatches = Math.ceil(totalEmployees / CHUNK_SIZE);
 
-      const pdfPromises = selectedEmployees.map(async (emp) => {
-        const row = rowDataMap.get(emp.EmployeeId);
-        if (!row) return null;
-        const pdfBlob = await generatePdfBlobForEmployee(row);
-        if (pdfBlob) {
-          return { emp, pdfBlob };
-        }
-        return null;
-      });
+        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Generating PDFs...`);
 
-      const pdfResults = await Promise.all(pdfPromises);
-      pdfResults.forEach((res) => {
-        if (res && res.pdfBlob) {
-          formData.append(
-            "file",
-            res.pdfBlob,
-            `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-          );
-        }
-      });
+        const payload = chunk.map((emp) =>
+          buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId)
+        );
 
-      await createGeneratedSalary(formData);
+        const formData = new FormData();
+        formData.append("employees", JSON.stringify(payload));
+
+        const pdfPromises = chunk.map(async (emp) => {
+          const row = rowDataMap.get(emp.EmployeeId);
+          if (!row) return null;
+          const pdfBlob = await generatePdfBlobForEmployee(row);
+          if (pdfBlob) {
+            return { emp, pdfBlob };
+          }
+          return null;
+        });
+
+        const pdfResults = await Promise.all(pdfPromises);
+        pdfResults.forEach((res) => {
+          if (res && res.pdfBlob) {
+            formData.append(
+              "file",
+              res.pdfBlob,
+              `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+            );
+          }
+        });
+
+        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Uploading...`);
+        await createGeneratedSalary(formData);
+      }
 
       alert(`Successfully generated salary for ${selectedEmployees.length} employee(s)`);
       setSelectedEmployees([]);
-      // fetchEmployees();
       await fetchGeneratedEmployees();
 
       const generatedIds = selectedEmployees.map((emp) => emp.EmployeeId);
@@ -1218,6 +1087,7 @@ export default function GenerateSalary() {
       alert("Failed to generate salary. Please try again.");
     } finally {
       setGenerating(false);
+      setGeneratingBatchStatus("");
     }
   };
 
@@ -1246,40 +1116,59 @@ export default function GenerateSalary() {
       alert("Freeze salary cannot be regenerated.");
       return;
     }
+
+    setGenerating(true);
+    setGeneratingBatchStatus("Starting...");
+
     try {
       const monthValue = monthNames[selectedMonth - 1];
       const yearValue = selectedYear;
 
       const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
+      setGeneratingBatchStatus("Fetching details...");
       const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
-      const payload = employeesToRegenerate.map((emp) => buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId));
+      const CHUNK_SIZE = 5;
+      const totalToRegen = employeesToRegenerate.length;
 
-      const formData = new FormData();
-      formData.append("employees", JSON.stringify(payload));
+      for (let i = 0; i < totalToRegen; i += CHUNK_SIZE) {
+        const chunk = employeesToRegenerate.slice(i, i + CHUNK_SIZE);
+        const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
+        const totalBatches = Math.ceil(totalToRegen / CHUNK_SIZE);
 
-      const pdfPromises = employeesToRegenerate.map(async (emp) => {
-        const row = rowDataMap.get(emp.EmployeeId);
-        if (!row) return null;
-        const pdfBlob = await generatePdfBlobForEmployee(row);
-        if (pdfBlob) {
-          return { emp, pdfBlob };
-        }
-        return null;
-      });
+        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Generating PDFs...`);
 
-      const pdfResults = await Promise.all(pdfPromises);
-      pdfResults.forEach((res) => {
-        if (res && res.pdfBlob) {
-          formData.append(
-            "file",
-            res.pdfBlob,
-            `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-          );
-        }
-      });
+        const payload = chunk.map((emp) =>
+          buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId)
+        );
 
-      await regenerateEmployeeSalary(formData);
+        const formData = new FormData();
+        formData.append("employees", JSON.stringify(payload));
+
+        const pdfPromises = chunk.map(async (emp) => {
+          const row = rowDataMap.get(emp.EmployeeId);
+          if (!row) return null;
+          const pdfBlob = await generatePdfBlobForEmployee(row);
+          if (pdfBlob) {
+            return { emp, pdfBlob };
+          }
+          return null;
+        });
+
+        const pdfResults = await Promise.all(pdfPromises);
+        pdfResults.forEach((res) => {
+          if (res && res.pdfBlob) {
+            formData.append(
+              "file",
+              res.pdfBlob,
+              `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+            );
+          }
+        });
+
+        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Uploading...`);
+        await regenerateEmployeeSalary(formData);
+      }
 
       const ids = employeesToRegenerate.map((e) => e.EmployeeId);
       await fetchGeneratedEmployees();
@@ -1294,6 +1183,9 @@ export default function GenerateSalary() {
     } catch (err) {
       console.error("Failed to regenerate salary:", err);
       alert("Failed to regenerate salary.");
+    } finally {
+      setGenerating(false);
+      setGeneratingBatchStatus("");
     }
   };
 
@@ -1314,8 +1206,24 @@ export default function GenerateSalary() {
   };
 
   // ----------------------------
-  // PDF generation
+  // PDF Merging Logic (Uses pre-generated PDFs from server)
   // ----------------------------
+  const loadPdfLib = () => {
+    return new Promise((resolve, reject) => {
+      if (window.PDFLib) {
+        resolve(window.PDFLib);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://unpkg.com/pdf-lib/dist/pdf-lib.min.js";
+      script.async = true;
+      script.onload = () => resolve(window.PDFLib);
+      script.onerror = () =>
+        reject(new Error("Failed to load PDF library from CDN"));
+      document.head.appendChild(script);
+    });
+  };
+
   const handleCreatePDF = async () => {
     const selectedRows = salaryData.filter((row) =>
       selectedSalaryRows.includes(row.FacilityMemberId)
@@ -1326,98 +1234,77 @@ export default function GenerateSalary() {
       return;
     }
 
-    const pdfWidthMm = 210;
-    const pdfHeightMm = 297;
-    const payslipMaxWidthMm = pdfWidthMm * 0.88;
-    const payslipMaxHeightMm = pdfHeightMm * 0.88;
-
-    const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : "WholeYear";
-    const safeMonth = String(monthValue).replace(/\s+/g, "-");
-
-    const failures = [];
-    let pagesAdded = 0;
-
     setCreatingPayslipPdf(true);
+    setGeneratingBatchStatus("Initializing...");
     try {
-      const pdf = new jsPDF("p", "mm", "a4");
+      const PDFLib = await loadPdfLib();
+      const { PDFDocument } = PDFLib;
 
-      for (const row of selectedRows) {
-        const payslipHtml = generatePayslipHTML(row);
+      setGeneratingBatchStatus("Fetching PDF links...");
+      const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
 
-      const container = document.createElement("div");
-      container.style.position = "fixed";
-      container.style.left = "-9999px";
-      container.style.top = "0";
-      container.style.width = `${payslipMaxWidthMm}mm`;
-      container.style.minHeight = `${payslipMaxHeightMm}mm`;
-      container.style.padding = "10px";
-      container.style.background = "#fff";
-      container.style.boxSizing = "border-box";
+      // Call API to get all generated records for this month/year/properties
+      const allGenerated = await getGeneratedSalaryByProperties(
+        [effectivePropertyId],
+        monthName,
+        selectedYear
+      );
 
-      // inject compact CSS ONLY for PDF
-      container.innerHTML = `
-  <style>
-    body { font-size: 13px !important; }
-    .info-table td { padding: 2px 5px !important; font-size: 13px !important; }
-    .pay-slip-table td { padding: 5px 6px !important; font-size: 13px !important; }
-    .pay-slip-table th { padding: 6px !important; font-size: 13px !important; }
-  </style>
-  ${payslipHtml}
-`;
+      const mergedPdf = await PDFDocument.create();
+      let mergedCount = 0;
 
-      document.body.appendChild(container);
+      for (let i = 0; i < selectedRows.length; i++) {
+        const row = selectedRows[i];
+        setGeneratingBatchStatus(`Merging ${i + 1} of ${selectedRows.length}...`);
 
-      try {
-        const canvas = await html2canvas(container, {
-          scale: 3,
-          useCORS: true,
-          scrollY: 0,
-        });
+        // Find the record in allGenerated that matches this employee
+        const record = allGenerated.find(
+          (r) =>
+            Number(r.EmployeeId || r.FacilityMemberId) ===
+            Number(row.FacilityMemberId)
+        );
 
-        const imgData = canvas.toDataURL("image/png");
-        const imageAspectRatio = canvas.width / canvas.height;
-        let renderWidthMm = payslipMaxWidthMm;
-        let renderHeightMm = renderWidthMm / imageAspectRatio;
-
-        if (renderHeightMm > payslipMaxHeightMm) {
-          renderHeightMm = payslipMaxHeightMm;
-          renderWidthMm = renderHeightMm * imageAspectRatio;
+        if (record && record.fileUrl) {
+          try {
+            const pdfBytes = await fetch(record.fileUrl).then((res) => {
+              if (!res.ok) throw new Error(`HTTP ${res.status}`);
+              return res.arrayBuffer();
+            });
+            const pdfDoc = await PDFDocument.load(pdfBytes);
+            const copiedPages = await mergedPdf.copyPages(
+              pdfDoc,
+              pdfDoc.getPageIndices()
+            );
+            copiedPages.forEach((page) => mergedPdf.addPage(page));
+            mergedCount++;
+          } catch (err) {
+            console.error(
+              `Failed to fetch PDF for ${row.FacilityMemberName} from ${record.fileUrl}:`,
+              err
+            );
+          }
         }
-
-        const xOffsetMm = (pdfWidthMm - renderWidthMm) / 2;
-        const yOffsetMm = (pdfHeightMm - renderHeightMm) / 2;
-
-        if (pagesAdded > 0) pdf.addPage();
-        pdf.addImage(imgData, "PNG", xOffsetMm, yOffsetMm, renderWidthMm, renderHeightMm);
-        pagesAdded += 1;
-      } catch (error) {
-        failures.push(row.FacilityMemberName || row.EmployeeCode || "Unknown");
-      } finally {
-        document.body.removeChild(container);
-      }
       }
 
-      if (pagesAdded === 0) {
-        alert("Failed to generate payslip PDF.");
-        return;
-      }
-
-      const fileName =
-        selectedRows.length === 1
-          ? `Payslip_${selectedRows[0].EmployeeCode}_${selectedRows[0].Month || "All"}_${selectedRows[0].Year}.pdf`
-          : `Payslips_${safeMonth}_${selectedYear}_${selectedRows.length}.pdf`;
-
-      pdf.save(fileName);
-
-      if (failures.length > 0) {
+      if (mergedCount > 0) {
+        setGeneratingBatchStatus("Saving merged PDF...");
+        const mergedPdfBytes = await mergedPdf.save();
+        const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+        const link = document.createElement("a");
+        link.href = URL.createObjectURL(blob);
+        link.download = `SalarySlips_${monthName || "All"}_${selectedYear}.pdf`;
+        link.click();
+      } else {
         alert(
-          `PDF generated, but failed for ${failures.length} employee(s): ${failures.join(
-            ", "
-          )}`
+          "No pre-generated PDFs found for selection. Please ensure salaries are generated first."
         );
       }
+    } catch (err) {
+      console.error("Failed to merge PDFs:", err);
+      alert("Error: " + err.message);
     } finally {
       setCreatingPayslipPdf(false);
+      setGeneratingBatchStatus("");
     }
   };
 
@@ -1496,7 +1383,7 @@ export default function GenerateSalary() {
   // ----------------------------
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = salaryData.slice(indexOfFirstItem, indexOfLastItem);
+  // const currentItems = salaryData.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.max(1, Math.ceil(salaryData.length / itemsPerPage));
 
   const handlePageChange = (page) => {
@@ -1753,7 +1640,7 @@ export default function GenerateSalary() {
                 ))
               }
             </div>
-            <button onClick={handleGenerateFromGrid} disabled={generating || selectedEmployees.length === 0} style={{ marginTop: "auto", background: generating ? "#94a3b8" : "#5b9aff", color: "#fff", border: "none", borderRadius: "0 0 8px 8px", width: "100%", padding: "12px 0", fontSize: "1rem", fontWeight: 500, cursor: generating ? "not-allowed" : "pointer" }}>{generating ? "Generating..." : "Generate"}</button>
+            <button onClick={handleGenerateFromGrid} disabled={generating || selectedEmployees.length === 0} style={{ marginTop: "auto", background: generating ? "#94a3b8" : "#5b9aff", color: "#fff", border: "none", borderRadius: "0 0 8px 8px", width: "100%", padding: "12px 0", fontSize: "1rem", fontWeight: 500, cursor: generating ? "not-allowed" : "pointer" }}>{generating ? generatingBatchStatus || "Generating..." : "Generate"}</button>
           </div>
         </div>
 
@@ -1803,7 +1690,7 @@ export default function GenerateSalary() {
                 ))
               }
             </div>
-            <button onClick={handleRegenerateSalary} disabled={selectedRegenEmployees.length === 0} style={{ marginTop: "auto", background: "#5b9aff", color: "#fff", border: "none", borderRadius: "0 0 8px 8px", width: "100%", padding: "12px 0", fontSize: "1rem", fontWeight: 500, cursor: "pointer" }}>Regenerate</button>
+            <button onClick={handleRegenerateSalary} disabled={generating || selectedRegenEmployees.length === 0} style={{ marginTop: "auto", background: generating ? "#94a3b8" : "#5b9aff", color: "#fff", border: "none", borderRadius: "0 0 8px 8px", width: "100%", padding: "12px 0", fontSize: "1rem", fontWeight: 500, cursor: generating ? "not-allowed" : "pointer" }}>{generating ? generatingBatchStatus || "Regenerating..." : "Regenerate"}</button>
           </div>
         </div>
 
@@ -1905,30 +1792,30 @@ export default function GenerateSalary() {
                 >
                   Freeze
                 </button>
-                 <button
-                   onClick={handleCreatePDF}
-                   disabled={selectedSalaryRows.length === 0 || creatingPayslipPdf}
-                   style={{
-                     background:
-                       selectedSalaryRows.length === 0 || creatingPayslipPdf
-                         ? "#d1eaff"
-                         : "#2563eb",
-                     color: "#fff",
-                     border: "none",
-                     borderRadius: 6,
-                     padding: "10px 28px",
-                     fontWeight: 600,
-                     letterSpacing: 1,
-                     cursor:
-                       selectedSalaryRows.length === 0 || creatingPayslipPdf
-                         ? "not-allowed"
-                         : "pointer",
-                     fontSize: "1rem",
-                     marginBottom: "8px",
-                   }}
-                 >
-                   {creatingPayslipPdf ? "Creating PDF..." : "Create PDF"}
-                 </button>
+                <button
+                  onClick={handleCreatePDF}
+                  disabled={selectedSalaryRows.length === 0 || creatingPayslipPdf}
+                  style={{
+                    background:
+                      selectedSalaryRows.length === 0 || creatingPayslipPdf
+                        ? "#d1eaff"
+                        : "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    padding: "10px 28px",
+                    fontWeight: 600,
+                    letterSpacing: 1,
+                    cursor:
+                      selectedSalaryRows.length === 0 || creatingPayslipPdf
+                        ? "not-allowed"
+                        : "pointer",
+                    fontSize: "1rem",
+                    marginBottom: "8px",
+                  }}
+                >
+                  {creatingPayslipPdf ? generatingBatchStatus || "Creating PDF..." : "Create PDF"}
+                </button>
               </div>
 
               <div style={{ overflowX: "auto", paddingTop: 45 }}>
@@ -1938,9 +1825,9 @@ export default function GenerateSalary() {
                       <th rowSpan="2" style={{ width: 30, padding: "0 10px", border: "1px solid #b0b8cc", textAlign: "center" }}>
                         <input
                           type="checkbox"
-                          checked={currentItems.length > 0 && currentItems.every((r) => selectedSalaryRows.includes(r.FacilityMemberId))}
+                          checked={salaryData.length > 0 && salaryData.every((r) => selectedSalaryRows.includes(r.FacilityMemberId))}
                           onChange={(e) => {
-                            if (e.target.checked) setSelectedSalaryRows(currentItems.map((row) => row.FacilityMemberId));
+                            if (e.target.checked) setSelectedSalaryRows(salaryData.map((row) => row.FacilityMemberId));
                             else setSelectedSalaryRows([]);
                           }}
                         />
@@ -1983,10 +1870,10 @@ export default function GenerateSalary() {
                   <tbody>
                     {loadingSalaryData ? (
                       <tr><td colSpan={6 + allAllowanceHeaders.length + allDeductionHeaders.length + 4} style={loadingTd}>Loading salary details...</td></tr>
-                    ) : currentItems.length === 0 ? (
+                    ) : salaryData.length === 0 ? (
                       <tr><td colSpan={6 + allAllowanceHeaders.length + allDeductionHeaders.length + 4} style={loadingTd}>No salary data available. Please generate salary first.</td></tr>
                     ) : (
-                      currentItems.map((row, index) => {
+                      salaryData.map((row, index) => {
                         const allowanceKeys = getRowAllowanceKeys(row);
                         const deductionKeys = getRowDeductionKeys(row);
                         const totalAllowance = computeTotalAllowance(row, allowanceKeys);
@@ -2006,7 +1893,7 @@ export default function GenerateSalary() {
                               />
                             </td>
 
-                            <td style={cellCenter}>{indexOfFirstItem + index + 1}</td>
+                            <td style={cellCenter}>{index + 1}</td>
                             <td style={cell}>{row.FacilityMemberName}</td>
                             <td style={cell}>{row.DateOfJoining ? row.DateOfJoining.split("T")[0] : "-"}</td>
 
@@ -2047,37 +1934,37 @@ export default function GenerateSalary() {
                     )}
                   </tbody>
 
-                  {currentItems.length > 0 && (
+                  {salaryData.length > 0 && (
                     <tfoot style={{ background: "#f8fafc", fontWeight: "bold", borderTop: "2px solid #b0b8cc" }}>
                       <tr>
                         <td colSpan="4" style={{ ...cell, textAlign: "right", paddingRight: 15 }}>Total:</td>
-                        
+
                         {/* Attendance Totals */}
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.AttendanceTotalWorkingDays || 0), 0)}</td>
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.ShiftHours || 0), 0)}</td>
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.WorkingDays || 0), 0)}</td>
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.WeekDaysOff || 0), 0)}</td>
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.LeaveDays || 0), 0)}</td>
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.OTDays || 0), 0)}</td>
-                        <td style={cellCenter}>{currentItems.reduce((s, r) => s + Number(r.OTHours || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.AttendanceTotalWorkingDays || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.ShiftHours || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.WorkingDays || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.WeekDaysOff || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.LeaveDays || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.OTDays || 0), 0)}</td>
+                        <td style={cellCenter}>{salaryData.reduce((s, r) => s + Number(r.OTHours || 0), 0)}</td>
 
                         {/* Allowance Totals */}
                         {allAllowanceHeaders.map((key) => (
                           <td key={`total-all-${key}`} style={cellCenter}>
-                            {currentItems.reduce((s, r) => s + Number(r[key] || 0), 0).toLocaleString()}
+                            {salaryData.reduce((s, r) => s + Number(r[key] || 0), 0).toLocaleString()}
                           </td>
                         ))}
 
                         {/* Deduction Totals */}
                         {allDeductionHeaders.map((key) => (
                           <td key={`total-ded-${key}`} style={cellCenter}>
-                            {key === "NoDeduction" ? "-" : currentItems.reduce((s, r) => s + Number(r[key] || 0), 0).toLocaleString()}
+                            {key === "NoDeduction" ? "-" : salaryData.reduce((s, r) => s + Number(r[key] || 0), 0).toLocaleString()}
                           </td>
                         ))}
 
                         {/* Net Salary Total */}
                         <td style={netCell}>
-                          ₹{currentItems.reduce((s, r) => {
+                          ₹{salaryData.reduce((s, r) => {
                             const allowanceKeys = getRowAllowanceKeys(r);
                             const deductionKeys = getRowDeductionKeys(r);
                             const totalAllowance = computeTotalAllowance(r, allowanceKeys);
@@ -2093,15 +1980,7 @@ export default function GenerateSalary() {
                 </table>
               </div>
 
-              <div style={paginationContainer}>
-                <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} style={paginationBtn(currentPage === 1)}>Previous</button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
-                  <button key={pageNum} onClick={() => handlePageChange(pageNum)} style={pageButton(currentPage === pageNum)}>{pageNum}</button>
-                ))}
-
-                <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages} style={paginationBtn(currentPage === totalPages)}>Next</button>
-              </div>
+              {/* Pagination removed as requested */}
             </div>
           );
         })()}

@@ -346,6 +346,7 @@ export default function AttendanceMaster() {
         attendanceData.forEach(record => {
             const emp = record.EmployeeName;
             const desig = record.Designation || "--";
+            const code = record.EmployeeCode || "--";
 
             const recordDateObj = new Date(record.PunchDate);
             recordDateObj.setHours(12, 0, 0, 0);
@@ -354,6 +355,7 @@ export default function AttendanceMaster() {
             if (!employees[emp]) {
                 employees[emp] = {
                     Designation: desig,
+                    EmployeeCode: code,
                     Attendance: {}
                 };
             }
@@ -392,8 +394,8 @@ export default function AttendanceMaster() {
 
             const totalHours = `${Math.floor(totalWTmin / 60)}h ${totalWTmin % 60}m`;
 
-            // 🔹 Employee + Designation
-            ws_data.push([`Employee: ${emp} (${empData.Designation})`]);
+            // 🔹 Employee + Code + Designation
+            ws_data.push([`Employee: ${emp} - ${empData.EmployeeCode} (${empData.Designation})`]);
 
             // 🔹 Summary (no Absent count)
             ws_data.push([
@@ -458,6 +460,7 @@ export default function AttendanceMaster() {
     //     let ws_data = [];
     //     ws_data.push([
     //         "Employee Name",
+    //         "Employee Code",
     //         ...allDates.map(d => d.label),
     //         "Total P",
     //         "Total A",
@@ -514,9 +517,10 @@ export default function AttendanceMaster() {
             return;
         }
 
-        const columns = ["Employee Name", "Check In", "Check Out", "Working Time", "Status"];
+        const columns = ["Employee Name", "Employee Code", "Check In", "Check Out", "Working Time", "Status"];
         const rows = attendanceList.map(record => [
             record.EmployeeName || "",
+            record.EmployeeCode || "",
             record.MinCheckIn || "",
             record.MaxCheckOut || "",
             record.TotalWorkingTime || "",
@@ -756,6 +760,7 @@ export default function AttendanceMaster() {
             >
                 <DataTable value={selectedDayAttendance} globalFilter={globalFilter} paginator rows={10}>
                     <Column field="EmployeeName" header="Employee Name" sortable />
+                    <Column field="EmployeeCode" header="Employee Code" sortable />
                     <Column field="MinCheckIn" header="Check In" sortable />
                     <Column field="MaxCheckOut" header="Check Out" sortable />
                     <Column field="TotalWorkingTime" header="Working Time" sortable />

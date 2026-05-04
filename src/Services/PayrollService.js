@@ -725,19 +725,21 @@ export const getUngeneratedSalaryByProperties = async (
 // NEW: Get Generated Salary (Multiple Properties)
 // ------------------------------
 export const getGeneratedSalaryByProperties = async (
-  propertyIds = []
+  propertyIds = [],
+  month = null,
+  year = null
 ) => {
   if (!propertyIds.length) return [];
 
   const ids = propertyIds.join(",");
+  let url = `https://api.urest.in:8096/api/employee/generatedSalary?propertyIds=${ids}`;
+  if (month) url += `&month=${encodeURIComponent(month)}`;
+  if (year) url += `&year=${encodeURIComponent(year)}`;
 
-  const response = await fetch(
-    `https://api.urest.in:8096/api/employee/generatedSalary?propertyIds=${ids}`,
-    {
-      method: "GET",
-      headers: { Accept: "application/json" },
-    }
-  );
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch generated salaries");
