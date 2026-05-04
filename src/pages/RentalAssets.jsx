@@ -912,13 +912,14 @@ const RentalAssets = ({ propId, history }) => {
               <div className="rental-assets-main-card">
                 <div className="rental-assets-tabs">
                   <button type="button" className="rental-assets-tab" onClick={() => history.push("/Account/App/AssetsMaster")}>
-                    Owned assets
+                    <span className="rental-assets-tab-label">Owned assets</span>
                   </button>
                   <button type="button" className="rental-assets-tab active">
-                    Rented assets
+                    <span className="rental-assets-tab-label">Rented assets</span>
+                    <span className="rental-assets-tab-count">{rentalAssets.length}</span>
                   </button>
                   <button type="button" className="rental-assets-tab" onClick={() => history.push("/Account/App/SpareMaster")}>
-                    Spare parts
+                    <span className="rental-assets-tab-label">Spare parts</span>
                   </button>
                 </div>
 

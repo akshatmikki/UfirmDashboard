@@ -1949,7 +1949,8 @@ class AssetsMaster extends Component {
   this.props.history.push("/Account/App/AssetsMaster");
 }}
 >
-  Owned assets
+  <span className="asset-master-tab-label">Owned assets</span>
+  {this.state.activeTab === "owned" ? <span className="asset-master-tab-count">{this.state.GridData.length}</span> : null}
 </button>
 
 <button
@@ -1960,7 +1961,7 @@ class AssetsMaster extends Component {
     this.props.history.push("/Account/App/RentalAssets");
   }}
 >
-  Rented assets
+  <span className="asset-master-tab-label">Rented assets</span>
 </button>
 
 <button
@@ -1971,7 +1972,7 @@ class AssetsMaster extends Component {
     this.props.history.push("/Account/App/SpareMaster");
   }}
 >
-  Spare parts
+  <span className="asset-master-tab-label">Spare parts</span>
 </button>
             </div>
 

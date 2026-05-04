@@ -746,13 +746,14 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
               <div className="asset-master-main-card">
                 <div className="asset-master-tabs">
                   <button type="button" className="asset-master-tab" onClick={() => history.push("/Account/App/AssetsMaster")}>
-                    Owned assets
+                    <span className="asset-master-tab-label">Owned assets</span>
                   </button>
                   <button type="button" className="asset-master-tab" onClick={() => history.push("/Account/App/RentalAssets")}>
-                    Rented assets
+                    <span className="asset-master-tab-label">Rented assets</span>
                   </button>
                   <button type="button" className="asset-master-tab active">
-                    Spare parts
+                    <span className="asset-master-tab-label">Spare parts</span>
+                    <span className="asset-master-tab-count">{spares.length}</span>
                   </button>
                 </div>
 
