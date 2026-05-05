@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Dialog } from 'primereact/dialog';
 import { DataTable } from 'primereact/datatable';
 import { Column } from 'primereact/column';
@@ -10,6 +10,9 @@ import * as XLSX from "xlsx";
 import { getAllClients } from "../../Services/ClientService";
 import { useSelector } from 'react-redux';
 import { ROLE_RULES } from "../../Common/roleAccess";
+
+const LPS_BOSSARD_PROPERTY_ID = 31;
+const OT_ENABLED_CLIENT_ID = 33;
 
 export default function AttendanceMaster() {
     const [rejectionDialog, setRejectionDialog] = useState(false);
@@ -48,6 +51,7 @@ export default function AttendanceMaster() {
     const attendanceType = selectedClient === "CLIENT" ? "CLIENT" : "PROPERTY";
     const [locations, setLocations] = useState([]);
     const [employeeList, setEmployeeList] = useState([]);
+    const attendanceRequestSeqRef = useRef(0);
 
     useEffect(() => {
         const appElement = document.getElementById("app");
@@ -270,6 +274,43 @@ export default function AttendanceMaster() {
     };
 
     const getDaysInMonth = (date) => new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
+    const parseDurationToSeconds = (value) => {
+        if (!value || value === "--" || value === "0h") return 0;
+
+        const timeMatch = String(value).match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+        if (timeMatch) {
+            const hours = parseInt(timeMatch[1], 10) || 0;
+            const minutes = parseInt(timeMatch[2], 10) || 0;
+            const seconds = parseInt(timeMatch[3], 10) || 0;
+            return (hours * 3600) + (minutes * 60) + seconds;
+        }
+
+        const textMatch = String(value).match(/(\d+)\s*h(?:\s*(\d+)\s*m)?/i);
+        if (textMatch) {
+            const hours = parseInt(textMatch[1], 10) || 0;
+            const minutes = parseInt(textMatch[2], 10) || 0;
+            return (hours * 3600) + (minutes * 60);
+        }
+
+        return 0;
+    };
+    const formatSecondsAsTime = (totalSeconds) => {
+        if (!totalSeconds || totalSeconds <= 0) return "0h";
+
+        const hours = Math.floor(totalSeconds / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+
+        return [
+            String(hours).padStart(2, "0"),
+            String(minutes).padStart(2, "0"),
+            String(seconds).padStart(2, "0"),
+        ].join(":");
+    };
+    const getOtFromWorkingTime = (workingTime) => {
+        const otSeconds = parseDurationToSeconds(workingTime) - (8 * 60 * 60);
+        return otSeconds > 0 ? formatSecondsAsTime(otSeconds) : "0h";
+    };
     const getFirstDayOfMonth = (date) => {
         const day = new Date(date.getFullYear(), date.getMonth(), 1).getDay();
         return day === 0 ? 7 : day;
@@ -292,10 +333,23 @@ export default function AttendanceMaster() {
     };
 
     useEffect(() => {
-        if (
+        const missingEntity =
             (attendanceType === "PROPERTY" && !propertyId) ||
-            (attendanceType === "CLIENT" && !ClientID)
-        ) return;
+            (attendanceType === "CLIENT" && !ClientID);
+
+        if (missingEntity) {
+            setAttendanceData([]);
+            setSelectedDayAttendance([]);
+            setSelectedDay(null);
+            return;
+        }
+
+        const seq = attendanceRequestSeqRef.current + 1;
+        attendanceRequestSeqRef.current = seq;
+
+        setAttendanceData([]);
+        setSelectedDayAttendance([]);
+        setSelectedDay(null);
 
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
@@ -307,10 +361,17 @@ export default function AttendanceMaster() {
             attendanceType === "CLIENT" ? ClientID : propertyId;
 
         getAttendance(entityId, fromDate, toDate, attendanceType)
-            .then(setAttendanceData)
-            .catch(console.error);
+            .then((data) => {
+                if (seq !== attendanceRequestSeqRef.current) return;
+                setAttendanceData(Array.isArray(data) ? data : []);
+            })
+            .catch((error) => {
+                if (seq !== attendanceRequestSeqRef.current) return;
+                setAttendanceData([]);
+                console.error(error);
+            });
 
-    }, [propertyId, ClientID, selectedClient, currentDate]);
+    }, [attendanceType, propertyId, ClientID, currentDate]);
 
     const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     const dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -367,6 +428,9 @@ export default function AttendanceMaster() {
         });
 
         let ws_data = [];
+        const shouldShowOtRow =
+            (attendanceType === "PROPERTY" && Number(attendanceEntityId) === LPS_BOSSARD_PROPERTY_ID) ||
+            (attendanceType === "CLIENT" && Number(attendanceEntityId) === OT_ENABLED_CLIENT_ID);
 
         Object.entries(employees).forEach(([emp, empData]) => {
             const attMap = empData.Attendance;
@@ -416,6 +480,9 @@ export default function AttendanceMaster() {
             ws_data.push(["In", ...allDates.map(d => attMap[d]?.CheckIn || "--")]);
             ws_data.push(["Out", ...allDates.map(d => attMap[d]?.CheckOut || "--")]);
             ws_data.push(["WT", ...allDates.map(d => attMap[d]?.WorkingTime || "0h")]);
+            if (shouldShowOtRow) {
+                ws_data.push(["OT", ...allDates.map(d => getOtFromWorkingTime(attMap[d]?.WorkingTime))]);
+            }
 
             // 🔹 Status shows Present / Holiday / Leave / Absent
             ws_data.push(["Status", ...allDates.map(d => attMap[d]?.Status || "Absent")]);

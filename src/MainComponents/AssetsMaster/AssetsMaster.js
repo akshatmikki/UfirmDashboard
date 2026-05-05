@@ -15,6 +15,9 @@ import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDateP
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 import QRCode from "react-qr-code";
 import { saveAssetAMC } from "../../Services/AssetService";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import QRCodeCanvas from "qrcode";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -159,6 +162,97 @@ class AssetsMaster extends Component {
       this.setState({ currentPage: 1 });
     }
   }
+  // 👇 ADD THIS METHOD INSIDE CLASS
+downloadAllQRCodes = async () => {
+  console.log("QR DOWNLOAD START");
+
+  const assets = this.getFilteredGridData() || this.state.GridData;
+
+  if (!assets || assets.length === 0) {
+    alert("No assets found");
+    return;
+  }
+
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  for (let i = 0; i < assets.length; i++) {
+    const item = assets[i];
+    const qrValue = this.getAssetQrValue(item);
+
+    // 🔥 Container (single card per page)
+    const container = document.createElement("div");
+    container.style.width = "400px";
+    container.style.height = "600px";
+    container.style.position = "relative";
+    container.style.background = "#fff";
+
+    // ✅ Canva background (WITHOUT QR)
+    const img = new Image();
+    img.src = "/canva-template.png";
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.position = "absolute";
+
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
+
+    container.appendChild(img);
+
+    // ✅ Dynamic QR
+    const qrCanvas = document.createElement("canvas");
+
+    await QRCodeCanvas.toCanvas(qrCanvas, qrValue, {
+      width: 150,
+      margin: 1,
+    });
+
+    qrCanvas.style.position = "absolute";
+    qrCanvas.style.top = "180px";   // 🔧 adjust if needed
+    qrCanvas.style.left = "120px";
+
+    container.appendChild(qrCanvas);
+
+    // ✅ 🔥 Asset Name on Brown Bar
+    const nameText = document.createElement("div");
+    nameText.innerText = (item.Name || "").toUpperCase();
+
+    nameText.style.position = "absolute";
+    nameText.style.bottom = "85px";   // 🔧 adjust for perfect alignment
+    nameText.style.left = "0";
+    nameText.style.width = "100%";
+
+    nameText.style.textAlign = "center";
+    nameText.style.color = "#ffffff";
+    nameText.style.fontSize = "16px";
+    nameText.style.fontWeight = "bold";
+    nameText.style.letterSpacing = "1px";
+
+    container.appendChild(nameText);
+
+    document.body.appendChild(container);
+
+    // wait render
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+      
+    });
+
+    // ✅ reduce PDF size
+    const imgData = canvas.toDataURL("image/jpeg", 0.7);
+
+    if (i !== 0) pdf.addPage();
+
+    pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+
+    document.body.removeChild(container);
+  }
+
+  pdf.save("Assets_QR.pdf");
+};
 
   normalizeDate = (value) => {
     if (!value) return "";
@@ -1226,6 +1320,7 @@ class AssetsMaster extends Component {
                     <QRCode
                       value={assetQrValue}
                       size={72}
+                      id={`qr-${asset.Id}`}
                     />
                   ) : (
                     <span>No QR</span>
@@ -1993,6 +2088,12 @@ class AssetsMaster extends Component {
               </div>
 
               <div className="asset-master-toolbar-actions">
+                <button
+                  className="btn btn-success"
+                  onClick={() => this.downloadAllQRCodes()}
+                >
+                  Download QR
+                </button>
                 <button className={`btn asset-toolbar-filter ${this.state.showFilterPanel ? "active" : ""}`} type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
                   <i className="fa fa-sliders" aria-hidden="true" />
                   Filter
