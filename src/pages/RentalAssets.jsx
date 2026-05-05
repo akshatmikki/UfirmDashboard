@@ -166,7 +166,15 @@ const buildHistoryEntries = (history = []) =>
 
 const ROWS_PER_PAGE = 15;
 
+const normalizeBoolean = (value) => value === true || value === "true" || value === 1 || value === "1";
+
 const getStatusMeta = (asset = {}) => {
+  const hasRentStatus = Object.prototype.hasOwnProperty.call(asset, "IsRentable") || Object.prototype.hasOwnProperty.call(asset, "IsRented");
+  if (hasRentStatus) {
+    if (normalizeBoolean(asset.IsRentable) || normalizeBoolean(asset.IsRented)) return statusOptions.running;
+    return statusOptions.inactive;
+  }
+
   const raw = String(asset.Status || asset.AssetStatus || "").trim().toLowerCase();
   if (raw.includes("inactive")) return statusOptions.inactive;
   if (raw.includes("servic")) return statusOptions.servicing;

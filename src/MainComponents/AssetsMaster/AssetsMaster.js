@@ -202,30 +202,38 @@ downloadAllQRCodes = async () => {
     // ✅ Dynamic QR
     const qrWrapper = document.createElement("div");
 
-    qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={150} />);
+    qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={220} />);
 
     qrWrapper.style.position = "absolute";
-    qrWrapper.style.top = "180px";   // 🔧 adjust if needed
-    qrWrapper.style.left = "120px";
-    qrWrapper.style.width = "150px";
-    qrWrapper.style.height = "150px";
+    qrWrapper.style.top = "145px";   // 🔧 adjust if needed
+    qrWrapper.style.left = "80px";
+    qrWrapper.style.width = "240px";
+    qrWrapper.style.height = "240px";
+    qrWrapper.style.padding = "10px";
+    qrWrapper.style.background = "#ffffff";
 
     container.appendChild(qrWrapper);
 
     // ✅ 🔥 Asset Name on Brown Bar
     const nameText = document.createElement("div");
-    nameText.innerText = (item.Name || "").toUpperCase();
+    nameText.innerText = this.getAssetNameValue(item).toUpperCase();
 
     nameText.style.position = "absolute";
-    nameText.style.bottom = "85px";   // 🔧 adjust for perfect alignment
-    nameText.style.left = "0";
-    nameText.style.width = "100%";
+    nameText.style.top = "406px";
+    nameText.style.left = "63px";
+    nameText.style.width = "284px";
+    nameText.style.height = "26px";
 
     nameText.style.textAlign = "center";
     nameText.style.color = "#ffffff";
-    nameText.style.fontSize = "16px";
+    nameText.style.fontSize = "13px";
     nameText.style.fontWeight = "bold";
     nameText.style.letterSpacing = "1px";
+    nameText.style.lineHeight = "26px";
+    nameText.style.overflow = "hidden";
+    nameText.style.whiteSpace = "nowrap";
+    nameText.style.textOverflow = "ellipsis";
+    nameText.style.zIndex = "2";
 
     container.appendChild(nameText);
 
@@ -294,6 +302,9 @@ downloadAllQRCodes = async () => {
     const qrValue = item?.QRCode || item?.QRcode || item?.QrCode || "";
     return String(qrValue || item?.Id || "").trim();
   };
+
+  getAssetNameValue = (item = {}) =>
+    String(item?.Name || item?.name || item?.AssetName || item?.assetName || "").trim();
 
   formatDisplayDate = (value) => {
     const normalized = this.normalizeDate(value);
