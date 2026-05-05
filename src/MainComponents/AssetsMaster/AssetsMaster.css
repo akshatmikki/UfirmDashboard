@@ -3188,15 +3188,18 @@
 
 .asset-details-view-panel .asset-qr-preview-box {
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  width: 80px;
-  min-width: 80px;
-  height: 82px;
+  gap: 6px;
+  width: 104px;
+  min-width: 104px;
+  height: auto;
+  min-height: 98px;
   padding: 0;
   border: 0;
   background: transparent;
-  flex: 0 0 80px;
+  flex: 0 0 104px;
 }
 
 .asset-details-view-panel .asset-qr-wrapper {
@@ -3204,7 +3207,7 @@
   align-items: center;
   justify-content: center;
   width: 80px;
-  height: 82px;
+  height: 72px;
 }
 
 .asset-details-view-panel .asset-qr-wrapper svg {
@@ -3258,6 +3261,23 @@
 .asset-details-view-panel button.asset-doc-link-text {
   display: inline-flex;
   align-items: center;
+}
+
+.asset-details-view-panel .asset-download-qr-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 100%;
+  font-size: 13px;
+  line-height: 16px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.asset-details-view-panel .asset-download-qr-link i {
+  font-size: 13px;
+  line-height: 1;
 }
 
 .asset-details-view-panel .asset-doc-link-text.disabled {
@@ -3394,7 +3414,7 @@
   }
 
   .asset-details-view-panel .asset-doc-links-stack-view {
-    width: calc(100% - 88px);
+    width: calc(100% - 112px);
     min-width: 140px;
   }
 }

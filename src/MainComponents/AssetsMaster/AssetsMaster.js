@@ -275,6 +275,103 @@ downloadAllQRCodes = async () => {
   pdf.save("Assets_QR.pdf");
 };
 
+downloadAssetQRCode = async (item = {}) => {
+  const qrValue = this.getAssetQrValue(item);
+
+  if (!qrValue) {
+    alert("No QR found");
+    return;
+  }
+
+  const pdf = new jsPDF("p", "mm", "a4");
+
+  const container = document.createElement("div");
+  container.style.width = "400px";
+  container.style.height = "600px";
+  container.style.position = "relative";
+  container.style.background = "#fff";
+
+  const img = new Image();
+  img.src = "/canva-template.png";
+  img.style.width = "100%";
+  img.style.height = "100%";
+  img.style.position = "absolute";
+
+  await new Promise((resolve) => {
+    img.onload = resolve;
+  });
+
+  container.appendChild(img);
+
+  const qrWrapper = document.createElement("div");
+
+  qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+
+  qrWrapper.style.position = "absolute";
+  qrWrapper.style.top = "101px";
+  qrWrapper.style.left = "58px";
+  qrWrapper.style.width = "284px";
+  qrWrapper.style.height = "284px";
+  qrWrapper.style.padding = "10px";
+  qrWrapper.style.background = "#ffffff";
+
+  container.appendChild(qrWrapper);
+
+  const brownBox = document.createElement("div");
+  const brownBoxLeft = 58;
+  const brownBoxTop = (40.2 / 59.4) * 600;
+  const brownBoxWidth = 284;
+  const brownBoxHeight = (2.63 / 59.4) * 600;
+  brownBox.style.position = "absolute";
+  brownBox.style.top = `${brownBoxTop}px`;
+  brownBox.style.left = `${brownBoxLeft}px`;
+  brownBox.style.width = `${brownBoxWidth}px`;
+  brownBox.style.height = `${brownBoxHeight}px`;
+  brownBox.style.background = "#3f2a21";
+  brownBox.style.zIndex = "1";
+
+  const nameText = document.createElement("div");
+  nameText.innerText = this.getAssetNameValue(item).toUpperCase();
+
+  nameText.style.position = "absolute";
+  nameText.style.top = `${brownBoxTop}px`;
+  nameText.style.left = `${brownBoxLeft}px`;
+  nameText.style.width = `${brownBoxWidth}px`;
+  nameText.style.height = `${brownBoxHeight}px`;
+
+  nameText.style.textAlign = "center";
+  nameText.style.color = "#ffffff";
+  nameText.style.fontSize = "13px";
+  nameText.style.fontWeight = "bold";
+  nameText.style.letterSpacing = "1px";
+  nameText.style.lineHeight = `${brownBoxHeight}px`;
+  nameText.style.overflow = "hidden";
+  nameText.style.whiteSpace = "nowrap";
+  nameText.style.textOverflow = "ellipsis";
+  nameText.style.zIndex = "2";
+
+  container.appendChild(brownBox);
+  container.appendChild(nameText);
+
+  document.body.appendChild(container);
+
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  const canvas = await html2canvas(container, {
+    scale: 2,
+    useCORS: true,
+  });
+
+  const imgData = canvas.toDataURL("image/jpeg", 0.7);
+
+  pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+
+  document.body.removeChild(container);
+
+  const assetName = this.getAssetNameValue(item) || "Asset";
+  pdf.save(`${assetName}_QR.pdf`);
+};
+
   normalizeDate = (value) => {
     if (!value) return "";
     const raw = String(value);
@@ -1355,6 +1452,17 @@ downloadAllQRCodes = async () => {
                     <span>No QR</span>
                   )}
                 </div>
+                {assetQrValue ? (
+                  <button
+                    type="button"
+                    className="asset-doc-link-text asset-download-qr-link"
+                    onClick={() => this.downloadAssetQRCode(asset)}
+                  >
+                   
+                    Download QR
+                     <i className="fa fa-download" aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
               <div className="asset-doc-links-stack asset-doc-links-stack-view">
                 <div className="asset-doc-link-item">
