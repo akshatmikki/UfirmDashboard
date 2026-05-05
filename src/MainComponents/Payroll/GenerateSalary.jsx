@@ -1190,13 +1190,25 @@ export default function GenerateSalary() {
   };
 
   const handleDelete = async (employeeId) => {
-    if (isEmployeeFrozen({ EmployeeId: employeeId })) {
+    const record = generatedEmployees.find(
+      (emp) => Number(emp.EmployeeId) === Number(employeeId)
+    );
+    if (!record) {
+      alert("Generated record not found.");
+      return;
+    }
+
+    if (record.IsFreezed) {
       alert("Frozen salary record cannot be deleted.");
       return;
     }
-    if (!window.confirm("Are you sure you want to delete this salary record?")) return;
+
+    if (!window.confirm("Are you sure you want to delete this salary record?"))
+      return;
+
     try {
-      await deleteGeneratedSalary(employeeId);
+      const generatedId = record.generated_id || record.GeneratedId;
+      await deleteGeneratedSalary(generatedId);
       alert("Salary record deleted successfully");
       fetchGeneratedEmployees();
     } catch (error) {
@@ -1346,7 +1358,7 @@ export default function GenerateSalary() {
       try {
         await Promise.all(
           recordsToFreeze.map((emp) =>
-            updateGeneratedSalary(emp.EmployeeId, {
+            updateGeneratedSalary(emp.generated_id || emp.GeneratedId, {
               ...emp,
               IsFreezed: true,
               FreezedOn: new Date().toISOString(),

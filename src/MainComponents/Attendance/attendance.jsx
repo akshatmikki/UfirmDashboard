@@ -344,23 +344,24 @@ export default function AttendanceMaster() {
 
         const employees = {};
         attendanceData.forEach(record => {
-            const emp = record.EmployeeName;
+            const code = record.EmployeeCode || record.EmployeeName || "Unknown";
+            const empName = record.EmployeeName;
             const desig = record.Designation || "--";
-            const code = record.EmployeeCode || "--";
 
             const recordDateObj = new Date(record.PunchDate);
             recordDateObj.setHours(12, 0, 0, 0);
             const dateKey = recordDateObj.toISOString().slice(0, 10);
 
-            if (!employees[emp]) {
-                employees[emp] = {
+            if (!employees[code]) {
+                employees[code] = {
+                    EmployeeName: empName,
                     Designation: desig,
                     EmployeeCode: code,
                     Attendance: {}
                 };
             }
 
-            employees[emp].Attendance[dateKey] = {
+            employees[code].Attendance[dateKey] = {
                 CheckIn: record.MinCheckIn || "--",
                 CheckOut: record.MaxCheckOut || "--",
                 WorkingTime: record.TotalWorkingTime || "0h",
@@ -370,7 +371,8 @@ export default function AttendanceMaster() {
 
         let ws_data = [];
 
-        Object.entries(employees).forEach(([emp, empData]) => {
+        Object.entries(employees).forEach(([code, empData]) => {
+            const empName = empData.EmployeeName;
             const attMap = empData.Attendance;
 
             let present = 0, absent = 0, holiday = 0, leave = 0, totalWTmin = 0;
@@ -395,7 +397,7 @@ export default function AttendanceMaster() {
             const totalHours = `${Math.floor(totalWTmin / 60)}h ${totalWTmin % 60}m`;
 
             // 🔹 Employee + Code + Designation
-            ws_data.push([`Employee: ${emp} - ${empData.EmployeeCode} (${empData.Designation})`]);
+            ws_data.push([`Employee: ${empName} - ${empData.EmployeeCode} (${empData.Designation})`]);
 
             // 🔹 Summary (no Absent count)
             ws_data.push([

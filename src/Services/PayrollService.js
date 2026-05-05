@@ -640,9 +640,9 @@ export async function createGeneratedSalary(employees) {
   return await response.json();
 }
 
-// DELETE to remove a generated salary entry by employee ID (FacilityMemberID)
-export async function deleteGeneratedSalary(employeeId) {
-  const response = await fetch(`https://api.urest.in:8096/api/employee/generatedSalary/${employeeId}`, {
+// DELETE to remove a generated salary entry by generated ID
+export async function deleteGeneratedSalary(generatedId) {
+  const response = await fetch(`http://localhost:62929/api/employee/generatedSalary/${generatedId}`, {
     method: 'DELETE',
   });
 
@@ -650,9 +650,9 @@ export async function deleteGeneratedSalary(employeeId) {
   return await response.json();
 }
 
-export async function updateGeneratedSalary(employeeId, employee) {
+export async function updateGeneratedSalary(generatedId, employee) {
   const response = await fetch(
-    `https://api.urest.in:8096/api/employee/generatedSalary/${employeeId}`,
+    `http://localhost:62929/api/employee/generatedSalary/${generatedId}`,
     {
       method: "PUT",
       headers: {
@@ -732,7 +732,7 @@ export const getGeneratedSalaryByProperties = async (
   if (!propertyIds.length) return [];
 
   const ids = propertyIds.join(",");
-  let url = `https://api.urest.in:8096/api/employee/generatedSalary?propertyIds=${ids}`;
+  let url = `http://localhost:62929/api/employee/generatedSalary?propertyIds=${ids}`;
   if (month) url += `&month=${encodeURIComponent(month)}`;
   if (year) url += `&year=${encodeURIComponent(year)}`;
 
