@@ -14,10 +14,10 @@ import { withRouter } from "react-router-dom";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 import QRCode from "react-qr-code";
+import { renderToStaticMarkup } from "react-dom/server";
 import { saveAssetAMC } from "../../Services/AssetService";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import QRCodeCanvas from "qrcode";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -200,18 +200,17 @@ downloadAllQRCodes = async () => {
     container.appendChild(img);
 
     // ✅ Dynamic QR
-    const qrCanvas = document.createElement("canvas");
+    const qrWrapper = document.createElement("div");
 
-    await QRCodeCanvas.toCanvas(qrCanvas, qrValue, {
-      width: 150,
-      margin: 1,
-    });
+    qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={150} />);
 
-    qrCanvas.style.position = "absolute";
-    qrCanvas.style.top = "180px";   // 🔧 adjust if needed
-    qrCanvas.style.left = "120px";
+    qrWrapper.style.position = "absolute";
+    qrWrapper.style.top = "180px";   // 🔧 adjust if needed
+    qrWrapper.style.left = "120px";
+    qrWrapper.style.width = "150px";
+    qrWrapper.style.height = "150px";
 
-    container.appendChild(qrCanvas);
+    container.appendChild(qrWrapper);
 
     // ✅ 🔥 Asset Name on Brown Bar
     const nameText = document.createElement("div");
@@ -745,6 +744,11 @@ downloadAllQRCodes = async () => {
   };
 
   handleSave = async () => {
+    if (this.state.PageMode === "Add" && !String(this.state.QRCode || "").trim()) {
+      appCommon.showtextalert("Please generate QR code before saving.", "", "error");
+      return;
+    }
+
     let assetImage = this.state.AssetImage;
     let imageExt = this.state.ImageExt;
     let amcImage = this.state.AMCimage;
