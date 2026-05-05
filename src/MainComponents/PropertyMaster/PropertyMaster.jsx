@@ -72,14 +72,14 @@ export default function PropertyMaster() {
     ServiceIds: [],
     BranchCode: 0,
     DeployDate: null,
-GSTNumber: "",
-PANNumber: "",
-ClientName: "",
-ClientNumber: "",
-ClientEmail: "",
-RenewDate: null,
-UnitFieldOfficerName: "",
-UnitFieldOfficerEmail: "",
+    GSTNumber: "",
+    PANNumber: "",
+    ClientName: "",
+    ClientNumber: "",
+    ClientEmail: "",
+    RenewDate: null,
+    UnitFieldOfficerName: "",
+    UnitFieldOfficerEmail: "",
 
     // NEW (ADDED)
     SalaryCycleDayFrom: 1,
@@ -235,14 +235,14 @@ UnitFieldOfficerEmail: "",
       ServiceIds: [],
       BranchCode: 0,
       DeployDate: null,
-GSTNumber: "",
-PANNumber: "",
-ClientName: "",
-ClientNumber: "",
-ClientEmail: "",
-RenewDate: null,
-UnitFieldOfficerName: "",
-UnitFieldOfficerEmail: "",
+      GSTNumber: "",
+      PANNumber: "",
+      ClientName: "",
+      ClientNumber: "",
+      ClientEmail: "",
+      RenewDate: null,
+      UnitFieldOfficerName: "",
+      UnitFieldOfficerEmail: "",
 
       // ✅ KEEP NEW FIELDS
       SalaryCycleDayFrom: 1,
@@ -292,15 +292,15 @@ UnitFieldOfficerEmail: "",
         ExcludeSunday: data.Excludesunday === true,
         MonthSundays: data.MonthSunday ?? 0,
         // ✅ NEW FIELDS
-DeployDate: data.DeployDate || null,
-GSTNumber: data.GSTNumber || "",
-PANNumber: data.PANNumber || "",
-ClientName: data.ClientName || "",
-ClientNumber: data.ClientNumber || "",
-ClientEmail: data.ClientEmail || "",
-RenewDate: data.RenewDate || null,
-UnitFieldOfficerName: data.UnitFieldOfficerName || "",
-UnitFieldOfficerEmail: data.UnitFieldOfficerEmail || "",
+        DeployDate: data.DeployDate || null,
+        GSTNumber: data.GSTNumber || "",
+        PANNumber: data.PANNumber || "",
+        ClientName: data.ClientName || "",
+        ClientNumber: data.ClientNumber || "",
+        ClientEmail: data.ClientEmail || "",
+        RenewDate: data.RenewDate || null,
+        UnitFieldOfficerName: data.UnitFieldOfficerName || "",
+        UnitFieldOfficerEmail: data.UnitFieldOfficerEmail || "",
 
         CreatedBy: data.CreatedBy,
         IsActive: 1,
@@ -334,14 +334,14 @@ UnitFieldOfficerEmail: data.UnitFieldOfficerEmail || "",
         MonthSundays: data.MonthSunday,
         CityName: cityObj ? cityObj.label : "—",
         DeployDate: data.DeployDate,
-GSTNumber: data.GSTNumber,
-PANNumber: data.PANNumber,
-ClientName: data.ClientName,
-ClientNumber: data.ClientNumber,
-ClientEmail: data.ClientEmail,
-RenewDate: data.RenewDate,
-UnitFieldOfficerName: data.UnitFieldOfficerName,
-UnitFieldOfficerEmail: data.UnitFieldOfficerEmail,
+        GSTNumber: data.GSTNumber,
+        PANNumber: data.PANNumber,
+        ClientName: data.ClientName,
+        ClientNumber: data.ClientNumber,
+        ClientEmail: data.ClientEmail,
+        RenewDate: data.RenewDate,
+        UnitFieldOfficerName: data.UnitFieldOfficerName,
+        UnitFieldOfficerEmail: data.UnitFieldOfficerEmail,
       });
 
       setViewDialogVisible(true);
@@ -777,340 +777,407 @@ UnitFieldOfficerEmail: data.UnitFieldOfficerEmail,
           onHide={() => setShowForm(false)}
         >
           {/* FORM GRID */}
-<div className="container-fluid">
-  <div className="row g-3">
+          <div className="container-fluid">
+            <div className="row g-3">
 
-    {/* LEFT COLUMN */}
-    <div className="col-md-6">
-      <div className="card p-4 shadow-sm h-100">
-        <h5 className="mb-3 text-primary">Property Details</h5>
+              {/* LEFT COLUMN */}
+              <div className="col-md-6">
+                <div className="card p-4 shadow-sm h-100">
+                  <h5 className="mb-3 text-primary">Property Details</h5>
 
-        <div className="mb-3">
-          <label className="form-label">Property ID</label>
-          <InputText className="w-100" value={form.PropertyId} disabled />
-        </div>
+                  <div className="mb-3">
+                    <label className="form-label">Property ID</label>
+                    <InputText className="w-100" value={form.PropertyId} disabled />
+                  </div>
 
-        <div className="mb-3">
-          <label className="form-label">Property Type</label>
-          <Dropdown
-            value={form.PropertyTypeId}
-            options={propertyTypes}
-            className="w-100"
-            onShow={() => setOverlayOpen(true)}
-            onHide={() => setOverlayOpen(false)}
-            onChange={(e) =>
-              setForm({ ...form, PropertyTypeId: e.value })
-            }
-          />
-        </div>
+                  <div className="mb-3">
+                    <label className="form-label">Property Type</label>
+                    <Dropdown
+                      value={form.PropertyTypeId}
+                      options={propertyTypes}
+                      className="w-100"
+                      onShow={() => setOverlayOpen(true)}
+                      onHide={() => setOverlayOpen(false)}
+                      onChange={(e) =>
+                        setForm({ ...form, PropertyTypeId: e.value })
+                      }
+                    />
+                  </div>
 
-        <div className="mb-3">
-          <label className="form-label">Property Name *</label>
-          <InputText
-            className="w-100"
-            value={form.Name}
-            onChange={(e) => setForm({ ...form, Name: e.target.value })}
-          />
-        </div>
-        <div className="mb-3">
-          <label className="form-label">Services</label>
-          <MultiSelect
-            className="w-100"
-            value={form.ServiceIds}
-            options={services}
-            filter
-            display="chip"
-            onShow={() => setOverlayOpen(true)}
-            onHide={() => setOverlayOpen(false)}
-            onChange={(e) => setForm({ ...form, ServiceIds: e.value })}
-          />
-        </div>
+                  <div className="mb-3">
+                    <label className="form-label">Property Name *</label>
+                    <InputText
+                      className="w-100"
+                      value={form.Name}
+                      onChange={(e) => setForm({ ...form, Name: e.target.value })}
+                    />
+                  </div>
+                  <div className="mb-3">
+                    <label className="form-label">Services</label>
+                    <MultiSelect
+                      className="w-100"
+                      value={form.ServiceIds}
+                      options={services}
+                      filter
+                      display="chip"
+                      onShow={() => setOverlayOpen(true)}
+                      onHide={() => setOverlayOpen(false)}
+                      onChange={(e) => setForm({ ...form, ServiceIds: e.value })}
+                    />
+                  </div>
 
-        <div className="mb-3">
-          <label className="form-label">Address Line 1</label>
-          <InputText
-            className="w-100"
-            value={form.AddressLine1}
-            onChange={(e) =>
-              setForm({ ...form, AddressLine1: e.target.value })
-            }
-          />
-        </div>
+                  <div className="mb-3">
+                    <label className="form-label">Address Line 1</label>
+                    <InputText
+                      className="w-100"
+                      value={form.AddressLine1}
+                      onChange={(e) =>
+                        setForm({ ...form, AddressLine1: e.target.value })
+                      }
+                    />
+                  </div>
 
-        <div className="mb-3">
-          <label className="form-label">Address Line 2</label>
-          <InputText
-            className="w-100"
-            value={form.AddressLine12}
-            onChange={(e) =>
-              setForm({ ...form, AddressLine12: e.target.value })
-            }
-          />
-        </div>
+                  <div className="mb-3">
+                    <label className="form-label">Address Line 2</label>
+                    <InputText
+                      className="w-100"
+                      value={form.AddressLine12}
+                      onChange={(e) =>
+                        setForm({ ...form, AddressLine12: e.target.value })
+                      }
+                    />
+                  </div>
 
-        <div className="mb-3">
-          <label className="form-label">City *</label>
-          <AutoComplete
-            value={
-              typeof form.CityId === "number"
-                ? cities.find(c => c.value === form.CityId)
-                : form.CityId
-            }
-            suggestions={filteredCities}
-            completeMethod={searchCity}
-            field="label"
-            dropdown
-            className="w-100"
-            placeholder="Type or select city"
-            onChange={(e) => setForm({ ...form, CityId: e.value })}
-            onSelect={(e) => setForm({ ...form, CityId: e.value.value })}
-          />
-        </div>
+                  <div className="mb-3">
+                    <label className="form-label">City *</label>
+                    <AutoComplete
+                      value={
+                        typeof form.CityId === "number"
+                          ? cities.find(c => c.value === form.CityId)
+                          : form.CityId
+                      }
+                      suggestions={filteredCities}
+                      completeMethod={searchCity}
+                      field="label"
+                      dropdown
+                      className="w-100"
+                      placeholder="Type or select city"
+                      onChange={(e) => setForm({ ...form, CityId: e.value })}
+                      onSelect={(e) => setForm({ ...form, CityId: e.value.value })}
+                    />
+                  </div>
 
-        {/* INLINE GRID */}
-        <div className="row">
-          <div className="row">
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Unit Field Officer Name</label>
-            <InputText
-              className="w-100"
-              value={form.UnitFieldOfficerName}
-              onChange={(e) =>
-                setForm({ ...form, UnitFieldOfficerName: e.target.value })
-              }
-            />
+                  {/* INLINE GRID */}
+                  <div className="row">
+                    <div className="row">
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Unit Field Officer Name</label>
+                        <InputText
+                          className="w-100"
+                          value={form.UnitFieldOfficerName}
+                          onChange={(e) =>
+                            setForm({ ...form, UnitFieldOfficerName: e.target.value })
+                          }
+                        />
+                      </div>
+
+                      <div className="col-md-6 mb-3">
+                        <label className="form-label">Unit Field Officer Email</label>
+                        <InputText
+                          className="w-100"
+                          value={form.UnitFieldOfficerEmail}
+                          onChange={(e) =>
+                            setForm({ ...form, UnitFieldOfficerEmail: e.target.value })
+                          }
+                        />
+                      </div>
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">UFO Contact Number</label>
+                      <InputText
+                        className="w-100"
+                        value={form.ContactNumber}
+                        onChange={(e) =>
+                          setForm({ ...form, ContactNumber: e.target.value })
+                        }
+                      />
+                    </div>
+
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Pincode</label>
+                      <InputText
+                        className="w-100"
+                        value={form.Pincode}
+                        onChange={(e) =>
+                          setForm({ ...form, Pincode: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Landmark</label>
+                    <InputText
+                      className="w-100"
+                      value={form.Landmark}
+                      onChange={(e) =>
+                        setForm({ ...form, Landmark: e.target.value })
+                      }
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">State *</label>
+                    <Dropdown
+                      className="w-100"
+                      value={form.State}
+                      options={states}
+                      filter
+                      placeholder="Select State"
+                      onShow={() => setOverlayOpen(true)}
+                      onHide={() => setOverlayOpen(false)}
+                      onChange={(e) => setForm({ ...form, State: e.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Country</label>
+                    <Dropdown
+                      value={1}
+                      options={countries}
+                      disabled
+                      className="w-100"
+                    />
+                  </div>
+
+                </div>
+              </div>
+
+              {/* RIGHT COLUMN */}
+              <div className="col-md-6">
+                <div className="card p-4 shadow-sm h-100">
+                  <h5 className="mb-3 text-primary">Client & Branch</h5>
+
+                  <div className="mb-3">
+                    <label className="form-label">Client</label>
+                    <Dropdown
+                      className="w-100"
+                      value={form.ClientID}
+                      options={clients}
+                      onShow={() => setOverlayOpen(true)}
+                      onHide={() => setOverlayOpen(false)}
+                      onChange={(e) => setForm({ ...form, ClientID: e.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Branch Name</label>
+                    <Dropdown
+                      className="w-100"
+                      value={form.BranchCode}
+                      options={branches}
+                      placeholder="Select Branch"
+                      onShow={() => setOverlayOpen(true)}
+                      onHide={() => setOverlayOpen(false)}
+                      onChange={(e) =>
+                        setForm({ ...form, BranchCode: e.value })
+                      }
+                    />
+                  </div>
+
+
+
+                  {/* LAT LONG INLINE */}
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Latitude</label>
+                      <InputText
+                        className="w-100"
+                        value={form.Latitude}
+                        onChange={(e) =>
+                          setForm({ ...form, Latitude: e.target.value })
+                        }
+                      />
+                    </div>
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Longitude</label>
+                      <InputText
+                        className="w-100"
+                        value={form.Longitude}
+                        onChange={(e) =>
+                          setForm({ ...form, Longitude: e.target.value })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <hr />
+
+                  <h5 className="mb-3 text-primary">Client & Compliance</h5>
+
+                  {/* DATE INLINE */}
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Deploy Date</label>
+                      <InputText
+                        type="date"
+                        className="w-100"
+                        value={form.DeployDate || ""}
+                        onChange={(e) => setForm({ ...form, DeployDate: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Renew Date</label>
+                      <InputText
+                        type="date"
+                        className="w-100"
+                        value={form.RenewDate || ""}
+                        onChange={(e) => setForm({ ...form, RenewDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">GST Number</label>
+                    <InputText
+                      className="w-100"
+                      value={form.GSTNumber}
+                      onChange={(e) => setForm({ ...form, GSTNumber: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">PAN Number</label>
+                    <InputText
+                      className="w-100"
+                      value={form.PANNumber}
+                      onChange={(e) => setForm({ ...form, PANNumber: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="mb-3">
+                    <label className="form-label">Client Officer Name</label>
+                    <InputText
+                      className="w-100"
+                      value={form.ClientName}
+                      onChange={(e) => setForm({ ...form, ClientName: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Client Number</label>
+                      <InputText
+                        className="w-100"
+                        value={form.ClientNumber}
+                        onChange={(e) => setForm({ ...form, ClientNumber: e.target.value })}
+                      />
+                    </div>
+
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Client Email</label>
+                      <InputText
+                        className="w-100"
+                        value={form.ClientEmail}
+                        onChange={(e) => setForm({ ...form, ClientEmail: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  {/* <label>Shift Hours</label>
+                <InputText
+                  type="number"
+                  className="w-100 mb-2"
+                  value={form.ShiftHour}
+                  onChange={(e) =>
+                    setForm({ ...form, ShiftHour: Number(e.target.value) })
+                  }
+                />
+
+                <label>Total Working Days</label>
+                <InputText
+                  type="number"
+                  className="w-100 mb-2"
+                  value={form.TotalWorkingDays}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      TotalWorkingDays: Number(e.target.value),
+                    })
+                  }
+                />
+
+                <hr />
+
+                <label>Salary Cycle Day From</label>
+                <InputText
+                  type="number"
+                  className="w-100 mb-2"
+                  value={form.SalaryCycleDayFrom}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      SalaryCycleDayFrom: Number(e.target.value),
+                    })
+                  }
+                />
+
+                <label>Salary Cycle Day To</label>
+                <InputText
+                  type="number"
+                  className="w-100 mb-2"
+                  value={form.SalaryCycleDayTo}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      SalaryCycleDayTo: Number(e.target.value),
+                    })
+                  }
+                /> */}
+
+                  {/* <div className="mb-2">
+                  <input
+                    type="checkbox"
+                    checked={form.ExcludeSunday}
+                    onChange={(e) =>
+                      setForm({ ...form, ExcludeSunday: e.target.checked })
+                    }
+                  />
+                  <span className="ms-2">Exclude Sundays</span>
+                </div> */}
+
+                  {/* <label>Monthly Sundays</label>
+                <InputText
+                  type="number"
+                  className="w-100 mb-2"
+                  value={form.MonthSundays}
+                  onChange={(e) =>
+                    setForm({ ...form, MonthSundays: Number(e.target.value) })
+                  }
+                /> */}
+
+                </div>
+              </div>
+
+              {/* ACTIONS */}
+              <div className="col-12 text-end mt-2">
+                <Button
+                  label="Cancel"
+                  className="p-button-text me-2"
+                  onClick={() => setShowForm(false)}
+                />
+                <Button
+                  label="Save Property"
+                  icon="pi pi-save"
+                  onClick={handleSave}
+                />
+              </div>
+
+            </div>
           </div>
-
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Unit Field Officer Email</label>
-            <InputText
-              className="w-100"
-              value={form.UnitFieldOfficerEmail}
-              onChange={(e) =>
-                setForm({ ...form, UnitFieldOfficerEmail: e.target.value })
-              }
-            />
-          </div>
-        </div>
-          <div className="col-md-6 mb-3">
-            <label className="form-label">UFO Contact Number</label>
-            <InputText
-              className="w-100"
-              value={form.ContactNumber}
-              onChange={(e) =>
-                setForm({ ...form, ContactNumber: e.target.value })
-              }
-            />
-          </div>
-          
-
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Pincode</label>
-            <InputText
-              className="w-100"
-              value={form.Pincode}
-              onChange={(e) =>
-                setForm({ ...form, Pincode: e.target.value })
-              }
-            />
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Landmark</label>
-          <InputText
-            className="w-100"
-            value={form.Landmark}
-            onChange={(e) =>
-              setForm({ ...form, Landmark: e.target.value })
-            }
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">State *</label>
-          <Dropdown
-            className="w-100"
-            value={form.State}
-            options={states}
-            filter
-            placeholder="Select State"
-            onShow={() => setOverlayOpen(true)}
-            onHide={() => setOverlayOpen(false)}
-            onChange={(e) => setForm({ ...form, State: e.value })}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Country</label>
-          <Dropdown
-            value={1}
-            options={countries}
-            disabled
-            className="w-100"
-          />
-        </div>
-
-      </div>
-    </div>
-
-    {/* RIGHT COLUMN */}
-    <div className="col-md-6">
-      <div className="card p-4 shadow-sm h-100">
-        <h5 className="mb-3 text-primary">Client & Branch</h5>
-
-        <div className="mb-3">
-          <label className="form-label">Client</label>
-          <Dropdown
-            className="w-100"
-            value={form.ClientID}
-            options={clients}
-            onShow={() => setOverlayOpen(true)}
-            onHide={() => setOverlayOpen(false)}
-            onChange={(e) => setForm({ ...form, ClientID: e.value })}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Branch Name</label>
-          <Dropdown
-            className="w-100"
-            value={form.BranchCode}
-            options={branches}
-            placeholder="Select Branch"
-            onShow={() => setOverlayOpen(true)}
-            onHide={() => setOverlayOpen(false)}
-            onChange={(e) =>
-              setForm({ ...form, BranchCode: e.value })
-            }
-          />
-        </div>
-
-        
-
-        {/* LAT LONG INLINE */}
-        <div className="row">
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Latitude</label>
-            <InputText
-              className="w-100"
-              value={form.Latitude}
-              onChange={(e) =>
-                setForm({ ...form, Latitude: e.target.value })
-              }
-            />
-          </div>
-
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Longitude</label>
-            <InputText
-              className="w-100"
-              value={form.Longitude}
-              onChange={(e) =>
-                setForm({ ...form, Longitude: e.target.value })
-              }
-            />
-          </div>
-        </div>
-
-        <hr />
-
-        <h5 className="mb-3 text-primary">Client & Compliance</h5>
-
-        {/* DATE INLINE */}
-        <div className="row">
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Deploy Date</label>
-            <InputText
-              type="date"
-              className="w-100"
-              value={form.DeployDate || ""}
-              onChange={(e) => setForm({ ...form, DeployDate: e.target.value })}
-            />
-          </div>
-
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Renew Date</label>
-            <InputText
-              type="date"
-              className="w-100"
-              value={form.RenewDate || ""}
-              onChange={(e) => setForm({ ...form, RenewDate: e.target.value })}
-            />
-          </div>
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">GST Number</label>
-          <InputText
-            className="w-100"
-            value={form.GSTNumber}
-            onChange={(e) => setForm({ ...form, GSTNumber: e.target.value })}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">PAN Number</label>
-          <InputText
-            className="w-100"
-            value={form.PANNumber}
-            onChange={(e) => setForm({ ...form, PANNumber: e.target.value })}
-          />
-        </div>
-
-        <div className="mb-3">
-          <label className="form-label">Client Officer Name</label>
-          <InputText
-            className="w-100"
-            value={form.ClientName}
-            onChange={(e) => setForm({ ...form, ClientName: e.target.value })}
-          />
-        </div>
-
-        <div className="row">
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Client Number</label>
-            <InputText
-              className="w-100"
-              value={form.ClientNumber}
-              onChange={(e) => setForm({ ...form, ClientNumber: e.target.value })}
-            />
-          </div>
-
-          <div className="col-md-6 mb-3">
-            <label className="form-label">Client Email</label>
-            <InputText
-              className="w-100"
-              value={form.ClientEmail}
-              onChange={(e) => setForm({ ...form, ClientEmail: e.target.value })}
-            />
-          </div>
-        </div>
-
-        
-
-        {/* ⚠️ COMMENTED CODE SAME RAKHA HAI */}
-        {/** your commented code unchanged **/}
-
-      </div>
-    </div>
-
-    {/* ACTIONS */}
-    <div className="col-12 text-end mt-2">
-      <Button
-        label="Cancel"
-        className="p-button-text me-2"
-        onClick={() => setShowForm(false)}
-      />
-      <Button
-        label="Save Property"
-        icon="pi pi-save"
-        onClick={handleSave}
-      />
-    </div>
-
-  </div>
-</div>
         </Dialog>
 
         {/* VIEW ONLY DIALOG */}
@@ -1134,13 +1201,13 @@ UnitFieldOfficerEmail: data.UnitFieldOfficerEmail,
                     propertyTypes.find(pt => pt.value === viewData.PropertyTypeId)?.label
                   }</div>
                   <div className="col-md-6">
-                  <strong>Services:</strong>{" "}
-                  {viewData.ServiceIds?.length
-                    ? viewData.ServiceIds.map(id =>
-                      services.find(s => s.value === id)?.label
-                    ).join(", ")
-                    : "—"}
-                </div>
+                    <strong>Services:</strong>{" "}
+                    {viewData.ServiceIds?.length
+                      ? viewData.ServiceIds.map(id =>
+                        services.find(s => s.value === id)?.label
+                      ).join(", ")
+                      : "—"}
+                  </div>
                 </div>
               </div>
 
@@ -1218,27 +1285,27 @@ UnitFieldOfficerEmail: data.UnitFieldOfficerEmail,
                   <strong>Branch:</strong> {branches.find(b => b.value === viewData.BranchCode)?.label || "—"}
                 </div>
 
-                
-               
+
+
               </div>
-               <div className="card p-3 mt-3 shadow-sm">
-  <h5 className="mb-3 text-primary">Compliance Details</h5>
+              <div className="card p-3 mt-3 shadow-sm">
+                <h5 className="mb-3 text-primary">Compliance Details</h5>
 
-  <div className="row">
-    <div className="col-md-6"><strong>Deploy Date:</strong> {viewData.DeployDate || "—"}</div>
-    <div className="col-md-6"><strong>Renew Date:</strong> {viewData.RenewDate || "—"}</div>
+                <div className="row">
+                  <div className="col-md-6"><strong>Deploy Date:</strong> {viewData.DeployDate || "—"}</div>
+                  <div className="col-md-6"><strong>Renew Date:</strong> {viewData.RenewDate || "—"}</div>
 
-    <div className="col-md-6"><strong>GST:</strong> {viewData.GSTNumber || "—"}</div>
-    <div className="col-md-6"><strong>PAN:</strong> {viewData.PANNumber || "—"}</div>
+                  <div className="col-md-6"><strong>GST:</strong> {viewData.GSTNumber || "—"}</div>
+                  <div className="col-md-6"><strong>PAN:</strong> {viewData.PANNumber || "—"}</div>
 
-    <div className="col-md-6"><strong>Client Officer Name:</strong> {viewData.ClientName || "—"}</div>
-    <div className="col-md-6"><strong>Client Number:</strong> {viewData.ClientNumber || "—"}</div>
+                  <div className="col-md-6"><strong>Client Officer Name:</strong> {viewData.ClientName || "—"}</div>
+                  <div className="col-md-6"><strong>Client Number:</strong> {viewData.ClientNumber || "—"}</div>
 
-    <div className="col-md-6"><strong>Client Email:</strong> {viewData.ClientEmail || "—"}</div>
+                  <div className="col-md-6"><strong>Client Email:</strong> {viewData.ClientEmail || "—"}</div>
 
-    
-  </div>
-</div>
+
+                </div>
+              </div>
 
             </div>
           )}
