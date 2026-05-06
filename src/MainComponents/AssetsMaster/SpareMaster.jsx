@@ -116,7 +116,7 @@ const SparePage = () => {
 
   const loadAssets = async () => {
     try {
-      const res = await fetch(`https://api.urest.in:8096/GetAssets?propertyId=${propertyId}`);
+      const res = await fetch(`http://localhost:62929/GetAssets?propertyId=${propertyId}`);
       const data = await res.json();
       const directAssets = Array.isArray(data) ? data : [];
       const combined = directAssets.length

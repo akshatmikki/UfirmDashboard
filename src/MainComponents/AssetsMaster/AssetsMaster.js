@@ -520,7 +520,10 @@ downloadAssetQRCode = async (item = {}) => {
   };
 
   getAssetStatusMeta = (item = {}) => {
-    const rawStatus = item?.Status;
+    const rawStatus =
+  item?.AssetStatus ||
+  item?.assetStatus ||
+  item?.Status;
     const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
     const today = new Date().toISOString().slice(0, 10);
     const rawServiceStatus = String(item?.ServiceStatus || item?.serviceStatus || "").trim();
@@ -532,6 +535,17 @@ downloadAssetQRCode = async (item = {}) => {
     if (boolStatus === false) return { label: "Inactive", key: "inactive", serviceStatus };
     if (boolStatus === true) return { label: "Active", key: "running", serviceStatus };
     return { label: "-", key: "inactive", serviceStatus };
+  };
+
+  getStatusFormValue = (value) => {
+    const rawStatus = String(value ?? "").trim();
+    if (!rawStatus) return "";
+    if (rawStatus === "true" || rawStatus === "false") return rawStatus;
+
+    const normalized = rawStatus.toLowerCase();
+    if (normalized === "active" || normalized === "running") return "true";
+    if (normalized === "inactive") return "false";
+    return rawStatus;
   };
 
   getAssetTypeLabel = (item = {}) => {
@@ -724,15 +738,15 @@ downloadAssetQRCode = async (item = {}) => {
       Description: this.getRowDescription(rowData),
       QRCode: assetQrValue,
       ManufacturerName: rowData.Manufacturer || "",
-      AssetModel: rowData.AssetModel || "",
+      AssetModel: rowData.AssetModel || rowData.Model || "",
       IsMoveable: String(this.normalizeBoolean(rowData.IsMoveable)),
       IsRented: String(this.normalizeBoolean(rowData.IsRented)),
       LastServiceDate: this.normalizeDate(rowData.LastServiceDate),
       NextServiceDate: this.normalizeDate(rowData.NextServiceDate),
       IsRentable: String(this.normalizeBoolean(rowData.IsRentable)),
-      AssetValue: rowData.AssetValue || 0,
+      AssetValue: rowData.AssetValue || rowData.Value || rowData.Cost || 0,
       Capacity: rowData.Capacity ?? rowData.capacity ?? "",
-      AssetType: rowData.AssetType || "",
+      AssetType: rowData.AssetType || rowData.Type || rowData.LeaseType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
       AMCimage: this.getAmcDocumentValue(rowData),
       amcDateFrom: this.normalizeDate(rowData.AMCDateFrom || rowData.AmcDateFrom || rowData.DateFrom),
@@ -750,14 +764,14 @@ downloadAssetQRCode = async (item = {}) => {
         rowData.warrantyImageName ||
         ((rowData.WarrantyDocument || rowData.warrantyImage) ? "Existing document" : ""),
       showImagefiletype: rowData.ImageExt || null,
-      showImagefile: rowData.Image || null,
+      showImagefile: rowData.Image || rowData.AssetImage || null,
       extension: rowData.ImageExt || null,
-      status: String(this.normalizeBoolean(rowData.Status)),
-      category: rowData.Category || "",
-      location: rowData.Location || "",
-        serviceReminderDay: rowData.serviceReminderDay || "",
-        PurchaseDate: this.normalizeDate(rowData.PurchaseDate),
-        WarrantyDate: this.normalizeDate(rowData.WarrantyDate),
+      status: this.getStatusFormValue(rowData.Status || rowData.AssetStatus),
+      category: rowData.Category || rowData.category || "",
+      location: rowData.Location || rowData.location || "",
+        serviceReminderDay: rowData.serviceReminderDay || rowData.ServiceReminderDay || "",
+        PurchaseDate: this.normalizeDate(rowData.PurchaseDate || rowData.DateOfPurchase),
+        WarrantyDate: this.normalizeDate(rowData.WarrantyDate || rowData.WarrantyExpiry || rowData.ExpiryDate),
         showAddQrPreview: false,
     });
   };
@@ -1308,7 +1322,11 @@ downloadAssetQRCode = async (item = {}) => {
             {paginated.rows.length ? (
               paginated.rows.map((asset) => {
                 const statusMeta = this.getAssetStatusMeta(asset);
-                const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+const assetStatus =
+  asset.AssetStatus ||
+  asset.assetStatus ||
+  asset.Status ||
+  "-";                const isSelected = String(this.state.selectedRowId) === String(asset.Id);
                 const isOverdueFiltered = this.state.filterServiceStatus === "Overdue";
                 return (
                   <tr
@@ -1321,8 +1339,14 @@ downloadAssetQRCode = async (item = {}) => {
                     <td className="col-location">{asset.Location || asset.location || "-"}</td>
                     <td className="col-date">{this.formatDisplayDate(asset.NextServiceDate)}</td>
                     <td className="col-status">
-                      <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
-                    </td>
+  <span
+    className={`asset-table-status asset-table-status-${String(assetStatus)
+      .toLowerCase()
+      .replace(/\s+/g, "-")}`}
+  >
+    {assetStatus}
+  </span>
+</td>
                     <td className="col-actions">
                       <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
@@ -1360,7 +1384,11 @@ downloadAssetQRCode = async (item = {}) => {
     if (!asset) return null;
     const assetQrValue = this.getAssetQrValue(asset);
     const statusMeta = this.getAssetStatusMeta(asset);
-    const imageSource = this.getPreviewSrc(
+const assetStatus =
+  asset.AssetStatus ||
+  asset.assetStatus ||
+  asset.Status ||
+  "-";    const imageSource = this.getPreviewSrc(
       this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
       this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
     );
@@ -1391,7 +1419,13 @@ downloadAssetQRCode = async (item = {}) => {
                 <span className="asset-info-label">Name</span>
                 <span className="asset-info-value">{asset.Name}</span>
               </div>
-              <span className={`asset-status-badge asset-status-badge-${statusMeta.key}`}>{statusMeta.label}</span>
+              <span
+  className={`asset-status-badge asset-status-badge-${String(assetStatus)
+    .toLowerCase()
+    .replace(/\s+/g, "-")}`}
+>
+  {assetStatus}
+</span>
             </div>
 
             <div className="asset-details-row asset-details-desc-row">
@@ -1630,7 +1664,18 @@ downloadAssetQRCode = async (item = {}) => {
             <div className="asset-form-row-two-col">
               <div className="form-group asset-form-group-custom">
                 <label>Reminder</label>
-                <input type="text" className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })} />
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.serviceReminderDay}
+                  onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
+                  placeholder="Select reminder"
+                  options={[
+                    { label: "One Day Prior", value: "1" },
+                    { label: "One Week Prior", value: "7" },
+                    { label: "15 Days Prior", value: "15" },
+                    { label: "One Month Prior", value: "30" }
+                  ]}
+                />
               </div>
               <div className="form-group asset-form-group-custom">
                 <label>Value</label>
