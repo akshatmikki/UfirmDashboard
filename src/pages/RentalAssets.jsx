@@ -6,6 +6,7 @@ import { PropagateLoader } from "react-spinners";
 import ExportToCSV from "../ReactComponents/ExportToCSV/ExportToCSV";
 import RentalPopUp from "../ReactComponents/RentalModal/RentalPopUp";
 import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets";
+import { getAllLocations } from "../Services/AttendanceService";
 import "../MainComponents/AssetsMaster/AssetsMaster.css";
 import "./RentalAssets.css";
 import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
@@ -20,6 +21,8 @@ const statusOptions = {
 const leaseOptions = {
   in: { label: "In", key: "in" },
   out: { label: "Out", key: "out" },
+  open: { label: "Open", key: "open" },
+  unknown: { label: "-", key: "unknown" },
 };
 
 const normalizeDate = (value) => {
@@ -169,30 +172,34 @@ const ROWS_PER_PAGE = 15;
 const normalizeBoolean = (value) => value === true || value === "true" || value === 1 || value === "1";
 
 const getStatusMeta = (asset = {}) => {
+  const raw = String(asset.Status || asset.AssetStatus || "").trim().toLowerCase();
+  if (raw.includes("inactive")) return statusOptions.inactive;
+  if (raw.includes("servic")) return statusOptions.servicing;
+  if (raw.includes("active")) return statusOptions.running;
+  if (raw.includes("running")) return statusOptions.running;
+
   const hasRentStatus = Object.prototype.hasOwnProperty.call(asset, "IsRentable") || Object.prototype.hasOwnProperty.call(asset, "IsRented");
   if (hasRentStatus) {
     if (normalizeBoolean(asset.IsRentable) || normalizeBoolean(asset.IsRented)) return statusOptions.running;
     return statusOptions.inactive;
   }
 
-  const raw = String(asset.Status || asset.AssetStatus || "").trim().toLowerCase();
-  if (raw.includes("inactive")) return statusOptions.inactive;
-  if (raw.includes("servic")) return statusOptions.servicing;
-  if (raw.includes("running")) return statusOptions.running;
   if (asset.ReturnDate === null && asset.RentedOutDate) return statusOptions.running;
   return statusOptions.inactive;
 };
 
 const getLeaseMeta = (asset = {}) => {
   const raw = String(asset.LeaseType || asset.Lease || "").trim().toLowerCase();
-  if (raw === "in" || raw === "return" || raw === "returned") return leaseOptions.in;
-  if (raw === "out") return leaseOptions.out;
-  const rentOutTime = asset?.RentedOutDate ? new Date(asset.RentedOutDate).getTime() : 0;
-  const returnTime = asset?.ReturnDate ? new Date(asset.ReturnDate).getTime() : 0;
-  if (returnTime && returnTime >= rentOutTime) return leaseOptions.in;
-  if (rentOutTime) return leaseOptions.out;
-  return leaseOptions.in;
+  if (!raw) return leaseOptions.unknown;
+  if (raw === "in" || raw === "inbound" || raw === "return" || raw === "returned") return leaseOptions.in;
+  if (raw === "out" || raw === "outbound") return leaseOptions.out;
+  if (raw === "open") return leaseOptions.open;
+  return leaseOptions.unknown;
 };
+
+const getLeaseDisplayValue = (asset = {}) => getLeaseMeta(asset).label;
+
+const getExpiryDateValue = (asset = {}) => asset.TentativeDate || asset.TentativeReturnDate || asset.ExpiryDate || asset.ReturnDate || "";
 
 const getServiceStatus = (asset = {}) => {
   const rawStatus = String(asset?.ServiceStatus || asset?.serviceStatus || "").trim();
@@ -210,18 +217,122 @@ const matchesServiceStatus = (asset = {}, selectedStatus = "") => {
   return current === selected;
 };
 
+const getFirstValue = (...values) =>
+  values.find((value) => value !== undefined && value !== null && String(value).trim() !== "") ?? "";
+
+const toNumberPayload = (value) => {
+  const normalized = String(value ?? "").replace(/[^\d.-]/g, "");
+  const numericValue = Number(normalized);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const toApiDateTime = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.includes("T")) return raw;
+  return `${raw}T00:00:00`;
+};
+
+const getLatestRentOutData = (asset = {}) => {
+  const history = Array.isArray(asset?.history) ? asset.history : [];
+  const rentOutEntries = history
+    .map((item) => item?.RentOut)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const bTime = new Date(b.RentOutDateTime || b.RentedOutDate || b.TentativeReturnDate || 0).getTime();
+      const aTime = new Date(a.RentOutDateTime || a.RentedOutDate || a.TentativeReturnDate || 0).getTime();
+      return bTime - aTime;
+    });
+
+  return rentOutEntries[0] || asset?.RentOut || {};
+};
+
+const toBase64Field = (value, fileName = "") => {
+  const raw = String(value || "").trim();
+  if (!raw || raw.startsWith("http://") || raw.startsWith("https://")) return "";
+  if (fileName && raw === fileName) return "";
+  if (raw.startsWith("data:")) return raw.includes(",") ? raw.split(",")[1] : raw;
+  if (raw.includes(".") && !raw.includes("/") && raw.length < 255) return "";
+  return raw;
+};
+
+const buildRentOutAssetPayload = (asset = {}, form = {}) => {
+  const rentOutData = getLatestRentOutData(asset);
+  const assetId = getFirstValue(form.AssetId, asset.AssetId, asset.Id, form.Id);
+  const assetName = getFirstValue(form.AssetName, form.Name, asset.AssetName, asset.Name);
+  const rentOutDateTime = toApiDateTime(
+    getFirstValue(
+      form.RentOutDateTime,
+      asset.RentOutDateTime,
+      asset.RentedOutDate,
+      rentOutData.RentOutDateTime,
+      rentOutData.RentedOutDate
+    )
+  );
+  const tentativeReturnDate = toApiDateTime(
+    getFirstValue(
+      form.TentativeReturnDate,
+      form.ExpiryDate,
+      asset.TentativeReturnDate,
+      asset.TentativeDate,
+      asset.ExpiryDate,
+      asset.ReturnDate,
+      rentOutData.TentativeReturnDate,
+      rentOutData.TentativeDate
+    )
+  );
+  const rentalContractFileName = getFirstValue(
+    form.RentalContractFileName,
+    form.RentalContractName,
+    asset.RentalContractFileName,
+    asset.ContractFileName,
+    rentOutData.RentalContractFileName,
+    rentOutData.ContractFileName,
+    getRentalContractFileName(rentOutData),
+    getRentalContractFileName(asset)
+  );
+  const imageOutName = getFirstValue(form.ImageOut, form.ImageOutName, asset.ImageOutName, rentOutData.ImageOutName, asset.ImageOut, rentOutData.ImageOut);
+
+  return {
+    AssetId: toNumberPayload(assetId),
+    AssetName: assetName,
+    AssigneeName: getFirstValue(form.AssigneeName, asset.AssigneeName, rentOutData.AssigneeName),
+    RentOutDateTime: rentOutDateTime,
+    TentativeReturnDate: tentativeReturnDate,
+    RentedTo: getFirstValue(form.RentedTo, form.Vendor, asset.RentedTo, rentOutData.RentedTo, asset.Vendor, asset.VendorName, asset.Distributor),
+    OutFrom: getFirstValue(form.OutFrom, asset.OutFrom, rentOutData.OutFrom, form.Location, asset.Location),
+    RentalCharges: toNumberPayload(getFirstValue(form.RentalCharges, form.Cost, asset.RentalCharges, rentOutData.RentalCharges, asset.MonthlyRent, asset.Cost)),
+    ApprovedBy: getFirstValue(form.ApprovedBy, asset.ApprovedBy, rentOutData.ApprovedBy),
+    SecurityDeposit: toNumberPayload(getFirstValue(form.SecurityDeposit, asset.SecurityDeposit, rentOutData.SecurityDeposit)),
+    RentOutTime: getFirstValue(form.RentOutTime, asset.RentOutTime, rentOutData.RentOutTime, rentOutDateTime),
+    Manufacturer: getFirstValue(form.Manufacturer, asset.Manufacturer, rentOutData.Manufacturer),
+    Location: getFirstValue(form.Location, asset.Location, rentOutData.Location, form.OutFrom, asset.OutFrom),
+    ImageOutBase64: toBase64Field(getFirstValue(form.ImageOutBase64, asset.ImageOutBase64, rentOutData.ImageOutBase64), imageOutName),
+    RentalContractBase64: toBase64Field(
+      getFirstValue(form.RentalContractBase64, asset.RentalContractBase64, rentOutData.RentalContractBase64, form.RentalContract),
+      rentalContractFileName
+    ),
+    ImageOut: imageOutName,
+    RentalContract: rentalContractFileName,
+    Status: getFirstValue(form.Status, asset.Status, asset.AssetStatus, rentOutData.Status),
+    Description: getFirstValue(form.Description, asset.Description, rentOutData.Description),
+    LeaseType: getFirstValue(form.LeaseType, asset.LeaseType, asset.Lease, rentOutData.LeaseType),
+    Model: getFirstValue(form.Model, asset.Model, asset.AssetModel, rentOutData.Model),
+  };
+};
+
 const buildEditForm = (asset = {}) => ({
   Id: asset.Id || "",
   Name: asset.Name || "",
   Status: getStatusMeta(asset).label,
   Description: asset.Description || "",
-  Vendor: asset.Vendor || asset.VendorName || asset.Distributor || asset.Manufacturer || "",
+  Vendor: asset.RentedTo || asset.Vendor || asset.VendorName || asset.Distributor || asset.Manufacturer || "",
   LeaseType: asset.LeaseType || asset.Lease || "",
   Manufacturer: asset.Manufacturer || "",
   Model: asset.AssetModel || asset.Model || "",
-  Cost: asset.MonthlyRent || asset.Cost || "",
+  Cost: asset.RentalCharges || asset.MonthlyRent || asset.Cost || "",
   SecurityDeposit: asset.SecurityDeposit || "",
-  ExpiryDate: normalizeDate(asset.ExpiryDate || asset.ReturnDate || ""),
+  ExpiryDate: normalizeDate(getExpiryDateValue(asset)),
   Location: asset.Location || asset.OutFrom || "",
   RentalContract: getRentalContractSource(asset),
   RentalContractFileName: getRentalContractFileName(asset),
@@ -241,6 +352,7 @@ const RentalAssets = ({ propId, history }) => {
   const [selectedAssetId, setSelectedAssetId] = useState(null);
   const [panelMode, setPanelMode] = useState("details");
   const [editForm, setEditForm] = useState(buildEditForm());
+  const [propertyLocationOptions, setPropertyLocationOptions] = useState([]);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState("rentout");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -256,7 +368,7 @@ const RentalAssets = ({ propId, history }) => {
   const fetchRentalAssets = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`https://api.urest.in:8096/api/Asset/GetRentalAssetData?PropId=${propId}`);
+      const res = await fetch(`http://localhost:62929/api/Asset/GetRentalAssetData?PropId=${propId}`);
       const data = await res.json();
       setRentalAssets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -278,6 +390,27 @@ const RentalAssets = ({ propId, history }) => {
       setLoading(false);
     }
   }, [propId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLocationOptions = async () => {
+      try {
+        const data = await getAllLocations();
+        if (!isMounted) return;
+        setPropertyLocationOptions(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error(error);
+        if (isMounted) setPropertyLocationOptions([]);
+      }
+    };
+
+    fetchLocationOptions();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const filteredAssets = useMemo(() => {
     const query = String(searchTerm || "").trim().toLowerCase();
@@ -334,16 +467,18 @@ const RentalAssets = ({ propId, history }) => {
     [rentalAssets]
   );
 
+  const selectedAsset = useMemo(() => rentalAssets.find((item) => Number(item.Id) === Number(selectedAssetId)) || null, [rentalAssets, selectedAssetId]);
+
   const locationOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          rentalAssets
-            .map((asset) => String(asset?.Location || asset?.OutFrom || "").trim())
+          [...propertyLocationOptions, selectedAsset?.Location, selectedAsset?.OutFrom]
+            .map((item) => String(item || "").trim())
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b)),
-    [rentalAssets]
+    [propertyLocationOptions, selectedAsset]
   );
 
   const resetFilters = () => {
@@ -354,8 +489,6 @@ const RentalAssets = ({ propId, history }) => {
     setFilterType("");
     setFilterServiceStatus("");
   };
-
-  const selectedAsset = useMemo(() => rentalAssets.find((item) => Number(item.Id) === Number(selectedAssetId)) || null, [rentalAssets, selectedAssetId]);
 
   useEffect(() => {
     if (selectedAsset) setEditForm(buildEditForm(selectedAsset));
@@ -482,34 +615,35 @@ const RentalAssets = ({ propId, history }) => {
         rentalContractFileName = editForm.RentalContract.name;
       }
 
-      const payload = {
-        Id: selectedAsset.Id,
-        Name: editForm.Name,
-        Description: editForm.Description,
-        QRCode: selectedAsset.QRCode || "",
-        AssetType: selectedAsset.AssetType || selectedAsset.Type || editForm.LeaseType || "",
-        Manufacturer: editForm.Manufacturer,
-        AssetModel: editForm.Model,
-        IsMoveable: selectedAsset.IsMoveable ?? false,
-        Flag: "U",
-        AssetImage: selectedAsset.AssetImage || selectedAsset.Image || "",
-        LastServiceDate: normalizeDate(selectedAsset.LastServiceDate || ""),
-        NextServiceDate: normalizeDate(selectedAsset.NextServiceDate || ""),
-        IsRentable: selectedAsset.IsRentable ?? true,
-        AssetValue: editForm.Cost || selectedAsset.AssetValue || 0,
-        Capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
-        capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
-        AMCdoc: rentalContractValue || "",
-        status: editForm.Status,
-        category: selectedAsset.Category || selectedAsset.category || "",
-        location: editForm.Location,
-        serviceReminderDay: selectedAsset.serviceReminderDay || "",
-        propertyId: propId,
-        PurchaseDate: normalizeDate(selectedAsset.PurchaseDate || ""),
-        WarrantyDate: normalizeDate(selectedAsset.WarrantyDate || selectedAsset.ExpiryDate || selectedAsset.ReturnDate || ""),
-      };
+      let assetForPayload = selectedAsset;
+      if (!Array.isArray(selectedAsset.history)) {
+        try {
+          const historyData = await getAssetRentOutReturnHistoryByAssetId(selectedAsset.Id);
+          const normalizedHistory = Array.isArray(historyData) ? historyData : [];
+          assetForPayload = { ...selectedAsset, history: normalizedHistory };
+          setRentalAssets((prev) =>
+            prev.map((item) =>
+              Number(item.Id) === Number(selectedAsset.Id)
+                ? {
+                  ...item,
+                  history: normalizedHistory,
+                }
+                : item
+            )
+          );
+        } catch (historyError) {
+          console.error(historyError);
+        }
+      }
 
-      const resp = await fetch("https://api.urest.in:8096/ManageAssets", {
+      const payload = buildRentOutAssetPayload(assetForPayload, {
+        ...editForm,
+        RentalContract: rentalContractValue,
+        RentalContractBase64: rentalContractValue,
+        RentalContractFileName: rentalContractFileName,
+      });
+
+      const resp = await fetch("http://localhost:62929/ManageRentOutAsset", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -557,16 +691,14 @@ const RentalAssets = ({ propId, history }) => {
         ImageIn: formData.imageIn || "",
         RentalContract: formData.rentalContract || "",
       }
-      : {
-        AssetId: selectedAsset.Id || 0,
-        AssetName: selectedAsset.Name || "",
+      : buildRentOutAssetPayload(selectedAsset, {
         AssigneeName: formData.assigneeName || "",
         RentOutDateTime: formData.rentOutDateTime || "",
         TentativeReturnDate: formData.tentativeReturnDate || "",
         RentedTo: formData.rentedTo || "",
         OutFrom: formData.outFrom || "",
-        RentalCharges: Number(formData.rentalCharges) || 0,
-        SecurityDeposit: Number(formData.securityDeposit) || 0,
+        RentalCharges: formData.rentalCharges || 0,
+        SecurityDeposit: formData.securityDeposit || 0,
         RentOutTime: formData.rentOutTime || formData.rentOutDateTime || "",
         ApprovedBy: formData.approvedBy || "",
         Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
@@ -574,8 +706,8 @@ const RentalAssets = ({ propId, history }) => {
         ImageOutBase64: formData.imageOut || "",
         RentalContractBase64: formData.rentalContract || "",
         ImageOut: formData.imageOutName || "",
-        RentalContract: formData.rentalContractName || "",
-      };
+        RentalContractFileName: formData.rentalContractName || "",
+      });
 
     await fetch(url, {
       method: isReturnMode ? "PUT" : "POST",
@@ -722,11 +854,19 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Expiry date</span>
-              <span className="rental-detail-value">{formatDate(selectedAsset.ExpiryDate || selectedAsset.ReturnDate)}</span>
+              <span className="rental-detail-value">{formatDate(getExpiryDateValue(selectedAsset))}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Location</span>
               <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "-"}</span>
+            </div>
+            <div className="rental-detail-item">
+              <span className="rental-detail-label">Approved by</span>
+              <span className="rental-detail-value">{selectedAsset.ApprovedBy || "-"}</span>
+            </div>
+            <div className="rental-detail-item">
+              <span className="rental-detail-label">Returned by</span>
+              <span className="rental-detail-value">{selectedAsset.ReturnedBy || "-"}</span>
             </div>
           </div>
           <div className="rental-panel-links">
@@ -1053,6 +1193,7 @@ const RentalAssets = ({ propId, history }) => {
                           <th>Asset Name</th>
                           <th>Manufacturer</th>
                           <th>Lease</th>
+                          <th>Location</th>
                           <th>Expiry date</th>
                           <th>Status</th>
                           <th>Actions</th>
@@ -1075,9 +1216,10 @@ const RentalAssets = ({ propId, history }) => {
                               <td>{asset.Name || "-"}</td>
                               <td>{asset.Manufacturer || "-"}</td>
                               <td>
-                                <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
+                                <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{getLeaseDisplayValue(asset)}</span>
                               </td>
-                              <td>{formatDate(asset.ExpiryDate || asset.ReturnDate)}</td>
+                              <td>{asset.Location || asset.OutFrom || "-"}</td>
+                              <td>{formatDate(getExpiryDateValue(asset))}</td>
                               <td>
                                 <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
                               </td>

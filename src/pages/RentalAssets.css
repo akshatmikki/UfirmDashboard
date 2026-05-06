@@ -471,11 +471,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 58px;
-  padding: 3px 10px;
-  border-radius: 6px;
+  gap: 8px;
+  min-width: 60px;
+  height: 24px;
+  padding: 4px 8px;
+  border-radius: 4px;
   font-size: 12px;
   font-weight: 500;
+  box-sizing: border-box;
 }
 
 .rental-lease-in {
@@ -491,6 +494,11 @@
 .rental-lease-out {
   background: #efe5ff;
   color: #722de1;
+}
+
+.rental-lease-open {
+  background: rgba(20, 132, 188, 0.1);
+  color: #1484bc;
 }
 
 .rental-status-running {

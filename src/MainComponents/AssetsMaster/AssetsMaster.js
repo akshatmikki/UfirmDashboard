@@ -431,8 +431,26 @@ downloadAssetQRCode = async (item = {}) => {
     return String(ext || "").trim().toLowerCase();
   };
 
+  getDocumentFieldValue = (value) => {
+    const normalized = String(value ?? "").trim();
+    return normalized && normalized.toLowerCase() !== "null" && normalized.toLowerCase() !== "undefined"
+      ? normalized
+      : "";
+  };
+
   getAmcDocumentValue = (item = {}) =>
-    item?.AMCdoc || item?.AMCimage || item?.AMCFile || item?.AmcFile || item?.AMCDocument || item?.AmcDocument || "";
+    this.getDocumentFieldValue(item?.AMCFile) ||
+    this.getDocumentFieldValue(item?.AmcFile) ||
+    this.getDocumentFieldValue(item?.AMCdoc) ||
+    this.getDocumentFieldValue(item?.AMCimage) ||
+    this.getDocumentFieldValue(item?.AMCDocument) ||
+    this.getDocumentFieldValue(item?.AmcDocument) ||
+    "";
+
+  getAmcFileValue = (item = {}) =>
+    this.getDocumentFieldValue(item?.AMCFile) ||
+    this.getDocumentFieldValue(item?.AmcFile) ||
+    "";
 
   getAmcDocumentName = (item = {}) =>
     item?.AMCdocName ||
@@ -854,8 +872,8 @@ downloadAssetQRCode = async (item = {}) => {
       this.setState(
         {
           showAmcModal: false,
-          AMCimage: response?.AMCFile || amcFile || "",
-          amcFileName: response?.AMCFile ? String(response.AMCFile).split("\\").pop() : this.state.amcFileName,
+          AMCimage: this.getDocumentFieldValue(response?.AMCFile) || amcFile || "",
+          amcFileName: response?.AMCFile ? String(response.AMCFile).split(/[\\/]/).pop() : this.state.amcFileName,
         },
         this.loadHomagePageData
       );
@@ -1350,7 +1368,7 @@ downloadAssetQRCode = async (item = {}) => {
     const warrantyExt =
       this.getFileExtension(this.state.warrantyFileName) ||
       this.getFileExtension(asset.WarrantyDocumentName || asset.warrantyImageName || "");
-    const amcSource = this.getPreviewSrc(this.state.AMCimage || this.getAmcDocumentValue(asset), amcExt);
+    const amcSource = this.getPreviewSrc(this.getAmcFileValue(asset), amcExt);
     const warrantySource = this.getPreviewSrc(
       this.state.warrantyImage || asset.WarrantyDocument || asset.warrantyImage,
       warrantyExt
