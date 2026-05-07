@@ -4,11 +4,14 @@ import "./CustomDatePicker.css";
 const daysOfWeek = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const CustomDatePicker = ({ value, onChange, className }) => {
+const CustomDatePicker = ({ value, onChange, className, popupAnchorSelector }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const containerRef = useRef(null);
+  const inputWrapperRef = useRef(null);
+  const popupRef = useRef(null);
+  const [popupStyle, setPopupStyle] = useState({});
 
   useEffect(() => {
     if (value) {
@@ -31,6 +34,49 @@ const CustomDatePicker = ({ value, onChange, className }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const updatePopupPosition = () => {
+      const anchorElement = popupAnchorSelector
+        ? inputWrapperRef.current?.closest(popupAnchorSelector)
+        : inputWrapperRef.current;
+      const rect = anchorElement?.getBoundingClientRect();
+      if (!rect) return;
+
+      const viewportPadding = 12;
+      const popupGap = 5;
+      const popupWidth = Math.max(rect.width, 280);
+      const renderedPopupHeight = popupRef.current?.getBoundingClientRect().height || 286;
+      const popupHeight = Math.min(renderedPopupHeight, window.innerHeight - (viewportPadding * 2));
+      const maxLeft = window.innerWidth - popupWidth - viewportPadding;
+      const safeLeft = Math.min(Math.max(rect.left, viewportPadding), Math.max(viewportPadding, maxLeft));
+      const spaceBelow = window.innerHeight - rect.bottom - viewportPadding;
+      const shouldOpenAbove = spaceBelow < popupHeight && rect.top > spaceBelow;
+      const preferredTop = shouldOpenAbove
+        ? rect.top - popupHeight - popupGap
+        : rect.bottom + popupGap;
+      const maxTop = window.innerHeight - popupHeight - viewportPadding;
+      const safeTop = Math.min(Math.max(preferredTop, viewportPadding), Math.max(viewportPadding, maxTop));
+
+      setPopupStyle({
+        top: safeTop,
+        left: safeLeft,
+        width: popupWidth,
+        maxHeight: window.innerHeight - (viewportPadding * 2),
+      });
+    };
+
+    updatePopupPosition();
+    window.addEventListener("resize", updatePopupPosition);
+    window.addEventListener("scroll", updatePopupPosition, true);
+
+    return () => {
+      window.removeEventListener("resize", updatePopupPosition);
+      window.removeEventListener("scroll", updatePopupPosition, true);
+    };
+  }, [isOpen, popupAnchorSelector]);
 
   const getDaysInMonth = (year, month) => {
     return new Date(year, month + 1, 0).getDate();
@@ -128,8 +174,8 @@ const CustomDatePicker = ({ value, onChange, className }) => {
   };
 
   return (
-    <div className="custom-datepicker-container" ref={containerRef}>
-      <div className="custom-datepicker-input-wrapper" onClick={() => setIsOpen(!isOpen)}>
+    <div className={`custom-datepicker-container ${isOpen ? "is-open" : ""}`.trim()} ref={containerRef}>
+      <div className="custom-datepicker-input-wrapper" ref={inputWrapperRef} onClick={() => setIsOpen(!isOpen)}>
         <input
           type="text"
           className={`custom-datepicker-input form-control ${className || ""}`}
@@ -141,7 +187,7 @@ const CustomDatePicker = ({ value, onChange, className }) => {
       </div>
       
       {isOpen && (
-        <div className="custom-datepicker-popup">
+        <div className="custom-datepicker-popup" ref={popupRef} style={popupStyle}>
           <div className="custom-datepicker-header">
             <button type="button" onClick={prevMonth}>
                <i className="fa fa-chevron-left" />

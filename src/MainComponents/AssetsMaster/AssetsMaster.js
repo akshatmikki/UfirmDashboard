@@ -1657,7 +1657,7 @@ const assetStatus =
               </div>
               <div className="form-group asset-form-group-custom">
                 <label>Next service</label>
-                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} popupAnchorSelector=".asset-form-row-two-col" />
               </div>
             </div>
 

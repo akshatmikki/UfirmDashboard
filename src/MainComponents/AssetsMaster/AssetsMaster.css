@@ -2678,6 +2678,10 @@
 .spare-side-panel.asset-side-panel-form {
   width: 320px;
   height: 650px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  z-index: 2;
   background: #fafafa;
   border: 1px solid rgba(19, 23, 32, 0.15);
   border-radius: 12px;
@@ -2686,13 +2690,63 @@
 }
 
 .spare-side-panel.asset-side-panel-form .asset-side-panel-body {
-  height: calc(100% - 110px);
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
   padding: 12px;
   max-height: none;
   overflow-y: auto;
   overflow-x: hidden;
   -ms-overflow-style: none;
   scrollbar-width: none;
+}
+
+.spare-side-panel.asset-side-panel-form .asset-form-group-custom,
+.spare-side-panel.asset-side-panel-form .asset-form-row-two-col,
+.spare-side-panel.asset-side-panel-form input,
+.spare-side-panel.asset-side-panel-form textarea,
+.spare-side-panel.asset-side-panel-form button,
+.spare-side-panel.asset-side-panel-form .custom-dropdown-input,
+.spare-side-panel.asset-side-panel-form .custom-datepicker-input-wrapper,
+.spare-side-panel.asset-side-panel-form .asset-file-input-wrapper {
+  position: relative;
+  pointer-events: auto;
+}
+
+.spare-side-panel.asset-side-panel-form .custom-dropdown-container.is-open,
+.spare-side-panel.asset-side-panel-form .custom-dropdown-menu {
+  z-index: 20002;
+}
+
+.spare-side-panel.asset-side-panel-form .asset-file-input-wrapper,
+.spare-side-panel.asset-side-panel-form .asset-file-input-wrapper .form-control {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.spare-side-panel.asset-side-panel-form .asset-file-input-wrapper {
+  display: block;
+}
+
+.spare-side-panel.asset-side-panel-form .asset-file-input-wrapper .form-control {
+  min-width: 0;
+  padding-right: 40px;
+  box-sizing: border-box;
+}
+
+.spare-side-panel.asset-side-panel-form .asset-file-hidden {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2;
+}
+
+.spare-side-panel.asset-side-panel-form .asset-file-icon {
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .spare-side-panel.asset-side-panel-form .asset-side-panel-body::-webkit-scrollbar {

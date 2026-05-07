@@ -35,7 +35,7 @@ const CustomDropdown = ({ options = [], value, onChange, placeholder = "Select..
   const selectedOption = formattedOptions.find(opt => String(opt.value) === String(value));
 
   return (
-    <div className={`custom-dropdown-container ${variant} ${className}`} ref={containerRef}>
+    <div className={`custom-dropdown-container ${variant} ${isOpen ? "is-open" : ""} ${className}`.trim()} ref={containerRef}>
       <div className="custom-dropdown-input form-control" onClick={() => setIsOpen(!isOpen)}>
         {selectedOption ? (
            <span className="custom-dropdown-value">{selectedOption.label}</span>
