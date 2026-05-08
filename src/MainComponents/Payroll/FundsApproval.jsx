@@ -19,6 +19,13 @@ const monthNames = [
   "December",
 ];
 
+const APPROVERS = [
+  { name: "Richu", email: "richu@ufirm.in" },
+  { name: "Anuj", email: "anuj@ufirm.in" },
+  { name: "Sanjeev", email: "sanjeev@ufirm.in" },
+  { name: "test", email: "akshat.singhal@ufirm.in" }
+];
+
 const TEST_SITES = [
   { SiteId: 101, SiteName: "Green Valley Residency" },
   { SiteId: 102, SiteName: "Skyline Heights" },
@@ -375,13 +382,19 @@ export default function FundsApproval() {
         RecipientEmail: r.RecipientEmail,
         NotGeneratedReason: (r.NotGeneratedReason || "").trim(),
         EmployeeIds: freezedBreakup
-          .filter(b => Number(b.PropertyId) === r.SiteId)
-          .map(b => Number(b.FacilityMemberId)),
+          .filter(b => Number(b.Office_id || b.PropertyId) === r.SiteId)
+          .map(b => Number(b.FacilityMemberId || b.Emp_ID)),
       }));
 
     const invalid = payload.filter(p => !p.RecipientEmail || !p.RecipientName);
     if (invalid.length > 0) {
-      alert(`Please provide Recipient Name and Email for all selected sites: ${invalid.map(i => i.SiteName).join(", ")}`);
+      alert(`Please select an "Approve To" recipient for all selected sites: ${invalid.map(i => i.SiteName).join(", ")}`);
+      return;
+    }
+
+    const reasonRequired = payload.filter(p => p.AmountToTransfer < p.AgreementAmount && !p.NotGeneratedReason);
+    if (reasonRequired.length > 0) {
+      alert(`Reason is compulsory for sites where current freezed salary is less than agreement amount: ${reasonRequired.map(i => i.SiteName).join(", ")}`);
       return;
     }
 
@@ -492,15 +505,14 @@ export default function FundsApproval() {
                 <th className="text-end" style={{ width: 130 }}>Prev Month</th>
                 <th className="text-end" style={{ width: 130 }}>Current Freezed</th>
                 <th className="text-end" style={{ width: 120 }}>Budget Diff</th>
-                <th style={{ width: 170 }}>Approve To (Name)</th>
-                <th style={{ width: 220 }}>Approve To (Email)</th>
-                <th>Reason</th>
+                <th style={{ width: 250 }}>Approve To</th>
+                <th style={{ width: 300 }}>Reason</th>
                 <th className="text-center" style={{ width: 150 }}>Action</th>
               </tr>
             </thead>
             <tbody>
               {rows.length === 0 ? (
-                <tr><td colSpan={11} className="text-center p-5 text-muted">{loadingSites ? "Fetching live data..." : "No property records found for this period."}</td></tr>
+                <tr><td colSpan={10} className="text-center p-5 text-muted">{loadingSites ? "Fetching live data..." : "No property records found for this period."}</td></tr>
               ) : (
                 rows.map((r) => (
                   <React.Fragment key={r.SiteId}>
@@ -516,25 +528,39 @@ export default function FundsApproval() {
                         {formatINR(r.PendingDiff)}
                       </td>
                       <td>
-                        <input
-                          type="text"
-                          className="form-control form-control-sm"
-                          placeholder="Name..."
-                          value={r.RecipientName}
-                          onChange={(e) => updateRow(r.SiteId, { RecipientName: e.target.value })}
-                        />
+                        <select
+                          className="form-select form-select-sm"
+                          value={APPROVERS.findIndex(a => a.email === r.RecipientEmail)}
+                          onChange={(e) => {
+                            const approver = APPROVERS[e.target.value];
+                            updateRow(r.SiteId, {
+                              RecipientName: approver?.name || "",
+                              RecipientEmail: approver?.email || ""
+                            });
+                          }}
+                        >
+                          <option value="-1">-- Select Approver --</option>
+                          {APPROVERS.map((a, idx) => (
+                            <option key={idx} value={idx}>{a.name}</option>
+                          ))}
+                        </select>
                       </td>
                       <td>
-                        <input
-                          type="email"
-                          className="form-control form-control-sm"
-                          placeholder="Email..."
-                          value={r.RecipientEmail}
-                          onChange={(e) => updateRow(r.SiteId, { RecipientEmail: e.target.value })}
-                        />
-                      </td>
-                      <td>
-                        <input type="text" className="form-control form-control-sm" placeholder="Reason..." value={r.NotGeneratedReason} onChange={(e) => updateRow(r.SiteId, { NotGeneratedReason: e.target.value })} />
+                        <div className="position-relative">
+                          <textarea
+                            rows="1"
+                            className={`form-control form-control-sm ${r.AmountToTransfer < r.AgreementAmount && !r.NotGeneratedReason ? "border-danger" : ""}`}
+                            style={{ resize: "none", minHeight: "31px" }}
+                            placeholder="Write reason here..."
+                            value={r.NotGeneratedReason}
+                            onChange={(e) => updateRow(r.SiteId, { NotGeneratedReason: e.target.value })}
+                          />
+                          {r.AmountToTransfer < r.AgreementAmount && !r.NotGeneratedReason && (
+                            <small className="text-danger" style={{ fontSize: "10px", position: "absolute", bottom: "-18px", left: "0" }}>
+                              Reason required
+                            </small>
+                          )}
+                        </div>
                       </td>
                       <td className="text-center">
                         <div className="btn-group btn-group-sm">
@@ -548,69 +574,119 @@ export default function FundsApproval() {
 
                     {expandedSiteIds.has(r.SiteId) && (
                       <tr className="table-light">
-                        <td colSpan={11} className="p-0">
+                        <td colSpan={10} className="p-0">
                           <div className="p-3 bg-white border rounded m-2 shadow-sm">
                             <h6 className="mb-3 text-secondary d-flex justify-content-between align-items-center">
                               <span>Salary Slip Breakup</span>
                               <span className="badge bg-light text-dark">{r.FreezedEmployees} Freezed Employees</span>
                             </h6>
                             <div className="table-responsive">
-                              <table className="table table-sm table-bordered mb-0 small" style={{ minWidth: 1200 }}>
+                              <table className="table table-sm table-bordered mb-0 small" style={{ minWidth: 1600 }}>
                                 <thead className="bg-light text-center">
                                   <tr>
                                     <th rowSpan="2" className="align-middle">Emp ID</th>
                                     <th rowSpan="2" className="align-middle">Name / Designation</th>
-                                    <th colSpan="5" className="bg-success text-white py-1">Earnings</th>
-                                    <th colSpan="5" className="bg-danger text-white py-1">Deductions</th>
-                                    <th colSpan="3" className="bg-info text-white py-1">Attendance</th>
+                                    <th colSpan="9" className="bg-success text-white py-1">Earnings</th>
+                                    <th colSpan="7" className="bg-danger text-white py-1">Deductions</th>
+                                    <th colSpan="4" className="bg-info text-white py-1">Attendance</th>
                                     <th rowSpan="2" className="align-middle bg-primary text-white">Net Total</th>
+                                    <th rowSpan="2" className="align-middle">Slip</th>
                                   </tr>
                                   <tr className="bg-light small">
                                     <th>Basic</th>
+                                    <th>DA</th>
                                     <th>HRA</th>
                                     <th>Conv.</th>
                                     <th>Spl.</th>
+                                    <th>Bonus</th>
                                     <th>OT</th>
-                                    <th>ESI</th>
+                                    <th>Leave</th>
+                                    <th>Other</th>
                                     <th>PF</th>
+                                    <th>ESI</th>
                                     <th>PT</th>
-                                    <th>Adv.</th>
-                                    <th>TDS</th>
+                                    <th>Adv/Loan</th>
+                                    <th>IT/TDS</th>
+                                    <th>LWF</th>
+                                    <th>Other</th>
                                     <th>W</th>
                                     <th>L</th>
                                     <th>P</th>
+                                    <th>OT (D/H)</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   {freezedBreakup
-                                    .filter(b => Number(b.PropertyId) === r.SiteId)
+                                    .filter(b => Number(b.Office_id || b.PropertyId) === r.SiteId)
                                     .map((b, idx) => (
                                       <tr key={idx}>
-                                        <td className="text-center">{b.FacilityMemberId}</td>
+                                        <td className="text-center">{b.FacilityMemberId || b.Emp_ID}</td>
                                         <td>
-                                          <div className="fw-bold">{b.FacilityMemberName}</div>
+                                          <div className="fw-bold">{b.FacilityMemberName || b.Employee_Name}</div>
                                           <div className="text-muted" style={{ fontSize: 10 }}>{b.Designation}</div>
                                         </td>
                                         {/* Earnings */}
                                         <td className="text-end">{formatINR(b.Basic)}</td>
+                                        <td className="text-end">{formatINR(b.DA)}</td>
                                         <td className="text-end">{formatINR(b.HRA)}</td>
-                                        <td className="text-end">{formatINR(b.Conveyance)}</td>
-                                        <td className="text-end">{formatINR(b.SplAllowance)}</td>
+                                        <td className="text-end">{formatINR(b.Conveyance || b.Conv)}</td>
+                                        <td className="text-end">{formatINR(b.SplAllowance || b.SpecialAllowance)}</td>
+                                        <td className="text-end">{formatINR(toNumber(b.Bonus) + toNumber(b.SeparateBonus))}</td>
                                         <td className="text-end">{formatINR(b.OTAmount)}</td>
+                                        <td className="text-end">{formatINR(b.LeaveWages)}</td>
+                                        <td className="text-end">
+                                          {formatINR(
+                                            toNumber(b.Gratuity) +
+                                            toNumber(b.AdjAmtIncentive) +
+                                            toNumber(b.PFArrear) +
+                                            toNumber(b.OthArrear) +
+                                            toNumber(b.EducationAllowance) +
+                                            toNumber(b.PerformanceAllowance) +
+                                            toNumber(b.WashingAllowance) +
+                                            toNumber(b.OthAll) +
+                                            toNumber(b.NHAmount) +
+                                            toNumber(b.FHAmount)
+                                          )}
+                                        </td>
 
                                         {/* Deductions */}
-                                        <td className="text-end text-danger">{formatINR(b.ESI)}</td>
                                         <td className="text-end text-danger">{formatINR(b.PF)}</td>
-                                        <td className="text-end text-danger">{formatINR(b.PT)}</td>
-                                        <td className="text-end text-danger">{formatINR(b.Advance)}</td>
-                                        <td className="text-end text-danger">{formatINR(b.TDS)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.ESI)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.PT || b.PFT)}</td>
+                                        <td className="text-end text-danger">{formatINR(toNumber(b.Advance) + toNumber(b.LoanEMI))}</td>
+                                        <td className="text-end text-danger">{formatINR(b.TDS || b.IncomeTax)}</td>
+                                        <td className="text-end text-danger">{formatINR(b.LWF)}</td>
+                                        <td className="text-end text-danger">
+                                          {formatINR(
+                                            toNumber(b.OthDed) +
+                                            toNumber(b.DocDed) +
+                                            toNumber(b.Food) +
+                                            toNumber(b.Maintenance) +
+                                            toNumber(b.Fine) +
+                                            toNumber(b.AcmdDed) +
+                                            toNumber(b.Uniform) +
+                                            toNumber(b.BGV) +
+                                            toNumber(b.Room) +
+                                            toNumber(b.JoiningKits)
+                                          )}
+                                        </td>
 
                                         {/* Attendance */}
                                         <td className="text-center">{b.WorkingDays || 0}</td>
                                         <td className="text-center">{b.LeaveDays || b.AbsentDays || 0}</td>
                                         <td className="text-center fw-bold">{b.PaidDays || 0}</td>
+                                        <td className="text-center small">
+                                          {b.OTDays || 0}d / {b.OTHours || 0}h
+                                        </td>
 
-                                        <td className="text-end fw-bold text-primary">{formatINR(b.NetSalary || b.GeneratedAmount)}</td>
+                                        <td className="text-end fw-bold text-primary">{formatINR(b.NetSalary || b.generated_amount)}</td>
+                                        <td className="text-center">
+                                          {b.generated_PDF ? (
+                                            <a href={b.generated_PDF} target="_blank" rel="noreferrer" className="text-primary">
+                                              <i className="fas fa-file-pdf" title="View Slip" />
+                                            </a>
+                                          ) : "-"}
+                                        </td>
                                       </tr>
                                     ))}
                                 </tbody>

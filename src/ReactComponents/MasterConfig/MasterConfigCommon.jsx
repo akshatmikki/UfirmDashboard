@@ -413,7 +413,7 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
                     onClick={() => onSelect(r)}
                   >
                     {(tab?.columns || []).map((c, idx) => {
-                      const val = c.render ? c.render(r) : c.valueKey ? getByPath(r, c.valueKey) : "";
+                      const val = c.render ? c.render(r, { context, meta }) : c.valueKey ? getByPath(r, c.valueKey) : "";
                       return <td key={`${c.header || idx}`}>{val}</td>;
                     })}
                     <td>

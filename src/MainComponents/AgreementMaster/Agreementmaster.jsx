@@ -28,10 +28,40 @@ const AgreementMaster = () => {
         searchKeys: ["AgreementId", "Client_ID", "Property_ID", "Description"],
         columns: [
           { header: "ID", render: (r) => `#${r.AgreementId}` },
-          { header: "Client", valueKey: "Client_ID" },
-          { header: "Property", valueKey: "Property_ID" },
-          { header: "Start", render: (r) => r.Agreement_Start_Date?.split("T")[0] },
-          { header: "End", render: (r) => r.Agreement_End_Date?.split("T")[0] },
+          {
+            header: "Client",
+            render: (r, { meta }) => {
+              const client = meta?.clients?.find(
+                (c) => String(c.ClientID ?? c.id) === String(r.Client_ID)
+              );
+              return client?.ClientName ?? client?.clientName ?? client?.name ?? r.Client_ID ?? "-";
+            },
+          },
+          {
+            header: "Property",
+            render: (r, { meta }) => {
+              const prop = meta?.properties?.find(
+                (p) => String(p.PropertyId ?? p.id) === String(r.Property_ID)
+              );
+              return prop?.Name ?? prop?.PropertyName ?? r.Property_ID ?? "-";
+            },
+          },
+          {
+            header: "Start",
+            render: (r) => {
+              if (!r.Agreement_Start_Date) return "-";
+              const d = new Date(r.Agreement_Start_Date);
+              return isNaN(d.getTime()) ? r.Agreement_Start_Date : d.toLocaleDateString("en-GB");
+            }
+          },
+          {
+            header: "End",
+            render: (r) => {
+              if (!r.Agreement_End_Date) return "-";
+              const d = new Date(r.Agreement_End_Date);
+              return isNaN(d.getTime()) ? r.Agreement_End_Date : d.toLocaleDateString("en-GB");
+            }
+          },
           { header: "Amount", render: (r) => `₹ ${r.Agreement_Amount}` },
           {
             header: "Status",

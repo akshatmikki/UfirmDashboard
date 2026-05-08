@@ -81,22 +81,27 @@ export default function AttendanceMaster() {
     }, []);
     // ✅ Employee fetch API call
     useEffect(() => {
+        const controller = new AbortController();
         const fetchEmployees = async () => {
             try {
                 if (!propertyId) return;
-                const data = await getFacilityMembers(propertyId);
-                const formatted = data.map(emp => ({
-                    ...emp,
-                    label: emp.Name,
-                    value: emp
-                }));
-               // console.log("Fetched Employees:", formatted);
-                setEmployeeList(formatted);
+                const data = await getFacilityMembers(propertyId, { signal: controller.signal });
+                if (data) {
+                    const formatted = data.map(emp => ({
+                        ...emp,
+                        label: emp.Name,
+                        value: emp
+                    }));
+                    setEmployeeList(formatted);
+                }
             } catch (error) {
-                console.error("Failed to load employees:", error);
+                if (error.name !== 'AbortError' && !axios.isCancel(error)) {
+                    console.error("Failed to load employees:", error);
+                }
             }
         };
         fetchEmployees();
+        return () => controller.abort();
     }, [propertyId]);
 
     const employeeMap = React.useMemo(() => {
@@ -155,16 +160,61 @@ export default function AttendanceMaster() {
 
     // ✅ Fetch all manual attendance and separate pending vs approved/rejected
     useEffect(() => {
-        fetchManualAttendance();
-    }, [propertyId]);
+        const controller = new AbortController();
+        
+        const fetchManualAttendance = async () => {
+            if (!propertyId) return;
+            try {
+                const savedData = await getManualAttendanceByProperty(propertyId, { signal: controller.signal });
+                if (!savedData) return;
 
-    const fetchManualAttendance = async () => {
+                const formattedData = savedData.map(item => ({
+                    Id: item.Id,
+                    EmployeeId: item.EmployeeId,
+                    EmployeeName: item.EmployeeName ||
+                        employeeMap[item.EmployeeId] ||
+                        `ID-${item.EmployeeId}`,
+                    employee: { Name: item.EmployeeName || `ID-${item.EmployeeId}` },
+                    mobile: item.MobileNo,
+                    PunchTime: item.PunchTime ? new Date(item.PunchTime) : null,
+                    punchDate: item.PunchTime ? new Date(item.PunchTime) : null,
+                    checkIn: item.PunchTime ? new Date(item.PunchTime) : null,
+                    PunchType: item.PunchType,
+                    GateNo: item.GateNo,
+                    CreatedBy: item.CreatedBy,
+                    CreatedOn: item.CreatedOn ? new Date(item.CreatedOn) : null,
+                    EmpId: item.EmpId,
+                    Status: item.Status,
+                    image: item.ImageFileName,
+                    ImageFileName: item.ImageFileName,
+                    location: item.LocationName || "",
+                    LocationName: item.LocationName || "",
+                    Reason: item.Reason || "",
+                    IsApproved: item.IsApproved || false,
+                    IsRejected: item.IsRejected || false,
+                    RejectionRemark: item.RejectionRemark || "",
+                    ApprovedBy: item.ApprovedBy,
+                    ApprovedOn: item.ApprovedOn ? new Date(item.ApprovedOn) : null
+                }));
+
+                setSubmittedData(formattedData);
+            } catch (error) {
+                if (error.name !== 'AbortError' && !axios.isCancel(error)) {
+                    console.error("Failed to fetch saved attendance:", error);
+                }
+            }
+        };
+
+        fetchManualAttendance();
+        return () => controller.abort();
+    }, [propertyId, employeeMap]);
+
+    // This is used for refresh after actions
+    const refreshManualAttendance = async () => {
         if (!propertyId) return;
         try {
             const savedData = await getManualAttendanceByProperty(propertyId);
-
             const formattedData = savedData.map(item => ({
-
                 Id: item.Id,
                 EmployeeId: item.EmployeeId,
                 EmployeeName: item.EmployeeName ||
@@ -192,10 +242,9 @@ export default function AttendanceMaster() {
                 ApprovedBy: item.ApprovedBy,
                 ApprovedOn: item.ApprovedOn ? new Date(item.ApprovedOn) : null
             }));
-
             setSubmittedData(formattedData);
         } catch (error) {
-            console.error("Failed to fetch saved attendance:", error);
+            console.error("Failed to refresh manual attendance:", error);
         }
     };
 
@@ -210,7 +259,7 @@ export default function AttendanceMaster() {
             });
 
             alert("Attendance approved ✅");
-            fetchManualAttendance(); // Refresh data
+            refreshManualAttendance(); // Refresh data
         } catch (error) {
             console.error(error);
             alert("Failed to approve ❌");
@@ -240,7 +289,7 @@ export default function AttendanceMaster() {
 
             alert("Attendance rejected ❌");
             setRejectionDialog(false);
-            fetchManualAttendance(); // Refresh data
+            refreshManualAttendance(); // Refresh data
         } catch (error) {
             console.error(error);
             alert("Failed to reject ❌");
@@ -297,6 +346,8 @@ export default function AttendanceMaster() {
             (attendanceType === "CLIENT" && !ClientID)
         ) return;
 
+        const controller = new AbortController();
+
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
 
@@ -306,9 +357,18 @@ export default function AttendanceMaster() {
         const entityId =
             attendanceType === "CLIENT" ? ClientID : propertyId;
 
-        getAttendance(entityId, fromDate, toDate, attendanceType)
-            .then(setAttendanceData)
-            .catch(console.error);
+        getAttendance(entityId, fromDate, toDate, attendanceType, { signal: controller.signal })
+            .then((data) => {
+                if (data) setAttendanceData(data);
+            })
+            .catch((error) => {
+                // Axios uses error.name === 'CanceledError' or error.code === 'ERR_CANCELED' 
+                // but getAttendance handles axios.isCancel(error) and returns null
+            });
+
+        return () => {
+            controller.abort();
+        };
 
     }, [propertyId, ClientID, selectedClient, currentDate]);
 
@@ -337,31 +397,33 @@ export default function AttendanceMaster() {
 
         const allDates = [];
         for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month, d, 12, 0, 0);
-            const key = dateObj.toISOString().slice(0, 10);
-            allDates.push(key);
+            // Generate local YYYY-MM-DD keys
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            allDates.push(dateKey);
         }
 
         const employees = {};
         attendanceData.forEach(record => {
-            const code = record.EmployeeCode || record.EmployeeName || "Unknown";
+            // Use a unique key to prevent collisions between employees with same names/missing codes
+            const uniqueId = record.EmployeeId || record.FacilityMemberId || `${record.EmployeeCode || ""}_${record.EmployeeName || "Unknown"}`;
             const empName = record.EmployeeName;
             const desig = record.Designation || "--";
+            const empCode = record.EmployeeCode || "--";
 
             const recordDateObj = new Date(record.PunchDate);
-            recordDateObj.setHours(12, 0, 0, 0);
-            const dateKey = recordDateObj.toISOString().slice(0, 10);
+            // Generate local YYYY-MM-DD keys to match allDates
+            const dateKey = `${recordDateObj.getFullYear()}-${String(recordDateObj.getMonth() + 1).padStart(2, '0')}-${String(recordDateObj.getDate()).padStart(2, '0')}`;
 
-            if (!employees[code]) {
-                employees[code] = {
+            if (!employees[uniqueId]) {
+                employees[uniqueId] = {
                     EmployeeName: empName,
                     Designation: desig,
-                    EmployeeCode: code,
+                    EmployeeCode: empCode,
                     Attendance: {}
                 };
             }
 
-            employees[code].Attendance[dateKey] = {
+            employees[uniqueId].Attendance[dateKey] = {
                 CheckIn: record.MinCheckIn || "--",
                 CheckOut: record.MaxCheckOut || "--",
                 WorkingTime: record.TotalWorkingTime || "0h",
@@ -371,7 +433,7 @@ export default function AttendanceMaster() {
 
         let ws_data = [];
 
-        Object.entries(employees).forEach(([code, empData]) => {
+        Object.entries(employees).forEach(([id, empData]) => {
             const empName = empData.EmployeeName;
             const attMap = empData.Attendance;
 
@@ -399,7 +461,7 @@ export default function AttendanceMaster() {
             // 🔹 Employee + Code + Designation
             ws_data.push([`Employee: ${empName} - ${empData.EmployeeCode} (${empData.Designation})`]);
 
-            // 🔹 Summary (no Absent count)
+            // 🔹 Summary
             ws_data.push([
                 `Present: ${present}`,
                 `Absent: ${absent}`,

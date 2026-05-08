@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
+import { getGeneratedSalaryByPropertiesWithMonthYear, getEmployeesByOffices } from "../../Services/PayrollService";
 import {
     getAllClients,
     getClientByPropertyId,
@@ -116,16 +116,69 @@ export default function PFReport() {
                     { month: "long" }
                 );
 
-                const data = await getFacilityMemberSalaryDetailsByClientBranch({
-                    clientId: selectedUnitId,
-                    propertyIds: propertyIds.join(","),
-                    month: monthName,
-                    year: Number(year),
-                    requireGeneratedSalary: true,
+                const [salaryData, employeeData] = await Promise.all([
+                    getGeneratedSalaryByPropertiesWithMonthYear(
+                        propertyIds,
+                        monthName,
+                        Number(year)
+                    ),
+                    getEmployeesByOffices(propertyIds)
+                ]);
+                const employeeMap = {};
+
+                (employeeData || []).forEach(emp => {
+                    const fmId = emp?.FacilityMember?.FacilityMemberId;
+
+                    if (fmId) {
+                        employeeMap[fmId] = {
+                            EmployeeCode: emp?.Profile?.EmployeeCode,
+                            Designation: emp?.Profile?.Designation,
+                            UAN: emp?.FinancialInfo?.UANNumber
+                        };
+                    }
                 });
 
-                const filtered = (Array.isArray(data) ? data : []).filter(emp => emp.PF > 0);
-                setEmployees(filtered);
+                const mappedData = (salaryData || []).map(emp => {
+                    const extra = employeeMap[emp.EmployeeId] || {};
+
+                    const baseWage = emp.PFVariableSum || 0;
+
+                    const pfWage =
+                        emp.PFLimit > 0 && emp.PFLimit < baseWage
+                            ? emp.PFLimit
+                            : baseWage;
+                    const eps = Math.round(pfWage * 0.0833);
+                    const epf = emp.PF || 0;
+
+                    const workingDays = emp.WorkingDays || 0;
+                    const dutyDays = emp.DutyDays || 0;
+
+                    const ncpDays = workingDays - dutyDays;
+
+                    return {
+                        FacilityMemberId: emp.EmployeeId,
+
+                        EmployeeCode: extra.EmployeeCode || "-",
+                        FacilityMemberName: emp.EmployeeName,
+                        Designation: extra.Designation || "-",
+                        UAN: extra.UAN || "-",
+
+                        WorkingDays: workingDays || 0,
+                        TotalGross: emp.TotalGross || 0,
+
+                        PFWage: pfWage,
+                        EPF: epf,
+                        EPS: eps,
+                        Diff: epf - eps,
+
+
+                        NCPDays: ncpDays > 0 ? ncpDays : 0,
+                        RefundOfAdvances: emp.Advance || 0
+                    };
+                });
+
+                setEmployees(mappedData);
+
             } catch (error) {
                 console.error("PF report fetch failed", error);
                 setEmployees([]);
@@ -149,10 +202,7 @@ export default function PFReport() {
         let totalGross = 0;
         let totalPFWage = 0;
         let total12 = 0;
-        let total367 = 0;
         let total833 = 0;
-        let total13 = 0;
-        let totalLWF = 0;
 
         // Title
         const selectedUnitName =
@@ -167,50 +217,46 @@ export default function PFReport() {
             "Employee Code",
             "Employee Name",
             "Designation",
+            "UAN",
             "Working Days",
-            "Total Gross Earn",
-            "PF Wage",
-            "Pension Wage",
-            "EDLI Wage",
-            "12 %",
-            "3.67 %",
-            "8.33 %",
-            "13 %",
-            "Emp LWF",
+            "Gross Wages",
+            "EPF Wages",
+            "EPS Wages",
+            "EDLI Wages",
+            "EPF Contri Remitted",
+            "EPS Contri Remitted",
+            "EPF EPS Diff Remitted",
+            "NCP Days",
+            "Refund of Advances",
         ];
 
         csvContent += headers.join(",") + "\n";
 
         // Data Rows
         employees
-            .filter(emp => emp.PF > 0)
+            .filter(emp => emp.EPF > 0)
             .forEach((emp, index) => {
-                const pfWage =
-                    emp.PFLimit > 0 && emp.PFLimit < emp.PFVariableSum
-                        ? emp.PFLimit
-                        : emp.PFVariableSum;
+                const pfWage = emp.PFWage;
                 totalGross += emp.TotalGross || 0;
                 totalPFWage += pfWage;
-                total12 += Math.round(pfWage * 0.12);
-                total367 += Math.round(pfWage * 0.0367);
-                total833 += Math.round(pfWage * 0.0833);
-                total13 += Math.round(pfWage * 0.13);
-                totalLWF += emp.LwfEmployeeAmount || 0;
+                total12 += emp.EPF || 0;
+                total833 += emp.EPS || 0;
                 const row = [
                     index + 1,
                     emp.EmployeeCode || "-",
                     emp.FacilityMemberName || "-",
                     emp.Designation || "-",
+                    emp.UAN || "-",
                     emp.WorkingDays || 0,
                     emp.TotalGross || 0,
                     pfWage,
                     pfWage,
                     pfWage,
-                    Math.round(pfWage * 0.12),
-                    Math.round(pfWage * 0.0367),
-                    Math.round(pfWage * 0.0833),
-                    Math.round(pfWage * 0.13),
-                    emp.LwfEmployeeAmount || 0,
+                    emp.EPF,
+                    emp.EPS,
+                    emp.Diff,
+                    emp.NCPDays || 0,
+                    emp.RefundOfAdvances || 0,
                 ];
 
                 csvContent += row.join(",") + "\n";
@@ -218,20 +264,21 @@ export default function PFReport() {
         csvContent += "\n";
 
         const totalRow = [
-            "TOTAL",
-            "",
-            "",
-            "",
-            "",
-            totalGross,
-            totalPFWage,
-            totalPFWage,
-            totalPFWage,
-            total12,
-            total367,
-            total833,
-            total13,
-            totalLWF
+            "TOTAL",     // S.No
+            "",          // Employee Code
+            "",          // Employee Name
+            "",          // Designation
+            "",          // UAN
+            "",          // Working Days (optional total)
+            totalGross,  // Gross Wages
+            totalPFWage, // EPF Wages
+            totalPFWage, // EPS Wages
+            totalPFWage, // EDLI Wages
+            total12,     // EPF Contri
+            total833,    // EPS Contri
+            total12 - total833, // EPF EPS Diff
+            "",          // NCP Days
+            ""           // Refund of Advances
         ];
 
         csvContent += totalRow.join(",") + "\n";
@@ -247,6 +294,61 @@ export default function PFReport() {
         link.setAttribute(
             "download",
             `PF_Report_${selectedUnitName}_${monthName}_${year}.csv`
+        );
+
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    const handleExportTxt = () => {
+        if (!selectedMonth || !employees.length) return;
+
+        let txtContent = "";
+
+        employees
+            .filter(emp => emp.EPF > 0)
+            .forEach((emp) => {
+                const pfWage = emp.PFWage;
+
+                const row = [
+                    emp.UAN || "0",
+                    emp.FacilityMemberName || "",
+                    emp.TotalGross || 0,
+                    pfWage,
+                    pfWage,
+                    pfWage,
+                    emp.EPF || 0,
+                    emp.EPS || 0,
+                    emp.Diff || 0,
+                    emp.NCPDays || 0,
+                    emp.RefundOfAdvances || 0
+                ];
+
+                txtContent += row.join("#~#") + "\n";
+            });
+
+        const blob = new Blob([txtContent], {
+            type: "text/plain;charset=utf-8;",
+        });
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        const selectedUnitName =
+            propertyList.find(p => p.PropertyId === selectedPropertyId)?.PropertyName || "AllUnits";
+
+        const safeUnitName = selectedUnitName.replace(/\s+/g, "_");
+
+        const [year, month] = selectedMonth.split("-");
+        const monthName = new Date(year, month - 1).toLocaleString("default", {
+            month: "long",
+        });
+
+        link.setAttribute(
+            "download",
+            `${safeUnitName}_PF_Report_${monthName}_${year}.txt`
         );
 
         document.body.appendChild(link);
@@ -330,7 +432,7 @@ export default function PFReport() {
                 </div>
             </div>
 
-            {/* Month Selector & Export Button */}
+            {/* Month Selector & Export Button & Txt Button */}
             <div
                 style={{
                     marginBottom: 25,
@@ -351,14 +453,24 @@ export default function PFReport() {
                     />
                 </div>
 
-                {/* Right Side - Export Button */}
-                <button
-                    className="btn btn-success"
-                    onClick={handleExport}
-                    disabled={!selectedMonth || !employees.length}
-                >
-                    Export PF
-                </button>
+                {/* Right Side - Buttons */}
+                <div style={{ display: "flex", gap: 10 }}>
+                    <button
+                        className="btn btn-success"
+                        onClick={handleExport}
+                        disabled={!selectedMonth || !employees.length}
+                    >
+                        Export PF
+                    </button>
+
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleExportTxt}
+                        disabled={!selectedMonth || !employees.length}
+                    >
+                        Export TXT
+                    </button>
+                </div>
             </div>
 
             {loading && <div>Loading PF data...</div>}
@@ -375,16 +487,17 @@ export default function PFReport() {
                             <th>Employee Code</th>
                             <th>Employee Name</th>
                             <th>Designation</th>
+                            <th>UAN</th>
                             <th>Working Days</th>
-                            <th>Total Gross Earn</th>
-                            <th>PF Wage</th>
-                            <th>Pension Wage</th>
-                            <th>EDLI Wage</th>
-                            <th>12 %</th>
-                            <th>3.67 %</th>
-                            <th>8.33 %</th>
-                            <th>13 %</th>
-                            <th>Emp LWF</th>
+                            <th>Gross Wages</th>
+                            <th>EPF Wages</th>
+                            <th>EPS Wages</th>
+                            <th>EDLI Wages</th>
+                            <th>EPF Contri Remitted</th>
+                            <th>EPS Contri Remitted</th>
+                            <th>EPF EPS Diff Remitted</th>
+                            <th>NCP Days</th>
+                            <th>Refund of Advances</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -395,30 +508,30 @@ export default function PFReport() {
                                 </td>
                             </tr>
                         ) : (
-                            employees.map((emp, index) => {
-                                const pfWage =
-                                    emp.PFLimit > 0 && emp.PFLimit < emp.PFVariableSum
-                                        ? emp.PFLimit
-                                        : emp.PFVariableSum;
-                                return (
-                                    <tr key={emp.FacilityMemberId}>
-                                        <td>{index + 1}</td>
-                                        <td>{emp.EmployeeCode || "-"}</td>
-                                        <td>{emp.FacilityMemberName || "-"}</td>
-                                        <td>{emp.Designation || "-"}</td>
-                                        <td>{emp.WorkingDays}</td>
-                                        <td>{emp.TotalGross}</td>
-                                        <td>{pfWage}</td>
-                                        <td>{pfWage}</td>
-                                        <td>{pfWage}</td>
-                                        <td>{Math.round(pfWage * 0.12)}</td>
-                                        <td>{Math.round(pfWage * 0.0367)}</td>
-                                        <td>{Math.round(pfWage * 0.0833)}</td>
-                                        <td>{Math.round(pfWage * 0.13)}</td>
-                                        <td>{emp.LwfEmployeeAmount || 0}</td>
-                                    </tr>
-                                );
-                            })
+                            employees
+                                .filter(emp => emp.EPF > 0)
+                                .map((emp, index) => {
+                                    const pfWage = emp.PFWage;
+                                    return (
+                                        <tr key={emp.FacilityMemberId}>
+                                            <td>{index + 1}</td>
+                                            <td>{emp.EmployeeCode || "-"}</td>
+                                            <td>{emp.FacilityMemberName || "-"}</td>
+                                            <td>{emp.Designation || "-"}</td>
+                                            <td>{emp.UAN || "-"}</td>
+                                            <td>{emp.WorkingDays}</td>
+                                            <td>{emp.TotalGross}</td>
+                                            <td>{pfWage}</td>
+                                            <td>{pfWage}</td>
+                                            <td>{pfWage}</td>
+                                            <td>{emp.EPF}</td>
+                                            <td>{emp.EPS}</td>
+                                            <td>{emp.Diff}</td>
+                                            <td>{emp.NCPDays || 0}</td>
+                                            <td>{emp.RefundOfAdvances || 0}</td>
+                                        </tr>
+                                    );
+                                })
                         )}
                     </tbody>
                 </table>
@@ -426,4 +539,3 @@ export default function PFReport() {
         </div>
     );
 }
-

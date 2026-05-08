@@ -45,6 +45,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "Designation": emp.Designation || "-",
 
     "Dept": emp.Department || "-",
+    "Salary Generated": emp.SalaryGeneration || "-",
     "UAN": emp.UANNumber || "-",
     "ESI No": emp.ESINumber || "-",
 

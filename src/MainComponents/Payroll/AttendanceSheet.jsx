@@ -776,17 +776,15 @@ useEffect(() => {
   useEffect(() => {
     const loadUnits = async () => {
       try {
+        const res = await getAllClients();
+        const clients = res || [];
+        setUnitList(clients);
+
         if (Number(reduxClientId) > 0) {
           setSelectedUnitId(Number(reduxClientId));
-          return;
-        }
-        if (Number(reduxPropertyId) > 0) {
-          const res = await getClientByPropertyId(reduxPropertyId);
-          setUnitList(res ? [res] : []);
-          setSelectedUnitId(res?.ClientID || null);
-        } else {
-          const res = await getAllClients();
-          setUnitList(res || []);
+        } else if (Number(reduxPropertyId) > 0) {
+          const clientRes = await getClientByPropertyId(reduxPropertyId);
+          setSelectedUnitId(clientRes?.ClientID || null);
         }
       } catch (err) {
         console.log("Failed to load units", err);
@@ -826,6 +824,7 @@ useEffect(() => {
   // Load Employees
   // ---------------------------------------------------------
   useEffect(() => {
+    const controller = new AbortController();
     const loadEmployees = async () => {
       try {
         let officeIds = [];
@@ -852,7 +851,8 @@ useEffect(() => {
         const monthYearForEmployees = getMonthYearString(month, year);
         const data = await getEmployeesByOfficesWithAttendance(
           officeIds,
-          monthYearForEmployees
+          monthYearForEmployees,
+          { signal: controller.signal }
         );
         setEmployees(data || []);
         setSelectedDepartment("");
@@ -866,18 +866,21 @@ useEffect(() => {
 
         setDepartmentList(departments);
       } catch (err) {
+        if (err.name === "CanceledError" || err.name === "AbortError") return;
         console.error("Employee load failed", err);
         setEmployees([]);
       }
     };
 
     loadEmployees();
+    return () => controller.abort();
   }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, month, year]);
 
   // ---------------------------------------------------------
   // Load facility salary config
   // ---------------------------------------------------------
   useEffect(() => {
+    const controller = new AbortController();
     async function loadFacilityConfig() {
       const propertyIds =
         selectedPropertyId.length > 0
@@ -901,7 +904,7 @@ useEffect(() => {
 
       for (const officeId of cleanedPropertyIds) {
         try {
-          const res = await getFacilitySalaryConfig(officeId);
+          const res = await getFacilitySalaryConfig(officeId, { signal: controller.signal });
           const rows = Array.isArray(res) ? res : [];
 
           rows.forEach((cfg) => {
@@ -932,6 +935,7 @@ useEffect(() => {
             };
           });
         } catch (err) {
+          if (err.name === "AbortError") return;
           console.error("Facility salary config load error:", err);
         }
       }
@@ -940,6 +944,7 @@ useEffect(() => {
     }
 
     loadFacilityConfig();
+    return () => controller.abort();
   }, [
     employees,
     month,
@@ -954,6 +959,7 @@ useEffect(() => {
   // ---------------------------------------------------------
   useEffect(() => {
     setCurrentPage(1);
+    const controller = new AbortController();
 
     async function loadAttendance() {
       if (!employees.length) return;
@@ -978,7 +984,8 @@ useEffect(() => {
         // 🔹 NEW MULTI PROPERTY API
         const response = await getAttendanceByProperties(
           propertyIds,
-          currMonthYear
+          currMonthYear,
+          { signal: controller.signal }
         );
 
         // 🔥 Flatten structure
@@ -995,10 +1002,12 @@ useEffect(() => {
             otData = await getEmployeeMonthlyTotalOT(
               propertyIds[0],
               month,
-              year
+              year,
+              { signal: controller.signal }
             );
           }
         } catch (err) {
+          if (err.name === "CanceledError" || err.name === "AbortError") return;
           console.error("OT load failed:", err);
         }
 
@@ -1067,6 +1076,7 @@ filtered.forEach((att) => {
     }
 
     loadAttendance();
+    return () => controller.abort();
   }, [
     selectedPropertyId,
     reduxPropertyId,
@@ -1131,6 +1141,9 @@ filtered.forEach((att) => {
     if (field === "totalDays") {
       updated.manualTotalDays = true;
     }
+    if (field === "divideByDays") {
+      updated.manualDivideByDays = true;
+    }
 
     const refMonth = month === 1 ? 12 : month - 1;
     const refYear = month === 1 ? year - 1 : year;
@@ -1152,6 +1165,13 @@ filtered.forEach((att) => {
     if (totalDaysResolved > monthDaysLimit) {
       updated.totalDays = String(monthDaysLimit);
       totalDaysResolved = monthDaysLimit;
+    }
+
+    if (field === "divideByDays") {
+      const dbdNum = Number(value);
+      if (dbdNum > monthDaysLimit) {
+        updated.divideByDays = String(monthDaysLimit);
+      }
     }
 
     const fieldsToCheck = ["workingDays", "EL", "CL", "SL", "weekDaysOff"];
@@ -1240,7 +1260,7 @@ filtered.forEach((att) => {
         const inputDivideByDays = n(inp.divideByDays);
         const divideByDaysToSave =
           inputDivideByDays > 0
-            ? Math.min(inputDivideByDays, fallbackDivideByDays)
+            ? inputDivideByDays
             : fallbackDivideByDays;
 
         const model = {
@@ -1905,47 +1925,7 @@ filtered.forEach((att) => {
         }}
       >
         {/* Left: Total Days */}
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            fontWeight: "bold",
-          }}
-        >
-          <span>Total Number of Days:</span>
-          <input
-            type="text"
-            value={globalTotalDays}
-            onChange={(e) => {
-              if (!/^\d*$/.test(e.target.value)) return;
-
-              const newVal = Number(e.target.value || 0);
-              if (newVal < 1 || newVal > getDaysInMonth(month, year)) return;
-              setGlobalTotalDays(newVal);
-
-              setDayInputs((prev) => {
-                const out = {};
-                Object.keys(prev).forEach((id) => {
-                  if (prev[id].manualTotalDays) {
-                    out[id] = prev[id];
-                  } else {
-                    out[id] = { ...prev[id], divideByDays: newVal };
-                  }
-                });
-                return out;
-              });
-            }}
-            style={{
-              width: 90,
-              textAlign: "center",
-              fontWeight: "bold",
-              padding: "4px 6px",
-              borderRadius: 4,
-              border: "1px solid #cbd5e0",
-            }}
-          />
-        </div>
+       
 
         {/* Search */}
         <div style={{ display: "flex", alignItems: "center" }}>

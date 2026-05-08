@@ -187,7 +187,7 @@ export async function getSalaryAllowancesByFacilityMember(facilityMemberId) {
   }
 }
 
-export async function getFacilitySalaryConfig(propertyId) {
+export async function getFacilitySalaryConfig(propertyId, options = {}) {
   try {
     const response = await fetch(
       `${SALARY_API_BASE_URL}/getFacilitySalaryConfig/${propertyId}`,
@@ -196,6 +196,7 @@ export async function getFacilitySalaryConfig(propertyId) {
         headers: {
           Accept: "application/json",
         },
+        signal: options.signal,
       }
     );
     if (!response.ok) {
@@ -203,6 +204,7 @@ export async function getFacilitySalaryConfig(propertyId) {
     }
     return await response.json();
   } catch (error) {
+    if (error.name === "AbortError") return null;
     console.error("Failed to fetch facility salary config", error);
     throw error;
   }
@@ -642,7 +644,7 @@ export async function createGeneratedSalary(employees) {
 
 // DELETE to remove a generated salary entry by generated ID
 export async function deleteGeneratedSalary(generatedId) {
-  const response = await fetch(`http://localhost:62929/api/employee/generatedSalary/${generatedId}`, {
+  const response = await fetch(`https://api.urest.in:8096/api/employee/generatedSalary/${generatedId}`, {
     method: 'DELETE',
   });
 
@@ -652,7 +654,7 @@ export async function deleteGeneratedSalary(generatedId) {
 
 export async function updateGeneratedSalary(generatedId, employee) {
   const response = await fetch(
-    `http://localhost:62929/api/employee/generatedSalary/${generatedId}`,
+    `https://api.urest.in:8096/api/employee/generatedSalary/${generatedId}`,
     {
       method: "PUT",
       headers: {
@@ -732,7 +734,7 @@ export const getGeneratedSalaryByProperties = async (
   if (!propertyIds.length) return [];
 
   const ids = propertyIds.join(",");
-  let url = `http://localhost:62929/api/employee/generatedSalary?propertyIds=${ids}`;
+  let url = `https://api.urest.in:8096/api/employee/generatedSalary?propertyIds=${ids}`;
   if (month) url += `&month=${encodeURIComponent(month)}`;
   if (year) url += `&year=${encodeURIComponent(year)}`;
 
@@ -1359,7 +1361,7 @@ export async function deleteMonthlyOTReport(
 }
 
 // Get Employee Monthly Total OT
-export const getEmployeeMonthlyTotalOT = async (propertyId, month, year) => {
+export const getEmployeeMonthlyTotalOT = async (propertyId, month, year, options = {}) => {
   try {
     const response = await axios.get(
       `https://api.urest.in:8096/api/otreport/getEmployeeMonthlyTotalOT`,
@@ -1370,11 +1372,13 @@ export const getEmployeeMonthlyTotalOT = async (propertyId, month, year) => {
           year,
         },
         withCredentials: false,
+        signal: options.signal,
       }
     );
 
     return response.data;
   } catch (error) {
+    if (axios.isCancel(error)) return null;
     console.error("Failed to fetch monthly OT report:", error);
     throw error;
   }
@@ -1404,7 +1408,8 @@ export const getEmployeesByOffices = async (officeIds = []) => {
 
 export const getEmployeesByOfficesWithAttendance = async (
   officeIds = [],
-  monthYear = ""
+  monthYear = "",
+  options = {}
 ) => {
   if (!officeIds.length) return [];
 
@@ -1418,6 +1423,7 @@ export const getEmployeesByOfficesWithAttendance = async (
       {
         headers: { "Content-Type": "application/json" },
         withCredentials: false,
+        signal: options.signal,
       }
     );
 
@@ -1430,7 +1436,8 @@ export const getEmployeesByOfficesWithAttendance = async (
 
 export const getAttendanceByProperties = async (
   propertyIds = [],
-  monthYear
+  monthYear,
+  options = {}
 ) => {
   if (!propertyIds.length || !monthYear) return [];
 
@@ -1444,6 +1451,7 @@ export const getAttendanceByProperties = async (
       {
         headers: { "Content-Type": "application/json" },
         withCredentials: false,
+        signal: options.signal,
       }
     );
 
@@ -1543,6 +1551,32 @@ export const getFacilityMemberSalaryDetailsByClientBranch = async (
   }
 };
 
+// ✅ NEW API (WITH MONTH + YEAR FILTER)
+export const getGeneratedSalaryByPropertiesWithMonthYear = async (
+  propertyIds = [],
+  month,
+  year
+) => {
+  if (!propertyIds.length || !month || !year) return [];
+
+  const ids = propertyIds.join(",");
+
+  const url = `https://api.urest.in:8096/api/employee/generatedSalary?propertyIds=${ids}&month=${encodeURIComponent(
+    month
+  )}&year=${encodeURIComponent(year)}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch generated salary (month-wise)");
+  }
+
+  return response.json();
+};
+
 // ================= IMPORT EMPLOYEES =================
 
 export const importEmployees = async (propertyId, file) => {
@@ -1551,7 +1585,7 @@ export const importEmployees = async (propertyId, file) => {
     formData.append("file", file);
 
     const response = await fetch(
-      `https://api.urest.in:8096/api/employee/import?propertyId=${propertyId}`,
+      `http://localhost:62929/api/employee/import?propertyId=${propertyId}`,
       {
         method: "POST",
         body: formData

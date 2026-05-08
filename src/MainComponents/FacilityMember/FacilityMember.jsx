@@ -91,6 +91,7 @@ const StaffPage = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [viewDialogVisible, setViewDialogVisible] = useState(false);
+  const [importDialogVisible, setImportDialogVisible] = useState(false);
   const [viewData, setViewData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editEmployeeId, setEditEmployeeId] = useState(null);
@@ -662,6 +663,16 @@ const StaffPage = () => {
     return istTime.toISOString().slice(0, 19); // remove 'Z'
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const openLoanAdvanceDialog = (row) => {
     const memberId = row.FacilityMember.FacilityMemberId;
     setSelectedLoanAdvanceId(memberId);
@@ -871,11 +882,11 @@ const StaffPage = () => {
 
   const downloadSampleTemplate = () => {
     const note = [
-      "Fields marked with * are mandatory"
+      "Fields marked with * are mandatory",
+      "Employee Code (EMPCODE) is auto-generated during import. Do not add an EMPCODE column."
     ];
 
     const headers = [
-      "EMPCODE *",
       "EMP NAME *",
       "F/H NAME",
       "SPOUSE NAME",
@@ -941,11 +952,10 @@ const StaffPage = () => {
       "EMP NAME": row?.Profile?.EmployeeName || "",
       "F/H NAME": row?.Profile?.FatherName || "",
       "SPOUSE NAME": row?.Profile?.SpouseName || "",
-      "DOB": row?.Profile?.DateOfBirth?.slice(0, 10) || "",
+      "DOB": formatDate(row?.Profile?.DateOfBirth),
       "DOJ": row?.WorkHistories?.[0]?.StartDate
         ? new Date(row.WorkHistories[0].StartDate)
           .toLocaleDateString("en-GB") // 🔥 gives DD/MM/YYYY
-          .replace(/\//g, "-")         // convert to DD-MM-YYYY
         : "",
       "GENDER": row?.Profile?.Gender === "Male" ? "M" : "F",
       "MOBILE": row?.Profile?.PhoneNumber || "",
@@ -1047,7 +1057,7 @@ const StaffPage = () => {
       });
     }
 
-    if (!employeeCode?.trim()) {
+    if (isEditMode && !employeeCode?.trim()) {
       setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
     }
@@ -1297,7 +1307,7 @@ const StaffPage = () => {
     const employeeData = {
       Profile: {
         OfficeId: activePropertyId,
-        EmployeeCode: employeeCode,
+        ...(isEditMode ? { EmployeeCode: employeeCode } : {}),
         EmployeeName: cleanName,
         EmploymentType: employmentType,
         CreatedOn: now,
@@ -1753,7 +1763,7 @@ const StaffPage = () => {
           className="p-button-secondary"
           tooltip="Import Staff"
           disabled={!activePropertyId || isProcessing}
-          onClick={handleImportClick}
+          onClick={() => setImportDialogVisible(true)}
         />
         <input
           type="file"
@@ -1779,12 +1789,6 @@ const StaffPage = () => {
           className="p-button-success"
         />
 
-        <Button
-          label="Sample Template"
-          icon="pi pi-file-excel"
-          className="p-button-warning"
-          onClick={downloadSampleTemplate}
-        />
         <Button
           label="Export"
           icon="pi pi-download"
@@ -2191,18 +2195,22 @@ const StaffPage = () => {
                   className="mb-3"
                   style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
-                <label>Employee Code <span className="required-asterisk">*</span></label>
-                <InputText
-                  placeholder="Employee Code"
-                  value={employeeCode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                    if (val.length <= 13) {
-                      setEmployeeCode(val);
-                    }
-                  }}
-                  className="mb-3"
-                />
+                {isEditMode && (
+                  <>
+                    <label>Employee Code <span className="required-asterisk">*</span></label>
+                    <InputText
+                      placeholder="Employee Code"
+                      value={employeeCode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                        if (val.length <= 13) {
+                          setEmployeeCode(val);
+                        }
+                      }}
+                      className="mb-3"
+                    />
+                  </>
+                )}
 
                 <label>Employee Name <span className="required-asterisk">*</span></label>
                 <InputText
@@ -2785,7 +2793,7 @@ const StaffPage = () => {
 
                   <label>Date of Birth</label>
                   <InputText
-                    value={viewData.Profile?.DateOfBirth ? viewData.Profile.DateOfBirth.slice(0, 10) : ""}
+                    value={formatDate(viewData.Profile?.DateOfBirth)}
                     readOnly
                     className="mb-3"
                   />
@@ -2925,14 +2933,14 @@ const StaffPage = () => {
 
                           <label>Start Date</label>
                           <InputText
-                            value={wh.StartDate ? wh.StartDate.slice(0, 10) : ""}
+                            value={formatDate(wh.StartDate)}
                             readOnly
                             className="mb-3"
                           />
 
                           <label>End Date</label>
                           <InputText
-                            value={wh.EndDate ? wh.EndDate.slice(0, 10) : ""}
+                            value={formatDate(wh.EndDate)}
                             readOnly
                             className="mb-3"
                           />
@@ -3100,6 +3108,42 @@ const StaffPage = () => {
               </div>
             </div>
           )}
+        </Dialog>
+        {/* Import Dialog */}
+        <Dialog
+          header="Import Facility Members"
+          visible={importDialogVisible}
+          style={{ width: "450px" }}
+          modal
+          onHide={() => setImportDialogVisible(false)}
+        >
+          <div className="p-fluid">
+            <div className="mb-4">
+              <p className="text-muted mb-2">Step 1: Download the template if you don't have it.</p>
+              <Button
+                label="Download Sample Template"
+                icon="pi pi-file-excel"
+                className="p-button-warning w-full"
+                onClick={downloadSampleTemplate}
+              />
+            </div>
+
+            <div className="mb-2">
+              <p className="text-muted mb-2">Step 2: Choose your filled Excel file to import.</p>
+              <Button
+                label="Choose File and Import"
+                icon="pi pi-upload"
+                className="p-button-primary w-full"
+                onClick={handleImportClick}
+              />
+            </div>
+            <small className="text-muted mt-2 d-block">
+              Employee Code is auto-generated. Don't include an <strong>EMPCODE</strong> column in the import file.
+            </small>
+            <small className="text-danger mt-2 d-block">
+              * Please ensure you have selected a property before importing.
+            </small>
+          </div>
         </Dialog>
       </div>
     </PrimeReactProvider>
