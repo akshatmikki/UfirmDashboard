@@ -80,41 +80,48 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
 
     "Bank": emp.BankName || "-",
     "Account": emp.BankAccountNumber || "-",
-    "IFSC": emp.BankIFSCCode || "-"
+    "IFSC": emp.BankIFSCCode || "-",
+
+    "Approved By": emp.ApprovedBy || "-",
+    "Approved On": emp.ApprovedOn
+      ? new Date(emp.ApprovedOn).toLocaleString("en-IN")
+      : "-",
   }));
 
   const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A5" });
 
-  XLSX.utils.sheet_add_aoa(worksheet, [
-    [],
-    [
-      "TOTAL", "", "", "", "", "", "", "",
-      "", "", "", "",
+  const headers = Object.keys(data[0]);
 
-      totals.Basic,
-      totals.HRA,
-      totals.Conv,
-      totals.Wash,
-      totals.Spl,
-      totals.Other,
-      totals.Bonus,
-      totals.TotalSalary,
-      totals.OTAmt,
-      totals.Gross,
-      totals.PF,
-      totals.ESI,
-      totals.LWF,
-      totals.PT,
-      totals.Advance,
-      totals.Food,
-      totals.Maintenance,
-      totals.Uniform,
-      totals.Tax,
-      totals.TotalDeduction,
-      totals.NetSalary,
-      "", "", ""
-    ]
-  ], { origin: -1 }); // 👈 VERY IMPORTANT (append at end)
+  const totalRow = headers.map((key, index) => {
+    if (index === 0) return "TOTAL";
+
+    switch (key) {
+      case "Basic": return totals.Basic;
+      case "HRA": return totals.HRA;
+      case "Conv": return totals.Conv;
+      case "Wash": return totals.Wash;
+      case "Spl": return totals.Spl;
+      case "Other": return totals.Other;
+      case "Bonus": return totals.Bonus;
+      case "Total Salary": return totals.TotalSalary;
+      case "OT Amt": return totals.OTAmt;
+      case "Gross": return totals.Gross;
+      case "PF": return totals.PF;
+      case "ESI": return totals.ESI;
+      case "LWF": return totals.LWF;
+      case "PT": return totals.PT;
+      case "Advance": return totals.Advance;
+      case "Food": return totals.Food;
+      case "Maintenance": return totals.Maintenance;
+      case "Uniform": return totals.Uniform;
+      case "Tax": return totals.Tax;
+      case "Total Deduction": return totals.TotalDeduction;
+      case "Net Salary": return totals.NetSalary;
+      default: return "";
+    }
+  });
+
+  XLSX.utils.sheet_add_aoa(worksheet, [[], totalRow], { origin: -1 });
 
   // 👇 header rows like PDF style
   XLSX.utils.sheet_add_aoa(worksheet, [

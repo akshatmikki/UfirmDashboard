@@ -1665,3 +1665,20 @@ export async function getFundsApprovalHistory(month, year) {
     return [];
   }
 }
+
+export const getFundsApprovalHistorybyProperty = async ({ propertyId, month, year }) => {
+  try {
+    const res = await axios.get(
+      `http://api.urest.in:8096/api/fundsapproval/get-funds-approval-history-by-property`,
+      {
+        params: { propertyId, month, year },
+        withCredentials: false,
+      }
+    );
+
+    return res.data || [];
+  } catch (err) {
+    console.error("Funds approval history fetch failed", err);
+    return [];
+  }
+};
