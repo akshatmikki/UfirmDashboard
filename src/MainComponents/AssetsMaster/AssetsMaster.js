@@ -162,33 +162,141 @@ class AssetsMaster extends Component {
     }
   }
   // 👇 ADD THIS METHOD INSIDE CLASS
-downloadAllQRCodes = async () => {
-  console.log("QR DOWNLOAD START");
+  downloadAllQRCodes = async () => {
+    console.log("QR DOWNLOAD START");
 
-  const assets = this.getFilteredGridData() || this.state.GridData;
+    const assets = this.getFilteredGridData() || this.state.GridData;
 
-  if (!assets || assets.length === 0) {
-    alert("No assets found");
-    return;
-  }
+    if (!assets || assets.length === 0) {
+      alert("No assets found");
+      return;
+    }
 
-  this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
+    this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
 
-  const pdf = new jsPDF("p", "mm", "a4");
+    const pdf = new jsPDF("p", "mm", "a4");
 
-  for (let i = 0; i < assets.length; i++) {
-    this.setState({ downloadQRProgress: Math.round((i / assets.length) * 100) });
-    const item = assets[i];
+    for (let i = 0; i < assets.length; i++) {
+      this.setState({ downloadQRProgress: Math.round((i / assets.length) * 100) });
+      const item = assets[i];
+      const qrValue = this.getAssetQrValue(item);
+
+      // 🔥 Container (single card per page)
+      const container = document.createElement("div");
+      container.style.width = "400px";
+      container.style.height = "600px";
+      container.style.position = "relative";
+      container.style.background = "#fff";
+
+      // ✅ Canva background (WITHOUT QR)
+      const img = new Image();
+      img.src = "/canva-template.png";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.position = "absolute";
+
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      container.appendChild(img);
+
+      // ✅ Dynamic QR
+      const qrWrapper = document.createElement("div");
+
+      qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+
+      qrWrapper.style.position = "absolute";
+      qrWrapper.style.top = "101px";
+      qrWrapper.style.left = "58px";
+      qrWrapper.style.width = "284px";
+      qrWrapper.style.height = "284px";
+      qrWrapper.style.padding = "10px";
+      qrWrapper.style.background = "#ffffff";
+
+      container.appendChild(qrWrapper);
+
+      // ✅ 🔥 Asset Name on Brown Bar
+      const brownBox = document.createElement("div");
+      const brownBoxLeft = 58;
+      const brownBoxTop = (40.2 / 59.4) * 600;
+      const brownBoxWidth = 284;
+      const brownBoxHeight = (2.63 / 59.4) * 600;
+      brownBox.style.position = "absolute";
+      brownBox.style.top = `${brownBoxTop}px`;
+      brownBox.style.left = `${brownBoxLeft}px`;
+      brownBox.style.width = `${brownBoxWidth}px`;
+      brownBox.style.height = `${brownBoxHeight}px`;
+      brownBox.style.background = "#3f2a21";
+      brownBox.style.zIndex = "1";
+
+      const nameText = document.createElement("div");
+      nameText.innerText = this.getAssetNameValue(item).toUpperCase();
+
+      nameText.style.position = "absolute";
+      nameText.style.top = `${brownBoxTop}px`;
+      nameText.style.left = `${brownBoxLeft}px`;
+      nameText.style.width = `${brownBoxWidth}px`;
+      nameText.style.height = `${brownBoxHeight}px`;
+
+      nameText.style.textAlign = "center";
+      nameText.style.color = "#ffffff";
+      nameText.style.fontSize = "13px";
+      nameText.style.fontWeight = "bold";
+      nameText.style.letterSpacing = "1px";
+      nameText.style.lineHeight = `${brownBoxHeight}px`;
+      nameText.style.overflow = "hidden";
+      nameText.style.whiteSpace = "nowrap";
+      nameText.style.textOverflow = "ellipsis";
+      nameText.style.zIndex = "2";
+
+      container.appendChild(brownBox);
+      container.appendChild(nameText);
+
+      document.body.appendChild(container);
+
+      // wait render
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+
+      });
+
+      // ✅ reduce PDF size
+      const imgData = canvas.toDataURL("image/jpeg", 0.7);
+
+      if (i !== 0) pdf.addPage();
+
+      pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+
+      document.body.removeChild(container);
+    }
+
+    this.setState({ downloadQRProgress: 100 });
+    pdf.save("Assets_QR.pdf");
+    this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
+  };
+
+  downloadAssetQRCode = async (item = {}) => {
     const qrValue = this.getAssetQrValue(item);
 
-    // 🔥 Container (single card per page)
+    if (!qrValue) {
+      alert("No QR found");
+      return;
+    }
+
+    this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
     const container = document.createElement("div");
     container.style.width = "400px";
     container.style.height = "600px";
     container.style.position = "relative";
     container.style.background = "#fff";
 
-    // ✅ Canva background (WITHOUT QR)
     const img = new Image();
     img.src = "/canva-template.png";
     img.style.width = "100%";
@@ -201,7 +309,6 @@ downloadAllQRCodes = async () => {
 
     container.appendChild(img);
 
-    // ✅ Dynamic QR
     const qrWrapper = document.createElement("div");
 
     qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
@@ -216,7 +323,6 @@ downloadAllQRCodes = async () => {
 
     container.appendChild(qrWrapper);
 
-    // ✅ 🔥 Asset Name on Brown Bar
     const brownBox = document.createElement("div");
     const brownBoxLeft = 58;
     const brownBoxTop = (40.2 / 59.4) * 600;
@@ -255,130 +361,24 @@ downloadAllQRCodes = async () => {
 
     document.body.appendChild(container);
 
-    // wait render
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const canvas = await html2canvas(container, {
       scale: 2,
       useCORS: true,
-      
     });
 
-    // ✅ reduce PDF size
     const imgData = canvas.toDataURL("image/jpeg", 0.7);
-
-    if (i !== 0) pdf.addPage();
 
     pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
 
     document.body.removeChild(container);
-  }
 
-  this.setState({ downloadQRProgress: 100 });
-  pdf.save("Assets_QR.pdf");
-  this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
-};
-
-downloadAssetQRCode = async (item = {}) => {
-  const qrValue = this.getAssetQrValue(item);
-
-  if (!qrValue) {
-    alert("No QR found");
-    return;
-  }
-
-  this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
-
-  const pdf = new jsPDF("p", "mm", "a4");
-
-  const container = document.createElement("div");
-  container.style.width = "400px";
-  container.style.height = "600px";
-  container.style.position = "relative";
-  container.style.background = "#fff";
-
-  const img = new Image();
-  img.src = "/canva-template.png";
-  img.style.width = "100%";
-  img.style.height = "100%";
-  img.style.position = "absolute";
-
-  await new Promise((resolve) => {
-    img.onload = resolve;
-  });
-
-  container.appendChild(img);
-
-  const qrWrapper = document.createElement("div");
-
-  qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
-
-  qrWrapper.style.position = "absolute";
-  qrWrapper.style.top = "101px";
-  qrWrapper.style.left = "58px";
-  qrWrapper.style.width = "284px";
-  qrWrapper.style.height = "284px";
-  qrWrapper.style.padding = "10px";
-  qrWrapper.style.background = "#ffffff";
-
-  container.appendChild(qrWrapper);
-
-  const brownBox = document.createElement("div");
-  const brownBoxLeft = 58;
-  const brownBoxTop = (40.2 / 59.4) * 600;
-  const brownBoxWidth = 284;
-  const brownBoxHeight = (2.63 / 59.4) * 600;
-  brownBox.style.position = "absolute";
-  brownBox.style.top = `${brownBoxTop}px`;
-  brownBox.style.left = `${brownBoxLeft}px`;
-  brownBox.style.width = `${brownBoxWidth}px`;
-  brownBox.style.height = `${brownBoxHeight}px`;
-  brownBox.style.background = "#3f2a21";
-  brownBox.style.zIndex = "1";
-
-  const nameText = document.createElement("div");
-  nameText.innerText = this.getAssetNameValue(item).toUpperCase();
-
-  nameText.style.position = "absolute";
-  nameText.style.top = `${brownBoxTop}px`;
-  nameText.style.left = `${brownBoxLeft}px`;
-  nameText.style.width = `${brownBoxWidth}px`;
-  nameText.style.height = `${brownBoxHeight}px`;
-
-  nameText.style.textAlign = "center";
-  nameText.style.color = "#ffffff";
-  nameText.style.fontSize = "13px";
-  nameText.style.fontWeight = "bold";
-  nameText.style.letterSpacing = "1px";
-  nameText.style.lineHeight = `${brownBoxHeight}px`;
-  nameText.style.overflow = "hidden";
-  nameText.style.whiteSpace = "nowrap";
-  nameText.style.textOverflow = "ellipsis";
-  nameText.style.zIndex = "2";
-
-  container.appendChild(brownBox);
-  container.appendChild(nameText);
-
-  document.body.appendChild(container);
-
-  await new Promise((resolve) => setTimeout(resolve, 300));
-
-  const canvas = await html2canvas(container, {
-    scale: 2,
-    useCORS: true,
-  });
-
-  const imgData = canvas.toDataURL("image/jpeg", 0.7);
-
-  pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
-
-  document.body.removeChild(container);
-
-  this.setState({ downloadQRProgress: 100 });
-  const assetName = this.getAssetNameValue(item) || "Asset";
-  pdf.save(`${assetName}_QR.pdf`);
-  this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
-};
+    this.setState({ downloadQRProgress: 100 });
+    const assetName = this.getAssetNameValue(item) || "Asset";
+    pdf.save(`${assetName}_QR.pdf`);
+    this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
+  };
 
   normalizeDate = (value) => {
     if (!value) return "";
@@ -537,9 +537,9 @@ downloadAssetQRCode = async (item = {}) => {
 
   getAssetStatusMeta = (item = {}) => {
     const rawStatus =
-  item?.AssetStatus ||
-  item?.assetStatus ||
-  item?.Status;
+      item?.AssetStatus ||
+      item?.assetStatus ||
+      item?.Status;
     const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
     const today = new Date().toISOString().slice(0, 10);
     const rawServiceStatus = String(item?.ServiceStatus || item?.serviceStatus || "").trim();
@@ -585,36 +585,38 @@ downloadAssetQRCode = async (item = {}) => {
     (() => {
       const statusPayload = this.getAssetStatusPayload();
       return {
-      Id: this.state.Id,
-      Name: this.state.Name,
-      Description: this.state.Description,
-      QRCode: this.state.QRCode,
-      AssetType: this.state.AssetType,
-      Manufacturer: this.state.ManufacturerName,
-      AssetModel: this.state.AssetModel,
-      IsMoveable: this.getApiBoolean(this.state.IsMoveable),
-      IsRented: this.getApiBoolean(this.state.IsRented),
-      Flag: type,
-      AssetImage: this.state.AssetImage,
-      LastServiceDate: this.state.LastServiceDate,
-      NextServiceDate: this.state.NextServiceDate,
-      IsRentable: this.getApiBoolean(this.state.IsRentable),
-      AssetValue: this.state.AssetValue,
-      Capacity: this.state.Capacity,
-      AMCdoc: this.state.AMCimage,
-      AMCDateFrom: this.state.amcDateFrom,
-      AMCDateTo: this.state.amcDateTo,
-      WarrantyDocument: this.state.warrantyImage,
-      AssetStatus: statusPayload.AssetStatus,
-      Status: statusPayload.Status,
-      Category: this.state.category,
-      Location: this.state.location,
-      serviceReminderDay: this.state.serviceReminderDay,
-      PropertyId: Number(this.props.PropertyId) || 0,
-      propertyId: Number(this.props.PropertyId) || 0,
-      PurchaseDate: this.state.PurchaseDate,
-      WarrantyDate: this.state.WarrantyDate,
-      ...overrides,
+        Id: this.state.Id,
+        Name: this.state.Name,
+        Description: this.state.Description,
+        QRCode: this.state.QRCode,
+        AssetType: this.state.AssetType,
+        Manufacturer: this.state.ManufacturerName,
+        AssetModel: this.state.AssetModel,
+        IsMoveable: this.getApiBoolean(this.state.IsMoveable),
+        IsRented: this.getApiBoolean(this.state.IsRented),
+        Flag: type,
+        AssetImage: this.state.AssetImage,
+        LastServiceDate: this.state.LastServiceDate,
+        NextServiceDate: this.state.NextServiceDate,
+        IsRentable: this.getApiBoolean(this.state.IsRentable),
+        AssetValue: this.state.AssetValue,
+        Capacity: this.state.Capacity,
+        AMCFile: this.state.AMCimage,
+        AMCFromDate: this.state.amcDateFrom,
+        AMCToDate: this.state.amcDateTo,
+        AMCTotalAmount: this.state.amcTotalAmount,
+        AMCContractType: this.state.amcContractType,
+        WarrantyDocument: this.state.warrantyImage,
+        AssetStatus: statusPayload.AssetStatus,
+        Status: statusPayload.Status,
+        Category: this.state.category,
+        Location: this.state.location,
+        serviceReminderDay: this.state.serviceReminderDay,
+        PropertyId: Number(this.props.PropertyId) || 0,
+        propertyId: Number(this.props.PropertyId) || 0,
+        PurchaseDate: this.state.PurchaseDate,
+        WarrantyDate: this.state.WarrantyDate,
+        ...overrides,
       };
     })(),
   ];
@@ -627,7 +629,7 @@ downloadAssetQRCode = async (item = {}) => {
     }
 
     this.setState({ isLoading: true });
-      this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
+    this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
       .then((resp) => {
         if (!resp.ok || resp.status !== 200) return null;
         return resp.json().then((rData) => {
@@ -635,10 +637,10 @@ downloadAssetQRCode = async (item = {}) => {
           const noServiceDateAssets = isDirectList ? [] : (Array.isArray(rData?.NoServiceDateAssets) ? rData.NoServiceDateAssets : (Array.isArray(rData?.NoServiceDate) ? rData.NoServiceDate : []));
           const dueServiceAssets = isDirectList ? rData : Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
           const upcomingServiceAssets = isDirectList ? [] : Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
-          
+
           let rawAssets = [...noServiceDateAssets, ...dueServiceAssets, ...upcomingServiceAssets];
           if (!isDirectList && Array.isArray(rData?.AllAssets) && rData.AllAssets.length > rawAssets.length) {
-              rawAssets = rData.AllAssets;
+            rawAssets = rData.AllAssets;
           }
 
           const merged = rawAssets.map((item) => {
@@ -656,20 +658,20 @@ downloadAssetQRCode = async (item = {}) => {
             };
           });
 
-           // Sort: Upcoming (nearest first) at top, then overdue.
-           const today = new Date().toISOString().slice(0, 10);
-           merged.sort((a, b) => {
-             const dateA = a.NextServiceDate || "";
-             const dateB = b.NextServiceDate || "";
-             const isUpcomingA = !!dateA && dateA >= today;
-             const isUpcomingB = !!dateB && dateB >= today;
+          // Sort: Upcoming (nearest first) at top, then overdue.
+          const today = new Date().toISOString().slice(0, 10);
+          merged.sort((a, b) => {
+            const dateA = a.NextServiceDate || "";
+            const dateB = b.NextServiceDate || "";
+            const isUpcomingA = !!dateA && dateA >= today;
+            const isUpcomingB = !!dateB && dateB >= today;
 
-             if (isUpcomingA !== isUpcomingB) return isUpcomingA ? -1 : 1;
-             if (!dateA && !dateB) return 0;
-             if (!dateA) return 1;
-             if (!dateB) return -1;
-             return dateA.localeCompare(dateB);
-           });
+            if (isUpcomingA !== isUpcomingB) return isUpcomingA ? -1 : 1;
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA.localeCompare(dateB);
+          });
 
           this.setState({
             GridData: merged,
@@ -771,8 +773,17 @@ downloadAssetQRCode = async (item = {}) => {
       AssetType: rowData.AssetType || rowData.Type || rowData.LeaseType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
       AMCimage: this.getAmcDocumentValue(rowData),
-      amcDateFrom: this.normalizeDate(rowData.AMCDateFrom || rowData.AmcDateFrom || rowData.DateFrom),
-      amcDateTo: this.normalizeDate(rowData.AMCDateTo || rowData.AmcDateTo || rowData.DateTo),
+      amcDateFrom: this.normalizeDate(
+        rowData.AMCFromDate ||
+        rowData.AmcFromDate ||
+        rowData.DateFrom
+      ),
+
+      amcDateTo: this.normalizeDate(
+        rowData.AMCToDate ||
+        rowData.AmcToDate ||
+        rowData.DateTo
+      ),
       amcTotalAmount: rowData.AMCTotalAmount || rowData.AmcTotalAmount || rowData.TotalAmount || "",
       amcContractType: rowData.AMCContractType || rowData.AmcContractType || rowData.ContractType || "",
       warrantyImage: rowData.WarrantyDocument || rowData.warrantyImage || "",
@@ -791,10 +802,10 @@ downloadAssetQRCode = async (item = {}) => {
       status: this.getStatusFormValue(rowData.Status || rowData.AssetStatus),
       category: rowData.Category || rowData.category || "",
       location: rowData.Location || rowData.location || "",
-        serviceReminderDay: rowData.serviceReminderDay || rowData.ServiceReminderDay || "",
-        PurchaseDate: this.normalizeDate(rowData.PurchaseDate || rowData.DateOfPurchase),
-        WarrantyDate: this.normalizeDate(rowData.WarrantyDate || rowData.WarrantyExpiry || rowData.ExpiryDate),
-        showAddQrPreview: false,
+      serviceReminderDay: rowData.serviceReminderDay || rowData.ServiceReminderDay || "",
+      PurchaseDate: this.normalizeDate(rowData.PurchaseDate || rowData.DateOfPurchase),
+      WarrantyDate: this.normalizeDate(rowData.WarrantyDate || rowData.WarrantyExpiry || rowData.ExpiryDate),
+      showAddQrPreview: false,
     });
   };
 
@@ -862,12 +873,12 @@ downloadAssetQRCode = async (item = {}) => {
   };
 
   handleTabChange = (tab) => {
-  this.setState({
-    activeTab: tab,
-    PageMode: "Home",
-    selectedRowId: null
-  });
-};
+    this.setState({
+      activeTab: tab,
+      PageMode: "Home",
+      selectedRowId: null
+    });
+  };
 
   openAmcModal = () => {
     const asset = this.getSelectedAssetRecord();
@@ -945,7 +956,15 @@ downloadAssetQRCode = async (item = {}) => {
 
     if (ValidateControls()) {
       const type = this.state.PageMode === "Add" ? "I" : "U";
-      this.mangaeSave(this.getModel(type, { AssetImage: assetImage, ImageExt: imageExt, AMCdoc: amcImage, WarrantyDocument: warrantyImage }), type);
+      this.mangaeSave(
+        this.getModel(type, {
+          AssetImage: assetImage,
+          ImageExt: imageExt,
+          AMCFile: amcImage,
+          WarrantyDocument: warrantyImage
+        }),
+        type
+      );
     }
   };
 
@@ -1051,22 +1070,22 @@ downloadAssetQRCode = async (item = {}) => {
         <div className="asset-filter-grid">
           <div className="asset-filter-field">
             <label>Vendor</label>
-            <CustomDropdown 
-              variant="long" 
-              value={this.state.filterVendor} 
-              onChange={(e) => this.setState({ filterVendor: e.target.value })} 
-              placeholder="Enter name" 
-              options={this.getVendorOptions().map(v => ({ label: v, value: v }))} 
+            <CustomDropdown
+              variant="long"
+              value={this.state.filterVendor}
+              onChange={(e) => this.setState({ filterVendor: e.target.value })}
+              placeholder="Enter name"
+              options={this.getVendorOptions().map(v => ({ label: v, value: v }))}
             />
           </div>
           <div className="asset-filter-field">
             <label>Manufacturer</label>
-            <CustomDropdown 
-              variant="long" 
-              value={this.state.filterManufacturer} 
-              onChange={(e) => this.setState({ filterManufacturer: e.target.value })} 
-              placeholder="Enter name" 
-              options={this.getManufacturerOptions().map(m => ({ label: m, value: m }))} 
+            <CustomDropdown
+              variant="long"
+              value={this.state.filterManufacturer}
+              onChange={(e) => this.setState({ filterManufacturer: e.target.value })}
+              placeholder="Enter name"
+              options={this.getManufacturerOptions().map(m => ({ label: m, value: m }))}
             />
           </div>
 
@@ -1328,8 +1347,8 @@ downloadAssetQRCode = async (item = {}) => {
     const paginated = this.getPaginatedRows(rows);
 
     return (
-    <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
-      <table className="table asset-owned-table custTable table-hover mb-0">
+      <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
+        <table className="table asset-owned-table custTable table-hover mb-0">
           <thead>
             <tr>
               <th className="col-id" style={{ width: "70px" }}>ID</th>
@@ -1348,32 +1367,32 @@ downloadAssetQRCode = async (item = {}) => {
                   asset.AssetStatus ||
                   asset.assetStatus ||
                   asset.Status ||
-                  "-";   
+                  "-";
                 const isSelected = String(this.state.selectedRowId) === String(asset.Id);
                 const isOverdue =
-  this.getAssetStatusMeta(asset).serviceStatus === "Overdue";
+                  this.getAssetStatusMeta(asset).serviceStatus === "Overdue";
                 return (
-                   <tr
-    key={asset.Id}
-    className={`
+                  <tr
+                    key={asset.Id}
+                    className={`
       ${isSelected ? "grid-selected-row active" : ""}
       ${isOverdue ? "asset-overdue-row" : ""}
     `.trim()}
-    onClick={() => this.onGridRowSelect(asset.Id)}
-  >
+                    onClick={() => this.onGridRowSelect(asset.Id)}
+                  >
                     <td className="col-id">{asset.Id || "-"}</td>
                     <td className="col-name">{asset.Name || "-"}</td>
                     <td className="col-location">{asset.Location || asset.location || "-"}</td>
                     <td className="col-date">{this.formatDisplayDate(asset.NextServiceDate)}</td>
                     <td className="col-status">
-  <span
-    className={`asset-table-status asset-table-status-${String(assetStatus)
-      .toLowerCase()
-      .replace(/\s+/g, "-")}`}
-  >
-    {assetStatus}
-  </span>
-</td>
+                      <span
+                        className={`asset-table-status asset-table-status-${String(assetStatus)
+                          .toLowerCase()
+                          .replace(/\s+/g, "-")}`}
+                      >
+                        {assetStatus}
+                      </span>
+                    </td>
                     <td className="col-actions">
                       <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
                         <button type="button" className="asset-owned-icon-btn" title="Edit" onClick={() => this.ongridedit(asset.Id)}>
@@ -1395,8 +1414,8 @@ downloadAssetQRCode = async (item = {}) => {
           </tbody>
         </table>
         {this.renderTablePagination(paginated.currentPage, paginated.totalPages, paginated.totalRows, (page) => this.setState({ currentPage: page }))}
-    </div>
-  );
+      </div>
+    );
   };
 
   renderReadOnlyField = (label, value, extraClass = "") => (
@@ -1411,14 +1430,14 @@ downloadAssetQRCode = async (item = {}) => {
     if (!asset) return null;
     const assetQrValue = this.getAssetQrValue(asset);
     const statusMeta = this.getAssetStatusMeta(asset);
-const assetStatus =
-  asset.AssetStatus ||
-  asset.assetStatus ||
-  asset.Status ||
-  "-";    const imageSource = this.getPreviewSrc(
-      this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
-      this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
-    );
+    const assetStatus =
+      asset.AssetStatus ||
+      asset.assetStatus ||
+      asset.Status ||
+      "-"; const imageSource = this.getPreviewSrc(
+        this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
+        this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
+      );
     const amcExt = this.getFileExtension(this.state.amcFileName) || this.getFileExtension(this.getAmcDocumentName(asset));
     const warrantyExt =
       this.getFileExtension(this.state.warrantyFileName) ||
@@ -1463,12 +1482,12 @@ const assetStatus =
                 <span className="asset-info-value">{asset.Name}</span>
               </div>
               <span
-  className={`asset-status-badge asset-status-badge-${String(assetStatus)
-    .toLowerCase()
-    .replace(/\s+/g, "-")}`}
->
-  {assetStatus}
-</span>
+                className={`asset-status-badge asset-status-badge-${String(assetStatus)
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")}`}
+              >
+                {assetStatus}
+              </span>
             </div>
 
             <div className="asset-details-row asset-details-desc-row">
@@ -1495,17 +1514,17 @@ const assetStatus =
                 <span className="asset-info-label">Next service</span>
                 <span className="asset-info-value">{this.formatDisplayDate(asset.NextServiceDate)}</span>
               </div>
-               <div className="asset-details-row asset-details-location-row">
-              <div className="asset-info-item">
-                <span className="asset-info-label">Location</span>
-                <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+              <div className="asset-details-row asset-details-location-row">
+                <div className="asset-info-item">
+                  <span className="asset-info-label">Location</span>
+                  <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+                </div>
               </div>
-            </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Reminder</span>
                 <span className="asset-info-value">{asset.serviceReminderDay ? `${asset.serviceReminderDay} day(s)` : "No reminder set"}</span>
               </div>
-              
+
               <div className="asset-info-item">
                 <span className="asset-info-label">Is Movable</span>
                 <span className="asset-info-value">{this.getBoolLabel(asset.IsMoveable)}</span>
@@ -1532,7 +1551,7 @@ const assetStatus =
               </div>
             </div>
 
-           
+
 
             <div className="asset-details-docs-section">
               <div className="asset-qr-preview-box">
@@ -1553,9 +1572,9 @@ const assetStatus =
                     className="asset-doc-link-text asset-download-qr-link"
                     onClick={() => this.downloadAssetQRCode(asset)}
                   >
-                   
+
                     Download QR
-                     <i className="fa fa-download" aria-hidden="true" />
+                    <i className="fa fa-download" aria-hidden="true" />
                   </button>
                 ) : null}
               </div>
@@ -1772,7 +1791,7 @@ const assetStatus =
                   ]}
                 />
               </div>
-               <div className="form-group asset-form-group-custom">
+              <div className="form-group asset-form-group-custom">
                 <label>Is Rented</label>
                 <RadioButtonGroup
                   name="IsRented"
@@ -1965,7 +1984,7 @@ const assetStatus =
                   ]}
                 />
               </div>
-                <div className="form-group asset-form-group-custom">
+              <div className="form-group asset-form-group-custom">
                 <label>Is Rented</label>
                 <RadioButtonGroup
                   name="IsRented"
@@ -1997,12 +2016,12 @@ const assetStatus =
 
               <div className="form-group asset-form-group-custom">
                 <label>Location</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Location"
-                  value={this.state.location} 
-                  onChange={(e) => this.setState({ location: e.target.value })} 
+                  value={this.state.location}
+                  onChange={(e) => this.setState({ location: e.target.value })}
                 />
               </div>
 
@@ -2015,12 +2034,12 @@ const assetStatus =
                 <label>Value</label>
                 <div className="asset-input-icon-wrapper">
                   <span className="asset-input-icon">₹</span>
-                  <input 
-                    type="text" 
-                    className="form-control" 
+                  <input
+                    type="text"
+                    className="form-control"
                     placeholder=""
-                    value={this.state.AssetValue} 
-                    onChange={(e) => this.setState({ AssetValue: e.target.value })} 
+                    value={this.state.AssetValue}
+                    onChange={(e) => this.setState({ AssetValue: e.target.value })}
                   />
                 </div>
               </div>
@@ -2057,7 +2076,7 @@ const assetStatus =
           </div>
         </div>
       </div>
-            
+
 
     );
   };
@@ -2302,39 +2321,39 @@ const assetStatus =
         <div className={`asset-master-layout asset-master-layout-owned ${hasSidePanel ? "has-side-panel" : ""}`}>
           <div className="asset-master-main-card">
             <div className="asset-master-tabs">
-             <button
-  type="button"
-  className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
-  onClick={() => {
-  this.setState({ activeTab: "owned" });
-  this.props.history.push("/Account/App/AssetsMaster");
-}}
->
-  <span className="asset-master-tab-label">Owned assets</span>
-  {this.state.activeTab === "owned" ? <span className="asset-master-tab-count">{this.state.GridData.length}</span> : null}
-</button>
+              <button
+                type="button"
+                className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
+                onClick={() => {
+                  this.setState({ activeTab: "owned" });
+                  this.props.history.push("/Account/App/AssetsMaster");
+                }}
+              >
+                <span className="asset-master-tab-label">Owned assets</span>
+                {this.state.activeTab === "owned" ? <span className="asset-master-tab-count">{this.state.GridData.length}</span> : null}
+              </button>
 
-<button
-  type="button"
-  className={`asset-master-tab ${this.state.activeTab === "rented" ? "active" : ""}`}
-  onClick={() => {
-    this.setState({ activeTab: "rented" });
-    this.props.history.push("/Account/App/RentalAssets");
-  }}
->
-  <span className="asset-master-tab-label">Rented assets</span>
-</button>
+              <button
+                type="button"
+                className={`asset-master-tab ${this.state.activeTab === "rented" ? "active" : ""}`}
+                onClick={() => {
+                  this.setState({ activeTab: "rented" });
+                  this.props.history.push("/Account/App/RentalAssets");
+                }}
+              >
+                <span className="asset-master-tab-label">Rented assets</span>
+              </button>
 
-<button
-  type="button"
-  className={`asset-master-tab ${this.state.activeTab === "spare" ? "active" : ""}`}
-  onClick={() => {
-    this.setState({ activeTab: "spare" });
-    this.props.history.push("/Account/App/SpareMaster");
-  }}
->
-  <span className="asset-master-tab-label">Spare parts</span>
-</button>
+              <button
+                type="button"
+                className={`asset-master-tab ${this.state.activeTab === "spare" ? "active" : ""}`}
+                onClick={() => {
+                  this.setState({ activeTab: "spare" });
+                  this.props.history.push("/Account/App/SpareMaster");
+                }}
+              >
+                <span className="asset-master-tab-label">Spare parts</span>
+              </button>
             </div>
 
             <div className="asset-master-toolbar">

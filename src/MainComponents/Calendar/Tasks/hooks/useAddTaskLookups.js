@@ -86,7 +86,7 @@ export default function useAddTaskLookups({ PropertyId, selectedCategory, update
   const loadAssets = useCallback(async (propertyId) => {
     if (!propertyId) return;
     try {
-      const res = await fetch(`http://localhost:62929/GetAssets?propertyId=${propertyId}`);
+      const res = await fetch(`https://api.urest.in:8096/GetAssets?propertyId=${propertyId}`);
       const data = await res.json();
       const combined = [
         ...(Array.isArray(data.PassedServiceDates) ? data.PassedServiceDates : []),

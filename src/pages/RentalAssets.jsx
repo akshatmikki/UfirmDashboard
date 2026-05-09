@@ -101,7 +101,7 @@ const getContractPreviewSrc = (contract, fileName = "") => {
 
   // If it looks like a relative path, prepend base URL
   if (raw.includes("/") || raw.includes("\\")) {
-    return `http://localhost:62929/${raw.replace(/^[\\\/]+/, "")}`;
+    return `https://api.urest.in:8096/${raw.replace(/^[\\\/]+/, "")}`;
   }
 
   const extension = String(fileName || "").split(".").pop()?.toLowerCase();
@@ -117,10 +117,7 @@ const getContractPreviewSrc = (contract, fileName = "") => {
 const toBase64Payload = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      resolve(result.includes(",") ? result.split(",")[1] : result);
-    };
+    reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
@@ -210,7 +207,7 @@ const getLeaseMeta = (asset = {}) => {
 
 const getLeaseDisplayValue = (asset = {}) => getLeaseMeta(asset).label;
 
-const getExpiryDateValue = (asset = {}) => asset.TentativeDate || asset.TentativeReturnDate || asset.ExpiryDate || asset.ReturnDate || "";
+const getExpiryDateValue = (asset = {}) => asset.ReturnDate || asset.TentativeDate || asset.TentativeReturnDate || asset.ExpiryDate || "";
 
 const getServiceStatus = (asset = {}) => {
   const rawStatus = String(asset?.ServiceStatus || asset?.serviceStatus || "").trim();
@@ -249,7 +246,10 @@ const toNumberPayload = (value) => {
 const toApiDateTime = (value) => {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  if (raw.includes("T")) return raw;
+  if (raw.includes("T")) {
+    if (raw.length === 16) return `${raw}:00`;
+    return raw;
+  }
   return `${raw}T00:00:00`;
 };
 
@@ -268,30 +268,32 @@ const getLatestRentOutData = (asset = {}) => {
 };
 
 const toBase64Field = (value, fileName = "") => {
-  const raw = String(value || "").trim();
+  let raw = String(value || "").trim();
   if (!raw) return "";
-  
-  // If it's a data URL (new upload), strip prefix and return the base64 part
+
+  // If it's a data URL (new upload), keep the full string as requested by user
   if (raw.startsWith("data:")) {
-    return raw.includes(",") ? raw.split(",")[1] : raw;
+    return raw;
   }
-  
+
+  // Remove any potential whitespace or line breaks that can break base64 decoding
+  raw = raw.replace(/\s/g, "");
+
   // If it's a URL, blob, or file path/name, it's not new base64 content.
   // We return empty string so the backend doesn't try to re-save an existing file.
   if (
-    raw.startsWith("http://") || 
-    raw.startsWith("https://") || 
-    raw.startsWith("blob:") || 
-    raw.includes("/") || 
-    raw.includes("\\") || 
+    raw.startsWith("http://") ||
+    raw.startsWith("https://") ||
+    raw.startsWith("blob:") ||
+    raw.includes("\\") ||
     (raw.includes(".") && raw.length < 255) ||
-    (fileName && raw === fileName)
+    (fileName && raw === fileName && raw.length < 255)
   ) {
     return "";
   }
-  
-  // To be safe, if it doesn't look like base64 content (usually very long), don't send it.
-  return raw.length > 500 ? raw : "";
+
+  // To be safe, if it doesn't look like base64 content (usually long), don't send it.
+  return raw.length > 100 ? raw : "";
 };
 
 const buildRentOutAssetPayload = (asset = {}, form = {}) => {
@@ -330,11 +332,17 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
     getRentalContractFileName(asset)
   );
   const imageOutName = getFirstValue(
-    form.ImageOut, 
-    form.ImageOutName, 
-    asset.ImageOutName, 
-    rentOutData.ImageOutName, 
-    asset.ImageOut, 
+    form.ImageInName,
+    form.ImageOutName,
+    asset.ImageInName,
+    asset.ImageOutName,
+    rentOutData.ImageInName,
+    rentOutData.ImageOutName,
+    form.ImageIn && form.ImageIn.length < 255 ? form.ImageIn : "",
+    form.ImageOut && form.ImageOut.length < 255 ? form.ImageOut : "",
+    asset.ImageIn,
+    asset.ImageOut,
+    rentOutData.ImageIn,
     rentOutData.ImageOut,
     asset.AssetImageFileName,
     asset.ImageExt,
@@ -361,18 +369,18 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
       getFirstValue(form.RentalContractBase64, asset.RentalContractBase64, rentOutData.RentalContractBase64, form.RentalContract),
       rentalContractFileName
     ),
-    ImageOut: imageOutName,
-    RentalContract: rentalContractFileName,
+    ImageOut: toBase64Field(getFirstValue(form.ImageOutBase64, form.ImageInBase64, asset.ImageOutBase64), imageOutName),
+    RentalContract: toBase64Field(getFirstValue(form.RentalContractBase64, asset.RentalContractBase64), rentalContractFileName),
     Status: getFirstValue(form.Status, asset.Status, asset.AssetStatus, rentOutData.Status),
     Description: getFirstValue(form.Description, asset.Description, rentOutData.Description),
     LeaseType: getFirstValue(form.LeaseType, asset.LeaseType, asset.Lease, rentOutData.LeaseType),
     Model: getFirstValue(form.Model, asset.Model, asset.AssetModel, rentOutData.Model),
     // Support for Return (Rent-in) history fields
     ReturnedBy: getFirstValue(form.ReturnedBy, form.AssigneeName),
-    ReturnDate: getFirstValue(form.ReturnDate, form.ReturnDateTime, form.RentOutDateTime),
+    ReturnDate: toApiDateTime(getFirstValue(form.ExpiryDate, form.ReturnDate, form.ReturnDateTime, form.RentOutDateTime)),
     ReturnFrom: getFirstValue(form.ReturnedFrom, form.ReturnFrom, form.OutFrom, form.Location),
-    ImageInBase64: toBase64Field(getFirstValue(form.ImageInBase64, form.ImageOutBase64, asset.ImageInBase64, rentOutData.ImageInBase64), imageOutName),
-    ImageIn: getFirstValue(form.ImageIn, form.ImageOut, imageOutName),
+    ImageInBase64: toBase64Field(getFirstValue(form.ImageInBase64, form.ImageOutBase64, asset.ImageInBase64), imageOutName),
+    ImageIn: toBase64Field(getFirstValue(form.ImageInBase64, form.ImageOutBase64, asset.ImageInBase64), imageOutName),
     Remarks: getFirstValue(form.Remarks, form.Description),
   };
 };
@@ -424,7 +432,7 @@ const RentalAssets = ({ propId, history }) => {
   const fetchRentalAssets = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`http://localhost:62929/api/Asset/GetRentalAssetData?PropId=${propId}`);
+      const res = await fetch(`https://api.urest.in:8096/api/Asset/GetRentalAssetData?PropId=${propId}`);
       const data = await res.json();
       setRentalAssets(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -694,12 +702,14 @@ const RentalAssets = ({ propId, history }) => {
 
       const payload = buildRentOutAssetPayload(assetForPayload, {
         ...editForm,
+        ImageOut: editForm.ImageOutBase64 || editForm.ImageOut || "",
+        ImageOutBase64: editForm.ImageOutBase64 || editForm.ImageOut || "",
         RentalContract: rentalContractValue,
         RentalContractBase64: rentalContractValue,
         RentalContractFileName: rentalContractFileName,
       });
 
-      const resp = await fetch("http://localhost:62929/ManageRentOutAsset", {
+      const resp = await fetch("https://api.urest.in:8096/ManageRentOutAsset", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -736,21 +746,27 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = "http://localhost:62929/ManageRentOutAsset";
+    const url = "https://api.urest.in:8096/ManageRentOutAsset";
     const payload = isReturnMode
       ? buildRentOutAssetPayload(selectedAsset, {
         ReturnedBy: formData.returnedBy || "",
         ReturnDate: formData.returnDateTime || "",
         ReturnedFrom: formData.returnedFrom || "",
         ImageInBase64: formData.imageIn || "",
-        ImageIn: formData.assetImageName || "",
+        ImageIn: formData.imageIn || "",
+        ImageInName: formData.assetImageName || "",
         RentalContractBase64: formData.rentalContract || "",
+        RentalContract: formData.rentalContract || "",
         RentalContractFileName: formData.rentalContractName || "",
         Remarks: formData.remarks || "",
         Status: "In",
-        // Fallback for RentOut fields just in case
+        RentedTo: formData.rentedFrom || "",
+        // Fallback for standard fields if needed by backend
         AssigneeName: formData.returnedBy || "",
         RentOutDateTime: formData.returnDateTime || "",
+        ImageOutBase64: formData.imageIn || "",
+        ImageOut: formData.imageIn || "",
+        ImageOutName: formData.assetImageName || "",
       })
       : buildRentOutAssetPayload(selectedAsset, {
         AssigneeName: formData.assigneeName || "",
@@ -765,8 +781,10 @@ const RentalAssets = ({ propId, history }) => {
         Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
         Location: formData.location || formData.outFrom || selectedAsset.Location || "",
         ImageOutBase64: formData.imageOut || "",
+        ImageOut: formData.imageOut || "",
+        ImageOutName: formData.imageOutName || "",
         RentalContractBase64: formData.rentalContract || "",
-        ImageOut: formData.imageOutName || "",
+        RentalContract: formData.rentalContract || "",
         RentalContractFileName: formData.rentalContractName || "",
         Status: "Out",
       });
@@ -1147,13 +1165,17 @@ const RentalAssets = ({ propId, history }) => {
                   type="file"
                   className="asset-file-hidden"
                   accept=".jpg,.jpeg,.png,.pdf"
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const file = e.target.files?.[0] || null;
-                    setEditForm({
-                      ...editForm,
-                      RentalContract: file,
-                      RentalContractFileName: file?.name || "",
-                    });
+                    if (file) {
+                      const base64 = await toBase64Payload(file);
+                      setEditForm((prev) => ({
+                        ...prev,
+                        RentalContract: base64,
+                        RentalContractBase64: base64,
+                        RentalContractFileName: file.name,
+                      }));
+                    }
                   }}
                 />
               </div>

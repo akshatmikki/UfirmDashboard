@@ -1,6 +1,6 @@
 import ServiceProvider from '../../Common/ServiceProvider.js';
 let srv = new ServiceProvider();
-const ASSET_API_BASE_URL = 'http://localhost:62929/';
+const ASSET_API_BASE_URL = 'https://api.urest.in:8096/';
 const MANAGE_ASSETS_URL = `${ASSET_API_BASE_URL}ManageAssets`;
 class DataProvider {       
     manageDocumentTypeMaster(model,type) {
