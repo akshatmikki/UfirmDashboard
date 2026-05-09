@@ -101,6 +101,7 @@ const StaffPage = () => {
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState(null);
   const [deptSearch, setDeptSearch] = useState("");
   const salaryDropdownRef = useRef(null);
+  const [newEmployeeId, setNewEmployeeId] = useState(null);
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
   const [selectedFacilityMemberId, setSelectedFacilityMemberId] = useState(null);
@@ -803,7 +804,10 @@ const StaffPage = () => {
           Role: wh.Role || "",
           StartDate: wh.StartDate ? new Date(wh.StartDate) : null,
           EndDate: wh.EndDate ? new Date(wh.EndDate) : null,
-          ThirdPartyVerification: wh.ThirdPartyVerification || false,
+          ThirdPartyVerification:
+            typeof wh.ThirdPartyVerification === "boolean"
+              ? wh.ThirdPartyVerification
+              : false,
           UploadResume: null,
           ResumeUrl: wh.UploadResume || "",
         }))
@@ -1034,6 +1038,9 @@ const StaffPage = () => {
 
   const saveStaff = async () => {
     setIsProcessing(true);
+    const latestRow = staff.find(
+      s => s.FacilityMember?.FacilityMemberId === editEmployeeId
+    );
     // 🔒 Ensure unit/property selected
     if (!activePropertyId) {
       toast.current.show({
@@ -1273,17 +1280,32 @@ const StaffPage = () => {
 
     // Format work histories
     const now = toISTISOString(new Date());
-    const formattedWorkHistories = validWorkHistories.map((wh) => ({
-      CompanyName: wh.CompanyName,
-      Role: wh.Role,
-      StartDate: wh.StartDate ? toISTISOString(wh.StartDate) : null,
-      EndDate: wh.EndDate ? toISTISOString(wh.EndDate) : null,
-      ThirdPartyVerification: wh.ThirdPartyVerification,
-      UploadResume: wh.ResumeUrl || "",
-      CreatedOn: now,
-      UpdatedOn: now,
-      IsActive: true,
-    }));
+
+    const formattedWorkHistories = validWorkHistories.map((wh, index) => {
+
+      const previousValue =
+        latestRow?.WorkHistories?.[index]?.ThirdPartyVerification ?? false;
+
+      const currentValue =
+        typeof wh.ThirdPartyVerification === "boolean"
+          ? wh.ThirdPartyVerification
+          : previousValue;
+
+      const finalValue =
+        currentValue !== previousValue ? currentValue : previousValue;
+
+      return {
+        CompanyName: wh.CompanyName?.trim(),
+        Role: wh.Role?.trim(),
+        StartDate: wh.StartDate ? toISTISOString(wh.StartDate) : null,
+        EndDate: wh.EndDate ? toISTISOString(wh.EndDate) : null,
+        ThirdPartyVerification: finalValue, // 👈 only changes when actually changed
+        UploadResume: wh.ResumeUrl || "",
+        CreatedOn: now,
+        UpdatedOn: now,
+        IsActive: true,
+      };
+    });
 
     // Determine Facility Master ID based on designation
     let facilityMasterId = 0;
@@ -1324,8 +1346,12 @@ const StaffPage = () => {
           department === "OTHER"
             ? (customDepartment || "").trim()
             : (department || "").trim(),
-        Gender: gender,
-        DateOfBirth: dobValue,
+        Gender: gender && gender.trim() !== ""
+          ? gender.trim()
+          : latestRow?.Profile?.Gender,
+        DateOfBirth: isEditMode
+          ? latestRow?.Profile?.DateOfBirth
+          : dobValue,
         PanCard: panCard || "",
         AadharCard: aadharCard || "",
         AddressLine1: addressLine1 || "",
@@ -1361,6 +1387,7 @@ const StaffPage = () => {
         PropertyId: activePropertyId || 0,
         Address: (addressLine1 + " " + addressLine2).trim() || "",
         FacilityMasterId: facilityMasterId,
+        Gender: gender?.trim() || latestRow?.FacilityMember?.Gender,
         ProfileImageUrl: profileImageUrl || "",
         IsBlocked: false,
         AccessCode: "",
@@ -1403,6 +1430,7 @@ const StaffPage = () => {
       } else {
         const responseData = await createEmployee(employeeData);
         resultingFacilityMemberId = responseData?.FacilityMemberId || 0;
+        setNewEmployeeId(resultingFacilityMemberId);
         toast.current.show({
           severity: "success",
           summary: "Added",
@@ -1931,6 +1959,32 @@ const StaffPage = () => {
     );
   };
 
+  const sortedStaff = useMemo(() => {
+    if (!staff) return [];
+
+    return [...staff].sort((a, b) => {
+      const nameA = (a?.Profile?.EmployeeName || "").toLowerCase();
+      const nameB = (b?.Profile?.EmployeeName || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }, [staff]);
+
+  const finalStaffList = useMemo(() => {
+    if (!sortedStaff) return [];
+
+    if (!newEmployeeId) return sortedStaff;
+
+    const newEmp = sortedStaff.find(
+      emp => emp?.FacilityMember?.FacilityMemberId === newEmployeeId
+    );
+
+    const rest = sortedStaff.filter(
+      emp => emp?.FacilityMember?.FacilityMemberId !== newEmployeeId
+    );
+
+    return newEmp ? [newEmp, ...rest] : sortedStaff;
+  }, [sortedStaff, newEmployeeId]);
+
   const overlayStyle = {
     position: "fixed",
     top: 0,
@@ -1959,6 +2013,11 @@ const StaffPage = () => {
       <style>{`
         .required-asterisk {
           color: red;
+        }
+        .pan-placeholder-light::placeholder {
+          color: #9ca3af !important;   /* soft grey */
+          opacity: 1 !important;       /* make sure it doesn't look faded weirdly */
+          font-weight: 400;
         }
       `}</style>
       <div className="content-wrapper">
@@ -2067,10 +2126,10 @@ const StaffPage = () => {
                 <DataTable
                   value={
                     selectedDepartmentFilter
-                      ? staff.filter(
+                      ? finalStaffList.filter(
                         row => row?.Profile?.Department === selectedDepartmentFilter
                       )
-                      : staff
+                      : finalStaffList
                   }
                   dataKey="FacilityMember.FacilityMemberId"
                   header={header}
@@ -2510,19 +2569,6 @@ const StaffPage = () => {
                   }}
                 />
 
-                <label>PAN Number</label>
-                <InputText
-                  placeholder="ABCDE1234F"
-                  value={panNumber}
-                  onChange={(e) => {
-                    const val = sanitizePanValue(e.target.value);
-                    setPanNumber(val);
-                    setPanCard(val);
-                  }}
-                  maxLength={10}
-                  className="pan-placeholder-light"
-                />
-
                 <label>PF Number</label>
                 <InputText
                   placeholder="e.g. DL/12345/67890"
@@ -2882,13 +2928,6 @@ const StaffPage = () => {
                   <label>UAN Number</label>
                   <InputText
                     value={viewData?.FinancialInfo?.UANNumber || ""}
-                    readOnly
-                    className="mb-3"
-                  />
-
-                  <label>PAN Number</label>
-                  <InputText
-                    value={viewData?.FinancialInfo?.PANNumber || ""}
                     readOnly
                     className="mb-3"
                   />
