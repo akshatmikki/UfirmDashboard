@@ -1443,7 +1443,7 @@ export const getAttendanceByProperties = async (
 
   try {
     const response = await axios.post(
-      `https://api.urest.in:8096/api/attendance-summary/by-properties`,
+      `http://localhost:62929/api/attendance-summary/by-properties`,
       {
         PropertyIds: propertyIds,
         MonthYear: monthYear,
