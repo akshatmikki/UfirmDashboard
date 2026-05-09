@@ -1669,7 +1669,7 @@ export async function getFundsApprovalHistory(month, year) {
 export const getFundsApprovalHistorybyProperty = async ({ propertyId, month, year }) => {
   try {
     const res = await axios.get(
-      `http://api.urest.in:8096/api/fundsapproval/get-funds-approval-history-by-property`,
+      `https://api.urest.in:8096/api/fundsapproval/get-funds-approval-history-by-property`,
       {
         params: { propertyId, month, year },
         withCredentials: false,

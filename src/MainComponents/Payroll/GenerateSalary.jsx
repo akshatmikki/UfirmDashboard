@@ -377,6 +377,29 @@ export default function GenerateSalary() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+  let filtered = allEmployees;
+
+  if (selectedDepartment) {
+    filtered = filtered.filter(
+      (emp) => emp.Department === selectedDepartment
+    );
+  }
+
+  const uniqueDesignations = [
+    ...new Set(
+      filtered
+        .map((emp) => emp.Designation)
+        .filter(Boolean)
+    ),
+  ].sort();
+
+  setDesignations(uniqueDesignations);
+
+  // Optional: reset designation if it no longer exists
+  setSelectedDesignation("");
+}, [selectedDepartment, allEmployees]);
+
   // ----------------------------
   // Fetch helpers
   // ----------------------------
