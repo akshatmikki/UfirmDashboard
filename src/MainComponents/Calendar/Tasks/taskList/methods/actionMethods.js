@@ -40,7 +40,7 @@ export default function attachActionMethods(TaskList) {
   };
   
     TaskList.prototype.Filter = function () {
-      this.setState({ filtered: true }, () => {
+      this.setState({ filtered: true, cardPage: 1, tablePage: 1 }, () => {
         this.getTasks();
       });
   };
@@ -62,6 +62,8 @@ export default function attachActionMethods(TaskList) {
         taskPriority: 0,
         data: [],
         showFilterPanel: false,
+        cardPage: 1,
+        tablePage: 1,
         filterFromDate: today.format("YYYY-MM-DD"),
         filterToDate: today.format("YYYY-MM-DD"),
       }, () => {
