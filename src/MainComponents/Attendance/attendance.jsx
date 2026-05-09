@@ -94,7 +94,7 @@ export default function AttendanceMaster() {
                     label: emp.Name,
                     value: emp
                 }));
-               // console.log("Fetched Employees:", formatted);
+                // console.log("Fetched Employees:", formatted);
                 setEmployeeList(formatted);
             } catch (error) {
                 console.error("Failed to load employees:", error);
@@ -816,7 +816,7 @@ export default function AttendanceMaster() {
             {/* Dialog for day details */}
             <Dialog
                 visible={dialogVisible}
-                onHide={() => setDialogVisible(false)}
+                onHide={() => { setDialogVisible(false); setGlobalFilter(''); }}
                 header={customHeader}
                 style={{ width: '80vw' }}
                 modal
@@ -843,8 +843,18 @@ export default function AttendanceMaster() {
             {/* ✅ Manual Attendance Pending Dialog */}
             <Dialog
                 visible={pendingDialog}
-                onHide={() => setPendingDialog(false)}
-                header={`Manual Attendance Pending (${pendingData.length})`}
+                onHide={() => { setPendingDialog(false); setGlobalFilter(''); }}
+                header={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: 'calc(100% - 2rem)' }}>
+                        <span>Manual Attendance Pending ({pendingData.length})</span>
+                        <InputText
+                            placeholder="Search employee..."
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            style={{ height: '30px', fontSize: '0.8rem', padding: '2px 6px' }}
+                        />
+                    </div>
+                }
                 style={{ width: '90vw' }}
                 modal
             >
@@ -929,13 +939,23 @@ export default function AttendanceMaster() {
             {/* ✅ Manual Attendance Approved/Rejected Dialog */}
             <Dialog
                 visible={approvedRejectedDialog}
-                onHide={() => setApprovedRejectedDialog(false)}
-                header={`Manual Attendance History (${approvedRejectedData.length})`}
+                onHide={() => { setApprovedRejectedDialog(false); setGlobalFilter(''); }}
+                header={
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: 'calc(100% - 2rem)' }}>
+                        <span>Manual Attendance History ({approvedRejectedData.length})</span>
+                        <InputText
+                            placeholder="Search employee..."
+                            value={globalFilter}
+                            onChange={(e) => setGlobalFilter(e.target.value)}
+                            style={{ height: '30px', fontSize: '0.8rem', padding: '2px 6px' }}
+                        />
+                    </div>
+                }
                 style={{ width: '90vw' }}
                 modal
             >
-	                {approvedRejectedData.length > 0 ? (
-	                    <DataTable value={approvedRejectedData} paginator rows={10} globalFilter={globalFilter}>
+                {approvedRejectedData.length > 0 ? (
+                    <DataTable value={approvedRejectedData} paginator rows={10} globalFilter={globalFilter}>
                         <Column field="Id" header="ID" sortable style={{ width: '80px' }} />
                         <Column
                             field="EmployeeName"
@@ -970,22 +990,22 @@ export default function AttendanceMaster() {
                             sortable
                         />
 
-	                        <Column
-	                            field="ApprovedOn"
-	                            header="Processed On"
-	                            sortable
-	                            body={(rowData) => rowData.ApprovedOn ? new Date(rowData.ApprovedOn).toLocaleString() : ""}
-	                        />
-	                        <Column
-	                            field="ApprovedBy"
-	                            header="Processed By"
-	                            sortable
-	                            body={(rowData) => rowData.ApprovedBy ?? ""}
-	                        />
-	                        <Column
-	                            header="Status"
-	                            body={(rowData) => (
-	                                <div>
+                        <Column
+                            field="ApprovedOn"
+                            header="Processed On"
+                            sortable
+                            body={(rowData) => rowData.ApprovedOn ? new Date(rowData.ApprovedOn).toLocaleString() : ""}
+                        />
+                        <Column
+                            field="ApprovedBy"
+                            header="Processed By"
+                            sortable
+                            body={(rowData) => rowData.ApprovedBy ?? ""}
+                        />
+                        <Column
+                            header="Status"
+                            body={(rowData) => (
+                                <div>
                                     {rowData.IsApproved && (
                                         <span style={{
                                             padding: '4px 8px',

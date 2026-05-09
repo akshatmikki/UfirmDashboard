@@ -44,9 +44,6 @@ const normalizeUploadValue = async (currentValue, selectedFile) => {
   const value = String(currentValue || "").trim();
   if (!value) return "";
   if (value.startsWith("data:")) return value;
-  if (/^https?:\/\//i.test(value)) {
-    return toBase64FromUrl(value);
-  }
   return value;
 };
 
@@ -136,6 +133,8 @@ class AssetsMaster extends Component {
       currentPage: 1,
       nextAddAssetId: 0,
       showAddQrPreview: false,
+      isDownloadingQR: false,
+      downloadQRProgress: 0,
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -173,9 +172,12 @@ downloadAllQRCodes = async () => {
     return;
   }
 
+  this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
+
   const pdf = new jsPDF("p", "mm", "a4");
 
   for (let i = 0; i < assets.length; i++) {
+    this.setState({ downloadQRProgress: Math.round((i / assets.length) * 100) });
     const item = assets[i];
     const qrValue = this.getAssetQrValue(item);
 
@@ -272,7 +274,9 @@ downloadAllQRCodes = async () => {
     document.body.removeChild(container);
   }
 
+  this.setState({ downloadQRProgress: 100 });
   pdf.save("Assets_QR.pdf");
+  this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
 };
 
 downloadAssetQRCode = async (item = {}) => {
@@ -282,6 +286,8 @@ downloadAssetQRCode = async (item = {}) => {
     alert("No QR found");
     return;
   }
+
+  this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
 
   const pdf = new jsPDF("p", "mm", "a4");
 
@@ -368,8 +374,10 @@ downloadAssetQRCode = async (item = {}) => {
 
   document.body.removeChild(container);
 
+  this.setState({ downloadQRProgress: 100 });
   const assetName = this.getAssetNameValue(item) || "Asset";
   pdf.save(`${assetName}_QR.pdf`);
+  this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
 };
 
   normalizeDate = (value) => {
@@ -389,7 +397,15 @@ downloadAssetQRCode = async (item = {}) => {
       return { Status: false, AssetStatus: "" };
     }
     if (rawStatus === "true" || rawStatus === "false") {
-      return { Status: rawStatus === "true", AssetStatus: "" };
+      const isActive = rawStatus === "true";
+      return { Status: isActive, AssetStatus: isActive ? "Active" : "Inactive" };
+    }
+    const normalized = rawStatus.toLowerCase();
+    if (normalized === "active" || normalized === "running") {
+      return { Status: true, AssetStatus: "Active" };
+    }
+    if (normalized === "inactive") {
+      return { Status: false, AssetStatus: "Inactive" };
     }
     return { Status: true, AssetStatus: rawStatus };
   };
@@ -476,7 +492,7 @@ downloadAssetQRCode = async (item = {}) => {
   getPreviewSrc = (fileData, ext = "png") => {
     if (!fileData) return "";
     const raw = String(fileData);
-    if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) {
+    if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("blob:")) {
       return raw;
     }
 
@@ -616,10 +632,16 @@ downloadAssetQRCode = async (item = {}) => {
         if (!resp.ok || resp.status !== 200) return null;
         return resp.json().then((rData) => {
           const isDirectList = Array.isArray(rData);
-          const noServiceDateAssets = isDirectList ? [] : Array.isArray(rData?.NoServiceDate) ? rData.NoServiceDate : [];
+          const noServiceDateAssets = isDirectList ? [] : (Array.isArray(rData?.NoServiceDateAssets) ? rData.NoServiceDateAssets : (Array.isArray(rData?.NoServiceDate) ? rData.NoServiceDate : []));
           const dueServiceAssets = isDirectList ? rData : Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
           const upcomingServiceAssets = isDirectList ? [] : Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
-          const merged = [...noServiceDateAssets, ...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
+          
+          let rawAssets = [...noServiceDateAssets, ...dueServiceAssets, ...upcomingServiceAssets];
+          if (!isDirectList && Array.isArray(rData?.AllAssets) && rData.AllAssets.length > rawAssets.length) {
+              rawAssets = rData.AllAssets;
+          }
+
+          const merged = rawAssets.map((item) => {
             const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
             const statusMeta = this.getAssetStatusMeta(item);
             const displayDate = this.formatDisplayDate(nextServiceDate);
@@ -809,7 +831,7 @@ downloadAssetQRCode = async (item = {}) => {
     const valid = ["jpg", "jpeg", "png", "pdf"];
     const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
     if (valid.includes(extension)) {
-      this.setState({ ImageData: selected, assetImageFileName: selected.name });
+      this.setState({ ImageData: selected, assetImageFileName: selected.name, showImagefile: URL.createObjectURL(selected) });
       return;
     }
     appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
@@ -1322,18 +1344,23 @@ downloadAssetQRCode = async (item = {}) => {
             {paginated.rows.length ? (
               paginated.rows.map((asset) => {
                 const statusMeta = this.getAssetStatusMeta(asset);
-const assetStatus =
-  asset.AssetStatus ||
-  asset.assetStatus ||
-  asset.Status ||
-  "-";                const isSelected = String(this.state.selectedRowId) === String(asset.Id);
-                const isOverdueFiltered = this.state.filterServiceStatus === "Overdue";
+                const assetStatus =
+                  asset.AssetStatus ||
+                  asset.assetStatus ||
+                  asset.Status ||
+                  "-";   
+                const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+                const isOverdue =
+  this.getAssetStatusMeta(asset).serviceStatus === "Overdue";
                 return (
-                  <tr
-                    key={asset.Id}
-                    className={`${isSelected ? "grid-selected-row active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()}
-                    onClick={() => this.onGridRowSelect(asset.Id)}
-                  >
+                   <tr
+    key={asset.Id}
+    className={`
+      ${isSelected ? "grid-selected-row active" : ""}
+      ${isOverdue ? "asset-overdue-row" : ""}
+    `.trim()}
+    onClick={() => this.onGridRowSelect(asset.Id)}
+  >
                     <td className="col-id">{asset.Id || "-"}</td>
                     <td className="col-name">{asset.Name || "-"}</td>
                     <td className="col-location">{asset.Location || asset.location || "-"}</td>
@@ -1409,6 +1436,22 @@ const assetStatus =
         </div>
         <div className="asset-side-panel-body">
           <div className="asset-details-new-layout">
+            {imageSource && !imageSource.includes("application/pdf") ? (
+              <div className="asset-hero-image-wrapper">
+                <img src={imageSource} alt="Asset" className="asset-hero-image" />
+              </div>
+            ) : (
+              <div className="asset-hero-image-empty">
+                <div className="asset-hero-empty-icon">
+                  <i className="fa fa-picture-o" aria-hidden="true" />
+                </div>
+                <div className="asset-hero-empty-text">Asset photo not available</div>
+                <button type="button" className="asset-hero-empty-btn" onClick={() => this.ongridedit(asset.Id)}>
+                  <i className="fa fa-picture-o" aria-hidden="true" />
+                  Add asset photo
+                </button>
+              </div>
+            )}
             <div className="asset-details-row asset-details-header-row">
               <span className="asset-info-label">ID</span>
               <span className="asset-info-value">{asset.Id}</span>
@@ -1598,14 +1641,35 @@ const assetStatus =
           </div>
         </div>
         <div className="asset-side-panel-body">
-          <div className="asset-form-qr-centered">
-            <div className="asset-qr-wrapper-large">
-              {assetQrValue ? (
-                <QRCode value={assetQrValue} size={120} />
+          <div className="asset-form-image-upload-wrapper">
+            {(() => {
+              const imageSource = this.getPreviewSrc(
+                this.state.showImagefile || this.state.AssetImage,
+                this.state.showImagefiletype || this.state.extension || this.state.ImageExt || "png"
+              );
+              return imageSource && !imageSource.includes("application/pdf") ? (
+                <div className="asset-hero-image-wrapper">
+                  <img src={imageSource} alt="Asset" className="asset-hero-image" />
+                  <label className="asset-hero-edit-overlay">
+                    <i className="fa fa-camera" />
+                    <span>Change photo</span>
+                    <input type="file" accept=".jpg,.jpeg,.png" style={{ display: "none" }} onChange={this.onFileChange} />
+                  </label>
+                </div>
               ) : (
-                <span>No QR</span>
-              )}
-            </div>
+                <div className="asset-hero-image-empty">
+                  <div className="asset-hero-empty-icon">
+                    <i className="fa fa-picture-o" aria-hidden="true" />
+                  </div>
+                  <div className="asset-hero-empty-text">Asset photo not available</div>
+                  <label className="asset-hero-empty-btn" style={{ cursor: "pointer", margin: 0 }}>
+                    <i className="fa fa-picture-o" aria-hidden="true" />
+                    Add asset photo
+                    <input type="file" accept=".jpg,.jpeg,.png" style={{ display: "none" }} onChange={this.onFileChange} />
+                  </label>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="asset-form-id-row-simple">
@@ -1727,14 +1791,6 @@ const assetStatus =
               <input type="text" className="form-control" value={this.state.location} onChange={(e) => this.setState({ location: e.target.value })} />
             </div>
 
-            <div className="form-group asset-form-group-custom">
-              <label>Asset image</label>
-              <div className="asset-file-input-wrapper">
-                <input type="text" className="form-control" value={this.state.assetImageFileName || ""} readOnly />
-                <i className="fa fa-picture-o asset-file-icon" />
-                <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
-              </div>
-            </div>
 
             <div className="form-group asset-form-group-custom">
               <label>Warranty document</label>
@@ -2232,6 +2288,12 @@ const assetStatus =
     const showAssetModal = this.state.PageMode === "Add";
     return (
       <div className="asset-master-page">
+        {this.state.isDownloadingQR && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "white" }}>
+            <i className="fa fa-spinner fa-spin" style={{ fontSize: "48px", marginBottom: "16px" }} />
+            <h4 style={{ color: "white", margin: 0 }}>Generating PDF: {this.state.downloadQRProgress}%</h4>
+          </div>
+        )}
         <div className="asset-master-breadcrumb">
           <i className="fa fa-angle-left" aria-hidden="true" />
           <span>Asset Master</span>
@@ -2289,7 +2351,8 @@ const assetStatus =
 
               <div className="asset-master-toolbar-actions">
                 <button
-                  className="btn btn-success"
+                  className="btn btn-primary"
+                  style={{ backgroundColor: "#1f4e7a", borderColor: "#1f4e7a", color: "#ffffff" }}
                   onClick={() => this.downloadAllQRCodes()}
                 >
                   Download QR

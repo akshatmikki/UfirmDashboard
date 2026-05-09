@@ -61,6 +61,16 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle }) => {
       returnedFrom: formData.returnedFrom,
       imageIn: formData.imageIn,
       rentalContract: formData.rentalContractData || "",
+      rentalCharges: formData.rentalCharges,
+      securityDeposit: formData.securityDeposit,
+      approvedBy: formData.approvedBy,
+      rentInTime: formData.returnTime,
+      remarks: formData.remarks || "",
+      tentativeReturnDate: formData.tentativeReturnDate,
+      rentedFrom: formData.rentedFrom,
+      manufacturer: formData.manufacturer,
+      rentalContractName: formData.rentalContractName || "",
+      assetImageName: formData.assetImageName || "",
     });
     if (Close) Close();
   };
