@@ -6,7 +6,7 @@ import { PropagateLoader } from "react-spinners";
 import ExportToCSV from "../ReactComponents/ExportToCSV/ExportToCSV";
 import RentalPopUp from "../ReactComponents/RentalModal/RentalPopUp";
 import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets";
-import { getAllLocations } from "../Services/AttendanceService";
+import { getAllLocations, getFacilityMembers } from "../Services/AttendanceService";
 import "../MainComponents/AssetsMaster/AssetsMaster.css";
 import "./RentalAssets.css";
 import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
@@ -417,6 +417,7 @@ const RentalAssets = ({ propId, history }) => {
   const [panelMode, setPanelMode] = useState("details");
   const [editForm, setEditForm] = useState(buildEditForm());
   const [propertyLocationOptions, setPropertyLocationOptions] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState("rentout");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -470,11 +471,26 @@ const RentalAssets = ({ propId, history }) => {
     };
 
     fetchLocationOptions();
+    
+    const fetchEmployees = async () => {
+      if (Number(propId) > 0) {
+        try {
+          const data = await getFacilityMembers(propId);
+          if (!isMounted) return;
+          // Assuming data is an array of objects with Name property or similar
+          const names = Array.isArray(data) ? data.map(emp => emp.Name || emp.name || emp.EmployeeName).filter(Boolean) : [];
+          setEmployeeOptions(names);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    };
+    fetchEmployees();
 
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [propId]);
 
   const filteredAssets = useMemo(() => {
     const query = String(searchTerm || "").trim().toLowerCase();
@@ -588,6 +604,83 @@ const RentalAssets = ({ propId, history }) => {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const exportToExcel = (data = []) => {
+    const headers = [
+      "ID",
+      "Asset Name",
+      "Manufacturer",
+      "Lease",
+      "Location",
+      "Expiry Date",
+      "Status",
+      "Vendor",
+      "Date of Purchase",
+      "Asset Value",
+      "Image"
+    ];
+
+    const escapeHtml = (text) => {
+      if (!text) return "";
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
+    const tableRows = data.map((asset) => {
+      const imageSrc = asset.ImageOut || asset.AssetImage || asset.Image || "";
+      
+      return `
+        <tr style="height:90px;">
+          <td>${escapeHtml(asset.Id)}</td>
+          <td>${escapeHtml(asset.Name)}</td>
+          <td>${escapeHtml(asset.Manufacturer)}</td>
+          <td>${escapeHtml(getLeaseDisplayValue(asset))}</td>
+          <td>${escapeHtml(asset.Location || asset.OutFrom)}</td>
+          <td>${escapeHtml(formatDate(getExpiryDateValue(asset)))}</td>
+          <td>${escapeHtml(getStatusMeta(asset).label)}</td>
+          <td>${escapeHtml(asset.Vendor || asset.VendorName)}</td>
+          <td>${escapeHtml(formatDate(asset.PurchaseDate))}</td>
+          <td>${escapeHtml(asset.AssetValue)}</td>
+          <td style="width:90px;height:90px;text-align:center;vertical-align:middle;padding:4px;">
+            ${imageSrc ? `<img src="${imageSrc}" width="70" height="70" style="display:block;margin:0 auto;" />` : ""}
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    const tableHeaders = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("");
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head>
+          <meta charSet="utf-8" />
+          <style>
+            table { border-collapse: collapse; }
+            th, td { border: 1px solid #d0d7de; padding: 8px; vertical-align: middle; }
+            th { background: #f3f4f6; font-weight: 600; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeaders}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "RentalAssets.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
   };
 
   const handleOpenRentModal = (asset, type) => {
@@ -1232,7 +1325,10 @@ const RentalAssets = ({ propId, history }) => {
                       <i className="fa fa-sliders" aria-hidden="true" />
                       Filter
                     </button>
-                    {/* <ExportToCSV data={filteredAssets} fileName="RentalAssets.csv" /> */}
+                    <button type="button" className="asset-export-btn" onClick={() => exportToExcel(filteredAssets)}>
+                      <i className="fa fa-external-link" aria-hidden="true" />
+                      Export
+                    </button>
                     <button
                       type="button"
                       className="btn rental-primary-btn"
@@ -1417,6 +1513,8 @@ const RentalAssets = ({ propId, history }) => {
                 asset={selectedAsset || filteredAssets[0]}
                 actionType={actionType}
                 handleSubmit={handleActionSubmit}
+                locationOptions={locationOptions}
+                employeeOptions={employeeOptions}
               />
             ) : null}
 
@@ -1501,7 +1599,7 @@ const RentalAssets = ({ propId, history }) => {
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="asset-side-panel-body">
+                  <div className="asset-confirm-body">
                     Are you sure you want to cancel? All your updated information will be lost.
                   </div>
                   <div className="asset-dialog-actions">

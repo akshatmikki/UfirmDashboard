@@ -959,7 +959,7 @@ const SparePage = () => {
                       Filter
                     </button>
                     <button type="button" className="asset-export-btn" onClick={() => exportSparesToExcel(filteredSpares)}>
-                      <i className="fa fa-external-link" aria-hidden="true" style={{ marginRight: "6px" }} />
+                      <i className="fa fa-external-link" aria-hidden="true" />
                       Export
                     </button>
                     <button
@@ -1326,14 +1326,16 @@ const SparePage = () => {
                       <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
                         <i className="fa fa-exclamation-triangle" aria-hidden="true" />
                       </span>
-                      Cancel action
+                      {sideMode === "edit" ? "Cancel edits" : "Cancel action"}
                     </div>
                     <button type="button" className="spare-add-close" onClick={() => setShowCancelConfirm(false)}>
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="asset-side-panel-body">
-                    Are you sure you want to cancel? All your entered information will be lost.
+                  <div className="asset-confirm-body">
+                    {sideMode === "edit"
+                      ? "Are you sure you want to cancel? All your updated information will be lost."
+                      : "Are you sure you want to cancel? All your entered information will be lost."}
                   </div>
                   <div className="asset-dialog-actions">
                     <button type="button" className="btn btn-light" onClick={() => setShowCancelConfirm(false)}>

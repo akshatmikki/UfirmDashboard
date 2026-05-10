@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
+import CustomDropdown from "../ReactComponents/CustomDropdown/CustomDropdown";
 const formatAssetId = (value) => (value || value === 0 ? `#${value}` : "#1234");
 
 const splitDateTime = (value) => {
@@ -13,7 +14,7 @@ const joinDateTime = (date, time) => {
   return `${date}T${time || "00:00"}`;
 };
 
-const RentOut = ({ Close, setData, asset, showModeToggle }) => {
+const RentOut = ({ Close, setData, asset, showModeToggle, locationOptions = [], employeeOptions = [] }) => {
   const initialDateTime = splitDateTime("");
   const [formData, setFormData] = useState({
     assigneeName: "",
@@ -91,22 +92,40 @@ const RentOut = ({ Close, setData, asset, showModeToggle }) => {
         ) : (
           <div className="rental-asset-select-wrap rental-asset-select-wrap-full">
             <label className="rental-asset-label">Asset</label>
-            <div className="rental-asset-input rental-asset-select">{assetName}</div>
+            <CustomDropdown
+              variant="long"
+              value={assetName}
+              placeholder="Name"
+              options={[{ label: assetName, value: assetName }]}
+              onChange={() => {}} // Read-only in this context
+            />
           </div>
         )}
 
         <div className="rental-asset-grid">
           <div className="rental-asset-field">
             <label className="rental-asset-label">Asignee name</label>
-            <input className="rental-asset-input" type="text" name="assigneeName" placeholder="Select name" value={formData.assigneeName} onChange={handleInputChange} required />
+            <CustomDropdown
+              variant="long"
+              value={formData.assigneeName}
+              onChange={(e) => setFormData({ ...formData, assigneeName: e.target.value })}
+              placeholder="Select name"
+              options={employeeOptions.map(v => ({ label: v, value: v }))}
+            />
           </div>
           <div className="rental-asset-field">
             <label className="rental-asset-label">Rented to</label>
             <input className="rental-asset-input" type="text" name="rentedTo" placeholder="Vendor name" value={formData.rentedTo} onChange={handleInputChange} />
           </div>
           <div className="rental-asset-field">
-            <label className="rental-asset-label">Out from</label>
-            <input className="rental-asset-input" type="text" name="outFrom" placeholder="Auto-populated" value={formData.outFrom} onChange={handleInputChange} />
+            <label className="rental-asset-label">Location</label>
+            <CustomDropdown
+              variant="long"
+              value={formData.outFrom}
+              onChange={(e) => setFormData({ ...formData, outFrom: e.target.value })}
+              placeholder="Auto-populated"
+              options={locationOptions.map(v => ({ label: v, value: v }))}
+            />
           </div>
           <div className="rental-asset-field">
             <label className="rental-asset-label">Manufacturer</label>
@@ -134,7 +153,13 @@ const RentOut = ({ Close, setData, asset, showModeToggle }) => {
           </div>
           <div className="rental-asset-field">
             <label className="rental-asset-label">Approved by</label>
-            <input className="rental-asset-input" type="text" name="approvedBy" placeholder="Enter name" value={formData.approvedBy} onChange={handleInputChange} required />
+            <CustomDropdown
+              variant="long"
+              value={formData.approvedBy}
+              onChange={(e) => setFormData({ ...formData, approvedBy: e.target.value })}
+              placeholder="Enter name"
+              options={employeeOptions.map(v => ({ label: v, value: v }))}
+            />
           </div>
 
           <div className="rental-asset-field">

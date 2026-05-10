@@ -2102,7 +2102,7 @@ class AssetsMaster extends Component {
               <i className="fa fa-times" aria-hidden="true" />
             </button>
           </div>
-          <div className="asset-side-panel-body">{bodyText}</div>
+          <div className="asset-confirm-body">{bodyText}</div>
           <div className="asset-dialog-actions">
             <button type="button" className="btn btn-light" onClick={this.closeCancelConfirm}>
               No, keep editing
@@ -2382,7 +2382,7 @@ class AssetsMaster extends Component {
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
                 </button>
                 <button type="button" className="asset-export-btn" onClick={() => this.exportOwnedAssetsToExcel(filteredGridData)}>
-                  <i className="fa fa-external-link" aria-hidden="true" style={{ marginRight: "6px" }} />
+                  <i className="fa fa-external-link" aria-hidden="true" />
                   Export
                 </button>
                 <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>

@@ -63,15 +63,17 @@
   background: transparent;
   color: #5a5b5d;
   padding: 0;
-  border-radius: 8px;
+  border-radius: 4px;
   font-size: 16px;
   font-weight: 500;
   line-height: 1;
   letter-spacing: 0;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  min-height: 19px;
+  min-width: 109px;
+  height: 19px;
   white-space: nowrap;
   font-family: Inter, sans-serif;
 }
@@ -80,8 +82,10 @@
   background: #d3e6ff;
   color: #000000;
   font-weight: 500;
-  min-height: 35px;
+  min-width: 125px;
+  height: 35px;
   padding: 8px;
+  border-radius: 8px;
 }
 
 .rental-assets-tab-label {
