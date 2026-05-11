@@ -14,7 +14,10 @@ import { withRouter } from "react-router-dom";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 import QRCode from "react-qr-code";
+import { renderToStaticMarkup } from "react-dom/server";
 import { saveAssetAMC } from "../../Services/AssetService";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 const toBase64 = (file) =>
   new Promise((resolve, reject) => {
@@ -41,9 +44,6 @@ const normalizeUploadValue = async (currentValue, selectedFile) => {
   const value = String(currentValue || "").trim();
   if (!value) return "";
   if (value.startsWith("data:")) return value;
-  if (/^https?:\/\//i.test(value)) {
-    return toBase64FromUrl(value);
-  }
   return value;
 };
 
@@ -133,6 +133,8 @@ class AssetsMaster extends Component {
       currentPage: 1,
       nextAddAssetId: 0,
       showAddQrPreview: false,
+      isDownloadingQR: false,
+      downloadQRProgress: 0,
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -159,6 +161,224 @@ class AssetsMaster extends Component {
       this.setState({ currentPage: 1 });
     }
   }
+  // 👇 ADD THIS METHOD INSIDE CLASS
+  downloadAllQRCodes = async () => {
+    console.log("QR DOWNLOAD START");
+
+    const assets = this.getFilteredGridData() || this.state.GridData;
+
+    if (!assets || assets.length === 0) {
+      alert("No assets found");
+      return;
+    }
+
+    this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    for (let i = 0; i < assets.length; i++) {
+      this.setState({ downloadQRProgress: Math.round((i / assets.length) * 100) });
+      const item = assets[i];
+      const qrValue = this.getAssetQrValue(item);
+
+      // 🔥 Container (single card per page)
+      const container = document.createElement("div");
+      container.style.width = "400px";
+      container.style.height = "600px";
+      container.style.position = "relative";
+      container.style.background = "#fff";
+
+      // ✅ Canva background (WITHOUT QR)
+      const img = new Image();
+      img.src = "/Assets/canva-template.png";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.position = "absolute";
+
+      await new Promise((resolve) => {
+        img.onload = resolve;
+      });
+
+      container.appendChild(img);
+
+      // ✅ Dynamic QR
+      const qrWrapper = document.createElement("div");
+
+      qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+
+      qrWrapper.style.position = "absolute";
+      qrWrapper.style.top = "101px";
+      qrWrapper.style.left = "58px";
+      qrWrapper.style.width = "284px";
+      qrWrapper.style.height = "284px";
+      qrWrapper.style.padding = "10px";
+      qrWrapper.style.background = "#ffffff";
+
+      container.appendChild(qrWrapper);
+
+      // ✅ 🔥 Asset Name on Brown Bar
+      const brownBox = document.createElement("div");
+      const brownBoxLeft = 58;
+      const brownBoxTop = (40.2 / 59.4) * 600;
+      const brownBoxWidth = 284;
+      const brownBoxHeight = (2.63 / 59.4) * 600;
+      brownBox.style.position = "absolute";
+      brownBox.style.top = `${brownBoxTop}px`;
+      brownBox.style.left = `${brownBoxLeft}px`;
+      brownBox.style.width = `${brownBoxWidth}px`;
+      brownBox.style.height = `${brownBoxHeight}px`;
+      brownBox.style.background = "#3f2a21";
+      brownBox.style.zIndex = "1";
+
+      const nameText = document.createElement("div");
+      nameText.innerText = this.getAssetNameValue(item).toUpperCase();
+
+      nameText.style.position = "absolute";
+      nameText.style.top = `${brownBoxTop}px`;
+      nameText.style.left = `${brownBoxLeft}px`;
+      nameText.style.width = `${brownBoxWidth}px`;
+      nameText.style.height = `${brownBoxHeight}px`;
+
+      nameText.style.textAlign = "center";
+      nameText.style.color = "#ffffff";
+      nameText.style.fontSize = "13px";
+      nameText.style.fontWeight = "bold";
+      nameText.style.letterSpacing = "1px";
+      nameText.style.lineHeight = `${brownBoxHeight}px`;
+      nameText.style.overflow = "hidden";
+      nameText.style.whiteSpace = "nowrap";
+      nameText.style.textOverflow = "ellipsis";
+      nameText.style.zIndex = "2";
+
+      container.appendChild(brownBox);
+      container.appendChild(nameText);
+
+      document.body.appendChild(container);
+
+      // wait render
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true,
+
+      });
+
+      // ✅ reduce PDF size
+      const imgData = canvas.toDataURL("image/jpeg", 0.7);
+
+      if (i !== 0) pdf.addPage();
+
+      pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+
+      document.body.removeChild(container);
+    }
+
+    this.setState({ downloadQRProgress: 100 });
+    pdf.save("Assets_QR.pdf");
+    this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
+  };
+
+  downloadAssetQRCode = async (item = {}) => {
+    const qrValue = this.getAssetQrValue(item);
+
+    if (!qrValue) {
+      alert("No QR found");
+      return;
+    }
+
+    this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const container = document.createElement("div");
+    container.style.width = "400px";
+    container.style.height = "600px";
+    container.style.position = "relative";
+    container.style.background = "#fff";
+
+    const img = new Image();
+    img.src = "/Assets/canva-template.png";
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.position = "absolute";
+
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
+
+    container.appendChild(img);
+
+    const qrWrapper = document.createElement("div");
+
+    qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+
+    qrWrapper.style.position = "absolute";
+    qrWrapper.style.top = "101px";
+    qrWrapper.style.left = "58px";
+    qrWrapper.style.width = "284px";
+    qrWrapper.style.height = "284px";
+    qrWrapper.style.padding = "10px";
+    qrWrapper.style.background = "#ffffff";
+
+    container.appendChild(qrWrapper);
+
+    const brownBox = document.createElement("div");
+    const brownBoxLeft = 58;
+    const brownBoxTop = (40.2 / 59.4) * 600;
+    const brownBoxWidth = 284;
+    const brownBoxHeight = (2.63 / 59.4) * 600;
+    brownBox.style.position = "absolute";
+    brownBox.style.top = `${brownBoxTop}px`;
+    brownBox.style.left = `${brownBoxLeft}px`;
+    brownBox.style.width = `${brownBoxWidth}px`;
+    brownBox.style.height = `${brownBoxHeight}px`;
+    brownBox.style.background = "#3f2a21";
+    brownBox.style.zIndex = "1";
+
+    const nameText = document.createElement("div");
+    nameText.innerText = this.getAssetNameValue(item).toUpperCase();
+
+    nameText.style.position = "absolute";
+    nameText.style.top = `${brownBoxTop}px`;
+    nameText.style.left = `${brownBoxLeft}px`;
+    nameText.style.width = `${brownBoxWidth}px`;
+    nameText.style.height = `${brownBoxHeight}px`;
+
+    nameText.style.textAlign = "center";
+    nameText.style.color = "#ffffff";
+    nameText.style.fontSize = "13px";
+    nameText.style.fontWeight = "bold";
+    nameText.style.letterSpacing = "1px";
+    nameText.style.lineHeight = `${brownBoxHeight}px`;
+    nameText.style.overflow = "hidden";
+    nameText.style.whiteSpace = "nowrap";
+    nameText.style.textOverflow = "ellipsis";
+    nameText.style.zIndex = "2";
+
+    container.appendChild(brownBox);
+    container.appendChild(nameText);
+
+    document.body.appendChild(container);
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+    });
+
+    const imgData = canvas.toDataURL("image/jpeg", 0.7);
+
+    pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+
+    document.body.removeChild(container);
+
+    this.setState({ downloadQRProgress: 100 });
+    const assetName = this.getAssetNameValue(item) || "Asset";
+    pdf.save(`${assetName}_QR.pdf`);
+    this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
+  };
 
   normalizeDate = (value) => {
     if (!value) return "";
@@ -177,7 +397,15 @@ class AssetsMaster extends Component {
       return { Status: false, AssetStatus: "" };
     }
     if (rawStatus === "true" || rawStatus === "false") {
-      return { Status: rawStatus === "true", AssetStatus: "" };
+      const isActive = rawStatus === "true";
+      return { Status: isActive, AssetStatus: isActive ? "Active" : "Inactive" };
+    }
+    const normalized = rawStatus.toLowerCase();
+    if (normalized === "active" || normalized === "running") {
+      return { Status: true, AssetStatus: "Active" };
+    }
+    if (normalized === "inactive") {
+      return { Status: false, AssetStatus: "Inactive" };
     }
     return { Status: true, AssetStatus: rawStatus };
   };
@@ -202,6 +430,9 @@ class AssetsMaster extends Component {
     return String(qrValue || item?.Id || "").trim();
   };
 
+  getAssetNameValue = (item = {}) =>
+    String(item?.Name || item?.name || item?.AssetName || item?.assetName || "").trim();
+
   formatDisplayDate = (value) => {
     const normalized = this.normalizeDate(value);
     if (!normalized) return "-";
@@ -216,8 +447,26 @@ class AssetsMaster extends Component {
     return String(ext || "").trim().toLowerCase();
   };
 
+  getDocumentFieldValue = (value) => {
+    const normalized = String(value ?? "").trim();
+    return normalized && normalized.toLowerCase() !== "null" && normalized.toLowerCase() !== "undefined"
+      ? normalized
+      : "";
+  };
+
   getAmcDocumentValue = (item = {}) =>
-    item?.AMCdoc || item?.AMCimage || item?.AMCFile || item?.AmcFile || item?.AMCDocument || item?.AmcDocument || "";
+    this.getDocumentFieldValue(item?.AMCFile) ||
+    this.getDocumentFieldValue(item?.AmcFile) ||
+    this.getDocumentFieldValue(item?.AMCdoc) ||
+    this.getDocumentFieldValue(item?.AMCimage) ||
+    this.getDocumentFieldValue(item?.AMCDocument) ||
+    this.getDocumentFieldValue(item?.AmcDocument) ||
+    "";
+
+  getAmcFileValue = (item = {}) =>
+    this.getDocumentFieldValue(item?.AMCFile) ||
+    this.getDocumentFieldValue(item?.AmcFile) ||
+    "";
 
   getAmcDocumentName = (item = {}) =>
     item?.AMCdocName ||
@@ -243,7 +492,7 @@ class AssetsMaster extends Component {
   getPreviewSrc = (fileData, ext = "png") => {
     if (!fileData) return "";
     const raw = String(fileData);
-    if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://")) {
+    if (raw.startsWith("data:") || raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("blob:")) {
       return raw;
     }
 
@@ -287,7 +536,10 @@ class AssetsMaster extends Component {
   };
 
   getAssetStatusMeta = (item = {}) => {
-    const rawStatus = item?.Status;
+    const rawStatus =
+      item?.AssetStatus ||
+      item?.assetStatus ||
+      item?.Status;
     const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
     const today = new Date().toISOString().slice(0, 10);
     const rawServiceStatus = String(item?.ServiceStatus || item?.serviceStatus || "").trim();
@@ -299,6 +551,17 @@ class AssetsMaster extends Component {
     if (boolStatus === false) return { label: "Inactive", key: "inactive", serviceStatus };
     if (boolStatus === true) return { label: "Active", key: "running", serviceStatus };
     return { label: "-", key: "inactive", serviceStatus };
+  };
+
+  getStatusFormValue = (value) => {
+    const rawStatus = String(value ?? "").trim();
+    if (!rawStatus) return "";
+    if (rawStatus === "true" || rawStatus === "false") return rawStatus;
+
+    const normalized = rawStatus.toLowerCase();
+    if (normalized === "active" || normalized === "running") return "true";
+    if (normalized === "inactive") return "false";
+    return rawStatus;
   };
 
   getAssetTypeLabel = (item = {}) => {
@@ -322,36 +585,38 @@ class AssetsMaster extends Component {
     (() => {
       const statusPayload = this.getAssetStatusPayload();
       return {
-      Id: this.state.Id,
-      Name: this.state.Name,
-      Description: this.state.Description,
-      QRCode: this.state.QRCode,
-      AssetType: this.state.AssetType,
-      Manufacturer: this.state.ManufacturerName,
-      AssetModel: this.state.AssetModel,
-      IsMoveable: this.getApiBoolean(this.state.IsMoveable),
-      IsRented: this.getApiBoolean(this.state.IsRented),
-      Flag: type,
-      AssetImage: this.state.AssetImage,
-      LastServiceDate: this.state.LastServiceDate,
-      NextServiceDate: this.state.NextServiceDate,
-      IsRentable: this.getApiBoolean(this.state.IsRentable),
-      AssetValue: this.state.AssetValue,
-      Capacity: this.state.Capacity,
-      AMCdoc: this.state.AMCimage,
-      AMCDateFrom: this.state.amcDateFrom,
-      AMCDateTo: this.state.amcDateTo,
-      WarrantyDocument: this.state.warrantyImage,
-      AssetStatus: statusPayload.AssetStatus,
-      Status: statusPayload.Status,
-      Category: this.state.category,
-      Location: this.state.location,
-      serviceReminderDay: this.state.serviceReminderDay,
-      PropertyId: Number(this.props.PropertyId) || 0,
-      propertyId: Number(this.props.PropertyId) || 0,
-      PurchaseDate: this.state.PurchaseDate,
-      WarrantyDate: this.state.WarrantyDate,
-      ...overrides,
+        Id: this.state.Id,
+        Name: this.state.Name,
+        Description: this.state.Description,
+        QRCode: this.state.QRCode,
+        AssetType: this.state.AssetType,
+        Manufacturer: this.state.ManufacturerName,
+        AssetModel: this.state.AssetModel,
+        IsMoveable: this.getApiBoolean(this.state.IsMoveable),
+        IsRented: this.getApiBoolean(this.state.IsRented),
+        Flag: type,
+        AssetImage: this.state.AssetImage,
+        LastServiceDate: this.state.LastServiceDate,
+        NextServiceDate: this.state.NextServiceDate,
+        IsRentable: this.getApiBoolean(this.state.IsRentable),
+        AssetValue: this.state.AssetValue,
+        Capacity: this.state.Capacity,
+        AMCFile: this.state.AMCimage,
+        AMCFromDate: this.state.amcDateFrom,
+        AMCToDate: this.state.amcDateTo,
+        AMCTotalAmount: this.state.amcTotalAmount,
+        AMCContractType: this.state.amcContractType,
+        WarrantyDocument: this.state.warrantyImage,
+        AssetStatus: statusPayload.AssetStatus,
+        Status: statusPayload.Status,
+        Category: this.state.category,
+        Location: this.state.location,
+        serviceReminderDay: this.state.serviceReminderDay,
+        PropertyId: Number(this.props.PropertyId) || 0,
+        propertyId: Number(this.props.PropertyId) || 0,
+        PurchaseDate: this.state.PurchaseDate,
+        WarrantyDate: this.state.WarrantyDate,
+        ...overrides,
       };
     })(),
   ];
@@ -364,15 +629,21 @@ class AssetsMaster extends Component {
     }
 
     this.setState({ isLoading: true });
-      this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
+    this.ApiProviderr.manageDocumentTypeMaster(this.getModel(), "R")
       .then((resp) => {
         if (!resp.ok || resp.status !== 200) return null;
         return resp.json().then((rData) => {
           const isDirectList = Array.isArray(rData);
-          const noServiceDateAssets = isDirectList ? [] : Array.isArray(rData?.NoServiceDate) ? rData.NoServiceDate : [];
+          const noServiceDateAssets = isDirectList ? [] : (Array.isArray(rData?.NoServiceDateAssets) ? rData.NoServiceDateAssets : (Array.isArray(rData?.NoServiceDate) ? rData.NoServiceDate : []));
           const dueServiceAssets = isDirectList ? rData : Array.isArray(rData?.PassedServiceDates) ? rData.PassedServiceDates : [];
           const upcomingServiceAssets = isDirectList ? [] : Array.isArray(rData?.UpcomingServiceDates) ? rData.UpcomingServiceDates : [];
-          const merged = [...noServiceDateAssets, ...dueServiceAssets, ...upcomingServiceAssets].map((item) => {
+
+          let rawAssets = [...noServiceDateAssets, ...dueServiceAssets, ...upcomingServiceAssets];
+          if (!isDirectList && Array.isArray(rData?.AllAssets) && rData.AllAssets.length > rawAssets.length) {
+            rawAssets = rData.AllAssets;
+          }
+
+          const merged = rawAssets.map((item) => {
             const nextServiceDate = this.normalizeDate(item?.NextServiceDate);
             const statusMeta = this.getAssetStatusMeta(item);
             const displayDate = this.formatDisplayDate(nextServiceDate);
@@ -387,20 +658,20 @@ class AssetsMaster extends Component {
             };
           });
 
-           // Sort: Upcoming (nearest first) at top, then overdue.
-           const today = new Date().toISOString().slice(0, 10);
-           merged.sort((a, b) => {
-             const dateA = a.NextServiceDate || "";
-             const dateB = b.NextServiceDate || "";
-             const isUpcomingA = !!dateA && dateA >= today;
-             const isUpcomingB = !!dateB && dateB >= today;
+          // Sort: Upcoming (nearest first) at top, then overdue.
+          const today = new Date().toISOString().slice(0, 10);
+          merged.sort((a, b) => {
+            const dateA = a.NextServiceDate || "";
+            const dateB = b.NextServiceDate || "";
+            const isUpcomingA = !!dateA && dateA >= today;
+            const isUpcomingB = !!dateB && dateB >= today;
 
-             if (isUpcomingA !== isUpcomingB) return isUpcomingA ? -1 : 1;
-             if (!dateA && !dateB) return 0;
-             if (!dateA) return 1;
-             if (!dateB) return -1;
-             return dateA.localeCompare(dateB);
-           });
+            if (isUpcomingA !== isUpcomingB) return isUpcomingA ? -1 : 1;
+            if (!dateA && !dateB) return 0;
+            if (!dateA) return 1;
+            if (!dateB) return -1;
+            return dateA.localeCompare(dateB);
+          });
 
           this.setState({
             GridData: merged,
@@ -491,19 +762,28 @@ class AssetsMaster extends Component {
       Description: this.getRowDescription(rowData),
       QRCode: assetQrValue,
       ManufacturerName: rowData.Manufacturer || "",
-      AssetModel: rowData.AssetModel || "",
+      AssetModel: rowData.AssetModel || rowData.Model || "",
       IsMoveable: String(this.normalizeBoolean(rowData.IsMoveable)),
       IsRented: String(this.normalizeBoolean(rowData.IsRented)),
       LastServiceDate: this.normalizeDate(rowData.LastServiceDate),
       NextServiceDate: this.normalizeDate(rowData.NextServiceDate),
       IsRentable: String(this.normalizeBoolean(rowData.IsRentable)),
-      AssetValue: rowData.AssetValue || 0,
+      AssetValue: rowData.AssetValue || rowData.Value || rowData.Cost || 0,
       Capacity: rowData.Capacity ?? rowData.capacity ?? "",
-      AssetType: rowData.AssetType || "",
+      AssetType: rowData.AssetType || rowData.Type || rowData.LeaseType || "",
       AssetImage: rowData.AssetImage || rowData.Image || "",
       AMCimage: this.getAmcDocumentValue(rowData),
-      amcDateFrom: this.normalizeDate(rowData.AMCDateFrom || rowData.AmcDateFrom || rowData.DateFrom),
-      amcDateTo: this.normalizeDate(rowData.AMCDateTo || rowData.AmcDateTo || rowData.DateTo),
+      amcDateFrom: this.normalizeDate(
+        rowData.AMCFromDate ||
+        rowData.AmcFromDate ||
+        rowData.DateFrom
+      ),
+
+      amcDateTo: this.normalizeDate(
+        rowData.AMCToDate ||
+        rowData.AmcToDate ||
+        rowData.DateTo
+      ),
       amcTotalAmount: rowData.AMCTotalAmount || rowData.AmcTotalAmount || rowData.TotalAmount || "",
       amcContractType: rowData.AMCContractType || rowData.AmcContractType || rowData.ContractType || "",
       warrantyImage: rowData.WarrantyDocument || rowData.warrantyImage || "",
@@ -517,15 +797,15 @@ class AssetsMaster extends Component {
         rowData.warrantyImageName ||
         ((rowData.WarrantyDocument || rowData.warrantyImage) ? "Existing document" : ""),
       showImagefiletype: rowData.ImageExt || null,
-      showImagefile: rowData.Image || null,
+      showImagefile: rowData.Image || rowData.AssetImage || null,
       extension: rowData.ImageExt || null,
-      status: String(this.normalizeBoolean(rowData.Status)),
-      category: rowData.Category || "",
-      location: rowData.Location || "",
-        serviceReminderDay: rowData.serviceReminderDay || "",
-        PurchaseDate: this.normalizeDate(rowData.PurchaseDate),
-        WarrantyDate: this.normalizeDate(rowData.WarrantyDate),
-        showAddQrPreview: false,
+      status: this.getStatusFormValue(rowData.Status || rowData.AssetStatus),
+      category: rowData.Category || rowData.category || "",
+      location: rowData.Location || rowData.location || "",
+      serviceReminderDay: rowData.serviceReminderDay || rowData.ServiceReminderDay || "",
+      PurchaseDate: this.normalizeDate(rowData.PurchaseDate || rowData.DateOfPurchase),
+      WarrantyDate: this.normalizeDate(rowData.WarrantyDate || rowData.WarrantyExpiry || rowData.ExpiryDate),
+      showAddQrPreview: false,
     });
   };
 
@@ -562,7 +842,7 @@ class AssetsMaster extends Component {
     const valid = ["jpg", "jpeg", "png", "pdf"];
     const extension = selected.name.substring(selected.name.lastIndexOf(".") + 1).toLowerCase();
     if (valid.includes(extension)) {
-      this.setState({ ImageData: selected, assetImageFileName: selected.name });
+      this.setState({ ImageData: selected, assetImageFileName: selected.name, showImagefile: URL.createObjectURL(selected) });
       return;
     }
     appCommon.showtextalert(`${selected.name} Invalid file type, Please select only ${valid.join(", ")}`, "", "error");
@@ -593,12 +873,12 @@ class AssetsMaster extends Component {
   };
 
   handleTabChange = (tab) => {
-  this.setState({
-    activeTab: tab,
-    PageMode: "Home",
-    selectedRowId: null
-  });
-};
+    this.setState({
+      activeTab: tab,
+      PageMode: "Home",
+      selectedRowId: null
+    });
+  };
 
   openAmcModal = () => {
     const asset = this.getSelectedAssetRecord();
@@ -639,8 +919,8 @@ class AssetsMaster extends Component {
       this.setState(
         {
           showAmcModal: false,
-          AMCimage: response?.AMCFile || amcFile || "",
-          amcFileName: response?.AMCFile ? String(response.AMCFile).split("\\").pop() : this.state.amcFileName,
+          AMCimage: this.getDocumentFieldValue(response?.AMCFile) || amcFile || "",
+          amcFileName: response?.AMCFile ? String(response.AMCFile).split(/[\\/]/).pop() : this.state.amcFileName,
         },
         this.loadHomagePageData
       );
@@ -651,6 +931,11 @@ class AssetsMaster extends Component {
   };
 
   handleSave = async () => {
+    if (this.state.PageMode === "Add" && !String(this.state.QRCode || "").trim()) {
+      appCommon.showtextalert("Please generate QR code before saving.", "", "error");
+      return;
+    }
+
     let assetImage = this.state.AssetImage;
     let imageExt = this.state.ImageExt;
     let amcImage = this.state.AMCimage;
@@ -671,7 +956,15 @@ class AssetsMaster extends Component {
 
     if (ValidateControls()) {
       const type = this.state.PageMode === "Add" ? "I" : "U";
-      this.mangaeSave(this.getModel(type, { AssetImage: assetImage, ImageExt: imageExt, AMCdoc: amcImage, WarrantyDocument: warrantyImage }), type);
+      this.mangaeSave(
+        this.getModel(type, {
+          AssetImage: assetImage,
+          ImageExt: imageExt,
+          AMCFile: amcImage,
+          WarrantyDocument: warrantyImage
+        }),
+        type
+      );
     }
   };
 
@@ -777,22 +1070,22 @@ class AssetsMaster extends Component {
         <div className="asset-filter-grid">
           <div className="asset-filter-field">
             <label>Vendor</label>
-            <CustomDropdown 
-              variant="long" 
-              value={this.state.filterVendor} 
-              onChange={(e) => this.setState({ filterVendor: e.target.value })} 
-              placeholder="Enter name" 
-              options={this.getVendorOptions().map(v => ({ label: v, value: v }))} 
+            <CustomDropdown
+              variant="long"
+              value={this.state.filterVendor}
+              onChange={(e) => this.setState({ filterVendor: e.target.value })}
+              placeholder="Enter name"
+              options={this.getVendorOptions().map(v => ({ label: v, value: v }))}
             />
           </div>
           <div className="asset-filter-field">
             <label>Manufacturer</label>
-            <CustomDropdown 
-              variant="long" 
-              value={this.state.filterManufacturer} 
-              onChange={(e) => this.setState({ filterManufacturer: e.target.value })} 
-              placeholder="Enter name" 
-              options={this.getManufacturerOptions().map(m => ({ label: m, value: m }))} 
+            <CustomDropdown
+              variant="long"
+              value={this.state.filterManufacturer}
+              onChange={(e) => this.setState({ filterManufacturer: e.target.value })}
+              placeholder="Enter name"
+              options={this.getManufacturerOptions().map(m => ({ label: m, value: m }))}
             />
           </div>
 
@@ -1054,8 +1347,8 @@ class AssetsMaster extends Component {
     const paginated = this.getPaginatedRows(rows);
 
     return (
-    <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
-      <table className="table asset-owned-table custTable table-hover mb-0">
+      <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
+        <table className="table asset-owned-table custTable table-hover mb-0">
           <thead>
             <tr>
               <th className="col-id" style={{ width: "70px" }}>ID</th>
@@ -1070,12 +1363,21 @@ class AssetsMaster extends Component {
             {paginated.rows.length ? (
               paginated.rows.map((asset) => {
                 const statusMeta = this.getAssetStatusMeta(asset);
+                const assetStatus =
+                  asset.AssetStatus ||
+                  asset.assetStatus ||
+                  asset.Status ||
+                  "-";
                 const isSelected = String(this.state.selectedRowId) === String(asset.Id);
-                const isOverdueFiltered = this.state.filterServiceStatus === "Overdue";
+                const isOverdue =
+                  this.getAssetStatusMeta(asset).serviceStatus === "Overdue";
                 return (
                   <tr
                     key={asset.Id}
-                    className={`${isSelected ? "grid-selected-row active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()}
+                    className={`
+      ${isSelected ? "grid-selected-row active" : ""}
+      ${isOverdue ? "asset-overdue-row" : ""}
+    `.trim()}
                     onClick={() => this.onGridRowSelect(asset.Id)}
                   >
                     <td className="col-id">{asset.Id || "-"}</td>
@@ -1083,7 +1385,13 @@ class AssetsMaster extends Component {
                     <td className="col-location">{asset.Location || asset.location || "-"}</td>
                     <td className="col-date">{this.formatDisplayDate(asset.NextServiceDate)}</td>
                     <td className="col-status">
-                      <span className={`asset-table-status asset-table-status-${statusMeta.key}`}>{statusMeta.label}</span>
+                      <span
+                        className={`asset-table-status asset-table-status-${String(assetStatus)
+                          .toLowerCase()
+                          .replace(/\s+/g, "-")}`}
+                      >
+                        {assetStatus}
+                      </span>
                     </td>
                     <td className="col-actions">
                       <div className="asset-owned-row-actions" onClick={(e) => e.stopPropagation()}>
@@ -1106,8 +1414,8 @@ class AssetsMaster extends Component {
           </tbody>
         </table>
         {this.renderTablePagination(paginated.currentPage, paginated.totalPages, paginated.totalRows, (page) => this.setState({ currentPage: page }))}
-    </div>
-  );
+      </div>
+    );
   };
 
   renderReadOnlyField = (label, value, extraClass = "") => (
@@ -1122,15 +1430,19 @@ class AssetsMaster extends Component {
     if (!asset) return null;
     const assetQrValue = this.getAssetQrValue(asset);
     const statusMeta = this.getAssetStatusMeta(asset);
-    const imageSource = this.getPreviewSrc(
-      this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
-      this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
-    );
+    const assetStatus =
+      asset.AssetStatus ||
+      asset.assetStatus ||
+      asset.Status ||
+      "-"; const imageSource = this.getPreviewSrc(
+        this.state.AssetImage || asset.AssetImage || this.state.showImagefile || asset.Image,
+        this.state.showImagefiletype || this.state.extension || asset.ImageExt || "png"
+      );
     const amcExt = this.getFileExtension(this.state.amcFileName) || this.getFileExtension(this.getAmcDocumentName(asset));
     const warrantyExt =
       this.getFileExtension(this.state.warrantyFileName) ||
       this.getFileExtension(asset.WarrantyDocumentName || asset.warrantyImageName || "");
-    const amcSource = this.getPreviewSrc(this.state.AMCimage || this.getAmcDocumentValue(asset), amcExt);
+    const amcSource = this.getPreviewSrc(this.getAmcFileValue(asset), amcExt);
     const warrantySource = this.getPreviewSrc(
       this.state.warrantyImage || asset.WarrantyDocument || asset.warrantyImage,
       warrantyExt
@@ -1143,6 +1455,22 @@ class AssetsMaster extends Component {
         </div>
         <div className="asset-side-panel-body">
           <div className="asset-details-new-layout">
+            {imageSource && !imageSource.includes("application/pdf") ? (
+              <div className="asset-hero-image-wrapper">
+                <img src={imageSource} alt="Asset" className="asset-hero-image" />
+              </div>
+            ) : (
+              <div className="asset-hero-image-empty">
+                <div className="asset-hero-empty-icon">
+                  <i className="fa fa-picture-o" aria-hidden="true" />
+                </div>
+                <div className="asset-hero-empty-text">Asset photo not available</div>
+                <button type="button" className="asset-hero-empty-btn" onClick={() => this.ongridedit(asset.Id)}>
+                  <i className="fa fa-picture-o" aria-hidden="true" />
+                  Add asset photo
+                </button>
+              </div>
+            )}
             <div className="asset-details-row asset-details-header-row">
               <span className="asset-info-label">ID</span>
               <span className="asset-info-value">{asset.Id}</span>
@@ -1153,7 +1481,13 @@ class AssetsMaster extends Component {
                 <span className="asset-info-label">Name</span>
                 <span className="asset-info-value">{asset.Name}</span>
               </div>
-              <span className={`asset-status-badge asset-status-badge-${statusMeta.key}`}>{statusMeta.label}</span>
+              <span
+                className={`asset-status-badge asset-status-badge-${String(assetStatus)
+                  .toLowerCase()
+                  .replace(/\s+/g, "-")}`}
+              >
+                {assetStatus}
+              </span>
             </div>
 
             <div className="asset-details-row asset-details-desc-row">
@@ -1180,17 +1514,17 @@ class AssetsMaster extends Component {
                 <span className="asset-info-label">Next service</span>
                 <span className="asset-info-value">{this.formatDisplayDate(asset.NextServiceDate)}</span>
               </div>
-               <div className="asset-details-row asset-details-location-row">
-              <div className="asset-info-item">
-                <span className="asset-info-label">Location</span>
-                <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+              <div className="asset-details-row asset-details-location-row">
+                <div className="asset-info-item">
+                  <span className="asset-info-label">Location</span>
+                  <span className="asset-info-value">{asset.Location || asset.location || "-"}</span>
+                </div>
               </div>
-            </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Reminder</span>
                 <span className="asset-info-value">{asset.serviceReminderDay ? `${asset.serviceReminderDay} day(s)` : "No reminder set"}</span>
               </div>
-              
+
               <div className="asset-info-item">
                 <span className="asset-info-label">Is Movable</span>
                 <span className="asset-info-value">{this.getBoolLabel(asset.IsMoveable)}</span>
@@ -1217,7 +1551,7 @@ class AssetsMaster extends Component {
               </div>
             </div>
 
-           
+
 
             <div className="asset-details-docs-section">
               <div className="asset-qr-preview-box">
@@ -1226,11 +1560,23 @@ class AssetsMaster extends Component {
                     <QRCode
                       value={assetQrValue}
                       size={72}
+                      id={`qr-${asset.Id}`}
                     />
                   ) : (
                     <span>No QR</span>
                   )}
                 </div>
+                {assetQrValue ? (
+                  <button
+                    type="button"
+                    className="asset-doc-link-text asset-download-qr-link"
+                    onClick={() => this.downloadAssetQRCode(asset)}
+                  >
+
+                    Download QR
+                    <i className="fa fa-download" aria-hidden="true" />
+                  </button>
+                ) : null}
               </div>
               <div className="asset-doc-links-stack asset-doc-links-stack-view">
                 <div className="asset-doc-link-item">
@@ -1314,14 +1660,35 @@ class AssetsMaster extends Component {
           </div>
         </div>
         <div className="asset-side-panel-body">
-          <div className="asset-form-qr-centered">
-            <div className="asset-qr-wrapper-large">
-              {assetQrValue ? (
-                <QRCode value={assetQrValue} size={120} />
+          <div className="asset-form-image-upload-wrapper">
+            {(() => {
+              const imageSource = this.getPreviewSrc(
+                this.state.showImagefile || this.state.AssetImage,
+                this.state.showImagefiletype || this.state.extension || this.state.ImageExt || "png"
+              );
+              return imageSource && !imageSource.includes("application/pdf") ? (
+                <div className="asset-hero-image-wrapper">
+                  <img src={imageSource} alt="Asset" className="asset-hero-image" />
+                  <label className="asset-hero-edit-overlay">
+                    <i className="fa fa-camera" />
+                    <span>Change photo</span>
+                    <input type="file" accept=".jpg,.jpeg,.png" style={{ display: "none" }} onChange={this.onFileChange} />
+                  </label>
+                </div>
               ) : (
-                <span>No QR</span>
-              )}
-            </div>
+                <div className="asset-hero-image-empty">
+                  <div className="asset-hero-empty-icon">
+                    <i className="fa fa-picture-o" aria-hidden="true" />
+                  </div>
+                  <div className="asset-hero-empty-text">Asset photo not available</div>
+                  <label className="asset-hero-empty-btn" style={{ cursor: "pointer", margin: 0 }}>
+                    <i className="fa fa-picture-o" aria-hidden="true" />
+                    Add asset photo
+                    <input type="file" accept=".jpg,.jpeg,.png" style={{ display: "none" }} onChange={this.onFileChange} />
+                  </label>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="asset-form-id-row-simple">
@@ -1373,14 +1740,25 @@ class AssetsMaster extends Component {
               </div>
               <div className="form-group asset-form-group-custom">
                 <label>Next service</label>
-                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} />
+                <CustomDatePicker value={this.state.NextServiceDate} onChange={(e) => this.setState({ NextServiceDate: e.target.value })} popupAnchorSelector=".asset-form-row-two-col" />
               </div>
             </div>
 
             <div className="asset-form-row-two-col">
               <div className="form-group asset-form-group-custom">
                 <label>Reminder</label>
-                <input type="text" className="form-control" value={this.state.serviceReminderDay} onChange={(e) => this.setState({ serviceReminderDay: e.target.value })} />
+                <CustomDropdown
+                  variant="short"
+                  value={this.state.serviceReminderDay}
+                  onChange={(e) => this.setState({ serviceReminderDay: e.target.value })}
+                  placeholder="Select reminder"
+                  options={[
+                    { label: "One Day Prior", value: "1" },
+                    { label: "One Week Prior", value: "7" },
+                    { label: "15 Days Prior", value: "15" },
+                    { label: "One Month Prior", value: "30" }
+                  ]}
+                />
               </div>
               <div className="form-group asset-form-group-custom">
                 <label>Value</label>
@@ -1413,7 +1791,7 @@ class AssetsMaster extends Component {
                   ]}
                 />
               </div>
-               <div className="form-group asset-form-group-custom">
+              <div className="form-group asset-form-group-custom">
                 <label>Is Rented</label>
                 <RadioButtonGroup
                   name="IsRented"
@@ -1432,14 +1810,6 @@ class AssetsMaster extends Component {
               <input type="text" className="form-control" value={this.state.location} onChange={(e) => this.setState({ location: e.target.value })} />
             </div>
 
-            <div className="form-group asset-form-group-custom">
-              <label>Asset image</label>
-              <div className="asset-file-input-wrapper">
-                <input type="text" className="form-control" value={this.state.assetImageFileName || ""} readOnly />
-                <i className="fa fa-picture-o asset-file-icon" />
-                <input type="file" className="asset-file-hidden" onChange={this.onFileChange} />
-              </div>
-            </div>
 
             <div className="form-group asset-form-group-custom">
               <label>Warranty document</label>
@@ -1614,7 +1984,7 @@ class AssetsMaster extends Component {
                   ]}
                 />
               </div>
-                <div className="form-group asset-form-group-custom">
+              <div className="form-group asset-form-group-custom">
                 <label>Is Rented</label>
                 <RadioButtonGroup
                   name="IsRented"
@@ -1646,12 +2016,12 @@ class AssetsMaster extends Component {
 
               <div className="form-group asset-form-group-custom">
                 <label>Location</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
+                <input
+                  type="text"
+                  className="form-control"
                   placeholder="Location"
-                  value={this.state.location} 
-                  onChange={(e) => this.setState({ location: e.target.value })} 
+                  value={this.state.location}
+                  onChange={(e) => this.setState({ location: e.target.value })}
                 />
               </div>
 
@@ -1664,12 +2034,12 @@ class AssetsMaster extends Component {
                 <label>Value</label>
                 <div className="asset-input-icon-wrapper">
                   <span className="asset-input-icon">₹</span>
-                  <input 
-                    type="text" 
-                    className="form-control" 
+                  <input
+                    type="text"
+                    className="form-control"
                     placeholder=""
-                    value={this.state.AssetValue} 
-                    onChange={(e) => this.setState({ AssetValue: e.target.value })} 
+                    value={this.state.AssetValue}
+                    onChange={(e) => this.setState({ AssetValue: e.target.value })}
                   />
                 </div>
               </div>
@@ -1706,7 +2076,7 @@ class AssetsMaster extends Component {
           </div>
         </div>
       </div>
-            
+
 
     );
   };
@@ -1732,7 +2102,7 @@ class AssetsMaster extends Component {
               <i className="fa fa-times" aria-hidden="true" />
             </button>
           </div>
-          <div className="asset-side-panel-body">{bodyText}</div>
+          <div className="asset-confirm-body">{bodyText}</div>
           <div className="asset-dialog-actions">
             <button type="button" className="btn btn-light" onClick={this.closeCancelConfirm}>
               No, keep editing
@@ -1937,6 +2307,12 @@ class AssetsMaster extends Component {
     const showAssetModal = this.state.PageMode === "Add";
     return (
       <div className="asset-master-page">
+        {this.state.isDownloadingQR && (
+          <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "white" }}>
+            <i className="fa fa-spinner fa-spin" style={{ fontSize: "48px", marginBottom: "16px" }} />
+            <h4 style={{ color: "white", margin: 0 }}>Generating PDF: {this.state.downloadQRProgress}%</h4>
+          </div>
+        )}
         <div className="asset-master-breadcrumb">
           <i className="fa fa-angle-left" aria-hidden="true" />
           <span>Asset Master</span>
@@ -1945,39 +2321,39 @@ class AssetsMaster extends Component {
         <div className={`asset-master-layout asset-master-layout-owned ${hasSidePanel ? "has-side-panel" : ""}`}>
           <div className="asset-master-main-card">
             <div className="asset-master-tabs">
-             <button
-  type="button"
-  className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
-  onClick={() => {
-  this.setState({ activeTab: "owned" });
-  this.props.history.push("/Account/App/AssetsMaster");
-}}
->
-  <span className="asset-master-tab-label">Owned assets</span>
-  {this.state.activeTab === "owned" ? <span className="asset-master-tab-count">{this.state.GridData.length}</span> : null}
-</button>
+              <button
+                type="button"
+                className={`asset-master-tab ${this.state.activeTab === "owned" ? "active" : ""}`}
+                onClick={() => {
+                  this.setState({ activeTab: "owned" });
+                  this.props.history.push("/Account/App/AssetsMaster");
+                }}
+              >
+                <span className="asset-master-tab-label">Owned assets</span>
+                {this.state.activeTab === "owned" ? <span className="asset-master-tab-count">{this.state.GridData.length}</span> : null}
+              </button>
 
-<button
-  type="button"
-  className={`asset-master-tab ${this.state.activeTab === "rented" ? "active" : ""}`}
-  onClick={() => {
-    this.setState({ activeTab: "rented" });
-    this.props.history.push("/Account/App/RentalAssets");
-  }}
->
-  <span className="asset-master-tab-label">Rented assets</span>
-</button>
+              <button
+                type="button"
+                className={`asset-master-tab ${this.state.activeTab === "rented" ? "active" : ""}`}
+                onClick={() => {
+                  this.setState({ activeTab: "rented" });
+                  this.props.history.push("/Account/App/RentalAssets");
+                }}
+              >
+                <span className="asset-master-tab-label">Rented assets</span>
+              </button>
 
-<button
-  type="button"
-  className={`asset-master-tab ${this.state.activeTab === "spare" ? "active" : ""}`}
-  onClick={() => {
-    this.setState({ activeTab: "spare" });
-    this.props.history.push("/Account/App/SpareMaster");
-  }}
->
-  <span className="asset-master-tab-label">Spare parts</span>
-</button>
+              <button
+                type="button"
+                className={`asset-master-tab ${this.state.activeTab === "spare" ? "active" : ""}`}
+                onClick={() => {
+                  this.setState({ activeTab: "spare" });
+                  this.props.history.push("/Account/App/SpareMaster");
+                }}
+              >
+                <span className="asset-master-tab-label">Spare parts</span>
+              </button>
             </div>
 
             <div className="asset-master-toolbar">
@@ -1993,13 +2369,20 @@ class AssetsMaster extends Component {
               </div>
 
               <div className="asset-master-toolbar-actions">
+                <button
+                  className="btn btn-primary"
+                  style={{ backgroundColor: "#1f4e7a", borderColor: "#1f4e7a", color: "#ffffff" }}
+                  onClick={() => this.downloadAllQRCodes()}
+                >
+                  Download QR
+                </button>
                 <button className={`btn asset-toolbar-filter ${this.state.showFilterPanel ? "active" : ""}`} type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
                   <i className="fa fa-sliders" aria-hidden="true" />
                   Filter
                   {activeFilterCount > 0 ? <span className="task-filter-count">{activeFilterCount}</span> : null}
                 </button>
                 <button type="button" className="asset-export-btn" onClick={() => this.exportOwnedAssetsToExcel(filteredGridData)}>
-                  <i className="fa fa-external-link" aria-hidden="true" style={{ marginRight: "6px" }} />
+                  <i className="fa fa-external-link" aria-hidden="true" />
                   Export
                 </button>
                 <button type="button" className="btn btn-primary asset-toolbar-add" onClick={this.Addnew}>

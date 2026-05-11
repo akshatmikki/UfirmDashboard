@@ -13,7 +13,7 @@ const getInitialMode = (actionType, asset) => {
   return rentOutTime > returnTime ? "rentin" : "rentout";
 };
 
-function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
+function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit, locationOptions, employeeOptions }) {
   const [activeMode, setActiveMode] = useState(getInitialMode(actionType, asset));
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
@@ -76,9 +76,9 @@ function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
           ) : null}
 
           {activeMode === "rentin" ? (
-            <ReturnAsset Close={handleRequestClose} setData={handleReturnData} asset={asset} showModeToggle={showModeToggle} />
+            <ReturnAsset Close={handleRequestClose} setData={handleReturnData} asset={asset} showModeToggle={showModeToggle} locationOptions={locationOptions} employeeOptions={employeeOptions} />
           ) : (
-            <RentOut Close={handleRequestClose} setData={handleRentOutData} asset={asset} showModeToggle={showModeToggle} />
+            <RentOut Close={handleRequestClose} setData={handleRentOutData} asset={asset} showModeToggle={showModeToggle} locationOptions={locationOptions} employeeOptions={employeeOptions} />
           )}
         </div>
 
@@ -90,14 +90,14 @@ function RentalPopUp({ show, handleClose, asset, actionType, handleSubmit }) {
                   <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
                     <i className="fa fa-exclamation-triangle" aria-hidden="true" />
                   </span>
-                  Cancel edits
+                  Cancel action
                 </div>
                 <button type="button" className="spare-add-close" onClick={() => setShowCancelConfirm(false)}>
                   <i className="fa fa-times" aria-hidden="true" />
                 </button>
               </div>
-              <div className="asset-side-panel-body">
-                Are you sure you want to cancel? All your updated information will be lost.
+              <div className="asset-confirm-body">
+                Are you sure you want to cancel? All your entered information will be lost.
               </div>
               <div className="asset-dialog-actions">
                 <button type="button" className="btn btn-light" onClick={() => setShowCancelConfirm(false)}>

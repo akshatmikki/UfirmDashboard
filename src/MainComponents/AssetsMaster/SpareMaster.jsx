@@ -26,8 +26,8 @@ function getEmptySpareRow() {
     Warranty: null,
     WarrantyFileName: "",
     Remarks: "",
-    QRCode: "",              
-    showQR: false 
+    QRCode: "",
+    showQR: false
   };
 }
 
@@ -44,6 +44,25 @@ function formatDisplayDate(value) {
   return year && month && day ? `${day}-${month}-${year}` : raw;
 }
 
+function getFileNameFromPath(value) {
+  if (!value) return "";
+  const raw = String(value);
+  if (raw.startsWith("data:")) return "Existing document";
+  return raw.split(/[\\/]/).pop() || "";
+}
+
+function getSpareValue(row = {}) {
+  const value =
+    row.Value ??
+    row.value ??
+    row.AssetValue ??
+    row.assetValue ??
+    row.SpareValue ??
+    row.spareValue;
+
+  return value === undefined || value === null || String(value).trim() === "" ? "" : value;
+}
+
 function statusMeta(value) {
   const raw = String(value || "").trim().toLowerCase();
   if (raw.includes("inactive")) return { label: "Inactive", key: "inactive" };
@@ -51,11 +70,27 @@ function statusMeta(value) {
   return { label: "Active", key: "running" };
 }
 
+function getStatusFormValue(value) {
+  const raw = String(value || "").trim().toLowerCase();
+  if (raw.includes("inactive")) return "Inactive";
+  if (raw.includes("servic")) return "Servicing";
+  return "Running";
+}
+
 function getServiceStatus(row = {}) {
   const rawStatus = String(row?.ServiceStatus || row?.serviceStatus || "").trim();
   if (rawStatus) return rawStatus;
-  const expiryDate = normalizeDateOnly(row?.ExpiryDate);
+
+  let expiryDate = normalizeDateOnly(row?.ExpiryDate);
   if (!expiryDate) return "";
+
+  if (expiryDate.includes("-")) {
+    const parts = expiryDate.split("-");
+    if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      expiryDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   return expiryDate < today ? "Overdue" : "Upcoming";
 }
@@ -122,9 +157,9 @@ const SparePage = () => {
       const combined = directAssets.length
         ? directAssets
         : [
-            ...(Array.isArray(data?.PassedServiceDates) ? data.PassedServiceDates : []),
-            ...(Array.isArray(data?.UpcomingServiceDates) ? data.UpcomingServiceDates : []),
-          ];
+          ...(Array.isArray(data?.PassedServiceDates) ? data.PassedServiceDates : []),
+          ...(Array.isArray(data?.UpcomingServiceDates) ? data.UpcomingServiceDates : []),
+        ];
       setAssets(combined);
     } catch {
       setAssets([]);
@@ -187,33 +222,33 @@ const SparePage = () => {
   };
 
   const generateQRCode = (index) => {
-  const uniqueQR = "SPARE-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+    const uniqueQR = "SPARE-" + Math.random().toString(36).substring(2, 10).toUpperCase();
 
-  setSpareRows(prev => {
-    const updated = [...prev];
-    updated[index].QRCode = uniqueQR;
-    updated[index].showQR = false;
-    return updated;
-  });
-};
-const toggleQR = (index) => {
-  setSpareRows(prev => {
-    const updated = [...prev];
-    updated[index].showQR = !updated[index].showQR;
-    return updated;
-  });
-};
-const fileToBase64 = (file) => {
-  return new Promise((resolve, reject) => {
-    if (!file) return resolve("");
+    setSpareRows(prev => {
+      const updated = [...prev];
+      updated[index].QRCode = uniqueQR;
+      updated[index].showQR = false;
+      return updated;
+    });
+  };
+  const toggleQR = (index) => {
+    setSpareRows(prev => {
+      const updated = [...prev];
+      updated[index].showQR = !updated[index].showQR;
+      return updated;
+    });
+  };
+  const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      if (!file) return resolve("");
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file); // 🔥 IMPORTANT
+      const reader = new FileReader();
+      reader.readAsDataURL(file); // 🔥 IMPORTANT
 
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = error => reject(error);
-  });
-};
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = error => reject(error);
+    });
+  };
 
   const toIsoOrEmpty = (value) => {
     if (!value) return "";
@@ -238,35 +273,32 @@ const fileToBase64 = (file) => {
 
     try {
       for (const row of spareRows) {
-       const formData = new FormData();
+        const formData = new FormData();
 
-formData.append("PropertyID", propertyId);
-formData.append("AssetID", assetId);
-formData.append("SpareType", row.SpareType);
-formData.append("Rating", row.Rating);
-formData.append("QRCode", row.QRCode);
-formData.append("BackupTime", row.BackupTime);
-formData.append("Status", row.Status);
-formData.append("Quantity", row.Quantity);
-formData.append("PurchaseDate", toIsoOrEmpty(row.PurchaseDate));
-formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
-formData.append("SerialNumber", row.SerialNumber);
-formData.append("VendorName", row.VendorName);
+        formData.append("PropertyID", propertyId);
+        formData.append("AssetID", assetId);
+        formData.append("SpareType", row.SpareType);
+        formData.append("Rating", row.Rating);
+        formData.append("QRCode", row.QRCode);
+        formData.append("BackupTime", row.BackupTime);
+        formData.append("Status", row.Status);
+        formData.append("Quantity", row.Quantity);
+        formData.append("PurchaseDate", toIsoOrEmpty(row.PurchaseDate));
+        formData.append("ExpiryDate", toIsoOrEmpty(row.ExpiryDate));
+        formData.append("SerialNumber", row.SerialNumber);
+        formData.append("VendorName", row.VendorName);
 
 
-const invoiceBase64 = await fileToBase64(row.InvoiceNo);
-const warrantyBase64 = await fileToBase64(row.Warranty);
+        const invoiceBase64 = await fileToBase64(row.InvoiceNo);
+        const warrantyBase64 = await fileToBase64(row.Warranty);
 
-formData.append("InvoiceFile", invoiceBase64);   // ✅ BASE64
-formData.append("WarrantyFile", warrantyBase64); // ✅ BASE64
+        formData.append("InvoiceFile", invoiceBase64 || "");
+        formData.append("WarrantyFile", warrantyBase64 || "");
 
-formData.append("InvoiceNo", "");   // optional text field
-formData.append("Warranty", "");    // optional text field
+        formData.append("Remarks", row.Remarks);
+        formData.append("Reusable", 0);
 
-formData.append("Remarks", row.Remarks);
-formData.append("Reusable", 0);
-
-await SpareService.create(formData);
+        await SpareService.create(formData);
       }
 
       setShowAddModal(false);
@@ -359,17 +391,22 @@ await SpareService.create(formData);
     setEditForm({
       SpareID: selectedRow.SpareID,
       AssetID: selectedRow.AssetID,
-      AssetName: asset.Name || asset.name || "",
+      AssetName: asset.Name || asset.name || selectedRow.Name || selectedRow.AssetName || "",
       SpareType: selectedRow.SpareType || "",
-      Status: selectedRow.Status || "Active",
+      Status: getStatusFormValue(selectedRow.Status),
       Remarks: selectedRow.Remarks || "",
       SerialNumber: selectedRow.SerialNumber || "",
       Manufacturer: asset.Manufacturer || asset.manufacturer || "",
       Model: asset.AssetModel || asset.Model || "",
       VendorName: selectedRow.VendorName || "",
       Rating: selectedRow.Rating || "",
+      Value: getSpareValue(selectedRow),
+      BackupTime: selectedRow.BackupTime || "",
+      Quantity: selectedRow.Quantity ?? 1,
       PurchaseDate: normalizeDateOnly(selectedRow.PurchaseDate),
       ExpiryDate: normalizeDateOnly(selectedRow.ExpiryDate),
+      InvoiceFileName: selectedRow.InvoiceFileName || getFileNameFromPath(selectedRow.InvoiceFilePath),
+      WarrantyFileName: selectedRow.WarrantyFileName || getFileNameFromPath(selectedRow.WarrantyFilePath),
     });
   }, [selectedRow, assetById]);
 
@@ -403,31 +440,30 @@ await SpareService.create(formData);
       const formData = new FormData();
       formData.append("SpareID", editForm.SpareID);
       formData.append("PropertyID", propertyId);
-      formData.append("AssetID", existing.AssetID || editForm.AssetID || "");
+      formData.append("AssetID", editForm.AssetID || existing.AssetID || "");
       formData.append("SpareType", editForm.SpareType);
-      formData.append("Rating", editForm.Rating || "");
-      formData.append("BackupTime", existing.BackupTime || "");
+      formData.append("Rating", existing.Rating || "");
+      formData.append("Value", editForm.Value || "");
+      // formData.append("AssetValue", editForm.Value || "");
+      formData.append("BackupTime", editForm.BackupTime || existing.BackupTime || "");
       formData.append("Status", editForm.Status);
-      formData.append("Quantity", existing.Quantity ?? 1);
+      formData.append("Quantity", editForm.Quantity || existing.Quantity || 1);
       formData.append("PurchaseDate", toIsoOrEmpty(editForm.PurchaseDate));
       formData.append("ExpiryDate", toIsoOrEmpty(editForm.ExpiryDate));
       formData.append("SerialNumber", editForm.SerialNumber);
       formData.append("VendorName", editForm.VendorName || "");
       const invoiceBase64 = await fileToBase64(editForm.InvoiceFile);
-const warrantyBase64 = await fileToBase64(editForm.WarrantyFile);
+      const warrantyBase64 = await fileToBase64(editForm.WarrantyFile);
 
-// ✅ NEW FILE ONLY TAB BHEJO
-if (invoiceBase64) {
-  formData.append("InvoiceFile", invoiceBase64);
-}
+      formData.append(
+        "InvoiceFile",
+        invoiceBase64 || selectedRow?.InvoiceFilePath || ""
+      );
 
-if (warrantyBase64) {
-  formData.append("WarrantyFile", warrantyBase64);
-}
-
-// ✅ VERY IMPORTANT (OLD FILE PRESERVE)
-formData.append("InvoiceFilePath", selectedRow?.InvoiceFilePath || "");
-formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
+      formData.append(
+        "WarrantyFile",
+        warrantyBase64 || selectedRow?.WarrantyFilePath || ""
+      );
       formData.append("Remarks", editForm.Remarks);
       formData.append("Reusable", 0);
 
@@ -455,7 +491,98 @@ formData.append("WarrantyFilePath", selectedRow?.WarrantyFilePath || "");
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
   const selectedStatusLabel = String(selectedRow?.Status || "").trim() || selectedStatus.label;
-const selectedQrValue = selectedRow?.QRCode || selectedRow?.SpareID;
+  const selectedQrValue = selectedRow?.QRCode || selectedRow?.SpareID;
+
+  const exportSparesToExcel = (rows) => {
+    const escapeHtml = (text) => {
+      const div = document.createElement("div");
+      div.innerText = text || "";
+      return div.innerHTML;
+    };
+
+    const headers = [
+      "ID",
+      "Type",
+      "Asset",
+      "Asset ID",
+      "Serial Number",
+      "Vendor",
+      "Quantity",
+      "Back-up Time",
+      "Purchase Date",
+      "Expiry Date",
+      "Value",
+      "Status",
+    ];
+
+    const tableRows = (rows || [])
+      .map((row) => {
+        const asset = assetById.get(Number(row.AssetID));
+        const assetName = asset?.Name || asset?.name || "-";
+        const meta = statusMeta(row?.Status);
+        const value = getSpareValue(row);
+
+        return `
+          <tr style="height:30px;">
+            <td>${escapeHtml(row.SpareID)}</td>
+            <td>${escapeHtml(row.SpareType)}</td>
+            <td>${escapeHtml(assetName)}</td>
+            <td>${escapeHtml(row.AssetID)}</td>
+            <td>${escapeHtml(row.SerialNumber)}</td>
+            <td>${escapeHtml(row.VendorName)}</td>
+            <td>${escapeHtml(row.Quantity)}</td>
+            <td>${escapeHtml(row.BackupTime)}</td>
+            <td>${escapeHtml(formatDisplayDate(row.PurchaseDate))}</td>
+            <td>${escapeHtml(formatDisplayDate(row.ExpiryDate))}</td>
+            <td>${escapeHtml(value)}</td>
+            <td>${escapeHtml(meta.label)}</td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const tableHeaders = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("");
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head>
+          <meta charSet="utf-8" />
+          <!--[if gte mso 9]>
+          <xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Spare Assets</x:Name>
+                  <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+          </xml>
+          <![endif]-->
+          <style>
+            table { border-collapse: collapse; }
+            th, td { border: 1px solid #d0d7de; padding: 8px; }
+            th { background: #f3f4f6; font-weight: 600; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeaders}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "SpareAssets.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
   const renderDetailsPanel = () => {
     if (!selectedRow) return null;
     return (
@@ -524,7 +651,7 @@ const selectedQrValue = selectedRow?.QRCode || selectedRow?.SpareID;
               </div>
               <div className="asset-info-item">
                 <span className="asset-info-label">Value</span>
-                <span className="asset-info-value">{selectedRow.Value || selectedRow.AssetValue || "-"}</span>
+                <span className="asset-info-value">{getSpareValue(selectedRow) || "-"}</span>
               </div>
             </div>
           </div>
@@ -536,18 +663,21 @@ const selectedQrValue = selectedRow?.QRCode || selectedRow?.SpareID;
               </div>
             </div>
             {(() => {
-             const openDocument = (filePath) => {
-  if (!filePath) return;
+              const openDocument = (filePath) => {
+                if (!filePath) return;
 
-  const baseUrl = "https://api.urest.in:8096/"; // ⚠️ apna backend URL
+                if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+                  window.open(filePath, "_blank");
+                  return;
+                }
 
-  const fullUrl = baseUrl + filePath.replace(/\\/g, "/");
-
-  window.open(fullUrl, "_blank");
-};
+                const baseUrl = "https://api.urest.in:8096/";
+                const fullUrl = baseUrl + filePath.replace(/\\/g, "/");
+                window.open(fullUrl, "_blank");
+              };
 
               const invoiceSrc = selectedRow?.InvoiceFilePath || "";
-const warrantySrc = selectedRow?.WarrantyFilePath || "";
+              const warrantySrc = selectedRow?.WarrantyFilePath || "";
 
               return (
                 <div className="asset-doc-links-stack asset-doc-links-stack-view spare-doc-links-view">
@@ -556,9 +686,9 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                       <i className="fa fa-file-text" aria-hidden="true" />
                     </div>
                     {invoiceSrc ? (
-                      <button onClick={() => openDocument(invoiceSrc)}>
-                      Invoice
-                    </button>
+                      <button type="button" className="asset-doc-link-text" onClick={() => openDocument(invoiceSrc)}>
+                        Invoice
+                      </button>
                     ) : (
                       <span className="asset-doc-link-text disabled">Invoice</span>
                     )}
@@ -594,6 +724,7 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
 
   const renderEditPanel = () => {
     if (!selectedRow || !editForm) return null;
+    const updateEditField = (field, value) => setEditForm((prev) => ({ ...prev, [field]: value }));
     return (
       <div className="asset-side-panel asset-side-panel-form spare-side-panel asset-side-panel-form-edit">
         <div className="asset-side-panel-header asset-form-new-header">
@@ -619,7 +750,7 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
 
             <div className="asset-form-group-custom">
               <label>Name</label>
-              <input className="form-control" value={editForm.SpareType} onChange={(e) => setEditForm((prev) => ({ ...prev, SpareType: e.target.value }))} />
+              <input className="form-control" value={editForm.SpareType} onChange={(e) => updateEditField("SpareType", e.target.value)} />
             </div>
 
             <div className="asset-form-group-custom">
@@ -627,7 +758,7 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
               <CustomDropdown
                 variant="short"
                 value={editForm.Status}
-                onChange={(e) => setEditForm((prev) => ({ ...prev, Status: e.target.value }))}
+                onChange={(e) => updateEditField("Status", e.target.value)}
                 placeholder="Select status"
                 options={[
                   { label: "Active", value: "Running" },
@@ -637,69 +768,128 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
               />
             </div>
 
-            <div className="asset-form-group-custom">
+            {/* <div className="asset-form-group-custom">
               <label>Description</label>
-              <textarea rows="4" className="form-control" value={editForm.Remarks} onChange={(e) => setEditForm((prev) => ({ ...prev, Remarks: e.target.value }))} />
-            </div>
+              <textarea rows="4" className="form-control" value={editForm.Remarks} onChange={(e) => updateEditField("Remarks", e.target.value)} />
+            </div> */}
 
             <div className="asset-form-group-custom">
               <label>Serial number</label>
-              <input className="form-control" value={editForm.SerialNumber} onChange={(e) => setEditForm((prev) => ({ ...prev, SerialNumber: e.target.value }))} />
+              <input className="form-control" value={editForm.SerialNumber} onChange={(e) => updateEditField("SerialNumber", e.target.value)} />
             </div>
 
             <div className="asset-form-group-custom">
               <label>Asset</label>
-              <input className="form-control" value={editForm.AssetName || ""} readOnly />
-            </div>
-
-            <div className="asset-form-row-two-col">
-              <div className="asset-form-group-custom">
-                <label>Manufacturer</label>
-                <input className="form-control" value={editForm.Manufacturer || ""} readOnly />
-              </div>
-              <div className="asset-form-group-custom">
-                <label>Model</label>
-                <input className="form-control" value={editForm.Model || ""} readOnly />
-              </div>
+              <CustomDropdown
+                variant="long"
+                value={editForm.AssetID}
+                onChange={(e) => {
+                  const nextAsset = assetOptions.find((item) => String(item.value) === String(e.target.value));
+                  setEditForm((prev) => ({
+                    ...prev,
+                    AssetID: e.target.value,
+                    AssetName: nextAsset?.label || "",
+                  }));
+                }}
+                placeholder="Asset name or ID"
+                options={assetOptions}
+              />
             </div>
 
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
                 <label>Vendor</label>
-                <input className="form-control" value={editForm.VendorName} onChange={(e) => setEditForm((prev) => ({ ...prev, VendorName: e.target.value }))} />
+                <input className="form-control" value={editForm.VendorName} onChange={(e) => updateEditField("VendorName", e.target.value)} />
               </div>
               <div className="asset-form-group-custom">
-                <label>Value</label>
-                <input className="form-control" value={editForm.Rating} onChange={(e) => setEditForm((prev) => ({ ...prev, Rating: e.target.value }))} />
+                <label>Quantity</label>
+                <input type="number" min="1" className="form-control" value={editForm.Quantity ?? 1} onChange={(e) => updateEditField("Quantity", e.target.value)} />
               </div>
+
+              <div className="asset-form-group-custom">
+                <label>Type</label>
+                <input className="form-control" value={editForm.SpareType} onChange={(e) => updateEditField("SpareType", e.target.value)} />
+              </div>
+              <div className="asset-form-group-custom">
+                <label>Back-up time</label>
+                <input type="time" step="1" className="form-control" value={editForm.BackupTime || ""} onChange={(e) => updateEditField("BackupTime", e.target.value)} />
+              </div>
+              {/* <div className="asset-form-group-custom">
+                <label>Model</label>
+                <input className="form-control" value={editForm.Model || ""} readOnly />
+              </div> */}
+            </div>
+
+            <div className="asset-form-row-two-col">
+
+
+              {/* <div className="asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input className="form-control" value={editForm.Manufacturer || ""} readOnly />
+              </div> */}
+            </div>
+
+            <div className="asset-form-row-two-col">
+
+
             </div>
 
             <div className="asset-form-row-two-col">
               <div className="asset-form-group-custom">
-  <label>Update Invoice</label>
-  <input
-    type="file"
-    onChange={(e) =>
-      setEditForm((prev) => ({
-        ...prev,
-        InvoiceFile: e.target.files[0]
-      }))
-    }
-  />
-</div>
+                <label>Purchase date</label>
+                <CustomDatePicker value={editForm.PurchaseDate || ""} onChange={(e) => updateEditField("PurchaseDate", e.target.value)} popupAnchorSelector=".asset-form-group-custom" />
+              </div>
+              <div className="asset-form-group-custom">
+                <label>Expiry date</label>
+                <CustomDatePicker value={editForm.ExpiryDate || ""} onChange={(e) => updateEditField("ExpiryDate", e.target.value)} popupAnchorSelector=".asset-form-group-custom" />
+              </div>
+            </div>
 
-<div className="asset-form-group-custom">
-  <label>Update Warranty</label>
-  <input
-    type="file"
-    onChange={(e) =>
-      setEditForm((prev) => ({
-        ...prev,
-        WarrantyFile: e.target.files[0]
-      }))
-    }
-  />
-</div>
+            <div className="asset-form-group-custom">
+              <label>Value</label>
+              <input className="form-control" value={editForm.Value || ""} onChange={(e) => updateEditField("Value", e.target.value)} />
+            </div>
+
+            <div className="asset-form-group-custom">
+              <label>Invoice</label>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={editForm.InvoiceFileName || ""} readOnly />
+                <i className="fa fa-file-text-o asset-file-icon" />
+                <input
+                  type="file"
+                  className="asset-file-hidden"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setEditForm((prev) => ({
+                      ...prev,
+                      InvoiceFile: file,
+                      InvoiceFileName: file?.name || ""
+                    }));
+                  }}
+                />
+              </div>
+            </div>
+
+            <div className="asset-form-group-custom">
+              <label>Warranty card</label>
+              <div className="asset-file-input-wrapper">
+                <input type="text" className="form-control" value={editForm.WarrantyFileName || ""} readOnly />
+                <i className="fa fa-file-text-o asset-file-icon" />
+                <input
+                  type="file"
+                  className="asset-file-hidden"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0] || null;
+                    setEditForm((prev) => ({
+                      ...prev,
+                      WarrantyFile: file,
+                      WarrantyFileName: file?.name || ""
+                    }));
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
@@ -767,6 +957,10 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                     <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>
                       <i className="fa fa-sliders" aria-hidden="true" />
                       Filter
+                    </button>
+                    <button type="button" className="asset-export-btn" onClick={() => exportSparesToExcel(filteredSpares)}>
+                      <i className="fa fa-external-link" aria-hidden="true" />
+                      Export
                     </button>
                     <button
                       type="button"
@@ -898,11 +1092,11 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                       <tbody>
                         {paginatedSpares.map((row) => {
                           const meta = statusMeta(row?.Status);
-                          const asset = assetById.get(Number(row.SpareID));
+                          const asset = assetById.get(Number(row.AssetID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
-                          const isOverdueFiltered = filterServiceStatus === "Overdue";
+                          const isOverdueAsset = String(getServiceStatus(row)).toLowerCase() === "overdue";
                           return (
-                            <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
+                            <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueAsset ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
                               <td>{row.SpareID || "-"}</td>
                               <td>{row.SpareType || "-"}</td>
                               <td>{asset?.Name || asset?.name || "-"}</td>
@@ -1003,32 +1197,32 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                           </button>
                         </div>
 
-                       <div className="asset-qr-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
-  <button
-    type="button"
-    className="spare-add-generate"
-    onClick={() => {
-      if (!row.QRCode) {
-        generateQRCode(index);
-        return;
-      }
-      toggleQR(index);
-    }}
-  >
-    <i className="fa fa-qrcode" />
-    {!row.QRCode ? "Generate QR code" : row.showQR ? "Hide QR code" : "View QR code"}
-  </button>
-  {row.QRCode && row.showQR ? (
-    <div className="asset-add-qr-block" style={{ justifyContent: "flex-start", marginTop: "8px", marginBottom: "0" }}>
-      <div className="asset-add-qr-preview">
-        <QRCode value={row.QRCode} size={84} />
-      </div>
-    </div>
-  ) : null}
+                        <div className="asset-qr-actions" style={{ display: "flex", flexDirection: "column", alignItems: "flex-start" }}>
+                          <button
+                            type="button"
+                            className="spare-add-generate"
+                            onClick={() => {
+                              if (!row.QRCode) {
+                                generateQRCode(index);
+                                return;
+                              }
+                              toggleQR(index);
+                            }}
+                          >
+                            <i className="fa fa-qrcode" />
+                            {!row.QRCode ? "Generate QR code" : row.showQR ? "Hide QR code" : "View QR code"}
+                          </button>
+                          {row.QRCode && row.showQR ? (
+                            <div className="asset-add-qr-block" style={{ justifyContent: "flex-start", marginTop: "8px", marginBottom: "0" }}>
+                              <div className="asset-add-qr-preview">
+                                <QRCode value={row.QRCode} size={84} />
+                              </div>
+                            </div>
+                          ) : null}
 
-</div>
+                        </div>
 
-{/* ✅ QR preview ALWAYS BELOW buttons */}
+                        {/* ✅ QR preview ALWAYS BELOW buttons */}
 
                         <div className="spare-add-grid">
                           <div className="spare-add-field">
@@ -1132,14 +1326,16 @@ const warrantySrc = selectedRow?.WarrantyFilePath || "";
                       <span className="spare-add-icon" style={{ background: "rgba(235, 75, 75, 0.12)", color: "#eb4b4b" }}>
                         <i className="fa fa-exclamation-triangle" aria-hidden="true" />
                       </span>
-                      Cancel action
+                      {sideMode === "edit" ? "Cancel edits" : "Cancel action"}
                     </div>
                     <button type="button" className="spare-add-close" onClick={() => setShowCancelConfirm(false)}>
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="asset-side-panel-body">
-                    Are you sure you want to cancel? All your entered information will be lost.
+                  <div className="asset-confirm-body">
+                    {sideMode === "edit"
+                      ? "Are you sure you want to cancel? All your updated information will be lost."
+                      : "Are you sure you want to cancel? All your entered information will be lost."}
                   </div>
                   <div className="asset-dialog-actions">
                     <button type="button" className="btn btn-light" onClick={() => setShowCancelConfirm(false)}>

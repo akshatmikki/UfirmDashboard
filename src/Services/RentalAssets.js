@@ -1,5 +1,4 @@
-const API_URL =
-  "https://api.urest.in:8096/api/Asset/GetAssetRentOutReturnHistoryByAssetId";
+const API_URL = "https://api.urest.in:8096/api/Asset/GetAssetRentOutReturnHistoryByAssetId";
 
 export async function getAssetRentOutReturnHistoryByAssetId(assetId) {
   try {

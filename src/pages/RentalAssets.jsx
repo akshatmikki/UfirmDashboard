@@ -6,6 +6,7 @@ import { PropagateLoader } from "react-spinners";
 import ExportToCSV from "../ReactComponents/ExportToCSV/ExportToCSV";
 import RentalPopUp from "../ReactComponents/RentalModal/RentalPopUp";
 import { getAssetRentOutReturnHistoryByAssetId } from "../Services/RentalAssets";
+import { getAllLocations, getFacilityMembers } from "../Services/AttendanceService";
 import "../MainComponents/AssetsMaster/AssetsMaster.css";
 import "./RentalAssets.css";
 import CustomDatePicker from "../ReactComponents/CustomDatePicker/CustomDatePicker";
@@ -20,6 +21,8 @@ const statusOptions = {
 const leaseOptions = {
   in: { label: "In", key: "in" },
   out: { label: "Out", key: "out" },
+  open: { label: "Open", key: "open" },
+  unknown: { label: "-", key: "unknown" },
 };
 
 const normalizeDate = (value) => {
@@ -92,8 +95,13 @@ const getRentalContractFileName = (asset = {}) => {
 const getContractPreviewSrc = (contract, fileName = "") => {
   if (!contract) return "";
   const raw = String(contract);
-  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:")) {
+  if (raw.startsWith("http://") || raw.startsWith("https://") || raw.startsWith("data:") || raw.startsWith("blob:")) {
     return raw;
+  }
+
+  // If it looks like a relative path, prepend base URL
+  if (raw.includes("/") || raw.includes("\\")) {
+    return `https://api.urest.in:8096/${raw.replace(/^[\\\/]+/, "")}`;
   }
 
   const extension = String(fileName || "").split(".").pop()?.toLowerCase();
@@ -109,23 +117,21 @@ const getContractPreviewSrc = (contract, fileName = "") => {
 const toBase64Payload = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = () => {
-      const result = String(reader.result || "");
-      resolve(result.includes(",") ? result.split(",")[1] : result);
-    };
+    reader.onload = () => resolve(String(reader.result || ""));
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
 
-const buildHistoryEntries = (history = []) =>
+const buildHistoryEntries = (history = [], asset = {}) =>
   (Array.isArray(history) ? history : [])
     .flatMap((item, index) => {
       const entries = [];
 
       if (item?.RentOut?.RentedOutDate) {
-        const contractSource = getRentalContractSource(item.RentOut);
-        const contractFileName = getRentalContractFileName(item.RentOut);
-        const contractPreviewSrc = getContractPreviewSrc(contractSource, contractFileName);
+        const outSource = item.RentOut.ImageOut || item.RentOut.RentalContract || asset.Image || asset.AssetImage || asset.ImageData || "";
+        const outFileName = item.RentOut.ImageOut ? "Asset photo.jpeg" : (item.RentOut.RentalContract ? "Asset document" : (outSource ? "Asset photo.jpeg" : ""));
+        const outPreview = getContractPreviewSrc(outSource, outFileName);
+
         entries.push({
           id: `rentout-${index}-${item.RentOut.RentedOutDate}`,
           type: "out",
@@ -134,17 +140,21 @@ const buildHistoryEntries = (history = []) =>
           byLabel: item?.RentOut?.AssigneeName || "-",
           dateValue: item.RentOut.RentedOutDate,
           details: [
-            { label: "Rented To", value: item?.RentOut?.RentedTo || "-" },
-            { label: "Out From", value: item?.RentOut?.OutFrom || "-" },
-            { label: "Approved By", value: item?.RentOut?.ApprovedBy || "-" },
-            { label: "Tentative Date", value: formatDate(item?.RentOut?.TentativeDate) || "-" },
+            { label: "Vendor:", value: item?.RentOut?.Manufacturer || "-" },
+            { label: "Price:", value: item?.RentOut?.MonthlyRent ? `₹${item.RentOut.MonthlyRent} / month` : "-" },
+            { label: "Start date:", value: formatDate(item?.RentOut?.RentedOutDate) || "-" },
+            { label: "End date:", value: formatDate(item?.RentOut?.TentativeDate) || "-" },
           ],
-          mediaSrc: contractPreviewSrc,
-          mediaName: contractFileName || "Asset document",
+          mediaSrc: outPreview,
+          mediaName: outFileName,
         });
       }
 
       if (item?.Return?.ReturnDate) {
+        const inSource = item.Return.ImageIn || item.Return.RentalContract || asset.Image || asset.AssetImage || asset.ImageData || "";
+        const inFileName = item.Return.ImageIn ? "Asset photo.jpeg" : (item.Return.RentalContract ? "Asset document" : (inSource ? "Asset photo.jpeg" : ""));
+        const inPreview = getContractPreviewSrc(inSource, inFileName);
+
         entries.push({
           id: `return-${index}-${item.Return.ReturnDate}`,
           type: "returned",
@@ -153,10 +163,11 @@ const buildHistoryEntries = (history = []) =>
           byLabel: item?.Return?.ReturnedBy || "-",
           dateValue: item.Return.ReturnDate,
           details: [
-            { label: "Returned By", value: item?.Return?.ReturnedBy || "-" },
-            { label: "Return From", value: item?.Return?.ReturnFrom || "-" },
-            { label: "Return Date", value: formatDate(item?.Return?.ReturnDate) || "-" },
+            { label: "Vendor:", value: item?.Return?.Manufacturer || "-" },
+            { label: "Return date:", value: formatDate(item?.Return?.ReturnDate) || "-" },
           ],
+          mediaSrc: inPreview,
+          mediaName: inFileName,
         });
       }
 
@@ -166,31 +177,52 @@ const buildHistoryEntries = (history = []) =>
 
 const ROWS_PER_PAGE = 15;
 
+const normalizeBoolean = (value) => value === true || value === "true" || value === 1 || value === "1";
+
 const getStatusMeta = (asset = {}) => {
   const raw = String(asset.Status || asset.AssetStatus || "").trim().toLowerCase();
   if (raw.includes("inactive")) return statusOptions.inactive;
   if (raw.includes("servic")) return statusOptions.servicing;
+  if (raw.includes("active")) return statusOptions.running;
   if (raw.includes("running")) return statusOptions.running;
+
+  const hasRentStatus = Object.prototype.hasOwnProperty.call(asset, "IsRentable") || Object.prototype.hasOwnProperty.call(asset, "IsRented");
+  if (hasRentStatus) {
+    if (normalizeBoolean(asset.IsRentable) || normalizeBoolean(asset.IsRented)) return statusOptions.running;
+    return statusOptions.inactive;
+  }
+
   if (asset.ReturnDate === null && asset.RentedOutDate) return statusOptions.running;
   return statusOptions.inactive;
 };
 
 const getLeaseMeta = (asset = {}) => {
   const raw = String(asset.LeaseType || asset.Lease || "").trim().toLowerCase();
-  if (raw === "in" || raw === "return" || raw === "returned") return leaseOptions.in;
-  if (raw === "out") return leaseOptions.out;
-  const rentOutTime = asset?.RentedOutDate ? new Date(asset.RentedOutDate).getTime() : 0;
-  const returnTime = asset?.ReturnDate ? new Date(asset.ReturnDate).getTime() : 0;
-  if (returnTime && returnTime >= rentOutTime) return leaseOptions.in;
-  if (rentOutTime) return leaseOptions.out;
-  return leaseOptions.in;
+  if (!raw) return leaseOptions.unknown;
+  if (raw === "in" || raw === "inbound" || raw === "return" || raw === "returned") return leaseOptions.in;
+  if (raw === "out" || raw === "outbound") return leaseOptions.out;
+  if (raw === "open") return leaseOptions.open;
+  return leaseOptions.unknown;
 };
+
+const getLeaseDisplayValue = (asset = {}) => getLeaseMeta(asset).label;
+
+const getExpiryDateValue = (asset = {}) => asset.ReturnDate || asset.TentativeDate || asset.TentativeReturnDate || asset.ExpiryDate || "";
 
 const getServiceStatus = (asset = {}) => {
   const rawStatus = String(asset?.ServiceStatus || asset?.serviceStatus || "").trim();
   if (rawStatus) return rawStatus;
-  const expiryDate = normalizeDate(asset?.ExpiryDate || asset?.ReturnDate || "");
+
+  let expiryDate = normalizeDate(getExpiryDateValue(asset));
   if (!expiryDate) return "";
+
+  if (expiryDate.includes("-")) {
+    const parts = expiryDate.split("-");
+    if (parts.length === 3 && parts[0].length === 2 && parts[2].length === 4) {
+      expiryDate = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   return expiryDate < today ? "Overdue" : "Upcoming";
 };
@@ -202,18 +234,169 @@ const matchesServiceStatus = (asset = {}, selectedStatus = "") => {
   return current === selected;
 };
 
+const getFirstValue = (...values) =>
+  values.find((value) => value !== undefined && value !== null && String(value).trim() !== "") ?? "";
+
+const toNumberPayload = (value) => {
+  const normalized = String(value ?? "").replace(/[^\d.-]/g, "");
+  const numericValue = Number(normalized);
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
+
+const toApiDateTime = (value) => {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (raw.includes("T")) {
+    if (raw.length === 16) return `${raw}:00`;
+    return raw;
+  }
+  return `${raw}T00:00:00`;
+};
+
+const getLatestRentOutData = (asset = {}) => {
+  const history = Array.isArray(asset?.history) ? asset.history : [];
+  const rentOutEntries = history
+    .map((item) => item?.RentOut)
+    .filter(Boolean)
+    .sort((a, b) => {
+      const bTime = new Date(b.RentOutDateTime || b.RentedOutDate || b.TentativeReturnDate || 0).getTime();
+      const aTime = new Date(a.RentOutDateTime || a.RentedOutDate || a.TentativeReturnDate || 0).getTime();
+      return bTime - aTime;
+    });
+
+  return rentOutEntries[0] || asset?.RentOut || {};
+};
+
+const toBase64Field = (value, fileName = "") => {
+  let raw = String(value || "").trim();
+  if (!raw) return "";
+
+  // If it's a data URL (new upload), keep the full string as requested by user
+  if (raw.startsWith("data:")) {
+    return raw;
+  }
+
+  // Remove any potential whitespace or line breaks that can break base64 decoding
+  raw = raw.replace(/\s/g, "");
+
+  // If it's a URL, blob, or file path/name, it's not new base64 content.
+  // We return empty string so the backend doesn't try to re-save an existing file.
+  if (
+    raw.startsWith("http://") ||
+    raw.startsWith("https://") ||
+    raw.startsWith("blob:") ||
+    raw.includes("\\") ||
+    (raw.includes(".") && raw.length < 255) ||
+    (fileName && raw === fileName && raw.length < 255)
+  ) {
+    return "";
+  }
+
+  // To be safe, if it doesn't look like base64 content (usually long), don't send it.
+  return raw.length > 100 ? raw : "";
+};
+
+const buildRentOutAssetPayload = (asset = {}, form = {}) => {
+  const rentOutData = getLatestRentOutData(asset);
+  const assetId = getFirstValue(form.AssetId, asset.AssetId, asset.Id, form.Id);
+  const assetName = getFirstValue(form.AssetName, form.Name, asset.AssetName, asset.Name);
+  const rentOutDateTime = toApiDateTime(
+    getFirstValue(
+      form.RentOutDateTime,
+      asset.RentOutDateTime,
+      asset.RentedOutDate,
+      rentOutData.RentOutDateTime,
+      rentOutData.RentedOutDate
+    )
+  );
+  const tentativeReturnDate = toApiDateTime(
+    getFirstValue(
+      form.TentativeReturnDate,
+      form.ExpiryDate,
+      asset.TentativeReturnDate,
+      asset.TentativeDate,
+      asset.ExpiryDate,
+      asset.ReturnDate,
+      rentOutData.TentativeReturnDate,
+      rentOutData.TentativeDate
+    )
+  );
+  const rentalContractFileName = getFirstValue(
+    form.RentalContractFileName,
+    form.RentalContractName,
+    asset.RentalContractFileName,
+    asset.ContractFileName,
+    rentOutData.RentalContractFileName,
+    rentOutData.ContractFileName,
+    getRentalContractFileName(rentOutData),
+    getRentalContractFileName(asset)
+  );
+  const imageOutName = getFirstValue(
+    form.ImageInName,
+    form.ImageOutName,
+    asset.ImageInName,
+    asset.ImageOutName,
+    rentOutData.ImageInName,
+    rentOutData.ImageOutName,
+    form.ImageIn && form.ImageIn.length < 255 ? form.ImageIn : "",
+    form.ImageOut && form.ImageOut.length < 255 ? form.ImageOut : "",
+    asset.ImageIn,
+    asset.ImageOut,
+    rentOutData.ImageIn,
+    rentOutData.ImageOut,
+    asset.AssetImageFileName,
+    asset.ImageExt,
+    asset.AssetImage,
+    asset.Image
+  );
+
+  return {
+    AssetId: toNumberPayload(assetId),
+    AssetName: assetName,
+    AssigneeName: getFirstValue(form.AssigneeName, asset.AssigneeName, rentOutData.AssigneeName),
+    RentOutDateTime: rentOutDateTime,
+    TentativeReturnDate: tentativeReturnDate,
+    RentedTo: getFirstValue(form.RentedTo, form.Vendor, asset.RentedTo, rentOutData.RentedTo, asset.Vendor, asset.VendorName, asset.Distributor),
+    OutFrom: getFirstValue(form.OutFrom, asset.OutFrom, rentOutData.OutFrom, form.Location, asset.Location),
+    RentalCharges: toNumberPayload(getFirstValue(form.RentalCharges, form.Cost, asset.RentalCharges, rentOutData.RentalCharges, asset.MonthlyRent, asset.Cost)),
+    ApprovedBy: getFirstValue(form.ApprovedBy, asset.ApprovedBy, rentOutData.ApprovedBy),
+    SecurityDeposit: toNumberPayload(getFirstValue(form.SecurityDeposit, asset.SecurityDeposit, rentOutData.SecurityDeposit)),
+    RentOutTime: getFirstValue(form.RentOutTime, asset.RentOutTime, rentOutData.RentOutTime, rentOutDateTime),
+    Manufacturer: getFirstValue(form.Manufacturer, asset.Manufacturer, rentOutData.Manufacturer),
+    Location: getFirstValue(form.Location, asset.Location, rentOutData.Location, form.OutFrom, asset.OutFrom),
+    ImageOutBase64: toBase64Field(getFirstValue(form.ImageOutBase64, asset.ImageOutBase64, rentOutData.ImageOutBase64, asset.ImageData, asset.AssetImage, asset.Image), imageOutName),
+    RentalContractBase64: toBase64Field(
+      getFirstValue(form.RentalContractBase64, asset.RentalContractBase64, rentOutData.RentalContractBase64, form.RentalContract),
+      rentalContractFileName
+    ),
+    ImageOut: toBase64Field(getFirstValue(form.ImageOutBase64, form.ImageInBase64, asset.ImageOutBase64), imageOutName),
+    RentalContract: toBase64Field(getFirstValue(form.RentalContractBase64, asset.RentalContractBase64), rentalContractFileName),
+    Status: getFirstValue(form.Status, asset.Status, asset.AssetStatus, rentOutData.Status),
+    Description: getFirstValue(form.Description, asset.Description, rentOutData.Description),
+    LeaseType: getFirstValue(form.LeaseType, asset.LeaseType, asset.Lease, rentOutData.LeaseType),
+    Model: getFirstValue(form.Model, asset.Model, asset.AssetModel, rentOutData.Model),
+    // Support for Return (Rent-in) history fields
+    ReturnedBy: getFirstValue(form.ReturnedBy, form.AssigneeName),
+    ReturnDate: toApiDateTime(getFirstValue(form.ExpiryDate, form.ReturnDate, form.ReturnDateTime, form.RentOutDateTime)),
+    ReturnFrom: getFirstValue(form.ReturnedFrom, form.ReturnFrom, form.OutFrom, form.Location),
+    ImageInBase64: toBase64Field(getFirstValue(form.ImageInBase64, form.ImageOutBase64, asset.ImageInBase64), imageOutName),
+    ImageIn: toBase64Field(getFirstValue(form.ImageInBase64, form.ImageOutBase64, asset.ImageInBase64), imageOutName),
+    Remarks: getFirstValue(form.Remarks, form.Description),
+  };
+};
+
 const buildEditForm = (asset = {}) => ({
   Id: asset.Id || "",
   Name: asset.Name || "",
   Status: getStatusMeta(asset).label,
   Description: asset.Description || "",
-  Vendor: asset.Vendor || asset.VendorName || asset.Distributor || asset.Manufacturer || "",
+  Vendor: asset.RentedTo || asset.Vendor || asset.VendorName || asset.Distributor || asset.Manufacturer || "",
   LeaseType: asset.LeaseType || asset.Lease || "",
   Manufacturer: asset.Manufacturer || "",
   Model: asset.AssetModel || asset.Model || "",
-  Cost: asset.MonthlyRent || asset.Cost || "",
+  Cost: asset.RentalCharges || asset.MonthlyRent || asset.Cost || "",
   SecurityDeposit: asset.SecurityDeposit || "",
-  ExpiryDate: normalizeDate(asset.ExpiryDate || asset.ReturnDate || ""),
+  ExpiryDate: normalizeDate(getExpiryDateValue(asset)),
   Location: asset.Location || asset.OutFrom || "",
   RentalContract: getRentalContractSource(asset),
   RentalContractFileName: getRentalContractFileName(asset),
@@ -233,6 +416,8 @@ const RentalAssets = ({ propId, history }) => {
   const [selectedAssetId, setSelectedAssetId] = useState(null);
   const [panelMode, setPanelMode] = useState("details");
   const [editForm, setEditForm] = useState(buildEditForm());
+  const [propertyLocationOptions, setPropertyLocationOptions] = useState([]);
+  const [employeeOptions, setEmployeeOptions] = useState([]);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState("rentout");
   const [showHistoryModal, setShowHistoryModal] = useState(false);
@@ -269,6 +454,42 @@ const RentalAssets = ({ propId, history }) => {
       setShowFilterPanel(false);
       setLoading(false);
     }
+  }, [propId]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchLocationOptions = async () => {
+      try {
+        const data = await getAllLocations();
+        if (!isMounted) return;
+        setPropertyLocationOptions(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error(error);
+        if (isMounted) setPropertyLocationOptions([]);
+      }
+    };
+
+    fetchLocationOptions();
+    
+    const fetchEmployees = async () => {
+      if (Number(propId) > 0) {
+        try {
+          const data = await getFacilityMembers(propId);
+          if (!isMounted) return;
+          // Assuming data is an array of objects with Name property or similar
+          const names = Array.isArray(data) ? data.map(emp => emp.Name || emp.name || emp.EmployeeName).filter(Boolean) : [];
+          setEmployeeOptions(names);
+        } catch (error) {
+          console.error(error);
+        }
+      }
+    };
+    fetchEmployees();
+
+    return () => {
+      isMounted = false;
+    };
   }, [propId]);
 
   const filteredAssets = useMemo(() => {
@@ -326,16 +547,18 @@ const RentalAssets = ({ propId, history }) => {
     [rentalAssets]
   );
 
+  const selectedAsset = useMemo(() => rentalAssets.find((item) => Number(item.Id) === Number(selectedAssetId)) || null, [rentalAssets, selectedAssetId]);
+
   const locationOptions = useMemo(
     () =>
       Array.from(
         new Set(
-          rentalAssets
-            .map((asset) => String(asset?.Location || asset?.OutFrom || "").trim())
+          [...propertyLocationOptions, selectedAsset?.Location, selectedAsset?.OutFrom]
+            .map((item) => String(item || "").trim())
             .filter(Boolean)
         )
       ).sort((a, b) => a.localeCompare(b)),
-    [rentalAssets]
+    [propertyLocationOptions, selectedAsset]
   );
 
   const resetFilters = () => {
@@ -346,8 +569,6 @@ const RentalAssets = ({ propId, history }) => {
     setFilterType("");
     setFilterServiceStatus("");
   };
-
-  const selectedAsset = useMemo(() => rentalAssets.find((item) => Number(item.Id) === Number(selectedAssetId)) || null, [rentalAssets, selectedAssetId]);
 
   useEffect(() => {
     if (selectedAsset) setEditForm(buildEditForm(selectedAsset));
@@ -383,6 +604,83 @@ const RentalAssets = ({ propId, history }) => {
     } catch (error) {
       console.error(error);
     }
+  };
+
+  const exportToExcel = (data = []) => {
+    const headers = [
+      "ID",
+      "Asset Name",
+      "Manufacturer",
+      "Lease",
+      "Location",
+      "Expiry Date",
+      "Status",
+      "Vendor",
+      "Date of Purchase",
+      "Asset Value",
+      "Image"
+    ];
+
+    const escapeHtml = (text) => {
+      if (!text) return "";
+      return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    };
+
+    const tableRows = data.map((asset) => {
+      const imageSrc = asset.ImageOut || asset.AssetImage || asset.Image || "";
+      
+      return `
+        <tr style="height:90px;">
+          <td>${escapeHtml(asset.Id)}</td>
+          <td>${escapeHtml(asset.Name)}</td>
+          <td>${escapeHtml(asset.Manufacturer)}</td>
+          <td>${escapeHtml(getLeaseDisplayValue(asset))}</td>
+          <td>${escapeHtml(asset.Location || asset.OutFrom)}</td>
+          <td>${escapeHtml(formatDate(getExpiryDateValue(asset)))}</td>
+          <td>${escapeHtml(getStatusMeta(asset).label)}</td>
+          <td>${escapeHtml(asset.Vendor || asset.VendorName)}</td>
+          <td>${escapeHtml(formatDate(asset.PurchaseDate))}</td>
+          <td>${escapeHtml(asset.AssetValue)}</td>
+          <td style="width:90px;height:90px;text-align:center;vertical-align:middle;padding:4px;">
+            ${imageSrc ? `<img src="${imageSrc}" width="70" height="70" style="display:block;margin:0 auto;" />` : ""}
+          </td>
+        </tr>
+      `;
+    }).join("");
+
+    const tableHeaders = headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("");
+    const html = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head>
+          <meta charSet="utf-8" />
+          <style>
+            table { border-collapse: collapse; }
+            th, td { border: 1px solid #d0d7de; padding: 8px; vertical-align: middle; }
+            th { background: #f3f4f6; font-weight: 600; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead><tr>${tableHeaders}</tr></thead>
+            <tbody>${tableRows}</tbody>
+          </table>
+        </body>
+      </html>
+    `;
+
+    const blob = new Blob(["\ufeff", html], { type: "application/vnd.ms-excel;charset=utf-8;" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "RentalAssets.xls";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
   };
 
   const handleOpenRentModal = (asset, type) => {
@@ -474,34 +772,37 @@ const RentalAssets = ({ propId, history }) => {
         rentalContractFileName = editForm.RentalContract.name;
       }
 
-      const payload = {
-        Id: selectedAsset.Id,
-        Name: editForm.Name,
-        Description: editForm.Description,
-        QRCode: selectedAsset.QRCode || "",
-        AssetType: selectedAsset.AssetType || selectedAsset.Type || editForm.LeaseType || "",
-        Manufacturer: editForm.Manufacturer,
-        AssetModel: editForm.Model,
-        IsMoveable: selectedAsset.IsMoveable ?? false,
-        Flag: "U",
-        AssetImage: selectedAsset.AssetImage || selectedAsset.Image || "",
-        LastServiceDate: normalizeDate(selectedAsset.LastServiceDate || ""),
-        NextServiceDate: normalizeDate(selectedAsset.NextServiceDate || ""),
-        IsRentable: selectedAsset.IsRentable ?? true,
-        AssetValue: editForm.Cost || selectedAsset.AssetValue || 0,
-        Capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
-        capacity: selectedAsset.Capacity || selectedAsset.capacity || "",
-        AMCdoc: rentalContractValue || "",
-        status: editForm.Status,
-        category: selectedAsset.Category || selectedAsset.category || "",
-        location: editForm.Location,
-        serviceReminderDay: selectedAsset.serviceReminderDay || "",
-        propertyId: propId,
-        PurchaseDate: normalizeDate(selectedAsset.PurchaseDate || ""),
-        WarrantyDate: normalizeDate(selectedAsset.WarrantyDate || selectedAsset.ExpiryDate || selectedAsset.ReturnDate || ""),
-      };
+      let assetForPayload = selectedAsset;
+      if (!Array.isArray(selectedAsset.history)) {
+        try {
+          const historyData = await getAssetRentOutReturnHistoryByAssetId(selectedAsset.Id);
+          const normalizedHistory = Array.isArray(historyData) ? historyData : [];
+          assetForPayload = { ...selectedAsset, history: normalizedHistory };
+          setRentalAssets((prev) =>
+            prev.map((item) =>
+              Number(item.Id) === Number(selectedAsset.Id)
+                ? {
+                  ...item,
+                  history: normalizedHistory,
+                }
+                : item
+            )
+          );
+        } catch (historyError) {
+          console.error(historyError);
+        }
+      }
 
-      const resp = await fetch("https://api.urest.in:8096/ManageAssets", {
+      const payload = buildRentOutAssetPayload(assetForPayload, {
+        ...editForm,
+        ImageOut: editForm.ImageOutBase64 || editForm.ImageOut || "",
+        ImageOutBase64: editForm.ImageOutBase64 || editForm.ImageOut || "",
+        RentalContract: rentalContractValue,
+        RentalContractBase64: rentalContractValue,
+        RentalContractFileName: rentalContractFileName,
+      });
+
+      const resp = await fetch("https://api.urest.in:8096/ManageRentOutAsset", {
         method: "POST",
         headers: {
           Accept: "application/json",
@@ -538,39 +839,51 @@ const RentalAssets = ({ propId, history }) => {
   const handleActionSubmit = async (formData, submitMode = actionType) => {
     if (!selectedAsset) return;
     const isReturnMode = submitMode === "return";
-    const url = isReturnMode ? "https://api.urest.in:8096/ManageRentInAsset" : "https://api.urest.in:8096/ManageRentOutAsset";
+    const url = "https://api.urest.in:8096/ManageRentOutAsset";
     const payload = isReturnMode
-      ? {
-        AssetId: selectedAsset.Id || 0,
-        AssetName: selectedAsset.Name || "",
+      ? buildRentOutAssetPayload(selectedAsset, {
         ReturnedBy: formData.returnedBy || "",
-        ReturnDateTime: formData.returnDateTime || "",
+        ReturnDate: formData.returnDateTime || "",
         ReturnedFrom: formData.returnedFrom || "",
+        ImageInBase64: formData.imageIn || "",
         ImageIn: formData.imageIn || "",
+        ImageInName: formData.assetImageName || "",
+        RentalContractBase64: formData.rentalContract || "",
         RentalContract: formData.rentalContract || "",
-      }
-      : {
-        AssetId: selectedAsset.Id || 0,
-        AssetName: selectedAsset.Name || "",
+        RentalContractFileName: formData.rentalContractName || "",
+        Remarks: formData.remarks || "",
+        Status: "In",
+        RentedTo: formData.rentedFrom || "",
+        // Fallback for standard fields if needed by backend
+        AssigneeName: formData.returnedBy || "",
+        RentOutDateTime: formData.returnDateTime || "",
+        ImageOutBase64: formData.imageIn || "",
+        ImageOut: formData.imageIn || "",
+        ImageOutName: formData.assetImageName || "",
+      })
+      : buildRentOutAssetPayload(selectedAsset, {
         AssigneeName: formData.assigneeName || "",
         RentOutDateTime: formData.rentOutDateTime || "",
         TentativeReturnDate: formData.tentativeReturnDate || "",
         RentedTo: formData.rentedTo || "",
         OutFrom: formData.outFrom || "",
-        RentalCharges: Number(formData.rentalCharges) || 0,
-        SecurityDeposit: Number(formData.securityDeposit) || 0,
+        RentalCharges: formData.rentalCharges || 0,
+        SecurityDeposit: formData.securityDeposit || 0,
         RentOutTime: formData.rentOutTime || formData.rentOutDateTime || "",
         ApprovedBy: formData.approvedBy || "",
         Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
         Location: formData.location || formData.outFrom || selectedAsset.Location || "",
         ImageOutBase64: formData.imageOut || "",
+        ImageOut: formData.imageOut || "",
+        ImageOutName: formData.imageOutName || "",
         RentalContractBase64: formData.rentalContract || "",
-        ImageOut: formData.imageOutName || "",
-        RentalContract: formData.rentalContractName || "",
-      };
+        RentalContract: formData.rentalContract || "",
+        RentalContractFileName: formData.rentalContractName || "",
+        Status: "Out",
+      });
 
     await fetch(url, {
-      method: isReturnMode ? "PUT" : "POST",
+      method: "POST",
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -665,6 +978,11 @@ const RentalAssets = ({ propId, history }) => {
     if (!selectedAsset) return null;
     const statusMeta = getStatusMeta(selectedAsset);
 
+    const imageSource = getContractPreviewSrc(
+      selectedAsset.AssetImage || selectedAsset.Image || selectedAsset.ImageOut,
+      selectedAsset.ImageExt || selectedAsset.ImageOutName || "png"
+    );
+
     return (
       <div className="rental-panel-card rental-details-view-panel">
         <div className="rental-panel-header">
@@ -672,6 +990,22 @@ const RentalAssets = ({ propId, history }) => {
         </div>
 
         <div className="rental-panel-body">
+          {imageSource && !imageSource.includes("application/pdf") ? (
+            <div className="asset-hero-image-wrapper">
+              <img src={imageSource} alt="Asset" className="asset-hero-image" />
+            </div>
+          ) : (
+            <div className="asset-hero-image-empty">
+              <div className="asset-hero-empty-icon">
+                <i className="fa fa-picture-o" aria-hidden="true" />
+              </div>
+              <div className="asset-hero-empty-text">Asset photo not available</div>
+              <button type="button" className="asset-hero-empty-btn" onClick={() => handleEditClick(selectedAsset)}>
+                <i className="fa fa-picture-o" aria-hidden="true" />
+                Add asset photo
+              </button>
+            </div>
+          )}
           <div className="rental-detail-grid">
             <div className="rental-detail-item rental-detail-full rental-readonly-row">
               <span className="rental-detail-label">ID</span>
@@ -714,11 +1048,19 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Expiry date</span>
-              <span className="rental-detail-value">{formatDate(selectedAsset.ExpiryDate || selectedAsset.ReturnDate)}</span>
+              <span className="rental-detail-value">{formatDate(getExpiryDateValue(selectedAsset))}</span>
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Location</span>
               <span className="rental-detail-value">{selectedAsset.Location || selectedAsset.OutFrom || "-"}</span>
+            </div>
+            <div className="rental-detail-item">
+              <span className="rental-detail-label">Approved by</span>
+              <span className="rental-detail-value">{selectedAsset.ApprovedBy || "-"}</span>
+            </div>
+            <div className="rental-detail-item">
+              <span className="rental-detail-label">Returned by</span>
+              <span className="rental-detail-value">{selectedAsset.ReturnedBy || "-"}</span>
             </div>
           </div>
           <div className="rental-panel-links">
@@ -753,150 +1095,199 @@ const RentalAssets = ({ propId, history }) => {
     );
   };
 
-  const renderEditPanel = () => (
-    <div className="asset-side-panel asset-side-panel-form asset-side-panel-form-edit">
-      <div className="asset-side-panel-header asset-form-new-header">
-        <div className="asset-panel-title-wrap">
-          <span className="asset-form-icon-circle">
-            <i className="fa fa-pencil-square-o" aria-hidden="true" />
-          </span>
-          <h4 className="asset-side-panel-title">Edit asset details</h4>
-        </div>
-      </div>
+  const handleImageUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const valid = ["jpg", "jpeg", "png", "webp"];
+    const extension = file.name.split(".").pop().toLowerCase();
+    if (!valid.includes(extension)) {
+      alert(`Invalid file type. Please select ${valid.join(", ")}`);
+      return;
+    }
+    const base64 = await toBase64Payload(file);
+    setEditForm((prev) => ({
+      ...prev,
+      ImageOutBase64: base64,
+      ImageOutName: file.name,
+      previewImage: URL.createObjectURL(file),
+    }));
+  };
 
-      <div className="asset-side-panel-body">
-        <div className="asset-form-qr-centered">
-          <div className="asset-qr-wrapper-large">
-            <i className="fa fa-qrcode" aria-hidden="true" />
+  const renderEditPanel = () => {
+    const imageSource = editForm.previewImage || getContractPreviewSrc(
+      editForm.ImageOutBase64 || selectedAsset?.AssetImage || selectedAsset?.Image || selectedAsset?.ImageOut,
+      editForm.ImageOutName || selectedAsset?.ImageExt || selectedAsset?.ImageOutName || "png"
+    );
+
+    return (
+      <div className="asset-side-panel asset-side-panel-form asset-side-panel-form-edit">
+        <div className="asset-side-panel-header asset-form-new-header">
+          <div className="asset-panel-title-wrap">
+            <span className="asset-form-icon-circle">
+              <i className="fa fa-pencil-square-o" aria-hidden="true" />
+            </span>
+            <h4 className="asset-side-panel-title">Edit asset details</h4>
           </div>
         </div>
 
-        <div className="asset-form-id-row-simple">
-          <span className="asset-info-label">ID</span>
-          <span className="asset-info-value">{editForm.Id || "-"}</span>
-        </div>
-
-        <div className="asset-form-simple-stack">
-          <div className="form-group asset-form-group-custom">
-            <label>Name</label>
-            <input className="form-control" value={editForm.Name} onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })} />
+        <div className="asset-side-panel-body">
+          <div className="asset-form-image-upload-wrapper">
+            {imageSource && !imageSource.includes("application/pdf") ? (
+              <div className="asset-hero-image-wrapper">
+                <img src={imageSource} alt="Asset" className="asset-hero-image" />
+                <label className="asset-hero-edit-overlay">
+                  <i className="fa fa-camera" />
+                  <span>Change photo</span>
+                  <input type="file" accept=".jpg,.jpeg,.png,.webp" style={{ display: "none" }} onChange={handleImageUpload} />
+                </label>
+              </div>
+            ) : (
+              <div className="asset-hero-image-empty">
+                <div className="asset-hero-empty-icon">
+                  <i className="fa fa-picture-o" aria-hidden="true" />
+                </div>
+                <div className="asset-hero-empty-text">Asset photo not available</div>
+                <label className="asset-hero-empty-btn" style={{ cursor: "pointer", margin: 0 }}>
+                  <i className="fa fa-picture-o" aria-hidden="true" />
+                  Add asset photo
+                  <input type="file" accept=".jpg,.jpeg,.png,.webp" style={{ display: "none" }} onChange={handleImageUpload} />
+                </label>
+              </div>
+            )}
           </div>
 
-          <div className="form-group asset-form-group-custom">
-            <label>Status</label>
-            <CustomDropdown
-              variant="short"
-              value={editForm.Status}
-              onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
-              placeholder="Select status"
-              options={[
-                { label: "Active", value: "Active" },
-                { label: "Inactive", value: "Inactive" },
-                { label: "Servicing", value: "Servicing" }
-              ]}
-            />
+          <div className="asset-form-id-row-simple">
+            <span className="asset-info-label">ID</span>
+            <span className="asset-info-value">{editForm.Id || "-"}</span>
           </div>
 
-          <div className="form-group asset-form-group-custom">
-            <label>Description</label>
-            <textarea className="form-control" rows="4" value={editForm.Description} onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })} />
-          </div>
-
-          <div className="asset-form-row-two-col">
+          <div className="asset-form-simple-stack">
             <div className="form-group asset-form-group-custom">
-              <label>Vendor</label>
-              <input className="form-control" value={editForm.Vendor} onChange={(e) => setEditForm({ ...editForm, Vendor: e.target.value })} />
+              <label>Name</label>
+              <input className="form-control" value={editForm.Name} onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })} />
             </div>
+
             <div className="form-group asset-form-group-custom">
-              <label>Lease type</label>
+              <label>Status</label>
               <CustomDropdown
                 variant="short"
-                value={editForm.LeaseType}
-                onChange={(e) => setEditForm({ ...editForm, LeaseType: e.target.value })}
-                placeholder="Select lease type"
+                value={editForm.Status}
+                onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
+                placeholder="Select status"
                 options={[
-                  { label: "Outbound", value: "Outbound" },
-                  { label: "Inbound", value: "Inbound" },
-                  { label: "Open", value: "Open" }
+                  { label: "Active", value: "Active" },
+                  { label: "Inactive", value: "Inactive" },
+                  { label: "Servicing", value: "Servicing" }
                 ]}
               />
             </div>
-          </div>
 
-          <div className="asset-form-row-two-col">
             <div className="form-group asset-form-group-custom">
-              <label>Manufacturer</label>
-              <input className="form-control" value={editForm.Manufacturer} onChange={(e) => setEditForm({ ...editForm, Manufacturer: e.target.value })} />
+              <label>Description</label>
+              <textarea className="form-control" rows="4" value={editForm.Description} onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })} />
             </div>
-            <div className="form-group asset-form-group-custom">
-              <label>Model</label>
-              <input className="form-control" value={editForm.Model} onChange={(e) => setEditForm({ ...editForm, Model: e.target.value })} />
-            </div>
-          </div>
 
-          <div className="asset-form-row-two-col">
-            <div className="form-group asset-form-group-custom">
-              <label>Cost</label>
-              <input className="form-control" value={editForm.Cost} onChange={(e) => setEditForm({ ...editForm, Cost: e.target.value })} />
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Vendor</label>
+                <input className="form-control" value={editForm.Vendor} onChange={(e) => setEditForm({ ...editForm, Vendor: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Lease type</label>
+                <CustomDropdown
+                  variant="short"
+                  value={editForm.LeaseType}
+                  onChange={(e) => setEditForm({ ...editForm, LeaseType: e.target.value })}
+                  placeholder="Select lease type"
+                  options={[
+                    { label: "Outbound", value: "Outbound" },
+                    { label: "Inbound", value: "Inbound" },
+                    { label: "Open", value: "Open" }
+                  ]}
+                />
+              </div>
             </div>
-            <div className="form-group asset-form-group-custom">
-              <label>Security deposit</label>
-              <input className="form-control" value={editForm.SecurityDeposit} onChange={(e) => setEditForm({ ...editForm, SecurityDeposit: e.target.value })} />
-            </div>
-          </div>
 
-          <div className="asset-form-row-two-col">
-            <div className="form-group asset-form-group-custom">
-              <label>Expiry date</label>
-              <CustomDatePicker value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Manufacturer</label>
+                <input className="form-control" value={editForm.Manufacturer} onChange={(e) => setEditForm({ ...editForm, Manufacturer: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Model</label>
+                <input className="form-control" value={editForm.Model} onChange={(e) => setEditForm({ ...editForm, Model: e.target.value })} />
+              </div>
             </div>
-            <div className="form-group asset-form-group-custom">
-              <label>Location</label>
-              <CustomDropdown
-                variant="short"
-                value={editForm.Location}
-                onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
-                placeholder="Select location"
-                options={locationOptions.map(v => ({ label: v, value: v }))}
-              />
-            </div>
-          </div>
 
-          <div className="form-group asset-form-group-custom">
-            <label>Rental contract</label>
-            <div className="rental-upload-field">
-              <input className="form-control" placeholder="Upload file" value={editForm.RentalContractFileName || ""} readOnly />
-              <span className="rental-upload-icon" aria-hidden="true">
-                <i className="fa fa-file-text" />
-              </span>
-              <input
-                type="file"
-                className="asset-file-hidden"
-                accept=".jpg,.jpeg,.png,.pdf"
-                onChange={(e) => {
-                  const file = e.target.files?.[0] || null;
-                  setEditForm({
-                    ...editForm,
-                    RentalContract: file,
-                    RentalContractFileName: file?.name || "",
-                  });
-                }}
-              />
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Cost</label>
+                <input className="form-control" value={editForm.Cost} onChange={(e) => setEditForm({ ...editForm, Cost: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Security deposit</label>
+                <input className="form-control" value={editForm.SecurityDeposit} onChange={(e) => setEditForm({ ...editForm, SecurityDeposit: e.target.value })} />
+              </div>
+            </div>
+
+            <div className="asset-form-row-two-col">
+              <div className="form-group asset-form-group-custom">
+                <label>Expiry date</label>
+                <CustomDatePicker value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
+              </div>
+              <div className="form-group asset-form-group-custom">
+                <label>Location</label>
+                <CustomDropdown
+                  variant="short"
+                  value={editForm.Location}
+                  onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
+                  placeholder="Select location"
+                  options={locationOptions.map(v => ({ label: v, value: v }))}
+                />
+              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Rental contract</label>
+              <div className="rental-upload-field">
+                <input className="form-control" placeholder="Upload file" value={editForm.RentalContractFileName || ""} readOnly />
+                <span className="rental-upload-icon" aria-hidden="true">
+                  <i className="fa fa-file-text" />
+                </span>
+                <input
+                  type="file"
+                  className="asset-file-hidden"
+                  accept=".jpg,.jpeg,.png,.pdf"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0] || null;
+                    if (file) {
+                      const base64 = await toBase64Payload(file);
+                      setEditForm((prev) => ({
+                        ...prev,
+                        RentalContract: base64,
+                        RentalContractBase64: base64,
+                        RentalContractFileName: file.name,
+                      }));
+                    }
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="asset-side-panel-footer">
-        <button type="button" className="btn btn-primary asset-btn-footer-save" onClick={handleSaveEdit}>
-          Save changes
-        </button>
-        <button type="button" className="btn btn-outline-light asset-btn-footer-cancel" onClick={() => setShowCancelConfirm(true)}>
-          Cancel
-        </button>
+        <div className="asset-side-panel-footer">
+          <button type="button" className="btn btn-primary asset-btn-footer-save" onClick={handleSaveEdit}>
+            Save changes
+          </button>
+          <button type="button" className="btn btn-outline-light asset-btn-footer-cancel" onClick={() => setShowCancelConfirm(true)}>
+            Cancel
+          </button>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
 
   return (
     <div className="content-wrapper">
@@ -934,7 +1325,10 @@ const RentalAssets = ({ propId, history }) => {
                       <i className="fa fa-sliders" aria-hidden="true" />
                       Filter
                     </button>
-                    {/* <ExportToCSV data={filteredAssets} fileName="RentalAssets.csv" /> */}
+                    <button type="button" className="asset-export-btn" onClick={() => exportToExcel(filteredAssets)}>
+                      <i className="fa fa-external-link" aria-hidden="true" />
+                      Export
+                    </button>
                     <button
                       type="button"
                       className="btn rental-primary-btn"
@@ -1045,6 +1439,7 @@ const RentalAssets = ({ propId, history }) => {
                           <th>Asset Name</th>
                           <th>Manufacturer</th>
                           <th>Lease</th>
+                          <th>Location</th>
                           <th>Expiry date</th>
                           <th>Status</th>
                           <th>Actions</th>
@@ -1059,17 +1454,18 @@ const RentalAssets = ({ propId, history }) => {
                           const statusMeta = getStatusMeta(asset);
                           const leaseMeta = getLeaseMeta(asset);
                           const isReturnFlow = asset.ReturnDate === null && asset.RentedOutDate;
-                          const isOverdueFiltered = filterServiceStatus === "Overdue";
+                          const isOverdueAsset = String(getServiceStatus(asset)).toLowerCase() === "overdue";
 
                           return (
-                            <tr key={asset.Id} className={`${Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} ${isOverdueFiltered ? "asset-overdue-row" : ""}`.trim()} onClick={() => handleSelectAsset(asset)}>
+                            <tr key={asset.Id} className={`${Number(selectedAssetId) === Number(asset.Id) ? "active" : ""} ${isOverdueAsset ? "asset-overdue-row" : ""}`.trim()} onClick={() => handleSelectAsset(asset)}>
                               <td>{asset.Id || "-"}</td>
                               <td>{asset.Name || "-"}</td>
                               <td>{asset.Manufacturer || "-"}</td>
                               <td>
-                                <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{leaseMeta.label}</span>
+                                <span className={`rental-lease-pill rental-lease-${leaseMeta.key}`}>{getLeaseDisplayValue(asset)}</span>
                               </td>
-                              <td>{formatDate(asset.ExpiryDate || asset.ReturnDate)}</td>
+                              <td>{asset.Location || asset.OutFrom || "-"}</td>
+                              <td>{formatDate(getExpiryDateValue(asset))}</td>
                               <td>
                                 <span className={`rental-status-chip rental-status-${statusMeta.key}`}>{statusMeta.label}</span>
                               </td>
@@ -1117,6 +1513,8 @@ const RentalAssets = ({ propId, history }) => {
                 asset={selectedAsset || filteredAssets[0]}
                 actionType={actionType}
                 handleSubmit={handleActionSubmit}
+                locationOptions={locationOptions}
+                employeeOptions={employeeOptions}
               />
             ) : null}
 
@@ -1201,7 +1599,7 @@ const RentalAssets = ({ propId, history }) => {
                       <i className="fa fa-times" aria-hidden="true" />
                     </button>
                   </div>
-                  <div className="asset-side-panel-body">
+                  <div className="asset-confirm-body">
                     Are you sure you want to cancel? All your updated information will be lost.
                   </div>
                   <div className="asset-dialog-actions">
@@ -1238,8 +1636,8 @@ const RentalAssets = ({ propId, history }) => {
                   <div className="rental-history-body">
                     {historyLoading ? (
                       <div className="rental-history-empty">Loading history...</div>
-                    ) : buildHistoryEntries(historyAsset?.history).length > 0 ? (
-                      buildHistoryEntries(historyAsset?.history).map((item) => {
+                    ) : buildHistoryEntries(historyAsset?.history, historyAsset).length > 0 ? (
+                      buildHistoryEntries(historyAsset?.history, historyAsset).map((item) => {
                         const isExpanded = expandedHistoryId === item.id;
                         return (
                           <div

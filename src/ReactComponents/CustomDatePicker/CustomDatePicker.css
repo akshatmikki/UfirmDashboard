@@ -4,6 +4,10 @@
   width: 100%;
 }
 
+.custom-datepicker-container.is-open {
+  z-index: 20000;
+}
+
 .custom-datepicker-input-wrapper {
   position: relative;
   display: flex;
@@ -28,11 +32,10 @@
 }
 
 .custom-datepicker-popup {
-  position: absolute;
-  top: calc(100% + 5px);
-  left: 0;
-  z-index: 1050;
-  width: 100%;
+  position: fixed;
+  z-index: 20001;
+  min-width: 280px;
+  max-width: calc(100vw - 24px);
   height: auto;
   background: #FAFAFA;
   border: 1px solid #EAEAEA;

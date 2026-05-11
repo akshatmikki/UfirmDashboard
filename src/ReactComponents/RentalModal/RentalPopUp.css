@@ -11,16 +11,17 @@
 
 .rental-figma-modal-body {
   padding: 0;
-  background: #fff;
+  background: #FAFAFA;
 }
 
 .rental-figma-shell {
-  background: #fff;
+  background: #FAFAFA;
 }
 
 .rental-figma-header {
   padding: 16px 24px 8px;
   border-bottom: 1px solid #e5edf5;
+  background: #fff;
 }
 
 .rental-figma-title-wrap {
@@ -136,15 +137,18 @@
 .rental-asset-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px 20px;
+  gap: 14px 20px;
 }
 
 .rental-asset-label {
   display: block;
   margin-bottom: 7px;
-  color: #4a5a70;
-  font-size: 14px;
-  font-weight: 600;
+  color: #1E3143 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  letter-spacing: -0.15px !important;
 }
 
 .rental-asset-input,
@@ -153,15 +157,20 @@
   height: 38px;
   border: 1px solid #c9d4df;
   border-radius: 10px;
-  background: #EDF0F3;
+  background: #FAFAFA;
   padding: 0 14px;
-  color: #5d6875;
+  color: #5A5B5D;
+  font-family: 'Inter', sans-serif;
   font-size: 14px;
+  font-weight: 400;
+  letter-spacing: -0.15px;
+  line-height: 1;
   outline: 0;
 }
 
 .rental-asset-input::placeholder {
-  color: #798493;
+  color: #5A5B5D;
+  opacity: 0.6;
 }
 
 .rental-asset-select {
@@ -199,6 +208,9 @@
   margin-top: auto;
   border-top: 1px solid #e5edf5;
   flex-shrink: 0;
+  background: #fff;
+  margin: 0 -24px -20px;
+  padding: 18px 24px 20px;
 }
 
 .rental-asset-submit,
@@ -257,4 +269,37 @@
   .rental-asset-actions {
     flex-direction: column;
   }
+}
+
+/* Overrides for CustomDropdown and CustomDatePicker in rental forms */
+.rental-asset-form .custom-dropdown-input,
+.rental-asset-form .custom-datepicker-input {
+  background-color: #FAFAFA !important;
+  color: #5A5B5D !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.15px !important;
+  height: 38px !important;
+  border-radius: 10px !important;
+  border: 1px solid #c9d4df !important;
+}
+
+.rental-asset-form .custom-dropdown-input-placeholder {
+  color: #5A5B5D !important;
+  opacity: 0.6;
+}
+
+.rental-asset-form .custom-dropdown-menu {
+  background-color: #FAFAFA !important;
+}
+
+.asset-confirm-body {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 400 !important;
+  font-size: 16px !important;
+  line-height: 24px !important;
+  letter-spacing: -0.31px !important;
+  color: #5A5B5D !important;
+  padding: 12px 24px 20px !important;
 }

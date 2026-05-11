@@ -37,8 +37,14 @@ class DataProvider {
                 });
 
             case 'R':
-                url = `GetAssets?propertyId=${model[0].propertyId}`;
-                return srv.CallGetNewService(url);   
+                url = `${ASSET_API_BASE_URL}GetAssets?propertyId=${model[0].propertyId}`;
+                return fetch(url, {
+                    method: "GET",
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                    },
+                });
       
             default:
         }
