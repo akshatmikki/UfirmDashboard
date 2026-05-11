@@ -190,7 +190,7 @@ class AssetsMaster extends Component {
 
       // ✅ Canva background (WITHOUT QR)
       const img = new Image();
-      img.src = "/canva-template.png";
+      img.src = "/Assets/canva-template.png";
       img.style.width = "100%";
       img.style.height = "100%";
       img.style.position = "absolute";
@@ -298,7 +298,7 @@ class AssetsMaster extends Component {
     container.style.background = "#fff";
 
     const img = new Image();
-    img.src = "/canva-template.png";
+    img.src = "/Assets/canva-template.png";
     img.style.width = "100%";
     img.style.height = "100%";
     img.style.position = "absolute";
