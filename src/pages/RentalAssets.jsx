@@ -205,6 +205,21 @@ const getLeaseMeta = (asset = {}) => {
   return leaseOptions.unknown;
 };
 
+const getAssetTypeLabel = (asset = {}) => {
+  const raw = String(asset.AssetType || asset.Type || asset.LeaseType || asset.Lease || "").trim().toLowerCase();
+  
+  // High priority: explicit lease type
+  if (raw.includes("rented in") || raw === "in" || raw.includes("inbound")) return "Rented in";
+  if (raw.includes("rented out") || raw === "out" || raw.includes("outbound")) return "Rented Out";
+  
+  // Medium priority: IsRented flag (common in this app)
+  const isRented = asset.IsRented === true || asset.IsRented === "true" || asset.IsRented === 1 || asset.IsRented === "1";
+  if (isRented) return "Rented Out";
+  
+  // Default for RentalAssets page should be "Rented in" if not "Out"
+  return "Rented in";
+};
+
 const getLeaseDisplayValue = (asset = {}) => getLeaseMeta(asset).label;
 
 const getExpiryDateValue = (asset = {}) => asset.ReturnDate || asset.TentativeDate || asset.TentativeReturnDate || asset.ExpiryDate || "";
@@ -505,7 +520,7 @@ const RentalAssets = ({ propId, history }) => {
       const matchesLease = !filterLease || getLeaseMeta(asset).label === filterLease;
       const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;
       const matchesVendor = !filterVendor || String(asset.Vendor || asset.VendorName || "").toLowerCase().includes(filterVendor.toLowerCase());
-      const matchesType = !filterType || String(asset.AssetType || asset.LeaseType || "").toLowerCase().includes(filterType.toLowerCase());
+      const matchesType = !filterType || getAssetTypeLabel(asset) === filterType;
       const passesServiceStatus = matchesServiceStatus(asset, filterServiceStatus);
 
       return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && passesServiceStatus;
@@ -854,6 +869,14 @@ const RentalAssets = ({ propId, history }) => {
         Remarks: formData.remarks || "",
         Status: "In",
         RentedTo: formData.rentedFrom || "",
+        Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
+        Location: formData.returnedFrom || formData.location || selectedAsset.Location || "",
+        OutFrom: formData.returnedFrom || formData.outFrom || selectedAsset.Location || "",
+        RentalCharges: formData.rentalCharges || 0,
+        SecurityDeposit: formData.securityDeposit || 0,
+        ApprovedBy: formData.approvedBy || "",
+        Model: formData.model || selectedAsset.AssetModel || selectedAsset.Model || "",
+        Description: formData.description || selectedAsset.Description || "",
         // Fallback for standard fields if needed by backend
         AssigneeName: formData.returnedBy || "",
         RentOutDateTime: formData.returnDateTime || "",
@@ -880,6 +903,8 @@ const RentalAssets = ({ propId, history }) => {
         RentalContract: formData.rentalContract || "",
         RentalContractFileName: formData.rentalContractName || "",
         Status: "Out",
+        Description: formData.description || selectedAsset.Description || "",
+        Model: formData.model || selectedAsset.AssetModel || selectedAsset.Model || "",
       });
 
     await fetch(url, {

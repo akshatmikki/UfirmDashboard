@@ -105,6 +105,15 @@ function matchesServiceStatus(row = {}, selectedStatus = "") {
   return current === selected;
 }
 
+function getAssetTypeLabel(row = {}, asset = {}) {
+  const raw = String(row.AssetType || row.Type || row.LeaseType || row.Lease || asset.AssetType || asset.Type || asset.LeaseType || asset.Lease || "").trim().toLowerCase();
+  if (raw.includes("rented in") || raw === "in" || raw.includes("inbound")) return "Rented in";
+  if (raw.includes("rented out") || raw === "out" || raw.includes("outbound")) return "Rented Out";
+  if (raw.includes("house") || raw.includes("in house") || raw.includes("owned")) return "In house";
+  // Default to In house for spares if no lease info is found, as spares are usually owned
+  return "In house";
+}
+
 const ROWS_PER_PAGE = 15;
 
 const SparePage = () => {
@@ -343,7 +352,8 @@ const SparePage = () => {
         [row?.SpareID, row?.AssetID, row?.SpareType, row?.Name]
           .some((v) => String(v || "").toLowerCase().includes(query));
       const passesVendor = !filterVendor || String(row?.VendorName || "").toLowerCase().includes(String(filterVendor).toLowerCase());
-      const passesType = !filterType || String(row?.SpareType || "").toLowerCase().includes(String(filterType).toLowerCase());
+      const asset = assetById.get(Number(row?.AssetID)) || {};
+      const passesType = !filterType || getAssetTypeLabel(row, asset) === filterType;
       const passesStatus = !filterStatus || statusMeta(row?.Status).label === filterStatus;
       const passesAsset = !filterAssetId || String(row?.AssetID ?? "") === String(filterAssetId);
       const passesManufacturer = !filterManufacturer || String(row?.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());

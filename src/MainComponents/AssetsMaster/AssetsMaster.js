@@ -566,11 +566,10 @@ class AssetsMaster extends Component {
 
   getAssetTypeLabel = (item = {}) => {
     const rawType = String(item?.AssetType || item?.Type || item?.LeaseType || "").trim().toLowerCase();
-    if (!rawType) return "";
     if (rawType.includes("rented in") || rawType === "in" || rawType.includes("inbound")) return "Rented in";
     if (rawType.includes("rented out") || rawType === "out" || rawType.includes("outbound")) return "Rented Out";
-    if (rawType.includes("house") || rawType.includes("in house") || rawType.includes("owned")) return "In house";
-    return String(item?.AssetType || item?.Type || item?.LeaseType || "").trim();
+    if (rawType.includes("house") || rawType.includes("in house") || rawType.includes("owned") || !rawType) return "In house";
+    return "In house";
   };
 
   matchesServiceStatus = (item = {}, selectedStatus = "") => {
