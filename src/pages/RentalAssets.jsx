@@ -471,7 +471,7 @@ const RentalAssets = ({ propId, history }) => {
     };
 
     fetchLocationOptions();
-    
+
     const fetchEmployees = async () => {
       if (Number(propId) > 0) {
         try {
@@ -633,7 +633,7 @@ const RentalAssets = ({ propId, history }) => {
 
     const tableRows = data.map((asset) => {
       const imageSrc = asset.ImageOut || asset.AssetImage || asset.Image || "";
-      
+
       return `
         <tr style="height:90px;">
           <td>${escapeHtml(asset.Id)}</td>

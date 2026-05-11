@@ -9,6 +9,9 @@ import "./AssetsMaster.css";
 import CustomDatePicker from "../../ReactComponents/CustomDatePicker/CustomDatePicker";
 import CustomDropdown from "../../ReactComponents/CustomDropdown/CustomDropdown";
 import QRCode from "react-qr-code";
+import { renderToStaticMarkup } from "react-dom/server";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
 
 function getEmptySpareRow() {
   return {
@@ -139,6 +142,8 @@ const SparePage = () => {
 
   const [editForm, setEditForm] = useState(null);
   const searchInputRef = useRef(null);
+  const [isDownloadingQR, setIsDownloadingQR] = useState(false);
+  const [downloadQRProgress, setDownloadQRProgress] = useState(0);
 
   const loadSpares = async () => {
     try {
@@ -488,6 +493,197 @@ const SparePage = () => {
 
   const closeFilterPopup = () => setShowFilterPanel(false);
 
+  const getAssetQrValue = (item = {}) => {
+    const qrValue = item?.QRCode || item?.QRcode || item?.QrCode || "";
+    return String(qrValue || item?.SpareID || item?.Id || "").trim();
+  };
+
+  const getAssetNameValue = (item = {}) =>
+    String(item?.SpareType || item?.Name || item?.name || item?.AssetName || item?.assetName || "").trim();
+
+  const downloadAssetQRCode = async (item = {}) => {
+    const qrValue = getAssetQrValue(item);
+    if (!qrValue) {
+      alert("No QR found");
+      return;
+    }
+
+    setIsDownloadingQR(true);
+    setDownloadQRProgress(0);
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const container = document.createElement("div");
+    container.style.width = "400px";
+    container.style.height = "600px";
+    container.style.position = "relative";
+    container.style.background = "#fff";
+
+    const img = new Image();
+    img.src = "/Assets/canva-template.png";
+    img.style.width = "100%";
+    img.style.height = "100%";
+    img.style.position = "absolute";
+
+    await new Promise((resolve) => {
+      img.onload = resolve;
+    });
+
+    container.appendChild(img);
+
+    const qrWrapper = document.createElement("div");
+    qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+    qrWrapper.style.position = "absolute";
+    qrWrapper.style.top = "101px";
+    qrWrapper.style.left = "58px";
+    qrWrapper.style.width = "284px";
+    qrWrapper.style.height = "284px";
+    qrWrapper.style.padding = "10px";
+    qrWrapper.style.background = "#ffffff";
+    container.appendChild(qrWrapper);
+
+    const brownBox = document.createElement("div");
+    const brownBoxLeft = 58;
+    const brownBoxTop = (40.2 / 59.4) * 600;
+    const brownBoxWidth = 284;
+    const brownBoxHeight = (2.63 / 59.4) * 600;
+    brownBox.style.position = "absolute";
+    brownBox.style.top = `${brownBoxTop}px`;
+    brownBox.style.left = `${brownBoxLeft}px`;
+    brownBox.style.width = `${brownBoxWidth}px`;
+    brownBox.style.height = `${brownBoxHeight}px`;
+    brownBox.style.background = "#3f2a21";
+    brownBox.style.zIndex = "1";
+
+    const nameText = document.createElement("div");
+    nameText.innerText = getAssetNameValue(item).toUpperCase();
+    nameText.style.position = "absolute";
+    nameText.style.top = `${brownBoxTop}px`;
+    nameText.style.left = `${brownBoxLeft}px`;
+    nameText.style.width = `${brownBoxWidth}px`;
+    nameText.style.height = `${brownBoxHeight}px`;
+    nameText.style.textAlign = "center";
+    nameText.style.color = "#ffffff";
+    nameText.style.fontSize = "13px";
+    nameText.style.fontWeight = "bold";
+    nameText.style.letterSpacing = "1px";
+    nameText.style.lineHeight = `${brownBoxHeight}px`;
+    nameText.style.overflow = "hidden";
+    nameText.style.whiteSpace = "nowrap";
+    nameText.style.textOverflow = "ellipsis";
+    nameText.style.zIndex = "2";
+
+    container.appendChild(brownBox);
+    container.appendChild(nameText);
+    document.body.appendChild(container);
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+    const imgData = canvas.toDataURL("image/jpeg", 0.7);
+    pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+    document.body.removeChild(container);
+
+    setDownloadQRProgress(100);
+    const assetName = getAssetNameValue(item) || "Spare";
+    pdf.save(`${assetName}_QR.pdf`);
+    setIsDownloadingQR(false);
+    setDownloadQRProgress(0);
+  };
+
+  const downloadAllQRCodes = async () => {
+    const assets = filteredSpares;
+    if (!assets || assets.length === 0) {
+      alert("No spares found");
+      return;
+    }
+
+    setIsDownloadingQR(true);
+    setDownloadQRProgress(0);
+
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    for (let i = 0; i < assets.length; i++) {
+      setDownloadQRProgress(Math.round((i / assets.length) * 100));
+      const item = assets[i];
+      const qrValue = getAssetQrValue(item);
+
+      const container = document.createElement("div");
+      container.style.width = "400px";
+      container.style.height = "600px";
+      container.style.position = "relative";
+      container.style.background = "#fff";
+
+      const img = new Image();
+      img.src = "/Assets/canva-template.png";
+      img.style.width = "100%";
+      img.style.height = "100%";
+      img.style.position = "absolute";
+
+      await new Promise((resolve) => { img.onload = resolve; });
+      container.appendChild(img);
+
+      const qrWrapper = document.createElement("div");
+      qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+      qrWrapper.style.position = "absolute";
+      qrWrapper.style.top = "101px";
+      qrWrapper.style.left = "58px";
+      qrWrapper.style.width = "284px";
+      qrWrapper.style.height = "284px";
+      qrWrapper.style.padding = "10px";
+      qrWrapper.style.background = "#ffffff";
+      container.appendChild(qrWrapper);
+
+      const brownBox = document.createElement("div");
+      const brownBoxLeft = 58;
+      const brownBoxTop = (40.2 / 59.4) * 600;
+      const brownBoxWidth = 284;
+      const brownBoxHeight = (2.63 / 59.4) * 600;
+      brownBox.style.position = "absolute";
+      brownBox.style.top = `${brownBoxTop}px`;
+      brownBox.style.left = `${brownBoxLeft}px`;
+      brownBox.style.width = `${brownBoxWidth}px`;
+      brownBox.style.height = `${brownBoxHeight}px`;
+      brownBox.style.background = "#3f2a21";
+      brownBox.style.zIndex = "1";
+
+      const nameText = document.createElement("div");
+      nameText.innerText = getAssetNameValue(item).toUpperCase();
+      nameText.style.position = "absolute";
+      nameText.style.top = `${brownBoxTop}px`;
+      nameText.style.left = `${brownBoxLeft}px`;
+      nameText.style.width = `${brownBoxWidth}px`;
+      nameText.style.height = `${brownBoxHeight}px`;
+      nameText.style.textAlign = "center";
+      nameText.style.color = "#ffffff";
+      nameText.style.fontSize = "13px";
+      nameText.style.fontWeight = "bold";
+      nameText.style.letterSpacing = "1px";
+      nameText.style.lineHeight = `${brownBoxHeight}px`;
+      nameText.style.overflow = "hidden";
+      nameText.style.whiteSpace = "nowrap";
+      nameText.style.textOverflow = "ellipsis";
+      nameText.style.zIndex = "2";
+
+      container.appendChild(brownBox);
+      container.appendChild(nameText);
+      document.body.appendChild(container);
+
+      await new Promise((resolve) => setTimeout(resolve, 300));
+
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+      const imgData = canvas.toDataURL("image/jpeg", 0.7);
+      if (i !== 0) pdf.addPage();
+      pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+      document.body.removeChild(container);
+    }
+
+    setDownloadQRProgress(100);
+    pdf.save("Spare_Assets_QR.pdf");
+    setIsDownloadingQR(false);
+    setDownloadQRProgress(0);
+  };
+
   const selectedAsset = selectedRow ? assetById.get(Number(selectedRow.AssetID)) : null;
   const selectedStatus = statusMeta(selectedRow?.Status);
   const selectedStatusLabel = String(selectedRow?.Status || "").trim() || selectedStatus.label;
@@ -612,7 +808,7 @@ const SparePage = () => {
               </div>
             </div> */}
 
-            <div className="asset-details-grid spare-details-grid">
+            <div className="asset-details-grid">
               <div className="asset-info-item asset-info-full">
                 <span className="asset-info-label">Serial number</span>
                 <span className="asset-info-value">{selectedRow.SerialNumber || "-"}</span>
@@ -656,11 +852,21 @@ const SparePage = () => {
             </div>
           </div>
 
-          <div className="asset-doc-strip spare-doc-strip">
-            <div className="spare-doc-qr-block">
-              <div className="spare-qr-code" aria-label="QR code preview">
-                {selectedQrValue ? <QRCode value={selectedQrValue} size={72} /> : null}
+          <div className="asset-details-docs-section">
+            <div className="asset-qr-preview-box">
+              <div className="asset-qr-wrapper" aria-label="QR code preview">
+                {selectedQrValue ? <QRCode value={selectedQrValue} size={72} bgColor="transparent" /> : null}
               </div>
+              {selectedQrValue ? (
+                <button
+                  type="button"
+                  className="asset-doc-link-text asset-download-qr-link"
+                  onClick={() => downloadAssetQRCode(selectedRow)}
+                >
+                  Download QR
+                  <i className="fa fa-download" aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
             {(() => {
               const openDocument = (filePath) => {
@@ -680,7 +886,7 @@ const SparePage = () => {
               const warrantySrc = selectedRow?.WarrantyFilePath || "";
 
               return (
-                <div className="asset-doc-links-stack asset-doc-links-stack-view spare-doc-links-view">
+                <div className="asset-doc-links-stack asset-doc-links-stack-view">
                   <div className="asset-doc-link-item">
                     <div className="asset-doc-icon-wrapper">
                       <i className="fa fa-file-text" aria-hidden="true" />
@@ -736,9 +942,9 @@ const SparePage = () => {
           </div>
         </div>
         <div className="asset-side-panel-body spare-side-panel-body">
-          <div className="asset-qr-preview spare-edit-qr-preview">
-            <div className="spare-qr-code spare-qr-code-large" aria-label="QR code preview">
-              {selectedQrValue ? <QRCode value={selectedQrValue} size={120} /> : null}
+          <div className="asset-qr-preview">
+            <div className="asset-qr-wrapper" aria-label="QR code preview">
+              {selectedQrValue ? <QRCode value={selectedQrValue} size={120} bgColor="transparent" /> : null}
             </div>
           </div>
 
@@ -918,6 +1124,12 @@ const SparePage = () => {
   return (
     <div className="content-wrapper">
       <Toast ref={toast} />
+      {isDownloadingQR && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "rgba(0,0,0,0.7)", zIndex: 9999, display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "center", color: "white" }}>
+          <i className="fa fa-spinner fa-spin" style={{ fontSize: "48px", marginBottom: "16px" }} />
+          <h4 style={{ color: "white", margin: 0 }}>Generating PDF: {downloadQRProgress}%</h4>
+        </div>
+      )}
       <section className="content mt-3">
         <div className="container-fluid">
           <div className="asset-master-page">
@@ -954,6 +1166,14 @@ const SparePage = () => {
                   </div>
 
                   <div className="asset-master-toolbar-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ backgroundColor: "#1f4e7a", borderColor: "#1f4e7a", color: "#ffffff" }}
+                      onClick={downloadAllQRCodes}
+                    >
+                      Download QR
+                    </button>
                     <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>
                       <i className="fa fa-sliders" aria-hidden="true" />
                       Filter
