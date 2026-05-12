@@ -18,6 +18,18 @@ export async function getAllowancesDeductions() {
     throw error;
   }
 }
+export const getApprovedEmployees = async (
+  propertyId,
+  month,
+  year
+) => {
+
+  const response = await fetch(
+    `${API_BASE_URL}/fundsapproval/get-approved-employees?propertyId=${propertyId}&month=${month}&year=${year}`
+  );
+
+  return await response.json();
+};
 
 export async function createAllowanceDeduction(model) {
   try {
