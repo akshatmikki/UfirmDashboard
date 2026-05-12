@@ -135,6 +135,7 @@ class AssetsMaster extends Component {
       showAddQrPreview: false,
       isDownloadingQR: false,
       downloadQRProgress: 0,
+      selectedAssetIds: [],
     };
     this.ApiProviderr = new ApiProvider();
   }
@@ -165,7 +166,12 @@ class AssetsMaster extends Component {
   downloadAllQRCodes = async () => {
     console.log("QR DOWNLOAD START");
 
-    const assets = this.getFilteredGridData() || this.state.GridData;
+    let assets = [];
+    if (this.state.selectedAssetIds.length > 0) {
+      assets = (this.state.GridData || []).filter(item => this.state.selectedAssetIds.includes(item.Id));
+    } else {
+      assets = this.getFilteredGridData() || this.state.GridData;
+    }
 
     if (!assets || assets.length === 0) {
       alert("No assets found");
@@ -1032,9 +1038,30 @@ class AssetsMaster extends Component {
         WarrantyDate: "",
         showAmcModal: false,
         showAddQrPreview: false,
+        selectedAssetIds: [],
       },
       this.loadHomagePageData
     );
+  };
+
+  handleSelectAsset = (id, e) => {
+    e.stopPropagation();
+    const { selectedAssetIds } = this.state;
+    if (selectedAssetIds.includes(id)) {
+      this.setState({ selectedAssetIds: selectedAssetIds.filter(item => item !== id) });
+    } else {
+      this.setState({ selectedAssetIds: [...selectedAssetIds, id] });
+    }
+  };
+
+  handleSelectAllAssets = (rows) => {
+    const { selectedAssetIds } = this.state;
+    const allIds = rows.map(r => r.Id);
+    if (allIds.every(id => selectedAssetIds.includes(id))) {
+      this.setState({ selectedAssetIds: selectedAssetIds.filter(id => !allIds.includes(id)) });
+    } else {
+      this.setState({ selectedAssetIds: Array.from(new Set([...selectedAssetIds, ...allIds])) });
+    }
   };
 
   closeSidePanel = () => this.setState({ PageMode: "Home", selectedRowId: null });
@@ -1344,12 +1371,21 @@ class AssetsMaster extends Component {
 
   renderOwnedAssetsTable = (rows) => {
     const paginated = this.getPaginatedRows(rows);
+    const isAllSelected = paginated.rows.length > 0 && paginated.rows.every(r => this.state.selectedAssetIds.includes(r.Id));
 
     return (
       <div className={`asset-master-table-wrap asset-master-table-wrap-owned ${this.state.selectedRowId ? "has-selection" : ""}`.trim()}>
         <table className="table asset-owned-table custTable table-hover mb-0">
           <thead>
             <tr>
+              <th className="col-checkbox" style={{ width: "40px" }}>
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={() => this.handleSelectAllAssets(paginated.rows)}
+                  style={{ cursor: "pointer" }}
+                />
+              </th>
               <th className="col-id" style={{ width: "70px" }}>ID</th>
               <th className="col-name">Name</th>
               <th className="col-location">Location</th>
@@ -1368,6 +1404,7 @@ class AssetsMaster extends Component {
                   asset.Status ||
                   "-";
                 const isSelected = String(this.state.selectedRowId) === String(asset.Id);
+                const isChecked = this.state.selectedAssetIds.includes(asset.Id);
                 const isOverdue =
                   this.getAssetStatusMeta(asset).serviceStatus === "Overdue";
                 return (
@@ -1379,6 +1416,14 @@ class AssetsMaster extends Component {
     `.trim()}
                     onClick={() => this.onGridRowSelect(asset.Id)}
                   >
+                    <td className="col-checkbox" onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={(e) => this.handleSelectAsset(asset.Id, e)}
+                        style={{ cursor: "pointer" }}
+                      />
+                    </td>
                     <td className="col-id">{asset.Id || "-"}</td>
                     <td className="col-name">{asset.Name || "-"}</td>
                     <td className="col-location">{asset.Location || asset.location || "-"}</td>
@@ -1407,7 +1452,7 @@ class AssetsMaster extends Component {
               })
             ) : (
               <tr>
-                <td colSpan="6" className="asset-owned-empty-state">No assets found.</td>
+                <td colSpan="7" className="asset-owned-empty-state">No assets found.</td>
               </tr>
             )}
           </tbody>

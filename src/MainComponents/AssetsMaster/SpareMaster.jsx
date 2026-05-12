@@ -153,6 +153,7 @@ const SparePage = () => {
   const searchInputRef = useRef(null);
   const [isDownloadingQR, setIsDownloadingQR] = useState(false);
   const [downloadQRProgress, setDownloadQRProgress] = useState(0);
+  const [selectedSpareIds, setSelectedSpareIds] = useState([]);
 
   const loadSpares = async () => {
     try {
@@ -251,6 +252,22 @@ const SparePage = () => {
       updated[index].showQR = !updated[index].showQR;
       return updated;
     });
+  };
+
+  const handleSelectSpare = (id, e) => {
+    e.stopPropagation();
+    setSelectedSpareIds(prev =>
+      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleSelectAllSpares = (rows) => {
+    const allIds = rows.map(r => r.SpareID);
+    if (allIds.every(id => selectedSpareIds.includes(id))) {
+      setSelectedSpareIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedSpareIds(prev => Array.from(new Set([...prev, ...allIds])));
+    }
   };
   const fileToBase64 = (file) => {
     return new Promise((resolve, reject) => {
@@ -602,7 +619,12 @@ const SparePage = () => {
   };
 
   const downloadAllQRCodes = async () => {
-    const assets = filteredSpares;
+    let assets = [];
+    if (selectedSpareIds.length > 0) {
+      assets = (spares || []).filter(item => selectedSpareIds.includes(item.SpareID));
+    } else {
+      assets = filteredSpares;
+    }
     if (!assets || assets.length === 0) {
       alert("No spares found");
       return;
@@ -1311,6 +1333,14 @@ const SparePage = () => {
                     <table className="table custTable table-hover">
                       <thead>
                         <tr>
+                          <th style={{ width: "40px" }}>
+                            <input
+                              type="checkbox"
+                              checked={paginatedSpares.length > 0 && paginatedSpares.every(r => selectedSpareIds.includes(r.SpareID))}
+                              onChange={() => handleSelectAllSpares(paginatedSpares)}
+                              style={{ cursor: "pointer" }}
+                            />
+                          </th>
                           <th>ID</th>
                           <th>Type</th>
                           <th>Asset</th>
@@ -1324,9 +1354,18 @@ const SparePage = () => {
                           const meta = statusMeta(row?.Status);
                           const asset = assetById.get(Number(row.AssetID));
                           const isActive = Number(row.SpareID) === Number(selectedSpareId);
+                          const isChecked = selectedSpareIds.includes(row.SpareID);
                           const isOverdueAsset = String(getServiceStatus(row)).toLowerCase() === "overdue";
                           return (
                             <tr key={row.SpareID} className={`${isActive ? "grid-selected-row" : ""} ${isOverdueAsset ? "asset-overdue-row" : ""}`.trim()} onClick={() => onRowClick(row)}>
+                              <td onClick={(e) => e.stopPropagation()}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={(e) => handleSelectSpare(row.SpareID, e)}
+                                  style={{ cursor: "pointer" }}
+                                />
+                              </td>
                               <td>{row.SpareID || "-"}</td>
                               <td>{row.SpareType || "-"}</td>
                               <td>{asset?.Name || asset?.name || "-"}</td>
@@ -1347,7 +1386,7 @@ const SparePage = () => {
                         })}
                         {filteredSpares.length === 0 ? (
                           <tr>
-                            <td colSpan={6} style={{ textAlign: "center", padding: "18px" }}>
+                            <td colSpan={7} style={{ textAlign: "center", padding: "18px" }}>
                               No spares found
                             </td>
                           </tr>

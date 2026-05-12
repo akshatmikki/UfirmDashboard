@@ -207,15 +207,15 @@ const getLeaseMeta = (asset = {}) => {
 
 const getAssetTypeLabel = (asset = {}) => {
   const raw = String(asset.AssetType || asset.Type || asset.LeaseType || asset.Lease || "").trim().toLowerCase();
-  
+
   // High priority: explicit lease type
   if (raw.includes("rented in") || raw === "in" || raw.includes("inbound")) return "Rented in";
   if (raw.includes("rented out") || raw === "out" || raw.includes("outbound")) return "Rented Out";
-  
+
   // Medium priority: IsRented flag (common in this app)
   const isRented = asset.IsRented === true || asset.IsRented === "true" || asset.IsRented === 1 || asset.IsRented === "1";
   if (isRented) return "Rented Out";
-  
+
   // Default for RentalAssets page should be "Rented in" if not "Out"
   return "Rented in";
 };
@@ -366,6 +366,7 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
   );
 
   return {
+    Id: toNumberPayload(getFirstValue(form.Id, asset.Id)),
     AssetId: toNumberPayload(assetId),
     AssetName: assetName,
     AssigneeName: getFirstValue(form.AssigneeName, asset.AssigneeName, rentOutData.AssigneeName),
