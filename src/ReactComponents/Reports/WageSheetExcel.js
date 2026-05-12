@@ -15,10 +15,10 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     acc.Bonus += emp.Bonus || 0;
     acc.TotalSalary += emp.TotalGross || 0;
     acc.OTAmt += emp.OTAmount || 0;
-    acc.Gross += emp.ProratedTotalGross || 0;
+    acc.Gross += emp.Gross || 0;
     acc.PF += emp.PF || 0;
     acc.ESI += emp.ESI || 0;
-    acc.LWF += emp.LwfAmount ?? 0;
+    acc.LWF += emp.LwfEmployeeAmount ?? 0;
     acc.PT += emp.PftAmount ?? 0;
     acc.Advance += emp.AdvanceDed ?? 0;
     acc.Food += emp.Food || 0;
@@ -38,19 +38,21 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
 
   const data = employees.map((emp, i) => ({
     "S.No": i + 1,
-    "EMP NO": emp.EmployeeCode || "-",
+    "EMP CODE": emp.EmployeeCode || "-",
 
     "Name": emp.FacilityMemberName || "-",
     "Father": emp.FatherName || "-",
     "Designation": emp.Designation || "-",
 
     "Dept": emp.Department || "-",
-    "Salary Generated": emp.SalaryGeneration || "-",
+    "Salary Generated": emp.SalaryGeneratedOn
+      ? new Date(emp.SalaryGeneratedOn).toLocaleString("en-IN")
+      : "-",
     "UAN": emp.UANNumber || "-",
     "ESI No": emp.ESINumber || "-",
 
     "Working Days": emp.WorkingDays || 0,
-    "Divide by Days": emp.AttendanceTotalWorkingDays || 0,
+    "Divide by Days": emp.DivideByDays || 0,
     "OT Days": emp.OTDays || 0,
     "OT Hours": emp.OTHours || 0,
 
@@ -63,11 +65,11 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "Bonus": emp.Bonus || 0,
     "Total Salary": emp.TotalGross || 0,
     "OT Amt": emp.OTAmount || 0,
-    "Gross": emp.ProratedTotalGross || 0,
+    "Gross": emp.Gross || 0,
 
     "PF": emp.PF || 0,
     "ESI": emp.ESI || 0,
-    "LWF": emp.LwfAmount ?? 0,
+    "LWF": emp.LwfEmployeeAmount ?? 0,
     "PT": emp.PftAmount ?? 0,
     "Advance": emp.AdvanceDed ?? 0,
     "Food": emp.Food || 0,

@@ -15,11 +15,11 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     acc.Other += emp.OtherAllowance || 0;
     acc.Bonus += emp.Bonus || 0;
     acc.OTAmt += emp.OTAmount || 0;
-    acc.Gross += emp.ProratedTotalGross || 0;
+    acc.Gross += emp.Gross || 0;
 
     acc.PF += emp.PF || 0;
     acc.ESI += emp.ESI || 0;
-    acc.LWF += emp.LwfAmount ?? emp.LwfEmployeeAmount ?? 0;
+    acc.LWF += emp.LwfEmployeeAmount || 0;
     acc.PT += emp.PftAmount ?? emp.PT ?? 0;
     acc.Advance += emp.AdvanceDed ?? emp.Advance ?? 0;
     acc.Food += emp.Food || 0;
@@ -154,7 +154,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
 
     // ================= ATTENDANCE =================
     doc.text(String(emp.WorkingDays || 0), 85, y);
-    doc.text(String(emp.AttendanceTotalWorkingDays || 0), 93, y); // 👈 added
+    doc.text(String(emp.DivideByDays || 0), 93, y);
     doc.text(String(emp.OTDays || 0), 101, y);
     doc.text(String(emp.OTHours || 0), 109, y);
 
@@ -167,12 +167,12 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     doc.text(String(emp.OtherAllowance || 0), 160, y);
     doc.text(String(emp.Bonus || 0), 168, y);
     doc.text(String(emp.OTAmount || 0), 178, y);
-    doc.text(String(emp.ProratedTotalGross || 0), 188, y);
+    doc.text(String(emp.Gross || 0), 188, y);
 
     // ================= DEDUCTIONS =================
     doc.text(String(emp.PF || 0), 200, y);
     doc.text(String(emp.ESI || 0), 208, y);
-    doc.text(String(emp.LwfAmount || 0), 216, y);
+    doc.text(String(emp.LwfEmployeeAmount || 0), 216, y);
     doc.text(String(emp.PftAmount || 0), 224, y);
     doc.text(String(emp.AdvanceDed || 0), 232, y);
     doc.text(String(emp.Food || 0), 240, y);

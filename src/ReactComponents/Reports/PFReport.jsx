@@ -150,8 +150,8 @@ export default function PFReport() {
                     const eps = Math.round(pfWage * 0.0833);
                     const epf = emp.PF || 0;
 
-                    const workingDays = emp.WorkingDays || 0;
-                    const dutyDays = emp.DutyDays || 0;
+                    const workingDays = emp.WorkingDays || 0; // Out of days (30)
+                    const dutyDays = emp.DutyDays || 0;       // Actual working days (25)
 
                     const ncpDays = workingDays - dutyDays;
 
@@ -163,7 +163,10 @@ export default function PFReport() {
                         Designation: extra.Designation || "-",
                         UAN: extra.UAN || "-",
 
-                        WorkingDays: workingDays || 0,
+                        // ✅ FIX HERE
+                        WorkingDays: dutyDays,       // show 25 in UI
+                        OutOfDays: workingDays,      // optional if you want to use/export later
+
                         TotalGross: emp.TotalGross || 0,
 
                         PFWage: pfWage,
@@ -171,9 +174,8 @@ export default function PFReport() {
                         EPS: eps,
                         Diff: epf - eps,
 
-
                         NCPDays: ncpDays > 0 ? ncpDays : 0,
-                        RefundOfAdvances: emp.Advance || 0
+                        // RefundOfAdvances: emp.Advance || 0
                     };
                 });
 

@@ -8,7 +8,10 @@ import {
 } from "../../Services/ClientService";
 import { getFundsApprovalHistorybyProperty } from "../../Services/PayrollService";
 
-import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
+import {
+    getGeneratedSalaryByPropertiesWithMonthYear,
+    getEmployeesByOffices
+} from "../../Services/PayrollService";
 import { generateWageSheetPDF } from "./WageSheetPDF";
 import { generateWageSheetExcel } from "./WageSheetExcel";
 
@@ -124,21 +127,95 @@ export default function SalaryReport() {
                     { month: "long" }
                 );
 
-                const data = await getFacilityMemberSalaryDetailsByClientBranch({
-                    clientId: selectedUnitId,
-                    propertyIds: propertyIds.join(","),
-                    month: monthName,
-                    year: Number(year),
-                    requireGeneratedSalary: true,
+                const [salaryData, employeeData] = await Promise.all([
+                    getGeneratedSalaryByPropertiesWithMonthYear(
+                        propertyIds,
+                        monthName,
+                        Number(year)
+                    ),
+                    getEmployeesByOffices(propertyIds)
+                ]);
+
+                // 🔹 Create employee map
+                const employeeMap = {};
+
+                (employeeData || []).forEach(emp => {
+                    const fmId = emp?.FacilityMember?.FacilityMemberId;
+
+                    if (fmId) {
+                        employeeMap[fmId] = {
+                            EmployeeCode: emp?.Profile?.EmployeeCode,
+                            Designation: emp?.Profile?.Designation,
+                            Department: emp?.Profile?.Department,
+                            FatherName: emp?.Profile?.FatherName,
+
+                            UANNumber: emp?.FinancialInfo?.UANNumber,
+                            ESINumber: emp?.FinancialInfo?.ESINumber,
+
+                            BankName: emp?.FinancialInfo?.BankName,
+                            BankAccountNumber: emp?.FinancialInfo?.BankAccountNumber,
+                            BankIFSCCode: emp?.FinancialInfo?.BankIFSCCode
+                        };
+                    }
                 });
 
-                const flat = Array.isArray(data) ? data : [];
-                setEmployees(flat);
+                // 🔹 Merge salary + employee
+                const mappedData = (salaryData || []).map(emp => {
+                    const extra = employeeMap[emp.EmployeeId] || {};
 
-                // extract unique departments
+                    return {
+                        FacilityMemberId: emp.EmployeeId,
+
+                        FacilityMemberName: emp.EmployeeName,
+                        EmployeeCode: extra.EmployeeCode || "-",
+                        Designation: extra.Designation || "-",
+                        Department: extra.Department || "",
+                        FatherName: extra.FatherName || "-",
+                        UANNumber: extra.UANNumber || "-",
+                        ESINumber: extra.ESINumber || "-",
+                        BankName: extra.BankName || "-",
+                        BankAccountNumber: extra.BankAccountNumber || "-",
+                        BankIFSCCode: extra.BankIFSCCode || "-",
+
+                        WorkingDays: emp.DutyDays || 0,
+                        DivideByDays: emp.WorkingDays || 0,
+                        SalaryGeneratedOn: emp.CreatedOn || null,
+                        OTDays: emp.OTDays || 0,
+                        OTHours: emp.OTHours || 0,
+
+                        Basic: emp.Basic || 0,
+                        HRA: emp.HRA || 0,
+                        CONV: emp.Conv || 0,
+                        OTAmount: emp.OTAmount || 0,
+                        Washing: emp.WashingAllowance || 0,
+                        SpecialAllowance: emp.SpecialAllowance || 0,
+                        OtherAllowance: emp.OthAll || 0,
+                        Bonus: emp.Bonus || 0,
+                        TotalGross: emp.TotalGross || 0,
+                        Gross: emp.TotalEarning || 0,
+
+                        PF: emp.PF || 0,
+                        ESI: emp.ESI || 0,
+                        LwfEmployeeAmount: emp.LWF || 0,
+                        PftAmount: emp.PFT || 0,
+                        AdvanceDed: emp.Advance || 0,
+                        Food: emp.Food || 0,
+                        Maintenance: emp.Maintenance || 0,
+                        Uniform: emp.Uniform || 0,
+                        IncomeTax: emp.IncomeTax || 0,
+
+                        TotalDeduction: emp.TotalDeduction || 0,
+
+                        NetSalary: (emp.TotalEarning || 0) - (emp.TotalDeduction || 0)
+                    };
+                });
+
+                setEmployees(mappedData);
+
+                // 🔹 Department list
                 const departments = [
                     ...new Set(
-                        flat
+                        mappedData
                             .map((e) => e.Department)
                             .filter((d) => d && d.trim() !== "")
                     ),

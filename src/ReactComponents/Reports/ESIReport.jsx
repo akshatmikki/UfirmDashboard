@@ -133,6 +133,9 @@ export default function ESIReport() {
               ? emp.ESILimit
               : esiBase;
 
+          const workingDays = emp.WorkingDays || 0; // Out of days (30)
+          const dutyDays = emp.DutyDays || 0;       // Actual working days (25)    
+
           return {
             FacilityMemberId: emp.EmployeeId,
 
@@ -140,14 +143,16 @@ export default function ESIReport() {
             FacilityMemberName: emp.EmployeeName,
             ESINumber: extra.ESINumber || "-",
 
-            WorkingDays: emp.WorkingDays || 0,
+            WorkingDays: dutyDays,     // show 25
+            OutOfDays: workingDays,
+
             TotalGross: emp.TotalGross || 0,
 
             ESIWage: esiWage,
             ESI_075: emp.ESI || 0,   // from API (already ceil)
             ESI_325: Math.ceil(esiWage * 0.0325),
 
-            LWF: emp.LwfEmployeeAmount || 0,
+            LWF: emp.LWF || 0,
           };
         });
 
@@ -205,7 +210,7 @@ export default function ESIReport() {
         totalESIWage += emp.ESIWage;
         total075 += emp.ESI_075;
         total325 += emp.ESI_325;
-        totalLWF += emp.LwfEmployeeAmount || 0;
+        totalLWF += emp.LWF || 0;
         const row = [
           index + 1,
           emp.EmployeeCode || "-",
@@ -389,7 +394,7 @@ export default function ESIReport() {
           <tbody>
             {employees.length === 0 ? (
               <tr>
-                <td colSpan="9" style={{ textAlign: "center" }}>
+                <td colSpan="10" style={{ textAlign: "center" }}>
                   Select month to view ESI report
                 </td>
               </tr>
