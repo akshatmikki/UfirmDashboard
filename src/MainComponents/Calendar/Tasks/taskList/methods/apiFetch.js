@@ -50,9 +50,16 @@ export default function attachApiFetch(TaskList) {
     const occurance = this.state?.occurance || 0;
     const startDate = this.state?.filterFromDate || "";
     const endDate = this.state?.filterToDate || "";
-    const taskStatus = this.state?.taskStatus && this.state.taskStatus !== "None" ? this.state.taskStatus : "";
+    let taskStatus = this.state?.taskStatus && this.state.taskStatus !== "None" ? this.state.taskStatus : "";
+    if (!taskStatus && this.state.uiTaskStatus && this.state.uiTaskStatus !== "None") {
+      taskStatus = this.state.uiTaskStatus;
+    }
     const propertyId = this.props?.PropertyVal || 0;
     const taskPriority = this.state?.taskPriority || 0;
+
+    const isCard = this.state.viewMode === "card";
+    const page = isCard ? this.state.cardPage : this.state.tablePage;
+    const pageSize = isCard ? this.state.cardPageSize : this.state.tablePageSize;
 
     const model = this.getModel(
       type,
@@ -64,7 +71,9 @@ export default function attachApiFetch(TaskList) {
       endDate,
       taskStatus,
       propertyId,
-      taskPriority
+      taskPriority,
+      page || 1,
+      pageSize || 10
     );
 
     this.manageTask(model, type);

@@ -32,6 +32,10 @@ export default function attachActionMethods(TaskList) {
       return tStatus === "pending" || tStatus.includes("overdue");
     }
 
+    if (fStatus === "on-hold" || fStatus === "on hold") {
+      return tStatus === "on-hold" || tStatus === "on hold";
+    }
+
     return tStatus === fStatus;
   };
 
@@ -59,6 +63,7 @@ export default function attachActionMethods(TaskList) {
         completedTasks: 0,
         pendingTasks: 0,
         actionableTasks: 0,
+        onHoldTasks: 0,
         taskPriority: 0,
         data: [],
         showFilterPanel: false,
@@ -109,7 +114,7 @@ export default function attachActionMethods(TaskList) {
       }
 
       return { uiTaskStatus, expandedDate, cardPage: 1, tablePage: 1 };
-    });
+    }, () => this.getTasks());
   };
 
   TaskList.prototype.handleDateStatusFilter = function (dateKey, status) {
@@ -197,6 +202,7 @@ export default function attachActionMethods(TaskList) {
           this.setState({
             pendingTasks: 0,
             actionableTasks: 0,
+            onHoldTasks: 0,
             completedTasks: 0,
           });
   
@@ -215,6 +221,7 @@ export default function attachActionMethods(TaskList) {
       let completedTasks = 0;
       let pendingTasks = 0;
       let actionableTasks = 0;
+      let onHoldTasks = 0;
   
       (tasks || []).forEach((task) => {
         const status = String(task?.TaskStatus || "")
@@ -223,10 +230,11 @@ export default function attachActionMethods(TaskList) {
   
         if (status === "completed" || status === "complete") completedTasks += 1;
         else if (status === "pending") pendingTasks += 1;
-        else if (status === "actionable") actionableTasks += 1;
+        else if (status === "actionable" || status === "in-progress" || status === "in progress") actionableTasks += 1;
+        else if (status === "on-hold" || status === "on hold") onHoldTasks += 1;
       });
   
-      return { completedTasks, pendingTasks, actionableTasks };
+      return { completedTasks, pendingTasks, actionableTasks, onHoldTasks };
   };
 
 }

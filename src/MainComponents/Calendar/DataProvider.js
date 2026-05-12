@@ -71,7 +71,7 @@ class DataProvider {
             return srv.CallDeleteNewService(url, model[0]);
 
         case 'R':
-            url = `TaskDetails?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}&dteFr=${model[0].DteFr}&dteTo=${model[0].DteTo}&taskstatus=${model[0].TaskStatus}&propID=${model[0].PropertyId}&taskPriorityId=${model[0].TaskPriority}`;
+            url = `TaskDetails?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}&dteFr=${model[0].DteFr}&dteTo=${model[0].DteTo}&taskstatus=${model[0].TaskStatus}&propID=${model[0].PropertyId}&taskPriorityId=${model[0].TaskPriority}&pageNumber=${model[0].PageNumber || 1}&pageSize=${model[0].PageSize || 10}`;
             return srv.getComplaint(url);
 
         case 'SR':

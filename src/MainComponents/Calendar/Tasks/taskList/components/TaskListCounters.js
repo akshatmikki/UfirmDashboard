@@ -5,7 +5,7 @@ const countByStatus = (rows = [], statusMatcher) =>
 
 const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
 
-export default function TaskListCounters({ tasks = [], completedTasks, pendingTasks, actionableTasks, activeStatus, onStatusClick }) {
+export default function TaskListCounters({ tasks = [], completedTasks, pendingTasks, actionableTasks, onHoldTasks, activeStatus, onStatusClick }) {
   const total = Array.isArray(tasks) ? tasks.length : 0;
   const completed = Number(completedTasks || 0);
   const pending = Number(pendingTasks || 0);
@@ -78,6 +78,21 @@ export default function TaskListCounters({ tasks = [], completedTasks, pendingTa
       >
         <p className="task-summary-value">{pending}</p>
         <p className="task-summary-label">Pending</p>
+      </div>
+      <div
+        className={`task-summary-card task-summary-onhold ${active === "on-hold" || active === "on hold" ? "task-summary-active" : ""}`}
+        style={{ cursor: "pointer" }}
+        onClick={() => onStatusClick?.("On Hold")}
+        role="button"
+        tabIndex={0}
+        aria-pressed={active === "on-hold" || active === "on hold"}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") onStatusClick?.("On Hold");
+        }}
+        title="Filter on hold tasks"
+      >
+        <p className="task-summary-value">{Number(onHoldTasks || 0)}</p>
+        <p className="task-summary-label">On Hold</p>
       </div>
       {/* <div className="task-summary-card task-summary-overdue">
         <p className="task-summary-value">{overdue}</p>
