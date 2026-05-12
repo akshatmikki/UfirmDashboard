@@ -91,6 +91,7 @@ const StaffPage = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [viewDialogVisible, setViewDialogVisible] = useState(false);
+  const [importDialogVisible, setImportDialogVisible] = useState(false);
   const [viewData, setViewData] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editEmployeeId, setEditEmployeeId] = useState(null);
@@ -100,6 +101,7 @@ const StaffPage = () => {
   const [selectedDepartmentFilter, setSelectedDepartmentFilter] = useState(null);
   const [deptSearch, setDeptSearch] = useState("");
   const salaryDropdownRef = useRef(null);
+  const [newEmployeeId, setNewEmployeeId] = useState(null);
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
   const [selectedFacilityMemberId, setSelectedFacilityMemberId] = useState(null);
@@ -152,6 +154,7 @@ const StaffPage = () => {
     others: []
   });
   const [family, setFamily] = useState("");
+  const [spouseName, setSpouseName] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [workHistories, setWorkHistories] = useState([
@@ -160,7 +163,7 @@ const StaffPage = () => {
       Role: "",
       StartDate: null,
       EndDate: null,
-      ThirdPartyVerification: false,
+      ThirdPartyVerification: true,
       UploadResume: null,
       ResumeUrl: "",
     },
@@ -215,11 +218,14 @@ const StaffPage = () => {
 
     let officeIds = [];
 
-    if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
-      officeIds = reduxPropertyIds;
-    } else if (Number(reduxPropertyId) > 0) {
+    // Prioritize the synchronous redux single-property selection over any async local state
+    if (Number(reduxPropertyId) > 0) {
       officeIds = [Number(reduxPropertyId)];
-    } else if (clientPropertyIds.length > 0) {
+    } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
+      officeIds = reduxPropertyIds;
+    } else if (selectedPropertyId && selectedPropertyId.length > 0) {
+      officeIds = selectedPropertyId;
+    } else if (clientPropertyIds && clientPropertyIds.length > 0) {
       officeIds = clientPropertyIds;
     }
 
@@ -412,6 +418,8 @@ const StaffPage = () => {
     loadDesignations();
   }, []);
 
+  const officeIdsStr = JSON.stringify(getCurrentOfficeIds());
+
   useEffect(() => {
     const loadEmployees = async () => {
       if (!reduxClientId && !reduxPropertyId) {
@@ -419,7 +427,7 @@ const StaffPage = () => {
         return;
       }
       try {
-        const officeIds = getCurrentOfficeIds();
+        const officeIds = JSON.parse(officeIdsStr);
 
         if (!officeIds.length) {
           setStaff([]);
@@ -440,7 +448,7 @@ const StaffPage = () => {
     };
 
     loadEmployees();
-  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, clientPropertyIds, reloadEmployeesToken]);
+  }, [officeIdsStr, reloadEmployeesToken]);
 
   useEffect(() => {
     const loadBranch = async () => {
@@ -656,6 +664,16 @@ const StaffPage = () => {
     return istTime.toISOString().slice(0, 19); // remove 'Z'
   };
 
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "";
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   const openLoanAdvanceDialog = (row) => {
     const memberId = row.FacilityMember.FacilityMemberId;
     setSelectedLoanAdvanceId(memberId);
@@ -702,13 +720,14 @@ const StaffPage = () => {
     setEsiNumber("");
     setProfileImage(null);
     setFamily("");
+    setSpouseName("");
     setWorkHistories([
       {
         CompanyName: "",
         Role: "",
         StartDate: null,
         EndDate: null,
-        ThirdPartyVerification: false,
+        ThirdPartyVerification: true,
         UploadResume: null,
         ResumeUrl: "",
       },
@@ -766,6 +785,8 @@ const StaffPage = () => {
     setAddressLine2(profile.AddressLine2 || "");
     setCity(profile.City || "");
     setStateName(profile.State || "");
+    setFamily(profile.FatherName || "");
+    setSpouseName(profile.SpouseName || "");
     setSelectedFacilityMemberId(latestRow?.FacilityMember?.FacilityMemberId || "");
     setSelectedManagers(
       latestRow?.FacilityMember?.ManagerIdList || []
@@ -783,7 +804,10 @@ const StaffPage = () => {
           Role: wh.Role || "",
           StartDate: wh.StartDate ? new Date(wh.StartDate) : null,
           EndDate: wh.EndDate ? new Date(wh.EndDate) : null,
-          ThirdPartyVerification: wh.ThirdPartyVerification || false,
+          ThirdPartyVerification:
+            typeof wh.ThirdPartyVerification === "boolean"
+              ? wh.ThirdPartyVerification
+              : false,
           UploadResume: null,
           ResumeUrl: wh.UploadResume || "",
         }))
@@ -795,7 +819,7 @@ const StaffPage = () => {
           Role: "",
           StartDate: null,
           EndDate: null,
-          ThirdPartyVerification: false,
+          ThirdPartyVerification: true,
           UploadResume: null,
           ResumeUrl: "",
         },
@@ -811,10 +835,6 @@ const StaffPage = () => {
     setPanNumber(fin.PANNumber || "");
     setPfNumber(fin.PFNumber || "");
     setEsiNumber(fin.ESINumber || "");
-
-    // Employee List
-    const empList = latestRow?.EmployeeList || {};
-    setFamily(empList.FatherName || "");
 
     setDocuments({
       profileImage: [],
@@ -837,7 +857,7 @@ const StaffPage = () => {
         Role: "",
         StartDate: null,
         EndDate: null,
-        ThirdPartyVerification: false,
+        ThirdPartyVerification: true,
         UploadResume: null,
         ResumeUrl: "",
       },
@@ -866,13 +886,14 @@ const StaffPage = () => {
 
   const downloadSampleTemplate = () => {
     const note = [
-      "Fields marked with * are mandatory"
+      "Fields marked with * are mandatory",
+      "Employee Code (EMPCODE) is auto-generated during import. Do not add an EMPCODE column."
     ];
 
     const headers = [
-      "EMPCODE *",
       "EMP NAME *",
       "F/H NAME",
+      "SPOUSE NAME",
       "DOB",
       "DOJ *",
       "GENDER *",
@@ -933,12 +954,12 @@ const StaffPage = () => {
     const exportData = filteredStaff.map((row) => ({
       "EMPCODE": row?.Profile?.EmployeeCode || "",
       "EMP NAME": row?.Profile?.EmployeeName || "",
-      "F/H NAME": row?.EmployeeList?.FatherName || "",
-      "DOB": row?.Profile?.DateOfBirth?.slice(0, 10) || "",
+      "F/H NAME": row?.Profile?.FatherName || "",
+      "SPOUSE NAME": row?.Profile?.SpouseName || "",
+      "DOB": formatDate(row?.Profile?.DateOfBirth),
       "DOJ": row?.WorkHistories?.[0]?.StartDate
         ? new Date(row.WorkHistories[0].StartDate)
           .toLocaleDateString("en-GB") // 🔥 gives DD/MM/YYYY
-          .replace(/\//g, "-")         // convert to DD-MM-YYYY
         : "",
       "GENDER": row?.Profile?.Gender === "Male" ? "M" : "F",
       "MOBILE": row?.Profile?.PhoneNumber || "",
@@ -1017,6 +1038,9 @@ const StaffPage = () => {
 
   const saveStaff = async () => {
     setIsProcessing(true);
+    const latestRow = staff.find(
+      s => s.FacilityMember?.FacilityMemberId === editEmployeeId
+    );
     // 🔒 Ensure unit/property selected
     if (!activePropertyId) {
       toast.current.show({
@@ -1040,7 +1064,7 @@ const StaffPage = () => {
       });
     }
 
-    if (!employeeCode?.trim()) {
+    if (isEditMode && !employeeCode?.trim()) {
       setIsProcessing(false);
       return toast.current.show({ severity: "warn", summary: "Validation", detail: "Employee Code is required" });
     }
@@ -1256,17 +1280,32 @@ const StaffPage = () => {
 
     // Format work histories
     const now = toISTISOString(new Date());
-    const formattedWorkHistories = validWorkHistories.map((wh) => ({
-      CompanyName: wh.CompanyName,
-      Role: wh.Role,
-      StartDate: wh.StartDate ? toISTISOString(wh.StartDate) : null,
-      EndDate: wh.EndDate ? toISTISOString(wh.EndDate) : null,
-      ThirdPartyVerification: wh.ThirdPartyVerification,
-      UploadResume: wh.ResumeUrl || "",
-      CreatedOn: now,
-      UpdatedOn: now,
-      IsActive: true,
-    }));
+
+    const formattedWorkHistories = validWorkHistories.map((wh, index) => {
+
+      const previousValue =
+        latestRow?.WorkHistories?.[index]?.ThirdPartyVerification ?? false;
+
+      const currentValue =
+        typeof wh.ThirdPartyVerification === "boolean"
+          ? wh.ThirdPartyVerification
+          : previousValue;
+
+      const finalValue =
+        currentValue !== previousValue ? currentValue : previousValue;
+
+      return {
+        CompanyName: wh.CompanyName?.trim(),
+        Role: wh.Role?.trim(),
+        StartDate: wh.StartDate ? toISTISOString(wh.StartDate) : null,
+        EndDate: wh.EndDate ? toISTISOString(wh.EndDate) : null,
+        ThirdPartyVerification: finalValue, // 👈 only changes when actually changed
+        UploadResume: wh.ResumeUrl || "",
+        CreatedOn: now,
+        UpdatedOn: now,
+        IsActive: true,
+      };
+    });
 
     // Determine Facility Master ID based on designation
     let facilityMasterId = 0;
@@ -1290,7 +1329,7 @@ const StaffPage = () => {
     const employeeData = {
       Profile: {
         OfficeId: activePropertyId,
-        EmployeeCode: employeeCode,
+        ...(isEditMode ? { EmployeeCode: employeeCode } : {}),
         EmployeeName: cleanName,
         EmploymentType: employmentType,
         CreatedOn: now,
@@ -1307,14 +1346,20 @@ const StaffPage = () => {
           department === "OTHER"
             ? (customDepartment || "").trim()
             : (department || "").trim(),
-        Gender: gender,
-        DateOfBirth: dobValue,
+        Gender: gender && gender.trim() !== ""
+          ? gender.trim()
+          : latestRow?.Profile?.Gender,
+        DateOfBirth: isEditMode
+          ? latestRow?.Profile?.DateOfBirth
+          : dobValue,
         PanCard: panCard || "",
         AadharCard: aadharCard || "",
         AddressLine1: addressLine1 || "",
         AddressLine2: addressLine2 || "",
         City: city || "",
         State: stateName || "",
+        FatherName: family?.trim() || null,
+        SpouseName: spouseName?.trim() || null,
       },
 
       WorkHistories: formattedWorkHistories,
@@ -1342,6 +1387,7 @@ const StaffPage = () => {
         PropertyId: activePropertyId || 0,
         Address: (addressLine1 + " " + addressLine2).trim() || "",
         FacilityMasterId: facilityMasterId,
+        Gender: gender?.trim() || latestRow?.FacilityMember?.Gender,
         ProfileImageUrl: profileImageUrl || "",
         IsBlocked: false,
         AccessCode: "",
@@ -1362,6 +1408,7 @@ const StaffPage = () => {
 
       EmployeeList: {
         FatherName: family?.trim() || null,
+        SpouseName: spouseName?.trim() || null,
         IsDeleted: false,
         Approved: true,
         Designation:
@@ -1383,6 +1430,7 @@ const StaffPage = () => {
       } else {
         const responseData = await createEmployee(employeeData);
         resultingFacilityMemberId = responseData?.FacilityMemberId || 0;
+        setNewEmployeeId(resultingFacilityMemberId);
         toast.current.show({
           severity: "success",
           summary: "Added",
@@ -1672,6 +1720,26 @@ const StaffPage = () => {
     { label: "Delhi", value: "Delhi" },
   ];
 
+  const indianBanks = [
+    { label: "State Bank of India", value: "State Bank of India" },
+    { label: "HDFC Bank", value: "HDFC Bank" },
+    { label: "ICICI Bank", value: "ICICI Bank" },
+    { label: "Axis Bank", value: "Axis Bank" },
+    { label: "Punjab National Bank", value: "Punjab National Bank" },
+    { label: "Bank of Baroda", value: "Bank of Baroda" },
+    { label: "Canara Bank", value: "Canara Bank" },
+    { label: "Union Bank of India", value: "Union Bank of India" },
+    { label: "Kotak Mahindra Bank", value: "Kotak Mahindra Bank" },
+    { label: "IndusInd Bank", value: "IndusInd Bank" },
+    { label: "Yes Bank", value: "Yes Bank" },
+    { label: "IDFC First Bank", value: "IDFC First Bank" },
+    { label: "Indian Bank", value: "Indian Bank" },
+    { label: "Central Bank of India", value: "Central Bank of India" },
+    { label: "UCO Bank", value: "UCO Bank" },
+    { label: "Bandhan Bank", value: "Bandhan Bank" },
+    { label: "RBL Bank", value: "RBL Bank" },
+  ];
+
   const header = (
     <div className="d-flex justify-content-between align-items-center p-2">
       <h5 className="m-0">Facility Member</h5>
@@ -1723,7 +1791,7 @@ const StaffPage = () => {
           className="p-button-secondary"
           tooltip="Import Staff"
           disabled={!activePropertyId || isProcessing}
-          onClick={handleImportClick}
+          onClick={() => setImportDialogVisible(true)}
         />
         <input
           type="file"
@@ -1749,12 +1817,6 @@ const StaffPage = () => {
           className="p-button-success"
         />
 
-        <Button
-          label="Sample Template"
-          icon="pi pi-file-excel"
-          className="p-button-warning"
-          onClick={downloadSampleTemplate}
-        />
         <Button
           label="Export"
           icon="pi pi-download"
@@ -1897,6 +1959,32 @@ const StaffPage = () => {
     );
   };
 
+  const sortedStaff = useMemo(() => {
+    if (!staff) return [];
+
+    return [...staff].sort((a, b) => {
+      const nameA = (a?.Profile?.EmployeeName || "").toLowerCase();
+      const nameB = (b?.Profile?.EmployeeName || "").toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+  }, [staff]);
+
+  const finalStaffList = useMemo(() => {
+    if (!sortedStaff) return [];
+
+    if (!newEmployeeId) return sortedStaff;
+
+    const newEmp = sortedStaff.find(
+      emp => emp?.FacilityMember?.FacilityMemberId === newEmployeeId
+    );
+
+    const rest = sortedStaff.filter(
+      emp => emp?.FacilityMember?.FacilityMemberId !== newEmployeeId
+    );
+
+    return newEmp ? [newEmp, ...rest] : sortedStaff;
+  }, [sortedStaff, newEmployeeId]);
+
   const overlayStyle = {
     position: "fixed",
     top: 0,
@@ -1925,6 +2013,11 @@ const StaffPage = () => {
       <style>{`
         .required-asterisk {
           color: red;
+        }
+        .pan-placeholder-light::placeholder {
+          color: #9ca3af !important;   /* soft grey */
+          opacity: 1 !important;       /* make sure it doesn't look faded weirdly */
+          font-weight: 400;
         }
       `}</style>
       <div className="content-wrapper">
@@ -2033,10 +2126,10 @@ const StaffPage = () => {
                 <DataTable
                   value={
                     selectedDepartmentFilter
-                      ? staff.filter(
+                      ? finalStaffList.filter(
                         row => row?.Profile?.Department === selectedDepartmentFilter
                       )
-                      : staff
+                      : finalStaffList
                   }
                   dataKey="FacilityMember.FacilityMemberId"
                   header={header}
@@ -2161,18 +2254,22 @@ const StaffPage = () => {
                   className="mb-3"
                   style={{ backgroundColor: "#f3f4f6", color: "#6b7280" }}
                 />
-                <label>Employee Code <span className="required-asterisk">*</span></label>
-                <InputText
-                  placeholder="Employee Code"
-                  value={employeeCode}
-                  onChange={(e) => {
-                    const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
-                    if (val.length <= 13) {
-                      setEmployeeCode(val);
-                    }
-                  }}
-                  className="mb-3"
-                />
+                {isEditMode && (
+                  <>
+                    <label>Employee Code <span className="required-asterisk">*</span></label>
+                    <InputText
+                      placeholder="Employee Code"
+                      value={employeeCode}
+                      onChange={(e) => {
+                        const val = e.target.value.replace(/[^A-Za-z0-9]/g, "");
+                        if (val.length <= 13) {
+                          setEmployeeCode(val);
+                        }
+                      }}
+                      className="mb-3"
+                    />
+                  </>
+                )}
 
                 <label>Employee Name <span className="required-asterisk">*</span></label>
                 <InputText
@@ -2353,6 +2450,17 @@ const StaffPage = () => {
                   className="mb-3"
                 />
 
+                <label>Spouse Name</label>
+                <InputText
+                  placeholder="Spouse Name"
+                  value={spouseName}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/[^A-Za-z\s.'-]/g, "");
+                    setSpouseName(val);
+                  }}
+                  className="mb-3"
+                />
+
                 <label>Pan Card <span className="required-asterisk">*</span></label>
                 <InputText
                   placeholder="ABCDE1234F"
@@ -2439,11 +2547,15 @@ const StaffPage = () => {
                 />
 
                 <label>Bank Name</label>
-                <InputText
-                  placeholder="Bank Name"
+                <Dropdown
                   value={bankName}
-                  onChange={(e) => setBankName(e.target.value)}
+                  options={indianBanks}
+                  onChange={(e) => setBankName(e.value)}
+                  placeholder="Select Bank"
                   className="mb-3"
+                  filter
+                  editable
+                  showClear
                 />
 
                 <label>UAN Number</label>
@@ -2455,19 +2567,6 @@ const StaffPage = () => {
                     const val = e.target.value.replace(/\D/g, "");
                     if (val.length <= 12) setUanNumber(val);
                   }}
-                />
-
-                <label>PAN Number</label>
-                <InputText
-                  placeholder="ABCDE1234F"
-                  value={panNumber}
-                  onChange={(e) => {
-                    const val = sanitizePanValue(e.target.value);
-                    setPanNumber(val);
-                    setPanCard(val);
-                  }}
-                  maxLength={10}
-                  className="pan-placeholder-light"
                 />
 
                 <label>PF Number</label>
@@ -2740,14 +2839,21 @@ const StaffPage = () => {
 
                   <label>Date of Birth</label>
                   <InputText
-                    value={viewData.Profile?.DateOfBirth ? viewData.Profile.DateOfBirth.slice(0, 10) : ""}
+                    value={formatDate(viewData.Profile?.DateOfBirth)}
                     readOnly
                     className="mb-3"
                   />
 
                   <label>Father's Name</label>
                   <InputText
-                    value={viewData.EmployeeList?.FatherName || ""}
+                    value={viewData.Profile?.FatherName || ""}
+                    readOnly
+                    className="mb-3"
+                  />
+
+                  <label>Spouse Name</label>
+                  <InputText
+                    value={viewData.Profile?.SpouseName || ""}
                     readOnly
                     className="mb-3"
                   />
@@ -2826,13 +2932,6 @@ const StaffPage = () => {
                     className="mb-3"
                   />
 
-                  <label>PAN Number</label>
-                  <InputText
-                    value={viewData?.FinancialInfo?.PANNumber || ""}
-                    readOnly
-                    className="mb-3"
-                  />
-
                   <label>PF Number</label>
                   <InputText
                     value={viewData?.FinancialInfo?.PFNumber || ""}
@@ -2873,14 +2972,14 @@ const StaffPage = () => {
 
                           <label>Start Date</label>
                           <InputText
-                            value={wh.StartDate ? wh.StartDate.slice(0, 10) : ""}
+                            value={formatDate(wh.StartDate)}
                             readOnly
                             className="mb-3"
                           />
 
                           <label>End Date</label>
                           <InputText
-                            value={wh.EndDate ? wh.EndDate.slice(0, 10) : ""}
+                            value={formatDate(wh.EndDate)}
                             readOnly
                             className="mb-3"
                           />
@@ -3048,6 +3147,42 @@ const StaffPage = () => {
               </div>
             </div>
           )}
+        </Dialog>
+        {/* Import Dialog */}
+        <Dialog
+          header="Import Facility Members"
+          visible={importDialogVisible}
+          style={{ width: "450px" }}
+          modal
+          onHide={() => setImportDialogVisible(false)}
+        >
+          <div className="p-fluid">
+            <div className="mb-4">
+              <p className="text-muted mb-2">Step 1: Download the template if you don't have it.</p>
+              <Button
+                label="Download Sample Template"
+                icon="pi pi-file-excel"
+                className="p-button-warning w-full"
+                onClick={downloadSampleTemplate}
+              />
+            </div>
+
+            <div className="mb-2">
+              <p className="text-muted mb-2">Step 2: Choose your filled Excel file to import.</p>
+              <Button
+                label="Choose File and Import"
+                icon="pi pi-upload"
+                className="p-button-primary w-full"
+                onClick={handleImportClick}
+              />
+            </div>
+            <small className="text-muted mt-2 d-block">
+              Employee Code is auto-generated. Don't include an <strong>EMPCODE</strong> column in the import file.
+            </small>
+            <small className="text-danger mt-2 d-block">
+              * Please ensure you have selected a property before importing.
+            </small>
+          </div>
         </Dialog>
       </div>
     </PrimeReactProvider>

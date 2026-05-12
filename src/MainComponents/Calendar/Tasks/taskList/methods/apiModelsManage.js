@@ -12,6 +12,39 @@ const getTaskDateLabel = (value) => {
   return parsed ? parsed.format("DD-MM-YYYY") : "No Date";
 };
 
+const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
+const hasActiveStatusFilter = (value) => {
+  const normalized = normalizeStatus(value);
+  return normalized !== "" && normalized !== "none" && normalized !== "0";
+};
+const matchesStatusFilter = (taskStatus, filterStatus) => {
+  const tStatus = normalizeStatus(taskStatus);
+  const fStatus = normalizeStatus(filterStatus);
+
+  if (!hasActiveStatusFilter(fStatus)) return true;
+
+  if (fStatus === "complete" || fStatus === "completed") {
+    return tStatus === "complete" || tStatus === "completed";
+  }
+
+  if (fStatus === "actionable" || fStatus === "in-progress" || fStatus === "in progress") {
+    return tStatus === "actionable" || tStatus === "in-progress" || tStatus === "in progress";
+  }
+
+  if (fStatus === "pending") {
+    return tStatus === "pending" || tStatus.includes("overdue");
+  }
+
+  return tStatus === fStatus;
+};
+
+const clampPage = (page, totalItems, pageSize) => {
+  const safeSize = Number(pageSize) > 0 ? Number(pageSize) : 1;
+  const totalPages = Math.max(1, Math.ceil((Number(totalItems) || 0) / safeSize));
+  const desired = Number(page) || 1;
+  return Math.min(Math.max(1, desired), totalPages);
+};
+
 export default function attachApiModelsManage(TaskList) {
     TaskList.prototype.loadProperty = function () {
       this.comdbprovider.getUserAssignedproperty().then((resp) => {
@@ -174,13 +207,43 @@ export default function attachApiModelsManage(TaskList) {
                   const hasCurrentExpandedDate =
                     prevState.expandedDate && sortedDates.includes(prevState.expandedDate);
 
+                  const expandedDate = hasCurrentExpandedDate ? prevState.expandedDate : (sortedDates[0] || null);
+                  const expandedDateChanged = expandedDate !== prevState.expandedDate;
+
+                  const searchStr = String(prevState.searchTerm || "").trim().toLowerCase();
+                  const filteredData = searchStr
+                    ? taskData.filter((task) =>
+                        Object.values(task || {}).some((value) => {
+                          if (value === null || value === undefined || typeof value === "object") return false;
+                          return String(value).toLowerCase().includes(searchStr);
+                        })
+                      )
+                    : taskData;
+
+                  const groupedByDate = filteredData.reduce((acc, task) => {
+                    const dateKey = getTaskDateLabel(task?.UpdatedOn);
+                    if (!acc[dateKey]) acc[dateKey] = [];
+                    acc[dateKey].push(task);
+                    return acc;
+                  }, {});
+
+                  const itemsForExpanded = expandedDate
+                    ? (groupedByDate[expandedDate] || []).filter((task) =>
+                        matchesStatusFilter(task?.TaskStatus, prevState.uiTaskStatus)
+                      )
+                    : [];
+
                   return {
                     data: taskData,
                     dataLoading: false,
                     ...counts,
-                    expandedDate: hasCurrentExpandedDate ? prevState.expandedDate : (sortedDates[0] || null),
-                    cardPage: 1,
-                    tablePage: 1,
+                    expandedDate,
+                    cardPage: expandedDateChanged
+                      ? 1
+                      : clampPage(prevState.cardPage, itemsForExpanded.length, prevState.cardPageSize),
+                    tablePage: expandedDateChanged
+                      ? 1
+                      : clampPage(prevState.tablePage, itemsForExpanded.length, prevState.tablePageSize),
                     dateStatusFilters: {},
                   };
                 });

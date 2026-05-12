@@ -9,7 +9,6 @@ import {
   deleteMultipleAttendance,
   uploadAttendance,
   getEmployeeMonthlyTotalOT,
-  getEmployeesByOfficesWithAttendance,
   updateAttendance,
   getFacilitySalaryConfig,
   getSalaryAllowancesByProperty,
@@ -21,28 +20,14 @@ import {
   getPropertiesByClientId,
 } from "../../Services/ClientService";
 
-// Helper: Format month-year as "YYYY-MM"
+// ─── Helpers ────────────────────────────────────────────────────────────────
+
 function getMonthYearString(month, year) {
-  const mon = month.toString().padStart(2, "0");
-  return `${year}-${mon}`;
+  return `${year}-${month.toString().padStart(2, "0")}`;
 }
 
-// Helper: Get days in a month
 function getDaysInMonth(month, year) {
   return new Date(year, month, 0).getDate();
-}
-
-function getSundaysInMonth(month, year) {
-  const monthDays = getDaysInMonth(month, year);
-  let sundays = 0;
-
-  for (let day = 1; day <= monthDays; day++) {
-    if (new Date(year, month - 1, day).getDay() === 0) {
-      sundays += 1;
-    }
-  }
-
-  return sundays;
 }
 
 function parsePositiveNumber(value) {
@@ -52,30 +37,23 @@ function parsePositiveNumber(value) {
 
 function parseMonthYear(monthyear) {
   if (!monthyear || typeof monthyear !== "string") return null;
-  const [y, m] = monthyear.split("-").map((v) => Number(v));
+  const [y, m] = monthyear.split("-").map(Number);
   if (!Number.isFinite(y) || !Number.isFinite(m) || m < 1 || m > 12) return null;
   return { year: y, month: m };
 }
 
 function safeDate(year, month, day) {
-  const daysInTargetMonth = getDaysInMonth(month, year);
-  const clampedDay = Math.min(Math.max(1, Number(day) || 1), daysInTargetMonth);
-  return new Date(Date.UTC(year, month - 1, clampedDay));
+  const clamped = Math.min(Math.max(1, Number(day) || 1), getDaysInMonth(month, year));
+  return new Date(Date.UTC(year, month - 1, clamped));
 }
 
 function countSundaysInRange(startDate, endDate) {
   if (!(startDate instanceof Date) || !(endDate instanceof Date)) return 0;
-  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime()))
-    return 0;
+  if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) return 0;
   if (startDate > endDate) return 0;
-
   let count = 0;
-  for (
-    let d = new Date(startDate);
-    d <= endDate;
-    d.setUTCDate(d.getUTCDate() + 1)
-  ) {
-    if (d.getUTCDay() === 0) count += 1;
+  for (let d = new Date(startDate); d <= endDate; d.setUTCDate(d.getUTCDate() + 1)) {
+    if (d.getUTCDay() === 0) count++;
   }
   return count;
 }
@@ -95,14 +73,10 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
   );
   if (monthDaysValue > 0) return monthDaysValue;
 
-  if (!year || !month) {
-    return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
-  }
+  if (!year || !month) return Math.max(1, getDaysInMonth(fallbackMonth, fallbackYear));
 
   const excludeSundaysRaw =
-    config?.ExcludeSunday ??
-    config?.excludeSundays ??
-    config?.excludesundays;
+    config?.ExcludeSunday ?? config?.excludeSundays ?? config?.excludesundays;
   const excludeSundays =
     excludeSundaysRaw === true ||
     excludeSundaysRaw === 1 ||
@@ -114,35 +88,30 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
   );
 
   const salaryStartFromRaw =
-    config?.SalaryStartFrom ??
-    config?.salaryStartFrom ??
-    config?.salarystartfrom ??
-    1;
+    config?.SalaryStartFrom ?? config?.salaryStartFrom ?? config?.salarystartfrom ?? 1;
   const salaryEndToRaw =
-    config?.SalaryEndTo ??
-    config?.salaryEndTo ??
-    config?.salaryendto ??
-    getDaysInMonth(month, year);
+    config?.SalaryEndTo ?? config?.salaryEndTo ?? config?.salaryendto ?? getDaysInMonth(month, year);
 
   let salaryStartFrom = Number(salaryStartFromRaw) || 0;
   let salaryEndTo = Number(salaryEndToRaw) || 0;
 
-  // Match backend behavior:
-  // If both are <=0, default to full month.
+  const refMonth = month === 1 ? 12 : month - 1;
+  const refYear = month === 1 ? year - 1 : year;
+
   if (salaryStartFrom <= 0 && salaryEndTo <= 0) {
     salaryStartFrom = 1;
-    salaryEndTo = getDaysInMonth(month, year);
+    salaryEndTo = getDaysInMonth(refMonth, refYear);
   }
 
   let startDate;
   if (salaryStartFrom <= salaryEndTo) {
-    startDate = safeDate(year, month, salaryStartFrom);
+    startDate = safeDate(refYear, refMonth, salaryStartFrom);
   } else {
-    const prevMonth = month === 1 ? 12 : month - 1;
-    const prevYear = month === 1 ? year - 1 : year;
+    const prevMonth = refMonth === 1 ? 12 : refMonth - 1;
+    const prevYear = refMonth === 1 ? refYear - 1 : refYear;
     startDate = safeDate(prevYear, prevMonth, salaryStartFrom);
   }
-  const endDate = safeDate(year, month, salaryEndTo || getDaysInMonth(month, year));
+  const endDate = safeDate(refYear, refMonth, salaryEndTo || getDaysInMonth(refMonth, refYear));
 
   const totalDays = Math.max(
     1,
@@ -159,64 +128,54 @@ function getComputedDivideByDays(config, monthyear, fallbackMonth, fallbackYear)
   return Math.max(1, totalDays - sundayCount);
 }
 
-function clampWorkingDaysToMonth(value, month, year) {
-  if (value === "" || value === null || value === undefined) return "";
-  const num = Number(value);
-  if (!Number.isFinite(num)) return "";
-  return Math.min(num, getDaysInMonth(month, year));
-}
+// ─── Component ───────────────────────────────────────────────────────────────
 
 export default function AttendanceSheet() {
   const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
   const reduxPropertyIds = useSelector((state) => state.Commonreducer.puidnlist);
+
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
-  const propertyId =
-    selectedPropertyId.length === 1
-      ? selectedPropertyId[0]
-      : reduxPropertyId || null;
+
   const effectivePropertyIds =
     selectedPropertyId.length > 0
       ? selectedPropertyId
       : Number(reduxPropertyId) > 0
         ? [Number(reduxPropertyId)]
         : [];
+
   const hasSingleEffectiveProperty = effectivePropertyIds.length === 1;
   const effectiveSinglePropertyId = hasSingleEffectiveProperty
     ? Number(effectivePropertyIds[0])
     : null;
 
-  const [employees, setEmployees] = useState([]);
+  // ── All employee data comes solely from attendance records ──
   const [filteredAttendance, setFilteredAttendance] = useState([]);
   const [selectedEmpIds, setSelectedEmpIds] = useState(new Set());
 
   const [unitList, setUnitList] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
-
   const [propertyList, setPropertyList] = useState([]);
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+
   const [departmentList, setDepartmentList] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState("");
 
-  useEffect(() => {
-    const close = () => setShowPropertyDropdown(false);
-    window.addEventListener("click", close);
-    return () => window.removeEventListener("click", close);
-  }, []);
-
-  // { empId: { divideByDays, monthDays, totalWorkingDays, excludeSunday, monthSundays } }
+  // employeeSGMap: { [empId]: { divideByDays, ...config } }
   const [employeeSGMap, setEmployeeSGMap] = useState({});
-
   const [dayInputs, setDayInputs] = useState({});
 
   const today = new Date();
-
   const prevMonthDate = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-
   const [month, setMonth] = useState(prevMonthDate.getMonth() + 1);
   const [year, setYear] = useState(prevMonthDate.getFullYear());
+
   const [searchTerm, setSearchTerm] = useState("");
   const [importing, setImporting] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
+
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictRecords, setConflictRecords] = useState([]);
   const [salaryGroupOptions, setSalaryGroupOptions] = useState([]);
@@ -225,88 +184,39 @@ export default function AttendanceSheet() {
   const [pendingUpload, setPendingUpload] = useState(null);
   const [confirmingUpload, setConfirmingUpload] = useState(false);
 
-  const lastValidationToastAtRef = useRef({});
-  const notifyValidation = (key, message) => {
-    const now = Date.now();
-    const last = Number(lastValidationToastAtRef.current?.[key]) || 0;
-    if (now - last < 1200) return; // throttle to avoid popup spam while typing
-    lastValidationToastAtRef.current = {
-      ...(lastValidationToastAtRef.current || {}),
-      [key]: now,
-    };
-    try {
-      appCommon.ShownotifyError(message);
-    } catch {
-      alert(message);
-    }
-  };
-const allEmployeesMap = {};
-
-employees.forEach((emp) => {
-  const id = emp?.FacilityMember?.FacilityMemberId;
-  if (id) allEmployeesMap[id] = emp;
-});
-
-filteredAttendance.forEach((att) => {
-  if (!allEmployeesMap[att.EmpID]) {
-    allEmployeesMap[att.EmpID] = {
-      FacilityMember: {
-        FacilityMemberId: att.EmpID,
-        PropertyId: att.PropertyID,
-      },
-      Profile: {
-        EmployeeCode: att.EmployeeCode,
-        EmployeeName: att.EmployeeName,
-      },
-      EmployeeList: {
-        Designation: att.Designation,
-      },
-    };
-  }
-});
-
-const finalEmployees = Object.values(allEmployeesMap);
-  useEffect(() => {
-    const days = getDaysInMonth(month, year);
-    setGlobalTotalDays(days);
-  }, [month, year]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm]);
-
-  useEffect(() => {
-    const days = getDaysInMonth(month, year);
-    setGlobalTotalDays(days);
-  }, [month, year]);
-
-  const totalDaysInSelectedMonth = getDaysInMonth(month, year);
-
-  const [globalTotalDays, setGlobalTotalDays] = useState(
-    totalDaysInSelectedMonth
-  );
-
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const attendanceLoadSeqRef = useRef(0);
+  const fileInputRef = useRef(null);
+
+  // ── Derived: build employee list from attendance data ──
+  const employeeMap = {};
+  filteredAttendance.forEach((att) => {
+    if (!employeeMap[att.EmpID]) {
+      employeeMap[att.EmpID] = {
+        EmpID: att.EmpID,
+        PropertyID: att.PropertyID,
+        EmployeeCode: att.EmployeeCode || "",
+        EmployeeName: att.EmployeeName || "",
+        Designation: att.Designation || "",
+        Department: att.Department || "",
+      };
+    }
+  });
+  const allEmployees = Object.values(employeeMap);
+
+  // Global divide-by-days fallback
+  const refMonth = month === 1 ? 12 : month - 1;
+  const refYear = month === 1 ? year - 1 : year;
+  const globalTotalDays = getDaysInMonth(refMonth, refYear);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const recordsPerPage = 20;
-  const filteredEmployees = finalEmployees.filter((emp) => {
-    const code = emp?.Profile?.EmployeeCode?.toLowerCase() || "";
-    const name =
-      emp?.Profile?.EmployeeName?.toLowerCase() ||
-      emp?.FacilityMember?.Name?.toLowerCase() ||
-      "";
-    const designation =
-      emp?.EmployeeList?.Designation?.toLowerCase() ||
-      emp?.Profile?.Designation?.toLowerCase() ||
-      "";
 
-    const department =
-      emp?.Profile?.Department?.toLowerCase() || "";
+  const filteredEmployees = allEmployees.filter((emp) => {
+    const code = (emp.EmployeeCode || "").toLowerCase();
+    const name = (emp.EmployeeName || "").toLowerCase();
+    const designation = (emp.Designation || "").toLowerCase();
+    const department = (emp.Department || "").toLowerCase();
 
     const matchesSearch =
       code.includes(searchTerm.toLowerCase()) ||
@@ -314,414 +224,280 @@ const finalEmployees = Object.values(allEmployeesMap);
       designation.includes(searchTerm.toLowerCase());
 
     const matchesDepartment =
-      !selectedDepartment ||
-      department === selectedDepartment.toLowerCase();
+      !selectedDepartment || department === selectedDepartment.toLowerCase();
 
     return matchesSearch && matchesDepartment;
   });
 
   const totalPages = Math.ceil(filteredEmployees.length / recordsPerPage);
-
   const paginatedEmployees = filteredEmployees.slice(
     (currentPage - 1) * recordsPerPage,
     currentPage * recordsPerPage
   );
 
-  // Current system date
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-
-  // Month-year dropdowns
+  // Month/year options
+  const currentYear = today.getFullYear();
+  const currentMonth = today.getMonth() + 1;
   const years = [];
   for (let y = 2021; y <= currentYear; y++) years.push(y);
-
   const maxMonth = year === currentYear ? currentMonth - 1 : 12;
   const months = [];
   for (let m = 1; m <= maxMonth; m++) months.push(m);
-
-  const monthNames = [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep",
-    "Oct",
-    "Nov",
-    "Dec",
-  ];
+  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   const baseExtraFields = {
-    EL: "",
-    CL: "",
-    SL: "",
-    nhDays: "",
-    fhDays: "",
-    holidays: "",
-    divideByDays: "",
-    otMonthDays: "",
-    pfArrear: "",
-    otherArrear: "",
-    incentive: "",
-    advanceDed: "",
-    uniformDed: "",
-    bgvDed: "",
-    roomDed: "",
-    fineDed: "",
-    joiningKits: "",
-    otherDed: "",
-    foodDed: "",
-    status: "",
+    EL: "", CL: "", SL: "",
+    nhDays: "", fhDays: "", holidays: "",
+    divideByDays: "", otMonthDays: "",
+    pfArrear: "", otherArrear: "", incentive: "",
+    advanceDed: "", uniformDed: "", bgvDed: "",
+    roomDed: "", fineDed: "", joiningKits: "",
+    otherDed: "", foodDed: "", status: "",
   };
 
-  const fileInputRef = React.useRef(null);
+  // ── Close property dropdown on outside click ──
+  useEffect(() => {
+    const close = () => setShowPropertyDropdown(false);
+    window.addEventListener("click", close);
+    return () => window.removeEventListener("click", close);
+  }, []);
 
-  const getConflictKey = (record, idx = 0) => {
-    const empPart =
-      record?.FacilityMemberId ||
-      record?.EmpID ||
-      record?.FMId ||
-      record?.EmpCode ||
-      record?.EmployeeCode ||
-      `idx-${idx}`;
-    const designationPart =
-      record?.DesignationId ??
-      record?.Designation_ID ??
-      record?.DesignationMasterId ??
-      "no-designation";
-    const monthPart = record?.MonthYear || record?.monthyear || "no-month";
-    return `${empPart}__${designationPart}__${monthPart}`;
-  };
+  // Reset page on search change
+  useEffect(() => { setCurrentPage(1); }, [searchTerm, selectedDepartment]);
 
-  const normalizeSalaryGroupOptions = (rows = []) => {
-    const normalized = [];
-    (rows || []).forEach((row) => {
-      const fallbackIds = Array.isArray(row?.SalaryGroup_IDs)
-        ? row.SalaryGroup_IDs
-        : [];
-      const primaryId =
-        row?.SalaryGroup_ID ||
-        row?.SalaryGroupId ||
-        fallbackIds[0] ||
-        row?.Id ||
-        0;
-      const id = Number(primaryId);
-      if (!Number.isFinite(id) || id <= 0) return;
-
-      normalized.push({
-        id,
-        name:
-          row?.SalaryGroup ||
-          row?.SalaryGroupName ||
-          row?.Name ||
-          `Salary Group ${id}`,
-      });
-    });
-
-    const seen = new Set();
-    return normalized.filter((item) => {
-      if (seen.has(item.id)) return false;
-      seen.add(item.id);
-      return true;
-    });
-  };
-
-  const parseBlobJson = async (blob) => {
-    try {
-      const text = await blob.text();
-      if (!text) return null;
-      return JSON.parse(text);
-    } catch {
-      return null;
-    }
-  };
-
-  const openCrossPropertyConflictModal = async (
-    conflicts,
-    propertyId,
-    monthyear,
-    file
-  ) => {
-    const safeConflicts = Array.isArray(conflicts) ? conflicts : [];
-    if (!safeConflicts.length) return;
-
-    let options = [];
-    try {
-      const sgRows = await getSalaryAllowancesByProperty(propertyId);
-      options = normalizeSalaryGroupOptions(sgRows || []);
-    } catch (err) {
-      console.error("Failed to load salary groups for conflict resolution:", err);
-      options = [];
-    }
-
-    if (!options.length) {
-      alert(
-        "Cross-property employees found, but no salary group is available for this property. Please create salary group first."
-      );
-      return;
-    }
-
-    const defaultMap = {};
-    const optionMap = {};
-    safeConflicts.forEach((record, idx) => {
-      const key = getConflictKey(record, idx);
-      const conflictSpecificOptions = normalizeSalaryGroupOptions(
-        record?.SalaryGroupOptions ||
-        record?.SalaryGroups ||
-        record?.AvailableSalaryGroups ||
-        []
-      );
-      const mergedOptions = conflictSpecificOptions.length
-        ? conflictSpecificOptions
-        : options;
-      optionMap[key] = mergedOptions;
-      defaultMap[key] = mergedOptions.length ? String(mergedOptions[0].id) : "";
-    });
-
-    setSalaryGroupOptions(options);
-    setConflictSalaryOptionsMap(optionMap);
-    setSalaryGroupMap(defaultMap);
-    setConflictRecords(safeConflicts);
-    setPendingUpload({ file, propertyId, monthyear });
-    setShowConflictModal(true);
-  };
-
-  const handleUploadResponse = async (res, file, propertyId, monthyear) => {
-    const contentType = res?.headers?.["content-type"] || "";
-    const responseBlob = res?.data;
-
-    if (contentType.includes("application/vnd.openxmlformats")) {
-      const blob = new Blob([responseBlob]);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "AttendanceErrors.xlsx";
-      link.click();
-      alert("Some employees were invalid. Error file downloaded.");
-      return { handled: true };
-    }
-
-    const data = await parseBlobJson(responseBlob);
-    if (!data) {
-      alert("Unexpected upload response received.");
-      return { handled: true };
-    }
-
-    if (data.requiresConfirmation && Array.isArray(data.conflicts)) {
-      await openCrossPropertyConflictModal(
-        data.conflicts,
-        propertyId,
-        monthyear,
-        file
-      );
-      return { handled: true, confirmationNeeded: true };
-    }
-
-    alert(data?.message || "Attendance uploaded successfully!");
-    return { handled: true };
-  };
-
-  const handleUploadErrorResponse = async (err, file, propertyId, monthyear) => {
-    try {
-      const errorBlob = err?.response?.data;
-      if (!errorBlob || typeof errorBlob.text !== "function") return false;
-      const data = await parseBlobJson(errorBlob);
-      if (!data) return false;
-
-      if (data.requiresConfirmation && Array.isArray(data.conflicts)) {
-        await openCrossPropertyConflictModal(
-          data.conflicts,
-          propertyId,
-          monthyear,
-          file
-        );
-        return true;
-      }
-
-      if (data.message || data.error) {
-        alert(data.message || data.error);
-        return true;
-      }
-      return false;
-    } catch {
-      return false;
-    }
-  };
-
-  const closeConflictModal = () => {
-    if (confirmingUpload) return;
-    setShowConflictModal(false);
-    setConflictRecords([]);
-    setSalaryGroupOptions([]);
-    setSalaryGroupMap({});
-    setConflictSalaryOptionsMap({});
-    setPendingUpload(null);
-  };
-
-  const confirmCrossPropertyUpload = async () => {
-    if (!pendingUpload || !conflictRecords.length) {
-      closeConflictModal();
-      return;
-    }
-
-    const missingSelection = conflictRecords.some((record, idx) => {
-      const key = getConflictKey(record, idx);
-      const selected = Number(salaryGroupMap[key]);
-      return !Number.isFinite(selected) || selected <= 0;
-    });
-
-    if (missingSelection) {
-      alert("Please select salary group for all conflict rows.");
-      return;
-    }
-
-    const mappings = conflictRecords.map((record, idx) => {
-      const key = getConflictKey(record, idx);
-      const salaryGroupId = Number(salaryGroupMap[key]);
-      return {
-        EmpCode: record?.EmpCode || record?.EmployeeCode || "",
-        FacilityMemberId:
-          record?.FacilityMemberId ||
-          record?.EmpID ||
-          record?.FMId ||
-          null,
-        PropertyId: pendingUpload.propertyId,
-        SalaryGroupId: salaryGroupId,
-        DesignationId:
-          record?.DesignationId ??
-          record?.Designation_ID ??
-          record?.DesignationMasterId ??
-          null,
-        MonthYear:
-          pendingUpload.monthyear ||
-          record?.MonthYear ||
-          record?.monthyear ||
-          "",
-      };
-    });
-
-    setConfirmingUpload(true);
-    try {
-      const res = await uploadAttendance(
-        pendingUpload.file,
-        pendingUpload.propertyId,
-        pendingUpload.monthyear,
-        {
-          forceUpload: true,
-          crossPropertyMappings: mappings,
+  // ── Load clients ──
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const res = await getAllClients();
+        setUnitList(res || []);
+        if (Number(reduxClientId) > 0) {
+          setSelectedUnitId(Number(reduxClientId));
+        } else if (Number(reduxPropertyId) > 0) {
+          const clientRes = await getClientByPropertyId(reduxPropertyId);
+          setSelectedUnitId(clientRes?.ClientID || null);
         }
-      );
-
-      const handled = await handleUploadResponse(
-        res,
-        pendingUpload.file,
-        pendingUpload.propertyId,
-        pendingUpload.monthyear
-      );
-
-      if (!handled?.confirmationNeeded) {
-        closeConflictModal();
-        await reloadAttendanceData();
+      } catch (err) {
+        console.error("Failed to load clients", err);
       }
-    } catch (err) {
-      const handledError = await handleUploadErrorResponse(
-        err,
-        pendingUpload.file,
-        pendingUpload.propertyId,
-        pendingUpload.monthyear
-      );
-      if (handledError) return;
-      console.error("Confirmed upload failed:", err);
-      alert("Upload failed after confirmation.");
-    } finally {
-      setConfirmingUpload(false);
-    }
-  };
+    };
+    load();
+  }, [reduxClientId, reduxPropertyId]);
 
-  async function handleImportClick() {
-    if (!hasSingleEffectiveProperty) {
-      alert("Please select exactly ONE unit before uploading attendance.");
-      return;
-    }
+  // ── Load properties when client changes ──
+  useEffect(() => {
+    const load = async () => {
+      try {
+        if (!selectedUnitId) {
+          setPropertyList([]);
+          setSelectedPropertyId([]);
+          return;
+        }
+        const res = await getPropertiesByClientId(selectedUnitId);
+        const properties = res || [];
+        setPropertyList(properties);
+        const allIds = properties.map((p) => p.PropertyId);
+        if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
+        else setSelectedPropertyId(allIds);
+      } catch (err) {
+        console.error("Failed to load properties", err);
+      }
+    };
+    load();
+  }, [selectedUnitId, reduxPropertyId]);
 
-    fileInputRef.current.click();
-  }
+  // ── Core: load attendance — this is the ONLY source of employee data ──
+  useEffect(() => {
+    setCurrentPage(1);
+    const controller = new AbortController();
 
-  async function handleFileChange(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-    const monthyear = getMonthYearString(month, year);
+    async function loadAttendance() {
+      const propertyIds =
+        selectedPropertyId.length > 0
+          ? selectedPropertyId
+          : Number(reduxPropertyId) > 0
+            ? [Number(reduxPropertyId)]
+            : Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0
+              ? reduxPropertyIds
+              : [];
 
-    setImporting(true);
-
-    try {
-      if (!effectiveSinglePropertyId) {
-        alert("Invalid property selection.");
+      if (!propertyIds.length) {
+        setFilteredAttendance([]);
+        setDayInputs({});
+        setSelectedEmpIds(new Set());
         return;
       }
 
-      const res = await uploadAttendance(file, effectiveSinglePropertyId, monthyear);
-      const handled = await handleUploadResponse(
-        res,
-        file,
-        effectiveSinglePropertyId,
-        monthyear
-      );
-      if (!handled?.confirmationNeeded) {
-        await reloadAttendanceData();
+      const seq = (attendanceLoadSeqRef.current || 0) + 1;
+      attendanceLoadSeqRef.current = seq;
+      setAttendanceLoading(true);
+
+      try {
+        const currMonthYear = getMonthYearString(month, year);
+
+        const [attResponse, otData] = await Promise.allSettled([
+          getAttendanceByProperties(propertyIds, currMonthYear, { signal: controller.signal }),
+          propertyIds.length === 1
+            ? getEmployeeMonthlyTotalOT(propertyIds[0], month, year, { signal: controller.signal })
+            : Promise.resolve([]),
+        ]);
+
+        const safeData = attResponse.status === "fulfilled" && Array.isArray(attResponse.value)
+          ? attResponse.value
+          : [];
+
+        const otList =
+          otData.status === "fulfilled" && Array.isArray(otData.value) ? otData.value : [];
+
+        setFilteredAttendance(safeData);
+
+        // Derive department list from attendance data
+        const departments = [...new Set(safeData.map((a) => a.Department).filter(Boolean))];
+        setDepartmentList(departments);
+        setSelectedDepartment("");
+
+        // Build dayInputs from attendance records
+        const mappedInputs = {};
+        safeData.forEach((att) => {
+          const key = `${att.EmpID}_${att.AttendanceId}`;
+          const otMatch = otList.find((ot) => ot.EmployeeCode === att.EmployeeCode);
+
+          mappedInputs[key] = {
+            workingDays: att.WorkingDays ?? "",
+            EL: att.EL ?? "",
+            CL: att.CL ?? "",
+            SL: att.SL ?? "",
+            weekDaysOff: att.WeekDaysOff ?? "",
+            otDays: att.OtDays ?? (otMatch?.OtDays ?? ""),
+            otHours: att.OtHours ?? (otMatch?.OtHours ?? ""),
+            totalDays: att.PayableDays ?? "",
+            manualTotalDays: false,
+            nhDays: att.NHDays ?? "",
+            fhDays: att.FHDays ?? "",
+            holidays: att.Holidays ?? "",
+            divideByDays: att.DivideByDays ?? globalTotalDays,
+            otMonthDays: att.OtMonthDays ?? "",
+            pfArrear: att.PFArrear ?? "",
+            otherArrear: att.OtherArrear ?? "",
+            incentive: att.Incentive ?? "",
+            advanceDed: att.AdvanceDed ?? "",
+            uniformDed: att.UniformDed ?? "",
+            bgvDed: att.BGVDed ?? "",
+            roomDed: att.RoomDed ?? "",
+            fineDed: att.FineDed ?? "",
+            joiningKits: att.JoiningKits ?? "",
+            otherDed: att.OtherDed ?? "",
+            foodDed: att.FoodDed ?? "",
+            status: att.Status ?? "",
+          };
+        });
+
+        setDayInputs(mappedInputs);
+        setSelectedEmpIds(new Set());
+      } catch (err) {
+        if (err?.name === "CanceledError" || err?.name === "AbortError") return;
+        if (err?.response?.status === 404) {
+          setFilteredAttendance([]);
+          setDayInputs({});
+          setSelectedEmpIds(new Set());
+          setDepartmentList([]);
+        } else {
+          console.error("Attendance load failed:", err);
+          appCommon.ShownotifyError("Failed to load attendance.");
+        }
+      } finally {
+        if (seq === attendanceLoadSeqRef.current) setAttendanceLoading(false);
       }
-    } catch (err) {
-      const handledError = await handleUploadErrorResponse(
-        err,
-        file,
-        effectiveSinglePropertyId,
-        monthyear
-      );
-      if (handledError) return;
-      console.error("Upload failed:", err);
-      alert("Upload failed.");
-    } finally {
-      setImporting(false);
-      e.target.value = null;
     }
-  }
+
+    loadAttendance();
+    return () => controller.abort();
+  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, month, year]);
+
+  // ── Load facility salary config (for divideByDays per employee) ──
+  useEffect(() => {
+    const controller = new AbortController();
+
+    async function loadFacilityConfig() {
+      const propertyIds = effectivePropertyIds
+        .map(Number)
+        .filter((id) => Number.isFinite(id) && id > 0);
+
+      if (!propertyIds.length || !filteredAttendance.length) {
+        setEmployeeSGMap({});
+        return;
+      }
+
+      const map = {};
+
+      for (const officeId of propertyIds) {
+        try {
+          const res = await getFacilitySalaryConfig(officeId, { signal: controller.signal });
+          const rows = Array.isArray(res) ? res : [];
+          rows.forEach((cfg) => {
+            const fmId = cfg?.FacilityMemberId;
+            if (!fmId) return;
+            const normalizedConfig = {
+              TotalWorkingDays: cfg?.TotalWorkingDays ?? cfg?.totalWorkingDays ?? cfg?.totalworkingdays ?? null,
+              MonthDays: cfg?.MonthDays ?? cfg?.monthDays ?? cfg?.monthdays ?? null,
+              ExcludeSunday: cfg?.ExcludeSunday ?? cfg?.excludeSundays ?? cfg?.excludesundays ?? false,
+              MonthSundays: cfg?.MonthSundays ?? cfg?.monthSundays ?? cfg?.monthsundays ?? null,
+              SalaryStartFrom: cfg?.SalaryStartFrom ?? cfg?.salaryStartFrom ?? cfg?.salarystartfrom ?? null,
+              SalaryEndTo: cfg?.SalaryEndTo ?? cfg?.salaryEndTo ?? cfg?.salaryendto ?? null,
+            };
+            map[fmId] = {
+              ...normalizedConfig,
+              divideByDays: getComputedDivideByDays(
+                normalizedConfig,
+                getMonthYearString(month, year),
+                month,
+                year
+              ),
+            };
+          });
+        } catch (err) {
+          if (err?.name === "AbortError") return;
+          console.error("Facility salary config load error:", err);
+        }
+      }
+
+      setEmployeeSGMap(map);
+    }
+
+    loadFacilityConfig();
+    return () => controller.abort();
+  }, [filteredAttendance, month, year, selectedPropertyId, reduxPropertyId]);
+
+  // ── Reload helper ──
   async function reloadAttendanceData() {
+    const propertyIds =
+      selectedPropertyId.length > 0
+        ? selectedPropertyId
+        : Number(reduxPropertyId) > 0
+          ? [Number(reduxPropertyId)]
+          : [];
+
+    if (!propertyIds.length) return;
+
     const seq = (attendanceLoadSeqRef.current || 0) + 1;
     attendanceLoadSeqRef.current = seq;
     setAttendanceLoading(true);
 
     try {
       const currMonthYear = getMonthYearString(month, year);
-
-      const propertyIds =
-        selectedPropertyId.length > 0
-          ? selectedPropertyId
-          : reduxPropertyId
-            ? [reduxPropertyId]
-            : [];
-
-      if (!propertyIds.length) {
-        console.warn("No property selected for reload");
-        return;
-      }
-
       const response = await getAttendanceByProperties(propertyIds, currMonthYear);
-      const flat = response?.flatMap((p) => p.Employees || []) || [];
+      const safeData = Array.isArray(response) ? response : [];
 
-      setFilteredAttendance(flat);
+      setFilteredAttendance(safeData);
+
+      const departments = [...new Set(safeData.map((a) => a.Department).filter(Boolean))];
+      setDepartmentList(departments);
 
       const mappedInputs = {};
-      flat.forEach((att) => {
-        const configDivideByDays =
-          employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays;
-
-        const key = `${att.EmpID}_${att.AttendanceID}`;
-
+      safeData.forEach((att) => {
+        const key = `${att.EmpID}_${att.AttendanceId}`;
         mappedInputs[key] = {
-          workingDays: clampWorkingDaysToMonth(att.WorkingDays, month, year),
+          workingDays: att.WorkingDays ?? "",
           EL: att.EL ?? "",
           CL: att.CL ?? "",
           SL: att.SL ?? "",
@@ -733,10 +509,7 @@ const finalEmployees = Object.values(allEmployeesMap);
           nhDays: att.NHDays ?? "",
           fhDays: att.FHDays ?? "",
           holidays: att.Holidays ?? "",
-          divideByDays:
-            att.DivideByDays ??
-            configDivideByDays ??
-            globalTotalDays,
+          divideByDays: att.DivideByDays ?? employeeSGMap[att.EmpID]?.divideByDays ?? globalTotalDays,
           otMonthDays: att.OtMonthDays ?? "",
           pfArrear: att.PFArrear ?? "",
           otherArrear: att.OtherArrear ?? "",
@@ -757,473 +530,167 @@ const finalEmployees = Object.values(allEmployeesMap);
       setSelectedEmpIds(new Set());
     } catch (err) {
       console.error("Attendance refresh failed:", err);
-      try {
-        appCommon.ShownotifyError("Failed to refresh attendance.");
-      } catch {
-        alert("Failed to refresh attendance.");
-      }
+      appCommon.ShownotifyError("Failed to refresh attendance.");
     } finally {
-      if (seq === attendanceLoadSeqRef.current) {
-        setAttendanceLoading(false);
-      }
+      if (seq === attendanceLoadSeqRef.current) setAttendanceLoading(false);
     }
   }
 
-  useEffect(() => {
-    const loadUnits = async () => {
-      try {
-        if (Number(reduxClientId) > 0) {
-          setSelectedUnitId(Number(reduxClientId));
-          return;
-        }
-        if (Number(reduxPropertyId) > 0) {
-          const res = await getClientByPropertyId(reduxPropertyId);
-          setUnitList(res ? [res] : []);
-          setSelectedUnitId(res?.ClientID || null);
-        } else {
-          const res = await getAllClients();
-          setUnitList(res || []);
-        }
-      } catch (err) {
-        console.log("Failed to load units", err);
-      }
-    };
+  // ── Input handling ──
+  function handleInputChange(rowKey, field, value) {
+    if (field !== "status" && !/^\d*\.?\d*$/.test(value)) return;
 
-    loadUnits();
-  }, [reduxClientId, reduxPropertyId]);
+    setDayInputs((prev) => {
+      const current = prev[rowKey] || {
+        ...baseExtraFields,
+        workingDays: "", weekDaysOff: "", otDays: "", otHours: "",
+        totalDays: globalTotalDays, manualTotalDays: false,
+        divideByDays: globalTotalDays,
+      };
 
-  useEffect(() => {
-    const loadProperties = async () => {
-      try {
-        if (!selectedUnitId) {
-          setPropertyList([]);
-          setSelectedPropertyId([]);
-          return;
-        }
+      const updated = { ...current, [field]: value };
 
-        const res = await getPropertiesByClientId(selectedUnitId);
-        const properties = res || [];
+      if (field === "totalDays") updated.manualTotalDays = true;
+      if (field === "divideByDays") updated.manualDivideByDays = true;
 
-        setPropertyList(properties);
+      const monthDaysLimit = 31;
 
-        // ✅ Select ALL properties by default
-        const allIds = properties.map((p) => p.PropertyId);
-        if (Number(reduxPropertyId) > 0) setSelectedPropertyId([Number(reduxPropertyId)]);
-        else setSelectedPropertyId(allIds);
-      } catch (err) {
-        console.log("Failed to load properties", err);
-      }
-    };
+      const totalDaysInputNum =
+        field === "totalDays" ? Number(value) : Number(updated.totalDays);
+      let totalDaysResolved =
+        Number.isFinite(totalDaysInputNum) && totalDaysInputNum > 0
+          ? totalDaysInputNum
+          : Number(current.totalDays) || globalTotalDays;
 
-    loadProperties();
-  }, [selectedUnitId, reduxPropertyId]);
-
-  // ---------------------------------------------------------
-  // Load Employees
-  // ---------------------------------------------------------
-  useEffect(() => {
-    const loadEmployees = async () => {
-      try {
-        let officeIds = [];
-
-        if (selectedPropertyId.length > 0) {
-          officeIds = selectedPropertyId;
-        } else if (Number(reduxPropertyId) > 0) {
-          officeIds = [Number(reduxPropertyId)];
-        } else if (Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0) {
-          officeIds = reduxPropertyIds;
-        }
-
-        officeIds = officeIds
-          .map((id) => Number(id))
-          .filter((id) => Number.isFinite(id) && id > 0);
-
-        if (!officeIds.length) {
-          setEmployees([]);
-          setDepartmentList([]);
-          setSelectedDepartment("");
-          return;
-        }
-
-        const monthYearForEmployees = getMonthYearString(month, year);
-        const data = await getEmployeesByOfficesWithAttendance(
-          officeIds,
-          monthYearForEmployees
-        );
-        setEmployees(data || []);
-        setSelectedDepartment("");
-        const departments = [
-          ...new Set(
-            (data || [])
-              .map((emp) => emp?.Profile?.Department)
-              .filter(Boolean)
-          ),
-        ];
-
-        setDepartmentList(departments);
-      } catch (err) {
-        console.error("Employee load failed", err);
-        setEmployees([]);
-      }
-    };
-
-    loadEmployees();
-  }, [selectedPropertyId, reduxPropertyId, reduxPropertyIds, month, year]);
-
-  // ---------------------------------------------------------
-  // Load facility salary config
-  // ---------------------------------------------------------
-  useEffect(() => {
-    async function loadFacilityConfig() {
-      const propertyIds =
-        selectedPropertyId.length > 0
-          ? selectedPropertyId
-          : Number(reduxPropertyId) > 0
-            ? [Number(reduxPropertyId)]
-            : Array.isArray(reduxPropertyIds) && reduxPropertyIds.length > 0
-              ? reduxPropertyIds
-              : [];
-
-      const cleanedPropertyIds = propertyIds
-        .map((id) => Number(id))
-        .filter((id) => Number.isFinite(id) && id > 0);
-
-      if (!cleanedPropertyIds.length || !employees.length) {
-        setEmployeeSGMap({});
-        return;
+      if (totalDaysResolved > monthDaysLimit) {
+        updated.totalDays = String(monthDaysLimit);
+        totalDaysResolved = monthDaysLimit;
       }
 
-      const map = {};
-
-      for (const officeId of cleanedPropertyIds) {
-        try {
-          const res = await getFacilitySalaryConfig(officeId);
-          const rows = Array.isArray(res) ? res : [];
-
-          rows.forEach((cfg) => {
-            const fmId = cfg?.FacilityMemberId;
-            if (!fmId) return;
-
-            const normalizedConfig = {
-              TotalWorkingDays:
-                cfg?.TotalWorkingDays ?? cfg?.totalWorkingDays ?? cfg?.totalworkingdays ?? null,
-              MonthDays: cfg?.MonthDays ?? cfg?.monthDays ?? cfg?.monthdays ?? null,
-              ExcludeSunday:
-                cfg?.ExcludeSunday ?? cfg?.excludeSundays ?? cfg?.excludesundays ?? false,
-              MonthSundays:
-                cfg?.MonthSundays ?? cfg?.monthSundays ?? cfg?.monthsundays ?? null,
-              SalaryStartFrom:
-                cfg?.SalaryStartFrom ?? cfg?.salaryStartFrom ?? cfg?.salarystartfrom ?? null,
-              SalaryEndTo: cfg?.SalaryEndTo ?? cfg?.salaryEndTo ?? cfg?.salaryendto ?? null,
-            };
-
-            map[fmId] = {
-              ...normalizedConfig,
-              divideByDays: getComputedDivideByDays(
-                normalizedConfig,
-                getMonthYearString(month, year),
-                month,
-                year
-              ),
-            };
-          });
-        } catch (err) {
-          console.error("Facility salary config load error:", err);
-        }
+      if (field === "divideByDays" && Number(value) > monthDaysLimit) {
+        updated.divideByDays = String(monthDaysLimit);
       }
 
-      setEmployeeSGMap(map);
-    }
-
-    loadFacilityConfig();
-  }, [
-    employees,
-    month,
-    year,
-    selectedPropertyId,
-    reduxPropertyId,
-    reduxPropertyIds,
-  ]);
-
-  // ---------------------------------------------------------
-  // Load attendance (ALL records), then filter current month
-  // ---------------------------------------------------------
-  useEffect(() => {
-    setCurrentPage(1);
-
-    async function loadAttendance() {
-      if (!employees.length) return;
-      let seq = 0;
-      try {
-        // 🔹 Decide which properties to use
-        const propertyIds =
-          selectedPropertyId.length > 0
-            ? selectedPropertyId
-            : reduxPropertyId
-              ? [reduxPropertyId]
-              : [];
-
-        if (!propertyIds.length) return;
-
-        seq = (attendanceLoadSeqRef.current || 0) + 1;
-        attendanceLoadSeqRef.current = seq;
-        setAttendanceLoading(true);
-
-        const currMonthYear = getMonthYearString(month, year);
-
-        // 🔹 NEW MULTI PROPERTY API
-        const response = await getAttendanceByProperties(
-          propertyIds,
-          currMonthYear
-        );
-
-        // 🔥 Flatten structure
-        const safeData =
-          response?.flatMap((p) => p.Employees || []) || [];
-
-        setFilteredAttendance(safeData);
-        const filtered = safeData;
-
-        // 🔹 Fetch OT hours (still single property based if needed)
-        let otData = [];
-        try {
-          if (propertyIds.length === 1) {
-            otData = await getEmployeeMonthlyTotalOT(
-              propertyIds[0],
-              month,
-              year
-            );
-          }
-        } catch (err) {
-          console.error("OT load failed:", err);
-        }
-
-
-       const mappedInputs = {};
-
-filtered.forEach((att) => {
-  const empId = att.EmpID;
-  const key = `${att.EmpID}_${att.AttendanceID}`;
-
-  const emp = employees.find(
-    (e) => e?.FacilityMember?.FacilityMemberId === empId
-  );
-
-  const empCode = emp?.Profile?.EmployeeCode;
-
-  const otMatch = otData?.find(
-    (ot) => ot.EmployeeCode === empCode
-  );
-
-  mappedInputs[key] = {
-    workingDays: clampWorkingDaysToMonth(att.WorkingDays ?? "", month, year),
-    EL: att.EL ?? "",
-    CL: att.CL ?? "",
-    SL: att.SL ?? "",
-    weekDaysOff: att.WeekDaysOff ?? "",
-    otDays: att.OtDays ?? "",
-    otHours:
-      att?.OtHours !== null &&
-      att?.OtHours !== undefined &&
-      att?.OtHours !== ""
-        ? att.OtHours
-        : otMatch?.TotalOTHours ?? "",
-    totalDays: att.PayableDays ?? "",
-    manualTotalDays: false,
-    nhDays: att.NHDays ?? "",
-    fhDays: att.FHDays ?? "",
-    holidays: att.Holidays ?? "",
-    divideByDays:
-      att.DivideByDays ??
-      employeeSGMap[empId]?.divideByDays ??
-      globalTotalDays,
-    otMonthDays: att.OtMonthDays ?? "",
-    pfArrear: att.PFArrear ?? "",
-    otherArrear: att.OtherArrear ?? "",
-    incentive: att.Incentive ?? "",
-    advanceDed: att.AdvanceDed ?? "",
-    uniformDed: att.UniformDed ?? "",
-    bgvDed: att.BGVDed ?? "",
-    roomDed: att.RoomDed ?? "",
-    fineDed: att.FineDed ?? "",
-    joiningKits: att.JoiningKits ?? "",
-    otherDed: att.OtherDed ?? "",
-    foodDed: att.FoodDed ?? "",
-    status: att.Status ?? "",
-  };
-});
-
-        setDayInputs(mappedInputs);
-        setSelectedEmpIds(new Set());
-      } catch (err) {
-        if (err?.response?.status === 404) {
-          setFilteredAttendance([]);
-          setDayInputs({});
-          setSelectedEmpIds(new Set());
-        } else {
-          console.error("Attendance load failed:", err);
-        }
-      } finally {
-        if (seq && seq === attendanceLoadSeqRef.current) {
-          setAttendanceLoading(false);
-        }
+      const fieldsToCheck = ["workingDays", "EL", "CL", "SL", "weekDaysOff"];
+      if (fieldsToCheck.includes(field)) {
+        const v = Number(updated[field]) || 0;
+        if (v > totalDaysResolved) updated[field] = String(totalDaysResolved);
       }
-    }
 
-    loadAttendance();
-  }, [
-    selectedPropertyId,
-    reduxPropertyId,
-    month,
-    year,
-    employees,
-    employeeSGMap,
-  ]);
+      const w = parseFloat(updated.workingDays) || 0;
+      const el = parseFloat(updated.EL) || 0;
+      const cl = parseFloat(updated.CL) || 0;
+      const sl = parseFloat(updated.SL) || 0;
+      const wk = parseFloat(updated.weekDaysOff) || 0;
+      const total = w + el + cl + sl + wk;
 
-  // ---------------------------------------------------------
-  // Checkbox toggle
-  // ---------------------------------------------------------
- function toggleCheckbox(rowKey) {
-  setSelectedEmpIds((prev) => {
-    const next = new Set(prev);
-
-    if (next.has(rowKey)) {
-      next.delete(rowKey);
-    } else {
-      next.add(rowKey);
-
-      if (!dayInputs[rowKey]) {
-        setDayInputs((old) => ({
-          ...old,
-          [rowKey]: {
-            ...baseExtraFields,
-            workingDays: "",
-            weekDaysOff: "",
-            otDays: "",
-            otHours: "",
-            totalDays: "",
-            manualTotalDays: false,
-          },
-        }));
+      if (total > totalDaysResolved) {
+        const sumOther = total - (Number(updated[field]) || 0);
+        const remaining = Math.max(0, totalDaysResolved - sumOther);
+        updated[field] = String(remaining);
       }
-    }
 
-    return next;
-  });
-}
+      return { ...prev, [rowKey]: updated };
+    });
+  }
 
-  // ---------------------------------------------------------
-  // Handle per-employee input (manual override supported)
-  // ---------------------------------------------------------
- function handleInputChange(rowKey, field, value) {
-  if (field !== "status" && !/^\d*\.?\d*$/.test(value)) return;
+  // ── Checkbox ──
+  function toggleCheckbox(rowKey, att = {}, empId = null) {
+    setSelectedEmpIds((prev) => {
+      const next = new Set(prev);
 
-  setDayInputs((prev) => {
-    const current = prev[rowKey] || {
-      ...baseExtraFields,
-      workingDays: "",
-      weekDaysOff: "",
-      otDays: "",
-      otHours: "",
-      totalDays: globalTotalDays,
-      manualTotalDays: false,
-      divideByDays: globalTotalDays,
-    };
+      if (next.has(rowKey)) {
+        next.delete(rowKey);
+      } else {
+        next.add(rowKey);
 
-    const updated = { ...current, [field]: value };
+        setDayInputs((old) => {
+          if (old[rowKey]) return old;
 
-    if (field === "totalDays") {
-      updated.manualTotalDays = true;
-    }
+          return {
+            ...old,
+            [rowKey]: {
+              ...baseExtraFields,
 
-    const monthDaysLimit = getDaysInMonth(month, year);
+              workingDays: att?.WorkingDays ?? "",
+              EL: att?.EL ?? "",
+              CL: att?.CL ?? "",
+              SL: att?.SL ?? "",
+              weekDaysOff: att?.WeekDaysOff ?? "",
+              otDays: att?.OtDays ?? "",
+              otHours: att?.OtHours ?? "",
+              totalDays: att?.PayableDays ?? "",
+              nhDays: att?.NHDays ?? "",
+              fhDays: att?.FHDays ?? "",
+              holidays: att?.Holidays ?? "",
 
-    // 🔥 VALIDATION (same logic, just no empId dependency)
+              divideByDays: att?.AttendanceId
+                ? (att.DivideByDays ?? "")
+                : (employeeSGMap[empId]?.divideByDays ?? globalTotalDays),
 
-    const totalDaysInputNum =
-      field === "totalDays" ? Number(value) : Number(updated.totalDays);
-
-    let totalDaysResolved =
-      Number.isFinite(totalDaysInputNum) && totalDaysInputNum > 0
-        ? totalDaysInputNum
-        : Number(current.totalDays) || globalTotalDays;
-
-    if (totalDaysResolved > monthDaysLimit) {
-      updated.totalDays = String(monthDaysLimit);
-      totalDaysResolved = monthDaysLimit;
-    }
-
-    const fieldsToCheck = ["workingDays", "EL", "CL", "SL", "weekDaysOff"];
-
-    if (fieldsToCheck.includes(field)) {
-      const v = Number(updated[field]) || 0;
-
-      if (v > totalDaysResolved) {
-        updated[field] = String(totalDaysResolved);
+              otMonthDays: att?.OtMonthDays ?? "",
+              pfArrear: att?.PFArrear ?? "",
+              otherArrear: att?.OtherArrear ?? "",
+              incentive: att?.Incentive ?? "",
+              advanceDed: att?.AdvanceDed ?? "",
+              uniformDed: att?.UniformDed ?? "",
+              bgvDed: att?.BGVDed ?? "",
+              roomDed: att?.RoomDed ?? "",
+              fineDed: att?.FineDed ?? "",
+              joiningKits: att?.JoiningKits ?? "",
+              otherDed: att?.OtherDed ?? "",
+              foodDed: att?.FoodDed ?? "",
+              status: att?.Status ?? "",
+              manualTotalDays: false,
+            },
+          };
+        });
       }
-    }
 
-    // 🔥 SUM VALIDATION
-    const w = parseFloat(updated.workingDays) || 0;
-    const el = parseFloat(updated.EL) || 0;
-    const cl = parseFloat(updated.CL) || 0;
-    const sl = parseFloat(updated.SL) || 0;
-    const wk = parseFloat(updated.weekDaysOff) || 0;
+      return next;
+    });
+  }
 
-    const total = w + el + cl + sl + wk;
+  const paginatedEmpIds = paginatedEmployees.map((e) => {
+    const atts = filteredAttendance.filter((a) => a.EmpID === e.EmpID);
+    return atts.length > 0
+      ? atts.map((a) => `${e.EmpID}_${a.AttendanceId}`)
+      : [`${e.EmpID}_0`];
+  }).flat();
 
-    if (total > totalDaysResolved) {
-      const sumOther = total - (Number(updated[field]) || 0);
-      const remaining = Math.max(0, totalDaysResolved - sumOther);
-      updated[field] = String(remaining);
-    }
+  const isAllSelected =
+    paginatedEmpIds.length > 0 && paginatedEmpIds.every((k) => selectedEmpIds.has(k));
 
-    return {
-      ...prev,
-      [rowKey]: updated, // ✅ IMPORTANT
-    };
-  });
-}
+  function toggleSelectAll(checked) {
+    setSelectedEmpIds((prev) => {
+      const next = new Set(prev);
+      paginatedEmpIds.forEach((k) => (checked ? next.add(k) : next.delete(k)));
+      return next;
+    });
+  }
 
-  // ---------------------------------------------------------
-  // Save Attendance
-  // ---------------------------------------------------------
+  // ── Save ──
   async function handleSaveAttendance() {
     if (selectedEmpIds.size === 0) {
       alert("Please select at least one employee.");
       return;
     }
-
     setSaving(true);
-
     const currMonthYear = getMonthYearString(month, year);
-    const n = (v) =>
-      v === "" || v === null || v === undefined ? 0 : Number(v);
+    const n = (v) => (v === "" || v == null ? 0 : Number(v));
 
     try {
       const updatePromises = [];
-      const newEmployees = [];
-      const savedModelsByEmpId = {};
+      const newRecords = [];
+      const savedModelsByKey = {};
 
       selectedEmpIds.forEach((rowKey) => {
-  const [empId, attendanceId] = rowKey.split("_").map(Number);
-        const emp = employees.find(
-          (e) => e?.FacilityMember?.FacilityMemberId === empId
-        );
-
+        const [empId, attendanceId] = rowKey.split("_").map(Number);
+        const emp = employeeMap[empId];
         if (!emp) return;
 
-        const empName =
-          emp?.Profile?.EmployeeName ||
-          emp?.EmployeeList?.Designation ||
-          emp?.FacilityMember?.Name ||
-          "Unknown";
-
         const inp = dayInputs[rowKey] || {};
-
-        const EL = n(inp.EL);
-        const CL = n(inp.CL);
-        const SL = n(inp.SL);
+        const EL = n(inp.EL), CL = n(inp.CL), SL = n(inp.SL);
 
         const expectedDivideByDays = getComputedDivideByDays(
           employeeSGMap?.[empId] || null,
@@ -1237,37 +704,27 @@ filtered.forEach((att) => {
             : globalTotalDays;
 
         const inputDivideByDays = n(inp.divideByDays);
-        const divideByDaysToSave =
-          inputDivideByDays > 0
-            ? Math.min(inputDivideByDays, fallbackDivideByDays)
-            : fallbackDivideByDays;
+        const divideByDaysToSave = inputDivideByDays > 0 ? inputDivideByDays : fallbackDivideByDays;
 
         const model = {
           EmpID: empId,
-          EmployeeName: empName,
-          PropertyID: emp?.FacilityMember?.PropertyId,
+          EmployeeName: emp.EmployeeName,
+          PropertyID: emp.PropertyID,
           monthyear: currMonthYear,
           IsActive: true,
           CreatedOn: new Date().toISOString(),
-
           WorkingDays: n(inp.workingDays),
           LeaveDays: EL + CL + SL,
           WeekDaysOff: n(inp.weekDaysOff),
-
-          EL,
-          CL,
-          SL,
-
+          EL, CL, SL,
           NHDays: n(inp.nhDays),
           FHDays: n(inp.fhDays),
           Holidays: n(inp.holidays),
           DivideByDays: divideByDaysToSave,
           OtMonthDays: n(inp.otMonthDays),
-
           PFArrear: n(inp.pfArrear),
           OtherArrear: n(inp.otherArrear),
           Incentive: n(inp.incentive),
-
           AdvanceDed: n(inp.advanceDed),
           UniformDed: n(inp.uniformDed),
           BGVDed: n(inp.bgvDed),
@@ -1276,135 +733,61 @@ filtered.forEach((att) => {
           JoiningKits: n(inp.joiningKits),
           OtherDed: n(inp.otherDed),
           FoodDed: n(inp.foodDed),
-
           OtDays: n(inp.otDays),
           OtHours: n(inp.otHours),
           PayableDays: n(inp.totalDays),
           Status: inp.status || "",
         };
-        savedModelsByEmpId[empId] = model;
+
+        savedModelsByKey[rowKey] = model;
 
         const existing = filteredAttendance.find(
-          (a) =>
-            String(a.EmpID) === String(empId) &&
-            String(a.monthyear) === String(currMonthYear)
+          (a) => String(a.EmpID) === String(empId) && String(a.monthyear) === String(currMonthYear)
         );
+        const currentAttendanceId = existing?.AttendanceId || attendanceId;
 
-        if (existing) {
-          // 🔹 UPDATE using PUT
+        if (existing && currentAttendanceId !== -1 && currentAttendanceId !== 0) {
           updatePromises.push(
-            updateAttendance(empId, currMonthYear, model).catch((err) => {
-              const status = err?.response?.status;
-              if (status === 404) {
-                newEmployees.push(model);
-                return null;
-              }
+            updateAttendance(currentAttendanceId, model).catch((err) => {
+              if (err?.response?.status === 404) { newRecords.push(model); return null; }
               throw err;
             })
           );
         } else {
-          // 🔹 CREATE using batch
-          newEmployees.push(model);
+          newRecords.push(model);
         }
       });
 
-      // 🔹 Execute updates
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises);
-      }
+      if (updatePromises.length > 0) await Promise.all(updatePromises);
+      if (newRecords.length > 0) await saveAttendanceBatch(currMonthYear, newRecords);
 
-      // 🔹 Execute batch create for new ones
-      if (newEmployees.length > 0) {
-        await saveAttendanceBatch(currMonthYear, newEmployees);
-      }
-
-      // Keep UI in sync immediately (without needing full page refresh)
+      // Optimistic update
       setFilteredAttendance((prev) => {
         const merged = [...(Array.isArray(prev) ? prev : [])];
-        Object.values(savedModelsByEmpId).forEach((m) => {
+        Object.values(savedModelsByKey).forEach((m) => {
           const idx = merged.findIndex(
-            (a) =>
-              String(a.EmpID) === String(m.EmpID) &&
-              String(a.monthyear) === String(m.monthyear)
+            (a) => String(a.EmpID) === String(m.EmpID) && String(a.monthyear) === String(m.monthyear)
           );
-
           const normalized = {
             ...(idx >= 0 ? merged[idx] : {}),
-            EmpID: m.EmpID,
-            monthyear: m.monthyear,
-            WorkingDays: m.WorkingDays,
-            EL: m.EL,
-            CL: m.CL,
-            SL: m.SL,
-            WeekDaysOff: m.WeekDaysOff,
-            OtDays: m.OtDays,
-            OtHours: m.OtHours,
-            PayableDays: m.PayableDays,
-            NHDays: m.NHDays,
-            FHDays: m.FHDays,
-            Holidays: m.Holidays,
-            DivideByDays: m.DivideByDays,
-            OtMonthDays: m.OtMonthDays,
-            PFArrear: m.PFArrear,
-            OtherArrear: m.OtherArrear,
-            Incentive: m.Incentive,
-            AdvanceDed: m.AdvanceDed,
-            UniformDed: m.UniformDed,
-            BGVDed: m.BGVDed,
-            RoomDed: m.RoomDed,
-            FineDed: m.FineDed,
-            JoiningKits: m.JoiningKits,
-            OtherDed: m.OtherDed,
-            FoodDed: m.FoodDed,
-            Status: m.Status,
+            EmpID: m.EmpID, monthyear: m.monthyear,
+            WorkingDays: m.WorkingDays, EL: m.EL, CL: m.CL, SL: m.SL,
+            WeekDaysOff: m.WeekDaysOff, OtDays: m.OtDays, OtHours: m.OtHours,
+            PayableDays: m.PayableDays, NHDays: m.NHDays, FHDays: m.FHDays,
+            Holidays: m.Holidays, DivideByDays: m.DivideByDays, OtMonthDays: m.OtMonthDays,
+            PFArrear: m.PFArrear, OtherArrear: m.OtherArrear, Incentive: m.Incentive,
+            AdvanceDed: m.AdvanceDed, UniformDed: m.UniformDed, BGVDed: m.BGVDed,
+            RoomDed: m.RoomDed, FineDed: m.FineDed, JoiningKits: m.JoiningKits,
+            OtherDed: m.OtherDed, FoodDed: m.FoodDed, Status: m.Status,
           };
-
           if (idx >= 0) merged[idx] = normalized;
           else merged.push(normalized);
         });
         return merged;
       });
 
-      setDayInputs((prev) => {
-        const next = { ...prev };
-        Object.values(savedModelsByEmpId).forEach((m) => {
-          const existing = next[m.EmpID] || {};
-          next[m.EmpID] = {
-            ...existing,
-            workingDays: m.WorkingDays ?? "",
-            EL: m.EL ?? "",
-            CL: m.CL ?? "",
-            SL: m.SL ?? "",
-            weekDaysOff: m.WeekDaysOff ?? "",
-            otDays: m.OtDays ?? "",
-            otHours: m.OtHours ?? "",
-            totalDays: m.PayableDays ?? "",
-            nhDays: m.NHDays ?? "",
-            fhDays: m.FHDays ?? "",
-            holidays: m.Holidays ?? "",
-            divideByDays: m.DivideByDays ?? existing.divideByDays ?? globalTotalDays,
-            otMonthDays: m.OtMonthDays ?? "",
-            pfArrear: m.PFArrear ?? "",
-            otherArrear: m.OtherArrear ?? "",
-            incentive: m.Incentive ?? "",
-            advanceDed: m.AdvanceDed ?? "",
-            uniformDed: m.UniformDed ?? "",
-            bgvDed: m.BGVDed ?? "",
-            roomDed: m.RoomDed ?? "",
-            fineDed: m.FineDed ?? "",
-            joiningKits: m.JoiningKits ?? "",
-            otherDed: m.OtherDed ?? "",
-            foodDed: m.FoodDed ?? "",
-            status: m.Status ?? "",
-            manualTotalDays: existing.manualTotalDays ?? false,
-          };
-        });
-        return next;
-      });
       setSelectedEmpIds(new Set());
-
       alert("Attendance saved successfully!");
-
     } catch (err) {
       console.error("Batch save failed:", err);
       alert("Failed to save attendance.");
@@ -1413,28 +796,28 @@ filtered.forEach((att) => {
     }
   }
 
-  // ---------------------------------------------------------
-  // Bulk Delete
-  // ---------------------------------------------------------
+  // ── Delete ──
   async function handleBulkDelete() {
     if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before deleting attendance.");
       return;
     }
-    if (!window.confirm("Are you sure you want to delete selected attendance?"))
-      return;
-
+    if (!window.confirm("Are you sure you want to delete selected attendance?")) return;
     setDeleting(true);
-
     try {
-      await deleteMultipleAttendance(
-        Array.from(selectedEmpIds),
-        getMonthYearString(month, year),
-        effectiveSinglePropertyId
-      );
+      const attendanceIds = Array.from(selectedEmpIds)
+        .map((rowKey) => {
+          const parts = String(rowKey).split("_");
+          return parts.length > 1 ? Number(parts[1]) : 0;
+        })
+        .filter((id) => id > 0);
 
+      if (!attendanceIds.length) {
+        alert("No valid attendance records selected for deletion. Unsaved records cannot be deleted.");
+        return;
+      }
+      await deleteMultipleAttendance(attendanceIds);
       await reloadAttendanceData();
-
     } catch (err) {
       console.error("Delete failed", err);
       alert("Delete failed. Try again.");
@@ -1443,68 +826,41 @@ filtered.forEach((att) => {
     }
   }
 
+  // ── Export ──
   function exportToExcel() {
-
     if (!hasSingleEffectiveProperty) {
       alert("Please select exactly ONE unit before exporting.");
       return;
     }
 
     const data = filteredEmployees.map((emp, idx) => {
-
-      const empId = emp?.FacilityMember?.FacilityMemberId ?? idx;
-
-      const empCode = emp?.Profile?.EmployeeCode || "";
-      const empName =
-        emp?.Profile?.EmployeeName ||
-        emp?.FacilityMember?.Name ||
-        "";
-
-      const inp = dayInputs[empId] || {};
-      const saved =
-        filteredAttendance.find(a => a.EmpID === empId) || null;
-
-      const getVal = (val, fallback = 0) => {
-        if (val === "" || val === null || val === undefined) return fallback;
-        return Number(val);
-      };
+      const saved = filteredAttendance.find((a) => a.EmpID === emp.EmpID) || null;
+      const rowKey = saved ? `${emp.EmpID}_${saved.AttendanceId}` : `${emp.EmpID}_0`;
+      const inp = dayInputs[rowKey] || {};
+      const getVal = (val, fallback = 0) =>
+        val === "" || val == null ? fallback : Number(val);
 
       return {
         "S.No.": idx + 1,
-        EmpCode: empCode,
-        EmployeeName: empName,
-
-        Designation:
-          emp?.EmployeeList?.Designation ||
-          emp?.Profile?.Designation ||
-          "",
-
+        EmpCode: emp.EmployeeCode,
+        EmployeeName: emp.EmployeeName,
+        Designation: emp.Designation,
         WeeklyOff: getVal(inp.weekDaysOff, getVal(saved?.WeekDaysOff)),
         WorkingDays: getVal(inp.workingDays, getVal(saved?.WorkingDays)),
-
         EL: getVal(inp.EL, getVal(saved?.EL)),
         CL: getVal(inp.CL, getVal(saved?.CL)),
         SL: getVal(inp.SL, getVal(saved?.SL)),
-
         PayableDays: getVal(inp.totalDays, getVal(saved?.PayableDays)),
-
         OTDays: getVal(inp.otDays, getVal(saved?.OtDays)),
         OTHrs: getVal(inp.otHours, getVal(saved?.OtHours)),
-
         NHDays: getVal(inp.nhDays, getVal(saved?.NHDays)),
         FHDays: getVal(inp.fhDays, getVal(saved?.FHDays)),
         HoliDays: getVal(inp.holidays, getVal(saved?.Holidays)),
-
-        // 🔥 IMPORTANT FIX
         "Divide by Days": saved ? getVal(saved?.DivideByDays) : 0,
-
         "Ot Month Days": getVal(inp.otMonthDays, getVal(saved?.OtMonthDays)),
-
         "PF Arrear": getVal(inp.pfArrear, getVal(saved?.PFArrear)),
         "Other Arrear": getVal(inp.otherArrear, getVal(saved?.OtherArrear)),
-
         Incentive: getVal(inp.incentive, getVal(saved?.Incentive)),
-
         AdvanceDed: getVal(inp.advanceDed, getVal(saved?.AdvanceDed)),
         UniformDed: getVal(inp.uniformDed, getVal(saved?.UniformDed)),
         BGVDed: getVal(inp.bgvDed, getVal(saved?.BGVDed)),
@@ -1513,307 +869,272 @@ filtered.forEach((att) => {
         JoiningKits: getVal(inp.joiningKits, getVal(saved?.JoiningKits)),
         OtherDed: getVal(inp.otherDed, getVal(saved?.OtherDed)),
         FoodDed: getVal(inp.foodDed, getVal(saved?.FoodDed)),
-
-        Error: saved?.Status || ""
+        Error: saved?.Status || "",
       };
     });
 
+    if (!data.length) { alert("No data to export."); return; }
+
     const headers = Object.keys(data[0]);
-    // 1. Create worksheet WITHOUT data first
     const worksheet = XLSX.utils.aoa_to_sheet([]);
-
-    // 2. Get names (IMPORTANT)
-    const selectedProperty = propertyList.find(
-      (p) => p.PropertyId === effectiveSinglePropertyId
-    );
-
+    const selectedProperty = propertyList.find((p) => p.PropertyId === effectiveSinglePropertyId);
     const propertyName = selectedProperty?.PropertyName || "N/A";
-
-    const selectedClient = unitList.find(
-      (u) => u.ClientID === selectedUnitId
-    );
-
+    const selectedClient = unitList.find((u) => u.ClientID === selectedUnitId);
     const clientName = selectedClient?.ClientName || "N/A";
-
-    // 3. Month-Year display
     const monthYearDisplay = `${monthNames[month - 1]} ${year}`;
 
-    // 4. Add TOP INFO rows
     XLSX.utils.sheet_add_aoa(worksheet, [
       [`Client: ${clientName}`],
       [`Property: ${propertyName}`],
       [`Month: ${monthYearDisplay}`],
-      [] // empty row for spacing
+      [],
     ], { origin: "A1" });
 
-    // 5. Add actual table (IMPORTANT OFFSET)
-    XLSX.utils.sheet_add_json(worksheet, data, {
-      origin: "A5", // 👈 data starts from row 5
-      header: headers,
-    });
+    XLSX.utils.sheet_add_json(worksheet, data, { origin: "A5", header: headers });
 
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Attendance");
-
-    const excelBuffer = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array"
-    });
-
+    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
     const blob = new Blob([excelBuffer], {
-      type:
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-
     saveAs(blob, `attendance_${month}_${year}.xlsx`);
   }
 
-  const allEmpIds = paginatedEmployees
-    .map((emp) => emp?.FacilityMember?.FacilityMemberId)
-    .filter(Boolean);
-
-  const isAllSelected =
-    allEmpIds.length > 0 &&
-    allEmpIds.every((id) => selectedEmpIds.has(id));
-
-  const uniqueEmployees = Object.values(
-    paginatedEmployees.reduce((acc, emp) => {
-      const id = emp?.FacilityMember?.FacilityMemberId;
-      if (!acc[id]) acc[id] = emp;
-      return acc;
-    }, {})
-  );
-
-  function toggleSelectAll(checked) {
-    setSelectedEmpIds((prev) => {
-      const next = new Set(prev);
-
-      if (checked) {
-        allEmpIds.forEach((id) => {
-          next.add(id);
-
-          // ensure inputs exist
-          if (!dayInputs[id]) {
-            next.add(id);
-          }
-        });
-      } else {
-        allEmpIds.forEach((id) => next.delete(id));
-      }
-
-      return next;
-    });
+  // ── Import ──
+  async function handleImportClick() {
+    if (!hasSingleEffectiveProperty) {
+      alert("Please select exactly ONE unit before uploading attendance.");
+      return;
+    }
+    fileInputRef.current.click();
   }
 
-  // ---------------------------------------------------------
-  // RENDER UI (unchanged)
-  // ---------------------------------------------------------
+  async function handleFileChange(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const monthyear = getMonthYearString(month, year);
+    setImporting(true);
+    try {
+      if (!effectiveSinglePropertyId) { alert("Invalid property selection."); return; }
+      const res = await uploadAttendance(file, effectiveSinglePropertyId, monthyear);
+      const handled = await handleUploadResponse(res, file, effectiveSinglePropertyId, monthyear);
+      if (!handled?.confirmationNeeded) await reloadAttendanceData();
+    } catch (err) {
+      const handledError = await handleUploadErrorResponse(err, file, effectiveSinglePropertyId, monthyear);
+      if (handledError) return;
+      console.error("Upload failed:", err);
+      alert("Upload failed.");
+    } finally {
+      setImporting(false);
+      e.target.value = null;
+    }
+  }
 
+  // ── Conflict modal helpers ──
+  const getConflictKey = (record, idx = 0) => {
+    const empPart = record?.FacilityMemberId || record?.EmpID || record?.EmpCode || `idx-${idx}`;
+    const designationPart = record?.DesignationId ?? record?.DesignationMasterId ?? "no-designation";
+    const monthPart = record?.MonthYear || record?.monthyear || "no-month";
+    return `${empPart}__${designationPart}__${monthPart}`;
+  };
+
+  const normalizeSalaryGroupOptions = (rows = []) => {
+    const normalized = [];
+    (rows || []).forEach((row) => {
+      const id = Number(row?.SalaryGroup_ID || row?.SalaryGroupId || row?.Id || 0);
+      if (!Number.isFinite(id) || id <= 0) return;
+      normalized.push({ id, name: row?.SalaryGroup || row?.SalaryGroupName || `Salary Group ${id}` });
+    });
+    const seen = new Set();
+    return normalized.filter((item) => { if (seen.has(item.id)) return false; seen.add(item.id); return true; });
+  };
+
+  const parseBlobJson = async (blob) => {
+    try { const text = await blob.text(); return text ? JSON.parse(text) : null; }
+    catch { return null; }
+  };
+
+  const openCrossPropertyConflictModal = async (conflicts, propertyId, monthyear, file) => {
+    const safeConflicts = Array.isArray(conflicts) ? conflicts : [];
+    if (!safeConflicts.length) return;
+    let options = [];
+    try {
+      const sgRows = await getSalaryAllowancesByProperty(propertyId);
+      options = normalizeSalaryGroupOptions(sgRows || []);
+    } catch { options = []; }
+    if (!options.length) {
+      alert("Cross-property employees found, but no salary group is available. Please create salary group first.");
+      return;
+    }
+    const defaultMap = {}, optionMap = {};
+    safeConflicts.forEach((record, idx) => {
+      const key = getConflictKey(record, idx);
+      const conflictOptions = normalizeSalaryGroupOptions(record?.SalaryGroupOptions || record?.SalaryGroups || []);
+      const mergedOptions = conflictOptions.length ? conflictOptions : options;
+      optionMap[key] = mergedOptions;
+      defaultMap[key] = mergedOptions.length ? String(mergedOptions[0].id) : "";
+    });
+    setSalaryGroupOptions(options);
+    setConflictSalaryOptionsMap(optionMap);
+    setSalaryGroupMap(defaultMap);
+    setConflictRecords(safeConflicts);
+    setPendingUpload({ file, propertyId, monthyear });
+    setShowConflictModal(true);
+  };
+
+  const handleUploadResponse = async (res, file, propertyId, monthyear) => {
+    const contentType = res?.headers?.["content-type"] || "";
+    const responseBlob = res?.data;
+    if (contentType.includes("application/vnd.openxmlformats")) {
+      const url = window.URL.createObjectURL(new Blob([responseBlob]));
+      const link = document.createElement("a");
+      link.href = url; link.download = "AttendanceErrors.xlsx"; link.click();
+      alert("Some employees were invalid. Error file downloaded.");
+      return { handled: true };
+    }
+    const data = await parseBlobJson(responseBlob);
+    if (!data) { alert("Unexpected upload response received."); return { handled: true }; }
+    if (data.requiresConfirmation && Array.isArray(data.conflicts)) {
+      await openCrossPropertyConflictModal(data.conflicts, propertyId, monthyear, file);
+      return { handled: true, confirmationNeeded: true };
+    }
+    alert(data?.message || "Attendance uploaded successfully!");
+    return { handled: true };
+  };
+
+  const handleUploadErrorResponse = async (err, file, propertyId, monthyear) => {
+    try {
+      const errorBlob = err?.response?.data;
+      if (!errorBlob || typeof errorBlob.text !== "function") return false;
+      const data = await parseBlobJson(errorBlob);
+      if (!data) return false;
+      if (data.requiresConfirmation && Array.isArray(data.conflicts)) {
+        await openCrossPropertyConflictModal(data.conflicts, propertyId, monthyear, file);
+        return true;
+      }
+      if (data.message || data.error) { alert(data.message || data.error); return true; }
+      return false;
+    } catch { return false; }
+  };
+
+  const closeConflictModal = () => {
+    if (confirmingUpload) return;
+    setShowConflictModal(false);
+    setConflictRecords([]);
+    setSalaryGroupOptions([]);
+    setSalaryGroupMap({});
+    setConflictSalaryOptionsMap({});
+    setPendingUpload(null);
+  };
+
+  const confirmCrossPropertyUpload = async () => {
+    if (!pendingUpload || !conflictRecords.length) { closeConflictModal(); return; }
+    const missingSelection = conflictRecords.some((record, idx) => {
+      const key = getConflictKey(record, idx);
+      const selected = Number(salaryGroupMap[key]);
+      return !Number.isFinite(selected) || selected <= 0;
+    });
+    if (missingSelection) { alert("Please select salary group for all conflict rows."); return; }
+    const mappings = conflictRecords.map((record, idx) => {
+      const key = getConflictKey(record, idx);
+      return {
+        EmpCode: record?.EmpCode || record?.EmployeeCode || "",
+        FacilityMemberId: record?.FacilityMemberId || record?.EmpID || null,
+        PropertyId: pendingUpload.propertyId,
+        SalaryGroupId: Number(salaryGroupMap[key]),
+        DesignationId: record?.DesignationId ?? record?.DesignationMasterId ?? null,
+        MonthYear: pendingUpload.monthyear || record?.MonthYear || "",
+      };
+    });
+    setConfirmingUpload(true);
+    try {
+      const res = await uploadAttendance(pendingUpload.file, pendingUpload.propertyId, pendingUpload.monthyear, { forceUpload: true, crossPropertyMappings: mappings });
+      const handled = await handleUploadResponse(res, pendingUpload.file, pendingUpload.propertyId, pendingUpload.monthyear);
+      if (!handled?.confirmationNeeded) { closeConflictModal(); await reloadAttendanceData(); }
+    } catch (err) {
+      const handledError = await handleUploadErrorResponse(err, pendingUpload.file, pendingUpload.propertyId, pendingUpload.monthyear);
+      if (handledError) return;
+      alert("Upload failed after confirmation.");
+    } finally {
+      setConfirmingUpload(false);
+    }
+  };
+
+  // ── Styles ──
   const thStyle = {
-    border: "1px solid #cbd5e0",
-    padding: "10px 8px",
-    textAlign: "center",
-    fontWeight: 600,
-    fontSize: 14,
-    background: "#f7fafc",
-    whiteSpace: "nowrap",
+    border: "1px solid #cbd5e0", padding: "10px 8px", textAlign: "center",
+    fontWeight: 600, fontSize: 14, background: "#f7fafc", whiteSpace: "nowrap",
   };
-
   const tdStyle = {
-    border: "1px solid #e2e8f0",
-    padding: "8px",
-    textAlign: "center",
-    verticalAlign: "middle",
+    border: "1px solid #e2e8f0", padding: "8px", textAlign: "center", verticalAlign: "middle",
+  };
+  const inputStyle = {
+    width: "90px", textAlign: "center", padding: "4px 6px",
+    borderRadius: 4, border: "1px solid #cbd5e0", fontSize: 14,
   };
 
-  const inputStyle = {
-    width: "90px",
-    textAlign: "center",
-    padding: "4px 6px",
-    borderRadius: 4,
-    border: "1px solid #cbd5e0",
-    fontSize: 14,
-  };
+  // ── Render ──
   return (
-    <div
-      style={{
-        padding: "20px 24px",
-        paddingLeft: "100px", // 👈 sidebar width
-        width: "100%",
-        boxSizing: "border-box",
-      }}
-    >
+    <div style={{ padding: "20px 24px", paddingLeft: "100px", width: "100%", boxSizing: "border-box" }}>
+
+      {/* Loading overlays */}
       {importing && (
-        <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          width: "100vw",
-          height: "100vh",
-          background: "rgba(255,255,255,0.2)",
-          backdropFilter: "blur(6px)",
-          zIndex: 9999,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center"
-        }}>
-          <div style={{
-            background: "rgba(255,255,255,0.8)",
-            padding: "30px",
-            borderRadius: "12px",
-            boxShadow: "0 8px 25px rgba(0,0,0,0.15)"
-          }}>
-            <i className="pi pi-spin pi-spinner" style={{ fontSize: "3rem" }}></i>
+        <div style={{ position: "fixed", inset: 0, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "rgba(255,255,255,0.8)", padding: 30, borderRadius: 12, boxShadow: "0 8px 25px rgba(0,0,0,0.15)" }}>
+            <i className="pi pi-spin pi-spinner" style={{ fontSize: "3rem" }} />
           </div>
         </div>
       )}
       {attendanceLoading && !importing && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            width: "100vw",
-            height: "100vh",
-            background: "rgba(255,255,255,0.2)",
-            backdropFilter: "blur(6px)",
-            zIndex: 9998,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <div
-            style={{
-              background: "rgba(255,255,255,0.85)",
-              padding: "26px 30px",
-              borderRadius: "12px",
-              boxShadow: "0 8px 25px rgba(0,0,0,0.15)",
-              display: "flex",
-              alignItems: "center",
-              gap: 14,
-              color: "#111827",
-              fontWeight: 700,
-            }}
-          >
+        <div style={{ position: "fixed", inset: 0, background: "rgba(255,255,255,0.2)", backdropFilter: "blur(6px)", zIndex: 9998, display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "rgba(255,255,255,0.85)", padding: "26px 30px", borderRadius: 12, boxShadow: "0 8px 25px rgba(0,0,0,0.15)", display: "flex", alignItems: "center", gap: 14, color: "#111827", fontWeight: 700 }}>
             <i className="pi pi-spin pi-spinner" style={{ fontSize: "2.25rem" }} />
             Refreshing attendance...
           </div>
         </div>
       )}
-      {/* ===== Attendance Scope Selection ===== */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          padding: "8px 14px",
-          marginBottom: 20,
-          background: "#f9fafb",
-          borderRadius: 8,
-          border: "1px solid #e5e7eb",
-        }}
-      >
-        {/* Select Client */}
+
+      {/* Scope selection */}
+      <div style={{ display: "flex", alignItems: "center", gap: 24, padding: "8px 14px", marginBottom: 20, background: "#f9fafb", borderRadius: 8, border: "1px solid #e5e7eb" }}>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <label style={{ fontWeight: 600 }}>Select Client :</label>
           <select
             value={selectedUnitId || ""}
-            onChange={(e) => {
-              setSelectedUnitId(Number(e.target.value));
-              setSelectedPropertyId([]);
-            }}
+            onChange={(e) => { setSelectedUnitId(Number(e.target.value)); setSelectedPropertyId([]); }}
             disabled={Number(reduxClientId) > 0}
             style={{ width: 240 }}
           >
             <option value="">-- Select Client --</option>
-            {unitList.map((u) => (
-              <option key={u.ClientID} value={u.ClientID}>
-                {u.ClientName}
-              </option>
-            ))}
+            {unitList.map((u) => <option key={u.ClientID} value={u.ClientID}>{u.ClientName}</option>)}
           </select>
         </div>
 
-        {/* Select Unit */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            position: "relative",
-            minWidth: 260,
-          }}
-        >
-          <label style={{ fontWeight: 600, whiteSpace: "nowrap" }}>
-            Select Unit :
-          </label>
-
-          {/* Display Box */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative", minWidth: 260 }}>
+          <label style={{ fontWeight: 600, whiteSpace: "nowrap" }}>Select Unit :</label>
           <div
-            onClick={(e) => {
-              e.stopPropagation();
-              if (propertyList.length > 0) {
-                setShowPropertyDropdown((prev) => !prev);
-              }
-            }}
-            style={{
-              border: "1px solid #cbd5e0",
-              padding: "6px 10px",
-              borderRadius: 6,
-              background: "#fff",
-              cursor: propertyList.length ? "pointer" : "not-allowed",
-              opacity: propertyList.length ? 1 : 0.75,
-            }}
+            onClick={(e) => { e.stopPropagation(); if (propertyList.length) setShowPropertyDropdown((p) => !p); }}
+            style={{ border: "1px solid #cbd5e0", padding: "6px 10px", borderRadius: 6, background: "#fff", cursor: propertyList.length ? "pointer" : "not-allowed", opacity: propertyList.length ? 1 : 0.75 }}
           >
             {selectedPropertyId.length === propertyList.length
               ? "All Units Selected"
               : selectedPropertyId.length === 1
-                ? propertyList.find(
-                  (p) => p.PropertyId === selectedPropertyId[0]
-                )?.PropertyName
+                ? propertyList.find((p) => p.PropertyId === selectedPropertyId[0])?.PropertyName
                 : `${selectedPropertyId.length} Units Selected`}
           </div>
-
-          {/* Dropdown */}
           {showPropertyDropdown && (
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                position: "absolute",
-                top: "100%",
-                left: 0,
-                right: 0,
-                background: "#fff",
-                border: "1px solid #cbd5e0",
-                borderRadius: 6,
-                padding: 8,
-                maxHeight: 220,
-                overflowY: "auto",
-                zIndex: 10,
-              }}
-            >
+            <div onClick={(e) => e.stopPropagation()} style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "#fff", border: "1px solid #cbd5e0", borderRadius: 6, padding: 8, maxHeight: 220, overflowY: "auto", zIndex: 10 }}>
               {propertyList.map((p) => (
                 <div key={p.PropertyId}>
                   <input
                     type="checkbox"
                     checked={selectedPropertyId.includes(p.PropertyId)}
                     onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedPropertyId((prev) => [
-                          ...prev,
-                          p.PropertyId,
-                        ]);
-                      } else {
-                        setSelectedPropertyId((prev) =>
-                          prev.filter((id) => id !== p.PropertyId)
-                        );
-                      }
+                      if (e.target.checked) setSelectedPropertyId((prev) => [...prev, p.PropertyId]);
+                      else setSelectedPropertyId((prev) => prev.filter((id) => id !== p.PropertyId));
                     }}
                   />
-                  <span style={{ marginLeft: 8 }}>
-                    {p.PropertyName}
-                  </span>
+                  <span style={{ marginLeft: 8 }}>{p.PropertyName}</span>
                 </div>
               ))}
             </div>
@@ -1822,274 +1143,73 @@ filtered.forEach((att) => {
       </div>
 
       {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 20,
-          maxWidth: "100%",
-        }}
-      >
-        <h2 style={{ fontWeight: "bold", fontSize: "2rem" }}>
-          Employee Attendance Summary
-        </h2>
-
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+        <h2 style={{ fontWeight: "bold", fontSize: "2rem" }}>Employee Attendance Summary</h2>
         <div style={{ display: "flex", gap: 8 }}>
-          <select
-            value={month}
-            onChange={(e) => setMonth(Number(e.target.value))}
-          >
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {monthNames[m - 1]}
-              </option>
-            ))}
+          <select value={month} onChange={(e) => setMonth(Number(e.target.value))}>
+            {months.map((m) => <option key={m} value={m}>{monthNames[m - 1]}</option>)}
           </select>
-
-          <select
-            value={year}
-            onChange={(e) => {
-              const newY = Number(e.target.value);
-              setYear(newY);
-              if (newY === currentYear && month > currentMonth) {
-                setMonth(currentMonth);
-              }
-            }}
-          >
-            {years.map((y) => (
-              <option key={y} value={y}>
-                {y}
-              </option>
-            ))}
+          <select value={year} onChange={(e) => { const newY = Number(e.target.value); setYear(newY); if (newY === currentYear && month > currentMonth) setMonth(currentMonth); }}>
+            {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
-
           <button
             onClick={exportToExcel}
             disabled={!hasSingleEffectiveProperty || attendanceLoading}
-            style={{
-              background:
-                !hasSingleEffectiveProperty || attendanceLoading ? "#ccc" : "#3182ce",
-              color: "#fff",
-              padding: "6px 14px",
-              cursor:
-                !hasSingleEffectiveProperty || attendanceLoading
-                  ? "not-allowed"
-                  : "pointer",
-            }}
+            style={{ background: !hasSingleEffectiveProperty || attendanceLoading ? "#ccc" : "#3182ce", color: "#fff", padding: "6px 14px", cursor: !hasSingleEffectiveProperty || attendanceLoading ? "not-allowed" : "pointer" }}
           >
             Export CSV
           </button>
         </div>
       </div>
 
-      {/* Total Days (Left) + Actions (Right) */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 20,
-          marginBottom: 20,
-        }}
-      >
-        {/* Left: Total Days */}
-        <div
-          style={{
-            display: "flex",
-            gap: 10,
-            alignItems: "center",
-            fontWeight: "bold",
-          }}
-        >
-          <span>Total Number of Days:</span>
-          <input
-            type="text"
-            value={globalTotalDays}
-            onChange={(e) => {
-              if (!/^\d*$/.test(e.target.value)) return;
-
-              const newVal = Number(e.target.value || 0);
-              if (newVal < 1 || newVal > getDaysInMonth(month, year)) return;
-              setGlobalTotalDays(newVal);
-
-              setDayInputs((prev) => {
-                const out = {};
-                Object.keys(prev).forEach((id) => {
-                  if (prev[id].manualTotalDays) {
-                    out[id] = prev[id];
-                  } else {
-                    out[id] = { ...prev[id], divideByDays: newVal };
-                  }
-                });
-                return out;
-              });
-            }}
-            style={{
-              width: 90,
-              textAlign: "center",
-              fontWeight: "bold",
-              padding: "4px 6px",
-              borderRadius: 4,
-              border: "1px solid #cbd5e0",
-            }}
-          />
-        </div>
-
-        {/* Search */}
-        <div style={{ display: "flex", alignItems: "center" }}>
-          <input
-            type="text"
-            placeholder="Search by Employee Code, Name, or Designation..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            style={{
-              width: 320,
-              padding: "6px 10px",
-              borderRadius: 6,
-              border: "1px solid #cbd5e0",
-              fontSize: 14,
-            }}
-          />
-        </div>
+      {/* Toolbar */}
+      <div style={{ display: "flex", alignItems: "center", gap: 20, marginBottom: 20 }}>
+        <input
+          type="text"
+          placeholder="Search by Employee Code, Name, or Designation..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ width: 320, padding: "6px 10px", borderRadius: 6, border: "1px solid #cbd5e0", fontSize: 14 }}
+        />
         <select
           value={selectedDepartment}
           onChange={(e) => setSelectedDepartment(e.target.value)}
-          style={{
-            padding: "6px 10px",
-            borderRadius: 6,
-            border: "1px solid #cbd5e0",
-            fontSize: 14,
-          }}
+          style={{ padding: "6px 10px", borderRadius: 6, border: "1px solid #cbd5e0", fontSize: 14 }}
         >
           <option value="">All Departments</option>
-          {departmentList.map((dept, i) => (
-            <option key={i} value={dept}>
-              {dept}
-            </option>
-          ))}
+          {departmentList.map((dept, i) => <option key={i} value={dept}>{dept}</option>)}
         </select>
 
-        {/* Push actions to right */}
         <div style={{ marginLeft: "auto", display: "flex", gap: 12 }}>
-          {/* Hidden File Input */}
-          <input
-            type="file"
-            ref={fileInputRef}
-            style={{ display: "none" }}
-            accept=".csv,.xlsx"
-            onChange={handleFileChange}
-          />
-
-          <button
-            onClick={handleImportClick}
-            disabled={importing || attendanceLoading}
-            style={{
-              background: importing || attendanceLoading ? "#cbd5e0" : "#6b46c1",
-              color: importing || attendanceLoading ? "#4a5568" : "#fff",
-              padding: "8px 20px",
-              borderRadius: 6,
-              border: "none",
-              cursor: importing || attendanceLoading ? "not-allowed" : "pointer",
-              transition: "all 0.2s ease",
-            }}
-          >
+          <input type="file" ref={fileInputRef} style={{ display: "none" }} accept=".csv,.xlsx" onChange={handleFileChange} />
+          <button onClick={handleImportClick} disabled={importing || attendanceLoading} style={{ background: importing || attendanceLoading ? "#cbd5e0" : "#6b46c1", color: importing || attendanceLoading ? "#4a5568" : "#fff", padding: "8px 20px", borderRadius: 6, border: "none", cursor: importing || attendanceLoading ? "not-allowed" : "pointer" }}>
             {importing ? "Importing..." : "Import"}
           </button>
-
-          <button
-            disabled={selectedEmpIds.size === 0 || saving || attendanceLoading}
-            onClick={handleSaveAttendance}
-            style={{
-              background:
-                selectedEmpIds.size === 0 || saving || attendanceLoading
-                  ? "#ccc"
-                  : "#48bb78",
-              color: "#fff",
-              padding: "8px 20px",
-              borderRadius: 6,
-            }}
-          >
-            {saving
-              ? "Saving..."
-              : `Save Attendance (${selectedEmpIds.size})`}
+          <button disabled={selectedEmpIds.size === 0 || saving || attendanceLoading} onClick={handleSaveAttendance} style={{ background: selectedEmpIds.size === 0 || saving || attendanceLoading ? "#ccc" : "#48bb78", color: "#fff", padding: "8px 20px", borderRadius: 6 }}>
+            {saving ? "Saving..." : `Save Attendance (${selectedEmpIds.size})`}
           </button>
-
-          <button
-            onClick={handleBulkDelete}
-            disabled={
-              selectedEmpIds.size === 0 ||
-              deleting ||
-              attendanceLoading ||
-              !hasSingleEffectiveProperty
-            }
-            style={{
-              background:
-                selectedEmpIds.size === 0 || deleting || attendanceLoading
-                  ? "#ccc"
-                  : "#e53e3e",
-              color: "#fff",
-              padding: "8px 20px",
-              borderRadius: 6,
-              cursor:
-                selectedEmpIds.size === 0 || deleting || attendanceLoading
-                  ? "not-allowed"
-                  : "pointer",
-            }}
-          >
+          <button onClick={handleBulkDelete} disabled={selectedEmpIds.size === 0 || deleting || attendanceLoading || !hasSingleEffectiveProperty} style={{ background: selectedEmpIds.size === 0 || deleting || attendanceLoading ? "#ccc" : "#e53e3e", color: "#fff", padding: "8px 20px", borderRadius: 6, cursor: selectedEmpIds.size === 0 || deleting || attendanceLoading ? "not-allowed" : "pointer" }}>
             {deleting ? "Deleting..." : `Delete (${selectedEmpIds.size})`}
           </button>
         </div>
       </div>
 
       {/* Table */}
-      <div
-        style={{
-          overflowX: "auto",
-          maxWidth: "100%",
-          border: "1px solid #e2e8f0",
-          borderRadius: 6,
-        }}
-      >
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-            tableLayout: "auto", // ✅ IMPORTANT
-            minWidth: "1600px",  // ensures columns don’t crush
-          }}
-        >
+      <div style={{ overflowX: "auto", maxWidth: "100%", border: "1px solid #e2e8f0", borderRadius: 6 }}>
+        <table style={{ width: "100%", borderCollapse: "collapse", tableLayout: "auto", minWidth: "1600px" }}>
           <thead>
             <tr>
               <th rowSpan={2} style={{ ...thStyle, width: 50 }}>S.No.</th>
-              <th rowSpan={2} style={{ ...thStyle, width: 120 }}>
-                Employee Code
-              </th>
-
-              <th rowSpan={2} style={{ ...thStyle, width: 200, textAlign: "left" }}>
-                Employee Name
-              </th>
-              <th rowSpan={2} style={{ ...thStyle, width: 180 }}>
-                Designation
-              </th>
-              <th
-                rowSpan={2}
-                style={{
-                  ...thStyle,
-                  width: 70,
-                }}
-              >
+              <th rowSpan={2} style={{ ...thStyle, width: 120 }}>Employee Code</th>
+              <th rowSpan={2} style={{ ...thStyle, width: 200, textAlign: "left" }}>Employee Name</th>
+              <th rowSpan={2} style={{ ...thStyle, width: 180 }}>Designation</th>
+              <th rowSpan={2} style={{ ...thStyle, width: 70 }}>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4 }}>
                   <span>Select</span>
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    onChange={(e) => toggleSelectAll(e.target.checked)}
-                  />
+                  <input type="checkbox" checked={isAllSelected} onChange={(e) => toggleSelectAll(e.target.checked)} />
                 </div>
               </th>
               <th rowSpan={2} style={{ ...thStyle, width: 130 }}>Working Days</th>
-
-              {/* Leave group */}
               <th colSpan={3} style={thStyle}>Leave</th>
               <th rowSpan={2} style={{ ...thStyle, width: 180 }}>Payable Days</th>
               <th rowSpan={2} style={{ ...thStyle, width: 130 }}>Weekly Off</th>
@@ -2113,7 +1233,6 @@ filtered.forEach((att) => {
               <th rowSpan={2} style={{ ...thStyle, width: 130 }}>Food Ded</th>
               <th rowSpan={2} style={{ ...thStyle, width: 100 }}>Status</th>
             </tr>
-
             <tr>
               <th style={{ ...thStyle, width: 90 }}>EL</th>
               <th style={{ ...thStyle, width: 90 }}>CL</th>
@@ -2122,33 +1241,18 @@ filtered.forEach((att) => {
           </thead>
 
           <tbody>
-            {uniqueEmployees.flatMap((emp, idx) => {
-              if (!emp?.FacilityMember?.FacilityMemberId) return [];
-
-              const empId = emp.FacilityMember.FacilityMemberId;
-              const empCode = emp?.Profile?.EmployeeCode || "-";
-
-              const name =
-                emp?.Profile?.EmployeeName ||
-                emp?.FacilityMember?.Name ||
-                "Unknown";
-
-              // 🔥 GET ALL ATTENDANCE ROWS
-              const empAttendances = filteredAttendance.filter(
-                (a) => a.EmpID === empId
-              );
-
+            {paginatedEmployees.flatMap((emp, idx) => {
+              const empId = emp.EmpID;
+              const empAttendances = filteredAttendance.filter((a) => a.EmpID === empId);
               const rows = empAttendances.length > 0 ? empAttendances : [{}];
 
               return rows.map((att, index) => {
-                const attendanceId = att.AttendanceID || 0;
-
-const rowKey = `${empId}_${attendanceId}`;
+                const attendanceId = att.AttendanceId || 0;
+                const rowKey = `${empId}_${attendanceId}`;
                 const isChecked = selectedEmpIds.has(rowKey);
 
-                const inp = dayInputs[rowKey] || {
+                const inp = dayInputs[rowKey] ?? {
                   ...baseExtraFields,
-
                   workingDays: att?.WorkingDays ?? "",
                   EL: att?.EL ?? "",
                   CL: att?.CL ?? "",
@@ -2157,20 +1261,16 @@ const rowKey = `${empId}_${attendanceId}`;
                   otDays: att?.OtDays ?? "",
                   otHours: att?.OtHours ?? "",
                   totalDays: att?.PayableDays ?? "",
-
                   nhDays: att?.NHDays ?? "",
                   fhDays: att?.FHDays ?? "",
                   holidays: att?.Holidays ?? "",
-                  divideByDays:
-                    att?.DivideByDays ??
-                    employeeSGMap[empId]?.divideByDays ??
-                    globalTotalDays,
-
+                  divideByDays: att?.AttendanceId
+                    ? (att.DivideByDays ?? "")
+                    : (employeeSGMap[empId]?.divideByDays ?? globalTotalDays),
                   otMonthDays: att?.OtMonthDays ?? "",
                   pfArrear: att?.PFArrear ?? "",
                   otherArrear: att?.OtherArrear ?? "",
                   incentive: att?.Incentive ?? "",
-
                   advanceDed: att?.AdvanceDed ?? "",
                   uniformDed: att?.UniformDed ?? "",
                   bgvDed: att?.BGVDed ?? "",
@@ -2179,362 +1279,57 @@ const rowKey = `${empId}_${attendanceId}`;
                   joiningKits: att?.JoiningKits ?? "",
                   otherDed: att?.OtherDed ?? "",
                   foodDed: att?.FoodDed ?? "",
-
                   status: att?.Status ?? "",
                 };
 
+                const mkInput = (field, extraStyle = {}) => (
+                  <input
+                    type="text"
+                    disabled={!isChecked}
+                    value={inp[field] ?? ""}
+                    onChange={(e) => handleInputChange(rowKey, field, e.target.value)}
+                    style={{ ...inputStyle, ...extraStyle }}
+                  />
+                );
+
                 return (
                   <tr key={rowKey}>
-                    <td style={tdStyle}>
-                      {(currentPage - 1) * recordsPerPage + idx + 1}.{index + 1}
-                    </td>
-
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>
-                      {empCode}
-                    </td>
-
-                    <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>
-                      {name}
-                    </td>
-
-                    {/* ✅ DESIGNATION FROM ATTENDANCE */}
-                    <td style={{ ...tdStyle, textAlign: "left" }}>
-                      {att?.Designation || "-"}
-                    </td>
-
-                    {/* Checkbox */}
+                    <td style={tdStyle}>{(currentPage - 1) * recordsPerPage + idx + 1}.{index + 1}</td>
+                    <td style={{ ...tdStyle, fontWeight: 500 }}>{emp.EmployeeCode || "-"}</td>
+                    <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>{emp.EmployeeName || "Unknown"}</td>
+                    <td style={{ ...tdStyle, textAlign: "left" }}>{att?.Designation || emp.Designation || "-"}</td>
                     <td style={tdStyle}>
                       <input
                         type="checkbox"
                         checked={isChecked}
-                        onChange={() => toggleCheckbox(rowKey)}
+                        onChange={() => toggleCheckbox(rowKey, att, empId)}
                       />
                     </td>
-
-                    {/* Working Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.workingDays}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "workingDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* EL */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.EL}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "EL", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* CL */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.CL}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "CL", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* SL */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.SL}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "SL", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Payable Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.totalDays ?? ""}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "totalDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Weekly Off */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.weekDaysOff}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "weekDaysOff", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* OT Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.otDays}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "otDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* OT Hours */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.otHours}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "otHours", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* NH Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.nhDays}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "nhDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* FH Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.fhDays}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "fhDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Holidays */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.holidays}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "holidays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Divide By Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.divideByDays ?? ""}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "divideByDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* OT Month Days */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.otMonthDays}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "otMonthDays", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* PF Arrear */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.pfArrear}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "pfArrear", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Other Arrear */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.otherArrear}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "otherArrear", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Incentive */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.incentive}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "incentive", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Advance Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.advanceDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "advanceDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Uniform Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.uniformDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "uniformDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* BGV Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.bgvDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "bgvDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Room Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.roomDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "roomDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Fine Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.fineDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "fineDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Joining Kits */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.joiningKits}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "joiningKits", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Other Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.otherDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "otherDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Food Ded */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.foodDed}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "foodDed", e.target.value)
-                        }
-                        style={inputStyle}
-                      />
-                    </td>
-
-                    {/* Status */}
-                    <td style={tdStyle}>
-                      <input
-                        type="text"
-                        disabled={!isChecked}
-                        value={inp.status || ""}
-                        onChange={(e) =>
-                          handleInputChange(rowKey, "status", e.target.value)
-                        }
-                        style={{ ...inputStyle, width: "120px" }}
-                      />
-                    </td>
+                    <td style={tdStyle}>{mkInput("workingDays")}</td>
+                    <td style={tdStyle}>{mkInput("EL")}</td>
+                    <td style={tdStyle}>{mkInput("CL")}</td>
+                    <td style={tdStyle}>{mkInput("SL")}</td>
+                    <td style={tdStyle}>{mkInput("totalDays")}</td>
+                    <td style={tdStyle}>{mkInput("weekDaysOff")}</td>
+                    <td style={tdStyle}>{mkInput("otDays")}</td>
+                    <td style={tdStyle}>{mkInput("otHours")}</td>
+                    <td style={tdStyle}>{mkInput("nhDays")}</td>
+                    <td style={tdStyle}>{mkInput("fhDays")}</td>
+                    <td style={tdStyle}>{mkInput("holidays")}</td>
+                    <td style={tdStyle}>{mkInput("divideByDays")}</td>
+                    <td style={tdStyle}>{mkInput("otMonthDays")}</td>
+                    <td style={tdStyle}>{mkInput("pfArrear")}</td>
+                    <td style={tdStyle}>{mkInput("otherArrear")}</td>
+                    <td style={tdStyle}>{mkInput("incentive")}</td>
+                    <td style={tdStyle}>{mkInput("advanceDed")}</td>
+                    <td style={tdStyle}>{mkInput("uniformDed")}</td>
+                    <td style={tdStyle}>{mkInput("bgvDed")}</td>
+                    <td style={tdStyle}>{mkInput("roomDed")}</td>
+                    <td style={tdStyle}>{mkInput("fineDed")}</td>
+                    <td style={tdStyle}>{mkInput("joiningKits")}</td>
+                    <td style={tdStyle}>{mkInput("otherDed")}</td>
+                    <td style={tdStyle}>{mkInput("foodDed")}</td>
+                    <td style={tdStyle}>{mkInput("status", { width: "120px" })}</td>
                   </tr>
                 );
               });
@@ -2543,57 +1338,19 @@ const rowKey = `${empId}_${attendanceId}`;
         </table>
       </div>
 
+      {/* Pagination */}
       <div style={{ textAlign: "center", marginTop: 20 }}>
-        <button
-          disabled={currentPage === 1}
-          onClick={() => setCurrentPage(currentPage - 1)}
-        >
-          Prev
-        </button>
-
-        <span style={{ margin: "0 12px" }}>
-          Page {currentPage} / {totalPages}
-        </span>
-
-        <button
-          disabled={currentPage === totalPages}
-          onClick={() => setCurrentPage(currentPage + 1)}
-        >
-          Next
-        </button>
+        <button disabled={currentPage === 1} onClick={() => setCurrentPage((p) => p - 1)}>Prev</button>
+        <span style={{ margin: "0 12px" }}>Page {currentPage} / {totalPages || 1}</span>
+        <button disabled={currentPage >= totalPages} onClick={() => setCurrentPage((p) => p + 1)}>Next</button>
       </div>
 
-      {showConflictModal ? (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.45)",
-            zIndex: 10001,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            style={{
-              width: "min(980px, 96vw)",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              background: "#fff",
-              borderRadius: 8,
-              boxShadow: "0 12px 32px rgba(0,0,0,0.2)",
-              padding: 18,
-            }}
-          >
-            <h4 style={{ marginTop: 0, marginBottom: 10 }}>
-              Attendance Conflicts Found
-            </h4>
-            <p style={{ marginTop: 0, color: "#444", fontSize: 14 }}>
-              Please select salary group for each employee/designation row before continuing.
-            </p>
-
+      {/* Conflict Modal */}
+      {showConflictModal && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.45)", zIndex: 10001, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+          <div style={{ width: "min(980px, 96vw)", maxHeight: "90vh", overflowY: "auto", background: "#fff", borderRadius: 8, boxShadow: "0 12px 32px rgba(0,0,0,0.2)", padding: 18 }}>
+            <h4 style={{ marginTop: 0, marginBottom: 10 }}>Attendance Conflicts Found</h4>
+            <p style={{ marginTop: 0, color: "#444", fontSize: 14 }}>Please select salary group for each row before continuing.</p>
             <div style={{ overflowX: "auto", border: "1px solid #eee", borderRadius: 6 }}>
               <table style={{ width: "100%", borderCollapse: "collapse", minWidth: 760 }}>
                 <thead>
@@ -2608,38 +1365,18 @@ const rowKey = `${empId}_${attendanceId}`;
                 <tbody>
                   {conflictRecords.map((record, idx) => {
                     const key = getConflictKey(record, idx);
+                    const rowOptions = conflictSalaryOptionsMap[key] || salaryGroupOptions;
                     return (
                       <tr key={key}>
                         <td style={tdStyle}>{record?.EmpCode || record?.EmployeeCode || "-"}</td>
                         <td style={tdStyle}>{record?.EmployeeName || "-"}</td>
                         <td style={tdStyle}>{record?.Designation || "-"}</td>
-                        <td style={{ ...tdStyle, color: "#b91c1c", textAlign: "left" }}>
-                          {record?.Error || "Employee belongs to another property"}
-                        </td>
+                        <td style={{ ...tdStyle, color: "#b91c1c", textAlign: "left" }}>{record?.Error || "Employee belongs to another property"}</td>
                         <td style={tdStyle}>
-                          {(() => {
-                            const rowOptions =
-                              conflictSalaryOptionsMap[key] || salaryGroupOptions;
-                            return (
-                              <select
-                                value={salaryGroupMap[key] || ""}
-                                onChange={(e) =>
-                                  setSalaryGroupMap((prev) => ({
-                                    ...prev,
-                                    [key]: e.target.value,
-                                  }))
-                                }
-                                style={{ minWidth: 220, padding: "5px 7px" }}
-                              >
-                                <option value="">Select Salary Group</option>
-                                {rowOptions.map((sg) => (
-                                  <option key={sg.id} value={String(sg.id)}>
-                                    {sg.name}
-                                  </option>
-                                ))}
-                              </select>
-                            );
-                          })()}
+                          <select value={salaryGroupMap[key] || ""} onChange={(e) => setSalaryGroupMap((prev) => ({ ...prev, [key]: e.target.value }))} style={{ minWidth: 220, padding: "5px 7px" }}>
+                            <option value="">Select Salary Group</option>
+                            {rowOptions.map((sg) => <option key={sg.id} value={String(sg.id)}>{sg.name}</option>)}
+                          </select>
                         </td>
                       </tr>
                     );
@@ -2647,29 +1384,13 @@ const rowKey = `${empId}_${attendanceId}`;
                 </tbody>
               </table>
             </div>
-
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 14 }}>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={closeConflictModal}
-                disabled={confirmingUpload}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={confirmCrossPropertyUpload}
-                disabled={confirmingUpload}
-              >
-                {confirmingUpload ? "Saving..." : "Confirm & Upload"}
-              </button>
+              <button type="button" className="btn btn-secondary" onClick={closeConflictModal} disabled={confirmingUpload}>Cancel</button>
+              <button type="button" className="btn btn-primary" onClick={confirmCrossPropertyUpload} disabled={confirmingUpload}>{confirmingUpload ? "Saving..." : "Confirm & Upload"}</button>
             </div>
           </div>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }
-

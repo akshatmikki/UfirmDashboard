@@ -85,22 +85,27 @@ export default function AttendanceMaster() {
     }, []);
     // ✅ Employee fetch API call
     useEffect(() => {
+        const controller = new AbortController();
         const fetchEmployees = async () => {
             try {
                 if (!propertyId) return;
-                const data = await getFacilityMembers(propertyId);
-                const formatted = data.map(emp => ({
-                    ...emp,
-                    label: emp.Name,
-                    value: emp
-                }));
-                // console.log("Fetched Employees:", formatted);
-                setEmployeeList(formatted);
+                const data = await getFacilityMembers(propertyId, { signal: controller.signal });
+                if (data) {
+                    const formatted = data.map(emp => ({
+                        ...emp,
+                        label: emp.Name,
+                        value: emp
+                    }));
+                    setEmployeeList(formatted);
+                }
             } catch (error) {
-                console.error("Failed to load employees:", error);
+                if (error.name !== 'AbortError' && !axios.isCancel(error)) {
+                    console.error("Failed to load employees:", error);
+                }
             }
         };
         fetchEmployees();
+        return () => controller.abort();
     }, [propertyId]);
 
     const employeeMap = React.useMemo(() => {
@@ -159,16 +164,61 @@ export default function AttendanceMaster() {
 
     // ✅ Fetch all manual attendance and separate pending vs approved/rejected
     useEffect(() => {
-        fetchManualAttendance();
-    }, [propertyId]);
+        const controller = new AbortController();
+        
+        const fetchManualAttendance = async () => {
+            if (!propertyId) return;
+            try {
+                const savedData = await getManualAttendanceByProperty(propertyId, { signal: controller.signal });
+                if (!savedData) return;
 
-    const fetchManualAttendance = async () => {
+                const formattedData = savedData.map(item => ({
+                    Id: item.Id,
+                    EmployeeId: item.EmployeeId,
+                    EmployeeName: item.EmployeeName ||
+                        employeeMap[item.EmployeeId] ||
+                        `ID-${item.EmployeeId}`,
+                    employee: { Name: item.EmployeeName || `ID-${item.EmployeeId}` },
+                    mobile: item.MobileNo,
+                    PunchTime: item.PunchTime ? new Date(item.PunchTime) : null,
+                    punchDate: item.PunchTime ? new Date(item.PunchTime) : null,
+                    checkIn: item.PunchTime ? new Date(item.PunchTime) : null,
+                    PunchType: item.PunchType,
+                    GateNo: item.GateNo,
+                    CreatedBy: item.CreatedBy,
+                    CreatedOn: item.CreatedOn ? new Date(item.CreatedOn) : null,
+                    EmpId: item.EmpId,
+                    Status: item.Status,
+                    image: item.ImageFileName,
+                    ImageFileName: item.ImageFileName,
+                    location: item.LocationName || "",
+                    LocationName: item.LocationName || "",
+                    Reason: item.Reason || "",
+                    IsApproved: item.IsApproved || false,
+                    IsRejected: item.IsRejected || false,
+                    RejectionRemark: item.RejectionRemark || "",
+                    ApprovedBy: item.ApprovedBy,
+                    ApprovedOn: item.ApprovedOn ? new Date(item.ApprovedOn) : null
+                }));
+
+                setSubmittedData(formattedData);
+            } catch (error) {
+                if (error.name !== 'AbortError' && !axios.isCancel(error)) {
+                    console.error("Failed to fetch saved attendance:", error);
+                }
+            }
+        };
+
+        fetchManualAttendance();
+        return () => controller.abort();
+    }, [propertyId, employeeMap]);
+
+    // This is used for refresh after actions
+    const refreshManualAttendance = async () => {
         if (!propertyId) return;
         try {
             const savedData = await getManualAttendanceByProperty(propertyId);
-
             const formattedData = savedData.map(item => ({
-
                 Id: item.Id,
                 EmployeeId: item.EmployeeId,
                 EmployeeName: item.EmployeeName ||
@@ -196,10 +246,9 @@ export default function AttendanceMaster() {
                 ApprovedBy: item.ApprovedBy,
                 ApprovedOn: item.ApprovedOn ? new Date(item.ApprovedOn) : null
             }));
-
             setSubmittedData(formattedData);
         } catch (error) {
-            console.error("Failed to fetch saved attendance:", error);
+            console.error("Failed to refresh manual attendance:", error);
         }
     };
 
@@ -214,7 +263,7 @@ export default function AttendanceMaster() {
             });
 
             alert("Attendance approved ✅");
-            fetchManualAttendance(); // Refresh data
+            refreshManualAttendance(); // Refresh data
         } catch (error) {
             console.error(error);
             alert("Failed to approve ❌");
@@ -244,7 +293,7 @@ export default function AttendanceMaster() {
 
             alert("Attendance rejected ❌");
             setRejectionDialog(false);
-            fetchManualAttendance(); // Refresh data
+            refreshManualAttendance(); // Refresh data
         } catch (error) {
             console.error(error);
             alert("Failed to reject ❌");
@@ -351,6 +400,8 @@ export default function AttendanceMaster() {
         setSelectedDayAttendance([]);
         setSelectedDay(null);
 
+        const controller = new AbortController();
+
         const year = currentDate.getFullYear();
         const month = currentDate.getMonth();
 
@@ -398,28 +449,33 @@ export default function AttendanceMaster() {
 
         const allDates = [];
         for (let d = 1; d <= daysInMonth; d++) {
-            const dateObj = new Date(year, month, d, 12, 0, 0);
-            const key = dateObj.toISOString().slice(0, 10);
-            allDates.push(key);
+            // Generate local YYYY-MM-DD keys
+            const dateKey = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            allDates.push(dateKey);
         }
 
         const employees = {};
         attendanceData.forEach(record => {
-            const emp = record.EmployeeName;
+            // Use a unique key to prevent collisions between employees with same names/missing codes
+            const uniqueId = record.EmployeeId || record.FacilityMemberId || `${record.EmployeeCode || ""}_${record.EmployeeName || "Unknown"}`;
+            const empName = record.EmployeeName;
             const desig = record.Designation || "--";
+            const empCode = record.EmployeeCode || "--";
 
             const recordDateObj = new Date(record.PunchDate);
-            recordDateObj.setHours(12, 0, 0, 0);
-            const dateKey = recordDateObj.toISOString().slice(0, 10);
+            // Generate local YYYY-MM-DD keys to match allDates
+            const dateKey = `${recordDateObj.getFullYear()}-${String(recordDateObj.getMonth() + 1).padStart(2, '0')}-${String(recordDateObj.getDate()).padStart(2, '0')}`;
 
-            if (!employees[emp]) {
-                employees[emp] = {
+            if (!employees[uniqueId]) {
+                employees[uniqueId] = {
+                    EmployeeName: empName,
                     Designation: desig,
+                    EmployeeCode: empCode,
                     Attendance: {}
                 };
             }
 
-            employees[emp].Attendance[dateKey] = {
+            employees[uniqueId].Attendance[dateKey] = {
                 CheckIn: record.MinCheckIn || "--",
                 CheckOut: record.MaxCheckOut || "--",
                 WorkingTime: record.TotalWorkingTime || "0h",
@@ -432,7 +488,8 @@ export default function AttendanceMaster() {
             (attendanceType === "PROPERTY" && Number(attendanceEntityId) === LPS_BOSSARD_PROPERTY_ID) ||
             (attendanceType === "CLIENT" && Number(attendanceEntityId) === OT_ENABLED_CLIENT_ID);
 
-        Object.entries(employees).forEach(([emp, empData]) => {
+        Object.entries(employees).forEach(([id, empData]) => {
+            const empName = empData.EmployeeName;
             const attMap = empData.Attendance;
 
             let present = 0, absent = 0, holiday = 0, leave = 0, totalWTmin = 0;
@@ -456,10 +513,10 @@ export default function AttendanceMaster() {
 
             const totalHours = `${Math.floor(totalWTmin / 60)}h ${totalWTmin % 60}m`;
 
-            // 🔹 Employee + Designation
-            ws_data.push([`Employee: ${emp} (${empData.Designation})`]);
+            // 🔹 Employee + Code + Designation
+            ws_data.push([`Employee: ${empName} - ${empData.EmployeeCode} (${empData.Designation})`]);
 
-            // 🔹 Summary (no Absent count)
+            // 🔹 Summary
             ws_data.push([
                 `Present: ${present}`,
                 `Absent: ${absent}`,
@@ -525,6 +582,7 @@ export default function AttendanceMaster() {
     //     let ws_data = [];
     //     ws_data.push([
     //         "Employee Name",
+    //         "Employee Code",
     //         ...allDates.map(d => d.label),
     //         "Total P",
     //         "Total A",
@@ -581,9 +639,10 @@ export default function AttendanceMaster() {
             return;
         }
 
-        const columns = ["Employee Name", "Check In", "Check Out", "Working Time", "Status"];
+        const columns = ["Employee Name", "Employee Code", "Check In", "Check Out", "Working Time", "Status"];
         const rows = attendanceList.map(record => [
             record.EmployeeName || "",
+            record.EmployeeCode || "",
             record.MinCheckIn || "",
             record.MaxCheckOut || "",
             record.TotalWorkingTime || "",
@@ -823,6 +882,7 @@ export default function AttendanceMaster() {
             >
                 <DataTable value={selectedDayAttendance} globalFilter={globalFilter} paginator rows={10}>
                     <Column field="EmployeeName" header="Employee Name" sortable />
+                    <Column field="EmployeeCode" header="Employee Code" sortable />
                     <Column field="MinCheckIn" header="Check In" sortable />
                     <Column field="MaxCheckOut" header="Check Out" sortable />
                     <Column field="TotalWorkingTime" header="Working Time" sortable />

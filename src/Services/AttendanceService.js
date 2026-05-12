@@ -1,7 +1,6 @@
 import axios from 'axios';
 
 const API_BASE_URL = 'https://api.urest.in:8096/api/attendance';
-//const API_BASE_URL = 'https://api.urest.in:8096/api/attendance';
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -24,7 +23,8 @@ export const getAttendance = async (
     id,
     fromDate,
     toDate,
-    type = "PROPERTY" // default keeps backward compatibility
+    type = "PROPERTY", // default keeps backward compatibility
+    options = {}
 ) => {
     try {
         const url =
@@ -32,7 +32,23 @@ export const getAttendance = async (
                 ? `/monthly-summary-by-client?ClientID=${id}&FromDate=${fromDate}&ToDate=${toDate}`
                 : `/monthly-summary?PropertyId=${id}&FromDate=${fromDate}&ToDate=${toDate}`;
 
-        const response = await api.get(url);
+        const response = await api.get(url, { signal: options.signal });
+        return response.data;
+    } catch (error) {
+        if (axios.isCancel(error)) {
+            console.log("Request canceled:", error.message);
+            return null;
+        }
+        handleApiError(error);
+    }
+};
+
+// Dashboard attendance chart summary (Present/Absent/Leave counts)
+export const getAttendanceSummaryCount = async (propertyId, fromDate, toDate) => {
+    try {
+        const response = await api.get(
+            `/attendance-summary-count?propertyId=${propertyId}&fromDate=${fromDate}&toDate=${toDate}`
+        );
         return response.data;
     } catch (error) {
         handleApiError(error);
@@ -42,14 +58,16 @@ export const getAttendance = async (
 
 const BASE_URL = "https://api.urest.in:8096/api/UfirmEmployee";
 
-export const getFacilityMembers = async (propertyId) => {
+export const getFacilityMembers = async (propertyId, options = {}) => {
   try {
     const response = await axios.get(`${BASE_URL}/get-FacilityMembers`, {
       params: { propertyId, },
-      withCredentials: false
+      withCredentials: false,
+      signal: options.signal
     });
     return response.data;
   } catch (error) {
+    if (axios.isCancel(error)) return null;
     console.error("Error fetching facility member names:", error);
     throw error;
   }
@@ -85,7 +103,7 @@ export const saveManualAttendance = async (attendanceData) => {
 };
 
 // Get all manual attendance by property
-export const getManualAttendanceByProperty = async (propertyId) => {
+export const getManualAttendanceByProperty = async (propertyId, options = {}) => {
     try {
         const response = await fetch(
             `https://api.urest.in:8096/api/attendance/manualattendance/getall`,
@@ -93,13 +111,15 @@ export const getManualAttendanceByProperty = async (propertyId) => {
                 method: "GET",
                 headers: {
                     Accept: "application/json"
-                }
+                },
+                signal: options.signal
             }
         );
         if (!response.ok) throw new Error("Failed to fetch manual attendance");
         const data = await response.json();
         return data;
     } catch (error) {
+        if (error.name === 'AbortError') return null;
         console.error("Error in getManualAttendanceByProperty:", error);
         return [];
     }
@@ -142,4 +162,3 @@ export const rejectprocessManualAttendance = async ({ id, approve, actionBy, rej
     throw error;
   }
 };
-

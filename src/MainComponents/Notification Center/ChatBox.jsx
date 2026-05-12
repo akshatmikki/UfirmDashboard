@@ -7,6 +7,7 @@ const styles = {
     maxHeight: "250px",
     overflowY: "auto",
     padding: "10px",
+    overscrollBehavior: "contain",
   },
   chatRow: {
     display: "flex",
@@ -64,13 +65,10 @@ const ChatBox = ({
   const [servicedBy, setServicedBy] = useState("");
   const [approvedBy, setApprovedBy] = useState("");
 
-  const chatEndRef = useRef(null);
-
-  
+  const chatScrollRef = useRef(null);
 
   const handleSend = async () => {
     if (context === "asset") {
-      // ✅ Validation
       if (!assetData.AssetId || !serviceDate || !nextServiceDate) {
         alert("Please fill Service Date, Next Service Date, and Asset ID.");
         return;
@@ -85,7 +83,6 @@ const ChatBox = ({
       formData.append("ServicedBy", servicedBy || "");
       formData.append("ApprovedBy", approvedBy || "");
 
-      // ✅ Attach files if selected
       if (serviceDoc) formData.append("ServiceDoc", serviceDoc);
       if (image) formData.append("Image", image);
 
@@ -94,7 +91,7 @@ const ChatBox = ({
           "https://api.urest.in:8096/api/Asset/SaveServiceRecord",
           {
             method: "POST",
-            body: formData, // FormData automatically sets multipart/form-data
+            body: formData,
           },
         );
 
@@ -111,7 +108,6 @@ const ChatBox = ({
           if (typeof assetData.onClose === "function") assetData.onClose();
         }, 500);
 
-        // Reset fields
         setInputValue("");
         setServiceDate("");
         setNextServiceDate("");
@@ -133,9 +129,7 @@ const ChatBox = ({
 
   const formatDateTime = (dt) => {
     if (!dt) return "";
-
     const date = new Date(dt);
-
     return date.toLocaleString("en-IN", {
       day: "2-digit",
       month: "short",
@@ -174,29 +168,34 @@ const ChatBox = ({
   }, [context, status]);
 
   useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [remarks]);
+    const el = chatScrollRef.current;
+    if (!el) return;
+    const scrollToBottom = () => {
+      try {
+        el.scrollTo({ top: el.scrollHeight, behavior: "auto" });
+      } catch (_) {
+        el.scrollTop = el.scrollHeight;
+      }
+    };
+    scrollToBottom();
+    const raf = window.requestAnimationFrame(scrollToBottom);
+    const t = window.setTimeout(scrollToBottom, 0);
+    return () => {
+      window.cancelAnimationFrame(raf);
+      window.clearTimeout(t);
+    };
+  }, [remarks?.length]);
 
   const stripHtml = (html) => html.replace(/<[^>]*>/g, "");
 
   const parseRemark = (html) => {
     if (!html) return { label: "", message: "", date: "" };
-
-    // 1. Strip HTML
     const clean = stripHtml(html).trim();
-
-    // 2. Extract date (YYYY-MM-DD HH:mm:ss)
     const dateMatch = clean.match(/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/);
     const rawDate = dateMatch ? dateMatch[0] : "";
-
-    // 3. Remove date from text completely
     const textOnly = rawDate ? clean.replace(rawDate, "").trim() : clean;
-
-    // 4. Split label and message
     const [label, ...msgParts] = textOnly.split(":");
     const message = msgParts.join(":").trim();
-
-    // 5. Format date nicely
     let formattedDate = "";
     if (rawDate) {
       const d = new Date(rawDate.replace(" ", "T"));
@@ -209,7 +208,6 @@ const ChatBox = ({
         hour12: true,
       });
     }
-
     return {
       label: label.trim(),
       message,
@@ -218,29 +216,10 @@ const ChatBox = ({
   };
 
   return (
-    <div className="container mt-3">
-      {context !== "asset" && (
-        <div className="alert alert-info mb-3 d-flex justify-content-between align-items-center">
-          <span>
-            Status: <strong>{currentStatus}</strong>
-          </span>
-
-          {context === "task"
-            ? currentStatus === "Actionable" && (
-                <Button variant="success" onClick={handleMarkComplete}>
-                  Mark as Complete
-                </Button>
-              )
-            : statusOptions.length > 1 && (
-                <Button variant="secondary" onClick={toggleStatus}>
-                  Change Status
-                </Button>
-              )}
-        </div>
-      )}
+    <div className="container mt-3" style={{ height: fillHeight ? "100%" : "auto", display: "flex", flexDirection: "column" }}>
 
       <div
-        className="alert alert-secondary mb-3"
+        className={`alert alert-secondary ${context === "asset" ? "mb-3" : "mb-0"}`}
         style={
           context === "asset"
             ? {}
@@ -249,6 +228,8 @@ const ChatBox = ({
                 height: fillHeight ? "100%" : undefined,
                 display: "flex",
                 flexDirection: "column",
+                border: "none",
+                borderRadius: "8px",
               }
         }
       >
@@ -257,16 +238,16 @@ const ChatBox = ({
             style={{
               ...styles.chatScroll,
               maxHeight: fillHeight ? "none" : chatScrollMaxHeight || styles.chatScroll.maxHeight,
-              height: fillHeight ? "100%" : undefined,
               flex: 1,
+              minHeight: 0,
             }}
+            ref={chatScrollRef}
           >
             {remarks.length === 0 ? (
               <p style={{ color: "#6c757d" }}>No remarks available</p>
             ) : (
               remarks.map((item, index) => {
                 const isFM = item.RemarkHtml?.includes("FM:");
-
                 return (
                   <div
                     key={index}
@@ -282,38 +263,21 @@ const ChatBox = ({
                       }}
                     >
                       {(() => {
-                        const { label, message, date } = parseRemark(
-                          item.RemarkHtml,
-                        );
-
-                        // 👇 ONLY complaint uses RemarkDate
-                        const finalDate =
-                          context === "ticket"
-                            ? formatDateTime(item.RemarkDate)
-                            : date;
-
+                        const { label, message, date } = parseRemark(item.RemarkHtml);
+                        const finalDate = context === "ticket" ? formatDateTime(item.RemarkDate) : date;
                         return (
                           <>
-                            <div style={{ fontWeight: 600, color: "#000" }}>
+                            <div style={{ fontWeight: 400, color: "#000" }}>
                               {label}:{" "}
                               <span style={{ fontWeight: 400, color: "#000", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
                                 {message}
                               </span>
                             </div>
-
                             {finalDate && (
-                              <div
-                                style={{
-                                  fontSize: "13px",
-                                  fontWeight: 400,
-                                  color: "#000",
-                                  marginTop: "4px",
-                                }}
-                              >
+                              <div style={{ fontSize: "13px", fontWeight: 400, color: "#000", marginTop: "4px" }}>
                                 {finalDate}
                               </div>
                             )}
-
                           </>
                         );
                       })()}
@@ -322,7 +286,6 @@ const ChatBox = ({
                 );
               })
             )}
-            <div ref={chatEndRef} />
           </div>
         )}
 
@@ -339,80 +302,40 @@ const ChatBox = ({
                 style={{ resize: "vertical" }}
               />
             </Form.Group>
-
             <Form.Group className="mb-2">
               <Form.Label>Service Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={serviceDate}
-                onChange={(e) => setServiceDate(e.target.value)}
-              />
+              <Form.Control type="date" value={serviceDate} onChange={(e) => setServiceDate(e.target.value)} />
             </Form.Group>
-
             <Form.Group className="mb-2">
               <Form.Label>Next Service Date</Form.Label>
-              <Form.Control
-                type="date"
-                value={nextServiceDate}
-                onChange={(e) => setNextServiceDate(e.target.value)}
-              />
+              <Form.Control type="date" value={nextServiceDate} onChange={(e) => setNextServiceDate(e.target.value)} />
             </Form.Group>
-
             <Form.Group className="mb-2">
               <Form.Label>Service Cost (₹)</Form.Label>
-              <Form.Control
-                type="number"
-                placeholder="Enter cost..."
-                value={serviceCost}
-                onChange={(e) => setServiceCost(e.target.value)}
-              />
+              <Form.Control type="number" placeholder="Enter cost..." value={serviceCost} onChange={(e) => setServiceCost(e.target.value)} />
             </Form.Group>
-
-            {/* File upload section */}
             <Form.Group className="mb-2">
               <Form.Label>Upload Service Document</Form.Label>
-              <Form.Control
-                type="file"
-                accept=".pdf,.doc,.docx,.xls,.xlsx,.txt"
-                onChange={(e) => setServiceDoc(e.target.files[0])}
-              />
+              <Form.Control type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.txt" onChange={(e) => setServiceDoc(e.target.files[0])} />
             </Form.Group>
-
             <Form.Group className="mb-2">
               <Form.Label>Upload Image</Form.Label>
-              <Form.Control
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImage(e.target.files[0])}
-              />
+              <Form.Control type="file" accept="image/*" onChange={(e) => setImage(e.target.files[0])} />
             </Form.Group>
-
             <Form.Group className="mb-2">
               <Form.Label>Serviced By</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Enter technician name..."
-                value={servicedBy}
-                onChange={(e) => setServicedBy(e.target.value)}
-              />
+              <Form.Control type="text" placeholder="Enter technician name..." value={servicedBy} onChange={(e) => setServicedBy(e.target.value)} />
             </Form.Group>
-
             <Form.Group className="mb-3">
               <Form.Label>Approved By</Form.Label>
-              <Form.Control
-                type="text"
-                placeholder="Enter approver name..."
-                value={approvedBy}
-                onChange={(e) => setApprovedBy(e.target.value)}
-              />
+              <Form.Control type="text" placeholder="Enter approver name..." value={approvedBy} onChange={(e) => setApprovedBy(e.target.value)} />
             </Form.Group>
-
             <Button variant="primary" onClick={handleSend}>
               Save Service Record
             </Button>
           </div>
         ) : (
-          <div className="d-flex mt-2 align-items-end">
+          <div className="d-flex mt-2 align-items-end" style={{ marginTop: "auto" }}>
             <Form.Control
               as="textarea"
               rows={2}

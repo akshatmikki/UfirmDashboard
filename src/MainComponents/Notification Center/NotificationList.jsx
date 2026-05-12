@@ -159,7 +159,7 @@ const NotificationList = ({ nList = [], apiCall }) => {
             <div className="notification-item-content">
               {notification.TaskId ? (
                 <span>
-                  Complaint: {notification.TaskName} – {notification.SupName}:{" "}
+                  Actionable: {notification.TaskName} – {notification.SupName}:{" "}
                   {notification.SupRemark}
                 </span>
               ) : (

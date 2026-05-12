@@ -349,8 +349,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc2NDk5ODg0LCJleHAiOjE4MDgwMzU4ODQsImlhdCI6MTc3NjQ5OTg4NH0.T42gyC3WTe7lThJGa4agXdhBbMW61cq0l3lVGr4tIe0";
-    // var token = window.sessionStorage.getItem("userinfo_key")
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc3NTMyMjY1LCJleHAiOjE4MDkwNjgyNjUsImlhdCI6MTc3NzUzMjI2NX0.uTRDx7t8wQ8gE_9l7W3Xo9cvM_K04PV5GiS4WfigAVA";
+    //var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -492,7 +492,7 @@ class MainNav extends React.Component {
     const hideAttendanceForPropertyManager =
       ROLE_RULES.shouldHideAttendanceForPropertyManager(roles);
     const canAccessCompOff =
-      ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles);
+      ROLE_RULES.isAdminRole(roles) || ROLE_RULES.isManagerRole(roles) || ROLE_RULES.isHrRole(roles);
 
     // Restrict "HR-only" users to a safe allow-list. If the user has HR plus another
     // functional role (ex: HR + Manager), don't apply the HR-only restriction.
@@ -517,6 +517,7 @@ class MainNav extends React.Component {
       "/Account/App/FacilityMember",
       "/Account/App/Facility",
       "/Account/App/Attendance",
+      "/Account/App/CompOff",
       "/Account/App/leave",
       "/Account/App/leavemaster",
       "/Account/App/EmployeeLeaveRemaining",
@@ -621,7 +622,7 @@ class MainNav extends React.Component {
               )}
             </form>
             <div className="navbar-nav  ml-auto ">
-              <Notification />
+              {!isHrRole && <Notification />}
               <div className="nav-item dropdown">
                 <a
                   href="#"

@@ -1,7 +1,7 @@
 import axios from 'axios';
 
+//const API_BASE_URL = 'http://localhost:62929/api/inventory';
 const API_BASE_URL = 'https://api.urest.in:8096/api/inventory';
-//const API_BASE_URL = 'https://api.urest.in:8096/api/inventory';
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -186,7 +186,7 @@ export const updateVendor = async (id, vendor) => {
     try {
         const response = await api.put(`/vendor/${id}`, vendor, {
             headers: {
-                ...(vendor instanceof FormData ? { 'Content-Type': null } : { 'Content-Type': 'application/json' }),
+                ...(vendor instanceof FormData ? { 'Content-Type': undefined } : { 'Content-Type': 'application/json' }),
             },
         });
         return response.data;

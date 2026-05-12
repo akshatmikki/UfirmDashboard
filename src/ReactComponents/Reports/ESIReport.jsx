@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
+import {
+  getGeneratedSalaryByPropertiesWithMonthYear,
+  getEmployeesByOffices
+} from "../../Services/PayrollService";
 import {
   getAllClients,
   getClientByPropertyId,
@@ -92,20 +95,63 @@ export default function ESIReport() {
         setLoading(true);
 
         const [year, month] = selectedMonth.split("-");
-        const monthName = new Date(year, month - 1).toLocaleString(
-          "default",
-          { month: "long" }
-        );
-
-        const data = await getFacilityMemberSalaryDetailsByClientBranch({
-          clientId: selectedUnitId,
-          propertyIds: propertyIds.join(","),
-          month: monthName,
-          year: Number(year),
-          requireGeneratedSalary: true,
+        const monthName = new Date(year, month - 1).toLocaleString("default", {
+          month: "long",
         });
 
-        setEmployees(Array.isArray(data) ? data : []);
+        const [salaryData, employeeData] = await Promise.all([
+          getGeneratedSalaryByPropertiesWithMonthYear(
+            propertyIds,
+            monthName,
+            Number(year)
+          ),
+          getEmployeesByOffices(propertyIds),
+        ]);
+
+        // 🔗 Map employee data
+        const employeeMap = {};
+
+        (employeeData || []).forEach((emp) => {
+          const fmId = emp?.FacilityMember?.FacilityMemberId;
+
+          if (fmId) {
+            employeeMap[fmId] = {
+              EmployeeCode: emp?.Profile?.EmployeeCode,
+              ESINumber: emp?.FinancialInfo?.ESINumber,
+            };
+          }
+        });
+
+        // 🔥 Merge + calculate
+        const mappedData = (salaryData || []).map((emp) => {
+          const extra = employeeMap[emp.EmployeeId] || {};
+
+          const esiBase = emp.ESIVariableSum || 0;
+
+          const esiWage =
+            emp.ESILimit > 0 && emp.ESILimit < esiBase
+              ? emp.ESILimit
+              : esiBase;
+
+          return {
+            FacilityMemberId: emp.EmployeeId,
+
+            EmployeeCode: extra.EmployeeCode || "-",
+            FacilityMemberName: emp.EmployeeName,
+            ESINumber: extra.ESINumber || "-",
+
+            WorkingDays: emp.WorkingDays || 0,
+            TotalGross: emp.TotalGross || 0,
+
+            ESIWage: esiWage,
+            ESI_075: emp.ESI || 0,   // from API (already ceil)
+            ESI_325: Math.ceil(esiWage * 0.0325),
+
+            LWF: emp.LwfEmployeeAmount || 0,
+          };
+        });
+
+        setEmployees(mappedData);
       } catch (error) {
         console.error("ESI report fetch failed", error);
         setEmployees([]);
@@ -126,13 +172,23 @@ export default function ESIReport() {
     });
 
     let csvContent = "";
+    let totalGross = 0;
+    let totalESIWage = 0;
+    let total075 = 0;
+    let total325 = 0;
+    let totalLWF = 0;
 
-    csvContent += `ESI Report - ${monthName} ${year}\n\n`;
+    const selectedUnitName =
+      propertyList.find(p => p.PropertyId === selectedPropertyId)?.PropertyName || "All Units";
+
+    csvContent += `ESI Report - ${monthName} ${year}\n`;
+    csvContent += `Unit: ${selectedUnitName}\n\n`;
 
     const headers = [
       "S.No",
       "Employee Code",
       "Employee Name",
+      "ESI Number",
       "Working Days",
       "Total Gross Earn",
       "ESI Wage",
@@ -143,21 +199,45 @@ export default function ESIReport() {
 
     csvContent += headers.join(",") + "\n";
 
-    employees.forEach((emp, index) => {
-      const row = [
-        index + 1,
-        emp.EmployeeCode || "-",
-        emp.FacilityMemberName || "-",
-        emp.WorkingDays || 0,
-        emp.ProratedTotalGross || 0,
-        emp.ProratedTotalGross || 0,
-        Math.ceil((emp.ProratedTotalGross || 0) * 0.0075),
-        Math.ceil((emp.ProratedTotalGross || 0) * 0.0325),
-        emp.LwfEmployeeAmount || 0,
-      ];
+    employees.filter(emp => emp.ESIWage > 0)
+      .forEach((emp, index) => {
+        totalGross += emp.TotalGross || 0;
+        totalESIWage += emp.ESIWage;
+        total075 += emp.ESI_075;
+        total325 += emp.ESI_325;
+        totalLWF += emp.LwfEmployeeAmount || 0;
+        const row = [
+          index + 1,
+          emp.EmployeeCode || "-",
+          emp.FacilityMemberName || "-",
+          `="${emp.ESINumber || "-"}"`,
+          emp.WorkingDays || 0,
+          emp.TotalGross || 0,
+          emp.ESIWage,
+          emp.ESI_075,
+          emp.ESI_325,
+          emp.LwfEmployeeAmount || 0,
+        ];
 
-      csvContent += row.join(",") + "\n";
-    });
+        csvContent += row.join(",") + "\n";
+      });
+
+    csvContent += "\n";
+
+    const totalRow = [
+      "TOTAL",  // S.No
+      "",       // Employee Code
+      "",       // Employee Name
+      "",       // ESI Number
+      "",       // Working Days
+      totalGross,
+      totalESIWage,
+      total075,
+      total325,
+      totalLWF
+    ];
+
+    csvContent += totalRow.join(",") + "\n";
 
     const blob = new Blob([csvContent], {
       type: "text/csv;charset=utf-8;",
@@ -169,7 +249,7 @@ export default function ESIReport() {
     link.href = url;
     link.setAttribute(
       "download",
-      `ESI_Report_${monthName}_${year}.csv`
+      `ESI_Report_${selectedUnitName}_${monthName}_${year}.csv`
     );
 
     document.body.appendChild(link);
@@ -297,6 +377,7 @@ export default function ESIReport() {
               <th>S.No.</th>
               <th>Employee Code</th>
               <th>Employee Name</th>
+              <th>ESI Number</th>
               <th>Working Days</th>
               <th>Total Gross Earn</th>
               <th>ESI Wage</th>
@@ -313,21 +394,27 @@ export default function ESIReport() {
                 </td>
               </tr>
             ) : (
-              employees.map((emp, index) => (
-                <tr key={emp.FacilityMemberId}>
-                  <td>{index + 1}</td>
-                  <td>{emp.EmployeeCode || "-"}</td>
-                  <td>{emp.FacilityMemberName || "-"}</td>
-                  <td>{emp.WorkingDays}</td>
-                  <td>{emp.ProratedTotalGross}</td>
-                  <td>{emp.ProratedTotalGross}</td>
-                  <td>{Math.ceil(emp.ProratedTotalGross * 0.0075)}</td>
-                  <td>{Math.ceil(emp.ProratedTotalGross * 0.0325)}</td>
-                  {/* <td>{Math.round(emp.ProratedTotalGross * 0.0075)}</td>
+              employees
+                .filter(emp => emp.ESIWage > 0)
+                .map((emp, index) => {
+
+                  return (
+                    <tr key={emp.FacilityMemberId}>
+                      <td>{index + 1}</td>
+                      <td>{emp.EmployeeCode}</td>
+                      <td>{emp.FacilityMemberName}</td>
+                      <td>{emp.ESINumber}</td>
+                      <td>{emp.WorkingDays}</td>
+                      <td>{emp.TotalGross}</td>
+                      <td>{emp.ESIWage}</td>
+                      <td>{emp.ESI_075}</td>
+                      <td>{emp.ESI_325}</td>
+                      <td>{emp.LWF}</td>
+                      {/* <td>{Math.round(emp.ProratedTotalGross * 0.0075)}</td>
                   <td>{Math.round(emp.ProratedTotalGross * 0.0325)}</td> */}
-                  <td>{emp.LwfEmployeeAmount || 0}</td>
-                </tr>
-              ))
+                    </tr>
+                  );
+                })
             )}
           </tbody>
         </table>

@@ -344,19 +344,12 @@ export function TaskSection({ title, isOpen = true, onToggle, children }) {
       <button
         className={`task-section-title task-section-toggle ${getHeaderToneClass()}`}
         type="button"
-        style={{ cursor: String(title || "").toLowerCase().trim() === "task details" ? "default" : "pointer" }}
-        onClick={() => {
-          if (String(title || "").toLowerCase().trim() !== "task details") {
-            onToggle?.();
-          }
-        }}
+        onClick={() => onToggle?.()}
       >
         <span>{title}</span>
-        {String(title || "").toLowerCase().trim() !== "task details" && (
-          <span className="task-section-icon">
-            <i className={`fas ${isOpen ? "fa-minus" : "fa-plus"}`} />
-          </span>
-        )}
+        <span className="task-section-icon">
+          <i className={`fas ${isOpen ? "fa-minus" : "fa-plus"}`} />
+        </span>
       </button>
       {isOpen ? <div className="task-section-content">{children}</div> : null}
     </section>

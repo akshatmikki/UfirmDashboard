@@ -39,15 +39,16 @@ export default function TaskFmRemarksSection({
 
   const isActionableStatus = (value) => {
     const s = String(value || "").trim().toLowerCase();
-    return s === "actionable" || s === "in-progress" || s === "in progress";
+    return s === "actionable";
   };
 
   const visibleQuestions = useMemo(() => {
     const list = questions || [];
     return list.filter((q) => {
       const rawStatus = effectiveStatusMap[String(q.id)] || effectiveStatusMap[q.id];
-      // If we don't have per-question status yet, don't hide questions (prevents blank UI on first load).
-      if (rawStatus == null || String(rawStatus).trim() === "") return true;
+      // Only show questions that have an explicit status set in the notification map.
+      // If a question has no status entry, it means it hasn't been 'actioned' yet.
+      if (rawStatus == null || String(rawStatus).trim() === "") return false;
       return isActionableStatus(rawStatus);
     });
   }, [effectiveStatusMap, isActionableStatus, normalizedStatus, questions]);
@@ -98,14 +99,25 @@ export default function TaskFmRemarksSection({
       }
     };
 
-    // Run immediately + after layout settles (e.g. when the container was previously hidden).
+    // Run repeatedly until the modal/layout is actually visible; otherwise some browsers keep the old scrollTop.
+    let raf = 0;
+    let attempts = 0;
+    const tick = () => {
+      if (!mounted || !el) return;
+      const isVisible = el.offsetParent !== null && el.clientHeight > 0;
+      if (isVisible) reset();
+      if (attempts++ < 24 && (!isVisible || el.scrollTop !== 0)) {
+        raf = window.requestAnimationFrame(tick);
+      }
+    };
+
     reset();
-    const frame = window.requestAnimationFrame(reset);
-    const t1 = window.setTimeout(reset, 0);
-    const t2 = window.setTimeout(reset, 50);
+    raf = window.requestAnimationFrame(tick);
+    const t1 = window.setTimeout(tick, 0);
+    const t2 = window.setTimeout(tick, 120);
     return () => {
       mounted = false;
-      window.cancelAnimationFrame(frame);
+      window.cancelAnimationFrame(raf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
     };
@@ -157,7 +169,7 @@ export default function TaskFmRemarksSection({
         </div>
       ) : null}
 
-      <div className="fm-remarks-split" style={compact ? { flex: 1, minHeight: 0 } : undefined}>
+      <div className="fm-remarks-split" style={compact ? { flex: 1, minHeight: 0, display: "flex" } : { display: "flex" }}>
         <div className="fm-questions" role="navigation" aria-label="Task questionnaire">
           <div className="fm-questions-head">Task Questionnaire</div>
           <div className="fm-questions-list" ref={listRef}>
@@ -172,6 +184,7 @@ export default function TaskFmRemarksSection({
                   key={String(q.id)}
                   type="button"
                   className={`fm-q-item ${isActive ? "is-active" : ""}`}
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => setOpenQuestionId(Number(q.id))}
                   title={q.name}
                   tabIndex={-1}
@@ -194,7 +207,7 @@ export default function TaskFmRemarksSection({
           </div>
         </div>
 
-        <div className="fm-chat" aria-label="FM remarks thread">
+        <div className="fm-chat" aria-label="FM remarks thread" style={{ display: "flex", flexDirection: "column", flex: 1 }}>
           {openQuestionId ? (
             <>
               <div className="fm-chat-head">
@@ -203,17 +216,29 @@ export default function TaskFmRemarksSection({
                   <span className="fm-chat-question">
                     {(visibleQuestions || []).find((q) => Number(q.id) === Number(openQuestionId))?.name || ""}
                   </span>
+                  <span className="fm-chat-date text-muted ml-2" style={{ fontSize: '13px', fontWeight: 'normal' }}>
+                    ({fmSelectedDate})
+                  </span>
                 </div>
                 <div className="fm-chat-actions">
-                  <button className="btn btn-info btn-sm" type="button" onClick={() => onViewImage?.(openQuestionId)}>
+                  <button className="btn btn-info btn-sm mr-2" type="button" onClick={() => onViewImage?.(openQuestionId)}>
                     <i className="fa fa-eye mr-1" /> View Image
                   </button>
+                  {isCurrentActionable ? (
+                    <button 
+                      className="btn btn-success btn-sm" 
+                      type="button" 
+                      onClick={() => onSend?.("Marked as completed", "Completed", Number(openQuestionId))}
+                    >
+                      <i className="fa fa-check mr-1" /> Mark as Complete
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
               {loading ? <p className="text-muted mb-2">Loading remarks...</p> : null}
 
-              <div className="fm-chat-box">
+              <div className="fm-chat-box" style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
                 <ChatBox
                   remarks={remarks}
                   status={currentStatus}

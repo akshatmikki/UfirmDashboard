@@ -6,6 +6,7 @@ import {
     getClientByPropertyId,
     getPropertiesByClientId,
 } from "../../Services/ClientService";
+import { getFundsApprovalHistorybyProperty } from "../../Services/PayrollService";
 
 import { getFacilityMemberSalaryDetailsByClientBranch } from "../../Services/PayrollService";
 import { generateWageSheetPDF } from "./WageSheetPDF";
@@ -196,13 +197,12 @@ export default function SalaryReport() {
         }
     );
 
-    const exportExcelNew = () => {
+    const exportExcelNew = async () => {
         const selectedProperty = propertyList.find(
             p => p.PropertyId === selectedPropertyId
         );
 
         const [year, monthNum] = selectedMonth.split("-");
-
         const date = new Date(year, monthNum - 1);
 
         const monthName = date.toLocaleString("default", { month: "long" });
@@ -213,7 +213,23 @@ export default function SalaryReport() {
             month: `${monthName} - ${displayYear}`,
         };
 
-        generateWageSheetExcel(filteredEmployees, filters, false);
+        // 👉 NEW API CALL
+        const approvalHistory = await getFundsApprovalHistorybyProperty({
+            propertyId: selectedPropertyId,
+            month: monthName,
+            year: displayYear
+        });
+
+        // 👉 always approved one
+        const approval = approvalHistory.find(a => a.IsApproved === true) || approvalHistory[0] || {};
+        // 👉 attach to every employee (global info)
+        const updatedEmployees = filteredEmployees.map(emp => ({
+            ...emp,
+            ApprovedBy: approval?.ApprovedBy || "-",
+            ApprovedOn: approval?.ApprovedOn || null
+        }));
+
+        generateWageSheetExcel(updatedEmployees, filters, false);
     };
 
     const exportPDF = async () => {

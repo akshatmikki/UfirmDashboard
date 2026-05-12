@@ -140,11 +140,7 @@ export default class ViewQuestionImg extends Component {
     const { TaskId, QuesId, CreatedOn } = this.props.rowData || {};
 
     if (!TaskId || !QuesId || !CreatedOn) {
-      swal({
-        icon: "error",
-        title: "Error",
-        text: "Invalid question details",
-      });
+      this.setState({ loadingImage: false });
       return;
     }
 
@@ -167,12 +163,10 @@ export default class ViewQuestionImg extends Component {
         loadingImage: false, // 👈 DONE
       });
     } catch (err) {
-      this.setState({ loadingImage: false }); // 👈 FAIL SAFE
-
-      swal({
-        icon: "error",
-        title: "Error",
-        text: "Unable to load question images",
+      this.setState({ 
+        beforeImage: null,
+        afterImage: null,
+        loadingImage: false 
       });
     }
   };
@@ -224,69 +218,161 @@ export default class ViewQuestionImg extends Component {
       <div>
         <Modal
           visible={this.props.showEditQuestionModel}
-          effect="fadeInRight"
+          effect="fadeInUp"
           onClickAway={this.props.closeModal}
-          width="1000"
+          width="900"
         >
-          <div className="row">
-            <div className="col-12">
-              <div className="card card-primary">
-                <div className="card-header">
-                  <h3 className="card-title">View Image</h3>
-                  <div className="card-tools">
-                    <button
-                      className="btn btn-tool"
-                      onClick={this.props.closeModal}
-                    >
-                      <i className="fas fa-times"></i>
-                    </button>
-                  </div>
-                </div>
-                <div
-                  className="card-body"
-                  style={{ height: "450px", overflowY: "scroll" }}
-                >
-                  <div className="row">
-                    <div className="col-md-6 text-center">
-                      <h6>Before</h6>
-                      {this.state.loadingImage ? (
-                        <p className="text-info">Loading image…</p>
-                      ) : this.state.beforeImage ? (
-                        <img
-                          src={this.state.beforeImage}
-                          alt="Before"
-                          style={{ maxWidth: "100%", border: "1px solid #ddd" }}
-                        />
-                      ) : (
-                        <p className="text-muted">No before image</p>
-                      )}
-                    </div>
-
-                    <div className="col-md-6 text-center">
-                      <h6>After</h6>
-                      {this.state.loadingImage ? (
-                        <p className="text-info">Loading image…</p>
-                      ) : this.state.afterImage ? (
-                        <img
-                          src={this.state.afterImage}
-                          alt="After"
-                          style={{ maxWidth: "100%", border: "1px solid #ddd" }}
-                        />
-                      ) : (
-                        <p className="text-muted">No after image</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="modal-footer">
-                    <Button
-                      Id="btnCancel"
-                      Text="Close"
-                      Action={this.handleCancel}
-                      ClassName="btn btn-secondary"
-                    />
-                  </div>
-                </div>
+          <div className="view-image-modern-modal" style={{ background: '#fff', borderRadius: '16px', overflow: 'hidden', boxShadow: '0 20px 40px rgba(0,0,0,0.2)' }}>
+            {/* Modern Header */}
+            <div className="modal-header-custom" style={{ 
+              padding: '20px 24px', 
+              background: '#f8fafc', 
+              borderBottom: '1px solid #e2e8f0', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center' 
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#1e293b' }}>
+                  <i className="far fa-images mr-2 text-primary"></i> Question Evidence
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#64748b' }}>
+                  {this.props.rowData?.TaskName} — {this.props.rowData?.QuestionName} ({this.props.rowData?.CreatedOn})
+                </p>
               </div>
+              <button
+                className="btn-close-custom"
+                onClick={this.props.closeModal}
+                style={{ 
+                  background: '#f1f5f9', 
+                  border: 'none', 
+                  borderRadius: '50%', 
+                  width: '32px', 
+                  height: '32px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  color: '#64748b', 
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <i className="fas fa-times"></i>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div
+              className="modal-body-custom"
+              style={{ padding: '32px', maxHeight: '70vh', overflowY: 'auto', background: '#fff' }}
+            >
+              {!this.state.loadingImage && !this.state.beforeImage && !this.state.afterImage && (
+                <div className="no-images-placeholder text-center py-5" style={{ background: '#f8fafc', borderRadius: '12px', border: '2px dashed #e2e8f0' }}>
+                   <div style={{ marginBottom: '16px' }}>
+                     <i className="far fa-image fa-4x text-muted opacity-30"></i>
+                   </div>
+                   <h5 style={{ color: '#64748b', fontWeight: '600', marginBottom: '8px' }}>No evidence images found</h5>
+                   <p style={{ color: '#94a3b8', fontSize: '14px', margin: 0 }}>There are no before or after images available for this checklist item.</p>
+                </div>
+              )}
+
+              <div className="row" style={{ gap: '0', display: 'flex' }}>
+                {(this.state.beforeImage || this.state.loadingImage) && (
+                  <div className="col-md-6" style={{ padding: '0 12px' }}>
+                    <div style={{ background: '#f1f5f9', padding: '12px', borderRadius: '12px', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <h6 style={{ marginBottom: '12px', fontWeight: '700', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#64748b', marginRight: '8px' }}></span>
+                        BEFORE
+                      </h6>
+                      <div style={{ 
+                        flex: 1, 
+                        background: '#fff', 
+                        borderRadius: '8px', 
+                        overflow: 'hidden', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        minHeight: '300px',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        {this.state.loadingImage ? (
+                          <div className="text-center">
+                            <div className="spinner-border spinner-border-sm text-primary mb-2" role="status"></div>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Loading image...</p>
+                          </div>
+                        ) : this.state.beforeImage ? (
+                          <img
+                            src={this.state.beforeImage}
+                            alt="Before"
+                            style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', transition: 'transform 0.3s' }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          />
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {(this.state.afterImage || this.state.loadingImage) && (
+                  <div className="col-md-6" style={{ padding: '0 12px' }}>
+                    <div style={{ background: '#f0fdf4', padding: '12px', borderRadius: '12px', textAlign: 'center', height: '100%', display: 'flex', flexDirection: 'column' }}>
+                      <h6 style={{ marginBottom: '12px', fontWeight: '700', color: '#166534', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', marginRight: '8px' }}></span>
+                        AFTER
+                      </h6>
+                      <div style={{ 
+                        flex: 1, 
+                        background: '#fff', 
+                        borderRadius: '8px', 
+                        overflow: 'hidden', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        minHeight: '300px',
+                        boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        {this.state.loadingImage ? (
+                          <div className="text-center">
+                            <div className="spinner-border spinner-border-sm text-success mb-2" role="status"></div>
+                            <p style={{ fontSize: '12px', color: '#64748b', margin: 0 }}>Loading image...</p>
+                          </div>
+                        ) : this.state.afterImage ? (
+                          <img
+                            src={this.state.afterImage}
+                            alt="After"
+                            style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain', transition: 'transform 0.3s' }}
+                            onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                            onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                          />
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div style={{ padding: '20px 32px', background: '#f8fafc', borderTop: '1px solid #e2e8f0', display: 'flex', justifyContent: 'flex-end' }}>
+              <button 
+                onClick={this.handleCancel}
+                style={{ 
+                  padding: '10px 24px', 
+                  borderRadius: '8px', 
+                  border: '1px solid #e2e8f0', 
+                  background: '#fff', 
+                  color: '#475569', 
+                  fontWeight: '600', 
+                  fontSize: '14px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#f1f5f9'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#fff'}
+              >
+                Close
+              </button>
             </div>
           </div>
         </Modal>

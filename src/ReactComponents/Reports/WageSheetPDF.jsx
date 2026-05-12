@@ -6,6 +6,37 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   const { unitName, month, logo } = filters;
   const pageWidth = doc.internal.pageSize.getWidth();
 
+  const totals = employees.reduce((acc, emp) => {
+    acc.Basic += emp.Basic || 0;
+    acc.HRA += emp.HRA || 0;
+    acc.Conv += emp.CONV ?? emp.Conveyance ?? 0;
+    acc.Wash += emp.Washing || 0;
+    acc.Spl += emp.SpecialAllowance || 0;
+    acc.Other += emp.OtherAllowance || 0;
+    acc.Bonus += emp.Bonus || 0;
+    acc.OTAmt += emp.OTAmount || 0;
+    acc.Gross += emp.ProratedTotalGross || 0;
+
+    acc.PF += emp.PF || 0;
+    acc.ESI += emp.ESI || 0;
+    acc.LWF += emp.LwfAmount ?? emp.LwfEmployeeAmount ?? 0;
+    acc.PT += emp.PftAmount ?? emp.PT ?? 0;
+    acc.Advance += emp.AdvanceDed ?? emp.Advance ?? 0;
+    acc.Food += emp.Food || 0;
+    acc.Maintenance += emp.Maintenance || 0;
+    acc.Uniform += emp.Uniform || 0;
+    acc.Tax += emp.IncomeTax || 0;
+
+    acc.TotalDeduction += emp.TotalDeduction || 0;
+    acc.NetSalary += emp.NetSalary || 0;
+
+    return acc;
+  }, {
+    Basic: 0, HRA: 0, Conv: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0, OTAmt: 0, Gross: 0,
+    PF: 0, ESI: 0, LWF: 0, PT: 0, Advance: 0, Food: 0, Maintenance: 0, Uniform: 0, Tax: 0,
+    TotalDeduction: 0, NetSalary: 0
+  });
+
   // ================= HEADER =================
   const drawHeader = () => {
     doc.setFont("helvetica", "bold");
@@ -29,7 +60,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
 
     doc.setFontSize(7);
     doc.text(`Wages Period Month : ${month}`, 10, 25);
-    doc.text(`${unitName}`, pageWidth / 2, 25, { align: "center" });
+    doc.text(`Unit Name : ${unitName}`, pageWidth / 2, 25, { align: "center" });
 
     doc.line(10, 28, pageWidth - 10, 28);
   };
@@ -141,9 +172,9 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     // ================= DEDUCTIONS =================
     doc.text(String(emp.PF || 0), 200, y);
     doc.text(String(emp.ESI || 0), 208, y);
-    doc.text(String(emp.LwfEmployeeAmount || 0), 216, y);
-    doc.text(String(emp.PT || 0), 224, y);
-    doc.text(String(emp.Advance || 0), 232, y);
+    doc.text(String(emp.LwfAmount || 0), 216, y);
+    doc.text(String(emp.PftAmount || 0), 224, y);
+    doc.text(String(emp.AdvanceDed || 0), 232, y);
     doc.text(String(emp.Food || 0), 240, y);
     doc.text(String(emp.Maintenance || 0), 248, y);
     doc.text(String(emp.Uniform || 0), 256, y);
@@ -174,6 +205,45 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
 
     y += 22;
   });
+
+  // ================= TOTAL ROW =================
+  if (y > 190) {
+    doc.addPage();
+    drawHeader();
+    y = 40;
+  }
+
+  doc.setFont("helvetica", "bold");
+
+  doc.text("TOTAL", 35, y);
+
+  // Earnings
+  doc.text(String(totals.Basic), 120, y);
+  doc.text(String(totals.HRA), 128, y);
+  doc.text(String(totals.Conv), 136, y);
+  doc.text(String(totals.Wash), 144, y);
+  doc.text(String(totals.Spl), 152, y);
+  doc.text(String(totals.Other), 160, y);
+  doc.text(String(totals.Bonus), 168, y);
+  doc.text(String(totals.OTAmt), 178, y);
+  doc.text(String(totals.Gross), 188, y);
+
+  // Deductions
+  doc.text(String(totals.PF), 200, y);
+  doc.text(String(totals.ESI), 208, y);
+  doc.text(String(totals.LWF), 216, y);
+  doc.text(String(totals.PT), 224, y);
+  doc.text(String(totals.Advance), 232, y);
+  doc.text(String(totals.Food), 240, y);
+  doc.text(String(totals.Maintenance), 248, y);
+  doc.text(String(totals.Uniform), 256, y);
+  doc.text(String(totals.Tax), 264, y);
+
+  // Final
+  doc.text(String(totals.TotalDeduction), 274, y);
+  doc.text(String(totals.NetSalary), 286, y);
+
+  doc.line(10, y + 4, pageWidth - 10, y + 4);
 
   // ================= PAGE NUMBERS =================
   const pageCount = doc.getNumberOfPages();
