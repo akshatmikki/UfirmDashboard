@@ -60,12 +60,13 @@ const fileToDataUrl = (file) =>
   });
 
 const getRentalContractSource = (asset = {}) =>
+  asset.RentalContractPath ||
   asset.RentalContract ||
   asset.Contract ||
+  asset.RentOut?.RentalContractPath ||
   asset.RentOut?.RentalContract ||
+  asset.Return?.RentalContractPath ||
   asset.Return?.RentalContract ||
-  asset.ImageOut ||
-  asset.Image ||
   "";
 
 const getLatestRentalContractAsset = (asset = {}) => {
@@ -205,6 +206,21 @@ const getLeaseMeta = (asset = {}) => {
   return leaseOptions.unknown;
 };
 
+const getAssetTypeLabel = (asset = {}) => {
+  const raw = String(asset.AssetType || asset.Type || asset.LeaseType || asset.Lease || "").trim().toLowerCase();
+
+  // High priority: explicit lease type
+  if (raw.includes("rented in") || raw === "in" || raw.includes("inbound")) return "Rented in";
+  if (raw.includes("rented out") || raw === "out" || raw.includes("outbound")) return "Rented Out";
+
+  // Medium priority: IsRented flag (common in this app)
+  const isRented = asset.IsRented === true || asset.IsRented === "true" || asset.IsRented === 1 || asset.IsRented === "1";
+  if (isRented) return "Rented Out";
+
+  // Default for RentalAssets page should be "Rented in" if not "Out"
+  return "Rented in";
+};
+
 const getLeaseDisplayValue = (asset = {}) => getLeaseMeta(asset).label;
 
 const getExpiryDateValue = (asset = {}) => asset.ReturnDate || asset.TentativeDate || asset.TentativeReturnDate || asset.ExpiryDate || "";
@@ -267,33 +283,25 @@ const getLatestRentOutData = (asset = {}) => {
   return rentOutEntries[0] || asset?.RentOut || {};
 };
 
-const toBase64Field = (value, fileName = "") => {
-  let raw = String(value || "").trim();
-  if (!raw) return "";
+const toBase64Field = (value) => {
+  const raw = String(value || "").trim();
 
-  // If it's a data URL (new upload), keep the full string as requested by user
+  if (!raw) return null;
+
+  // NEW upload
   if (raw.startsWith("data:")) {
     return raw;
   }
 
-  // Remove any potential whitespace or line breaks that can break base64 decoding
-  raw = raw.replace(/\s/g, "");
-
-  // If it's a URL, blob, or file path/name, it's not new base64 content.
-  // We return empty string so the backend doesn't try to re-save an existing file.
+  // Existing URL/path retain
   if (
     raw.startsWith("http://") ||
-    raw.startsWith("https://") ||
-    raw.startsWith("blob:") ||
-    raw.includes("\\") ||
-    (raw.includes(".") && raw.length < 255) ||
-    (fileName && raw === fileName && raw.length < 255)
+    raw.startsWith("https://")
   ) {
-    return "";
+    return raw;
   }
 
-  // To be safe, if it doesn't look like base64 content (usually long), don't send it.
-  return raw.length > 100 ? raw : "";
+  return null;
 };
 
 const buildRentOutAssetPayload = (asset = {}, form = {}) => {
@@ -351,6 +359,7 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
   );
 
   return {
+    Id: 0,
     AssetId: toNumberPayload(assetId),
     AssetName: assetName,
     AssigneeName: getFirstValue(form.AssigneeName, asset.AssigneeName, rentOutData.AssigneeName),
@@ -370,7 +379,17 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
       rentalContractFileName
     ),
     ImageOut: toBase64Field(getFirstValue(form.ImageOutBase64, form.ImageInBase64, asset.ImageOutBase64), imageOutName),
-    RentalContract: toBase64Field(getFirstValue(form.RentalContractBase64, asset.RentalContractBase64), rentalContractFileName),
+    RentalContract: toBase64Field(
+      getFirstValue(
+        form.RentalContractBase64,
+        form.RentalContract,
+        asset.RentalContractPath,
+        asset.RentalContract,
+        rentOutData.RentalContractPath,
+        rentOutData.RentalContract
+      ),
+      rentalContractFileName
+    ),
     Status: getFirstValue(form.Status, asset.Status, asset.AssetStatus, rentOutData.Status),
     Description: getFirstValue(form.Description, asset.Description, rentOutData.Description),
     LeaseType: getFirstValue(form.LeaseType, asset.LeaseType, asset.Lease, rentOutData.LeaseType),
@@ -386,7 +405,7 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
 };
 
 const buildEditForm = (asset = {}) => ({
-  Id: asset.Id || "",
+  Id: 0,
   Name: asset.Name || "",
   Status: getStatusMeta(asset).label,
   Description: asset.Description || "",
@@ -471,7 +490,7 @@ const RentalAssets = ({ propId, history }) => {
     };
 
     fetchLocationOptions();
-    
+
     const fetchEmployees = async () => {
       if (Number(propId) > 0) {
         try {
@@ -505,7 +524,7 @@ const RentalAssets = ({ propId, history }) => {
       const matchesLease = !filterLease || getLeaseMeta(asset).label === filterLease;
       const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;
       const matchesVendor = !filterVendor || String(asset.Vendor || asset.VendorName || "").toLowerCase().includes(filterVendor.toLowerCase());
-      const matchesType = !filterType || String(asset.AssetType || asset.LeaseType || "").toLowerCase().includes(filterType.toLowerCase());
+      const matchesType = !filterType || getAssetTypeLabel(asset) === filterType;
       const passesServiceStatus = matchesServiceStatus(asset, filterServiceStatus);
 
       return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && passesServiceStatus;
@@ -590,7 +609,9 @@ const RentalAssets = ({ propId, history }) => {
     if (hasHistory) return;
 
     try {
-      const historyData = await getAssetRentOutReturnHistoryByAssetId(asset.Id);
+      const historyData = await getAssetRentOutReturnHistoryByAssetId(
+        asset.AssetId || asset.Id
+      )
       setRentalAssets((prev) =>
         prev.map((item) =>
           Number(item.Id) === Number(asset.Id)
@@ -633,7 +654,7 @@ const RentalAssets = ({ propId, history }) => {
 
     const tableRows = data.map((asset) => {
       const imageSrc = asset.ImageOut || asset.AssetImage || asset.Image || "";
-      
+
       return `
         <tr style="height:90px;">
           <td>${escapeHtml(asset.Id)}</td>
@@ -795,10 +816,19 @@ const RentalAssets = ({ propId, history }) => {
 
       const payload = buildRentOutAssetPayload(assetForPayload, {
         ...editForm,
-        ImageOut: editForm.ImageOutBase64 || editForm.ImageOut || "",
-        ImageOutBase64: editForm.ImageOutBase64 || editForm.ImageOut || "",
-        RentalContract: rentalContractValue,
-        RentalContractBase64: rentalContractValue,
+        ImageOut: editForm.ImageOutBase64 || editForm.ImageOut || null,
+        ImageOutBase64: editForm.ImageOutBase64 || editForm.ImageOut || null,
+        RentalContract:
+          rentalContractValue &&
+            String(rentalContractValue).startsWith("data:")
+            ? rentalContractValue
+            : null,
+
+        RentalContractBase64:
+          rentalContractValue &&
+            String(rentalContractValue).startsWith("data:")
+            ? rentalContractValue
+            : null,
         RentalContractFileName: rentalContractFileName,
       });
 
@@ -845,20 +875,28 @@ const RentalAssets = ({ propId, history }) => {
         ReturnedBy: formData.returnedBy || "",
         ReturnDate: formData.returnDateTime || "",
         ReturnedFrom: formData.returnedFrom || "",
-        ImageInBase64: formData.imageIn || "",
-        ImageIn: formData.imageIn || "",
+        ImageInBase64: formData.imageIn || null,
+        ImageIn: formData.imageIn || null,
         ImageInName: formData.assetImageName || "",
-        RentalContractBase64: formData.rentalContract || "",
-        RentalContract: formData.rentalContract || "",
+        RentalContractBase64: formData.rentalContract || null,
+        RentalContract: formData.rentalContract || null,
         RentalContractFileName: formData.rentalContractName || "",
         Remarks: formData.remarks || "",
         Status: "In",
         RentedTo: formData.rentedFrom || "",
+        Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
+        Location: formData.returnedFrom || formData.location || selectedAsset.Location || "",
+        OutFrom: formData.returnedFrom || formData.outFrom || selectedAsset.Location || "",
+        RentalCharges: formData.rentalCharges || 0,
+        SecurityDeposit: formData.securityDeposit || 0,
+        ApprovedBy: formData.approvedBy || "",
+        Model: formData.model || selectedAsset.AssetModel || selectedAsset.Model || "",
+        Description: formData.description || selectedAsset.Description || "",
         // Fallback for standard fields if needed by backend
         AssigneeName: formData.returnedBy || "",
         RentOutDateTime: formData.returnDateTime || "",
-        ImageOutBase64: formData.imageIn || "",
-        ImageOut: formData.imageIn || "",
+        ImageOutBase64: formData.imageIn || null,
+        ImageOut: formData.imageIn || null,
         ImageOutName: formData.assetImageName || "",
       })
       : buildRentOutAssetPayload(selectedAsset, {
@@ -873,13 +911,15 @@ const RentalAssets = ({ propId, history }) => {
         ApprovedBy: formData.approvedBy || "",
         Manufacturer: formData.manufacturer || selectedAsset.Manufacturer || "",
         Location: formData.location || formData.outFrom || selectedAsset.Location || "",
-        ImageOutBase64: formData.imageOut || "",
-        ImageOut: formData.imageOut || "",
+        ImageOutBase64: formData.imageOut || null,
+        ImageOut: formData.imageOut || null,
         ImageOutName: formData.imageOutName || "",
-        RentalContractBase64: formData.rentalContract || "",
-        RentalContract: formData.rentalContract || "",
+        RentalContractBase64: formData.rentalContract || null,
+        RentalContract: formData.rentalContract || null,
         RentalContractFileName: formData.rentalContractName || "",
         Status: "Out",
+        Description: formData.description || selectedAsset.Description || "",
+        Model: formData.model || selectedAsset.AssetModel || selectedAsset.Model || "",
       });
 
     await fetch(url, {
@@ -1060,7 +1100,7 @@ const RentalAssets = ({ propId, history }) => {
             </div>
             <div className="rental-detail-item">
               <span className="rental-detail-label">Returned by</span>
-              <span className="rental-detail-value">{selectedAsset.ReturnedBy || "-"}</span>
+              <span className="rental-detail-value">{selectedAsset.ReturnedBy || selectedAsset.AssigneeName || "-"}</span>
             </div>
           </div>
           <div className="rental-panel-links">

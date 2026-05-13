@@ -2,7 +2,7 @@ import React from 'react'
 //import HomeContainer from '../../containers/home/homecontainer.jsx';
 import Button from '../../ReactComponents/Button/Button.jsx';
 import DataGrid from '../../ReactComponents/DataGrid/DataGrid.jsx';
-//import '../../Scripts/plugins/bootstrap-multiselect.js';
+import '../../Scripts/plugins/bootstrap-multiselect.js';
 import '../../Style/bootstrap-multiselect.css';
 import swal from 'sweetalert';
 import { DELETE_CONFIRMATION_MSG } from '../../Contants/Common';

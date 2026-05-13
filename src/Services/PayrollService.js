@@ -18,6 +18,18 @@ export async function getAllowancesDeductions() {
     throw error;
   }
 }
+export const getApprovedEmployees = async (
+  propertyId,
+  month,
+  year
+) => {
+
+  const response = await fetch(
+    `${API_BASE_URL}/fundsapproval/get-approved-employees?propertyId=${propertyId}&month=${month}&year=${year}`
+  );
+
+  return await response.json();
+};
 
 export async function createAllowanceDeduction(model) {
   try {
@@ -1679,6 +1691,23 @@ export const getFundsApprovalHistorybyProperty = async ({ propertyId, month, yea
     return res.data || [];
   } catch (err) {
     console.error("Funds approval history fetch failed", err);
+    return [];
+  }
+};
+
+export const getCompanySalarySummary = async (month, year) => {
+  try {
+    const res = await axios.get(
+      `https://api.urest.in:8096/api/employee/salarySummary`,
+      {
+        params: { month, year },
+        withCredentials: false,
+      }
+    );
+
+    return res.data || [];
+  } catch (err) {
+    console.error("Salary summary fetch failed", err);
     return [];
   }
 };
