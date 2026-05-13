@@ -1682,3 +1682,20 @@ export const getFundsApprovalHistorybyProperty = async ({ propertyId, month, yea
     return [];
   }
 };
+
+export const getCompanySalarySummary = async (month, year) => {
+  try {
+    const res = await axios.get(
+      `https://api.urest.in:8096/api/employee/salarySummary`,
+      {
+        params: { month, year },
+        withCredentials: false,
+      }
+    );
+
+    return res.data || [];
+  } catch (err) {
+    console.error("Salary summary fetch failed", err);
+    return [];
+  }
+};
