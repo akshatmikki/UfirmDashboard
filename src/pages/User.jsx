@@ -23,7 +23,6 @@ class User extends React.Component {
                 Role: [], roleId: "0",
                 Vendor: [], vendorId: "0",
                 Company: [], companyId: "0",
-                DocumentType: [], documentTypeId: "0",
                 Property: [], propertyId: "0",
             },
             ShowImage: true,
@@ -80,13 +79,7 @@ class User extends React.Component {
             this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.City = cityData; return { Value } });
         });
 
-        promiseWrapper(this.props.actions.fetchDocumentType, { DocumentTypeId: 0 }).then((data) => {
-            let documentTypeData = [{ "Id": "0", "Name": "Select Document Type" }];
-            data.forEach(element => {
-                documentTypeData.push({ Id: element.documentTypeId.toString(), Name: element.documentTypeName });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.DocumentType = documentTypeData; return { Value } });
-        });
+
 
         promiseWrapper(this.props.actions.fetchProperty, { PropertyId: 0 }).then((data) => {
             let propertyData = [];

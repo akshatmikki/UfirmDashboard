@@ -27,9 +27,7 @@ class UserView extends React.Component {
     handleCancel = () => {
         this.props.Action("Home");
     };
-    onDocumentGridData(gridLink) {
-        window.open(gridLink);
-    }
+
 
     render() {
         return (
@@ -41,9 +39,8 @@ class UserView extends React.Component {
                             <div className="row">
                                 <div className="col-sm-6">
                                     <div className="form-group">
-                                        <label for="ticketType">First Name</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.firstName}
+                                            {this.props.Data.FirstName}
                                         </div>
                                     </div>
                                 </div>
@@ -51,7 +48,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketTitle">Last Name</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.lastName}
+                                            {this.props.Data.LastName}
                                         </div>
                                     </div>
                                 </div>
@@ -61,7 +58,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">Email Address</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.emailAddress}
+                                            {this.props.Data.EmailAddress}
                                         </div>
                                     </div>
                                 </div>
@@ -69,7 +66,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketTitle">Contact Number</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.contactNumber}
+                                            {this.props.Data.ContactNumber}
                                         </div>
                                     </div>
                                 </div>
@@ -79,7 +76,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">Company</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.companyName}
+                                            {this.props.Data.CompanyName || "N/A"}
                                         </div>
                                     </div>
                                 </div>
@@ -87,7 +84,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">Branch</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.branchName}
+                                            {this.props.Data.BranchName || "N/A"}
                                         </div>
                                     </div>
                                 </div>
@@ -97,7 +94,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketTitle">Department</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.departmentName}
+                                            {this.props.Data.DepartmentName || "N/A"}
                                         </div>
                                     </div>
                                 </div>
@@ -106,7 +103,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">City</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.cityName}
+                                            {this.props.Data.CityName || "N/A"}
                                         </div>
                                     </div>
                                 </div>
@@ -117,9 +114,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">Role</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.userRoleList.map((person, index) => (
-                                                <div>{person.userRoleName}</div>
-                                            ))}
+                                            {this.props.Data.RoleName}
                                         </div>
                                     </div>
                                 </div>
@@ -127,9 +122,10 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">Property</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.userPropertyList.map((person, index) => (
-                                                <div>{person.userPropertyName}</div>
-                                            ))}
+                                            {this.props.Data.PropertyIds && this.props.Data.PropertyIds.map((pid, index) => {
+                                                let prop = this.props.Value.Property.find(p => p.Id == pid);
+                                                return <div key={index}>{prop ? prop.Name : pid}</div>
+                                            })}
                                         </div>
                                     </div>
                                 </div>
@@ -147,7 +143,7 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="ticketType">User Type</label>
                                         <div className="dummyBox">
-                                            {this.props.Data.userType}
+                                            {this.props.Data.UserTypeId}
                                         </div>
                                     </div>
                                 </div>
@@ -158,26 +154,12 @@ class UserView extends React.Component {
                                     <div className="form-group">
                                         <label for="lbProfilePic">Profile Picture</label>
                                         <div>
-                                            <img className="ImageView" alt='profilepic' src={this.props.Data.profileImageUrl} style={{ height: "90px" }} />
+                                            <img className="ImageView" alt='profilepic' src={this.props.Data.ProfileImageUrl} style={{ height: "90px" }} />
                                         </div>
                                     </div>
                                 </div>
                             </div>
-                            <div className="modal-content">
-                                <div className="modal-body">
-                                    <div className="row">
-                                        <div className="col-sm-12">
-                                            <DataGrid
-                                                Id="grdViewDoc"
-                                                IsPagination={false}
-                                                ColumnCollection={this.state.gridHeader}
-                                                GridData={this.state.gridData}
-                                                onGridDownloadMethod={this.onDocumentGridData.bind(this)}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+
 
                         </div>
                         <div className="modal-footer">

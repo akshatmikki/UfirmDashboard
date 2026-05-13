@@ -41,36 +41,10 @@ class UserNew extends React.Component {
 
             pageSize: 10,
             pageNumber: 1,
-            gridHeader: [
-                { sTitle: 'Id', titleValue: 'documentTypeId', "orderable": false, "visible": true },
-                { sTitle: 'Document Type', titleValue: 'documentTypeName', "orderable": true },
-                { sTitle: 'Document Number', titleValue: 'documentNumber', "orderable": true },
-                { sTitle: 'Document Name', titleValue: 'documentName', "orderable": true, "visible": true },
-                { sTitle: 'Document Url', titleValue: 'documentURL', "orderable": true, "visible": true },
-                { sTitle: 'Action', titleValue: 'Action', Action: "DownloadNDelete", Index: '0', urlIndex: '4', "orderable": false }
-            ],
-            grdTotalRows: 0,
-            grdTotalPages: 0,
-            gridData: [],
             pagemode: 'new',
             Value: [],
             setSelectedOptions: [],
-            setSelectedOptionsProperty: [],
-
-            //Document field
-            documentType: [],
-            documentTypeId: "0",
-            // documentTypeName: "",
-            documentNumber: "",
-
-
-            //Document file
-            selectedFile: undefined,
-            selectedFileName: undefined,
-            imageSrc: undefined,
-            value: '',
-            Showimguploader: false
-
+            setSelectedOptionsProperty: []
         }
         this.onDrop = this.onDrop.bind(this);
         this.removeImage = this.removeImage.bind(this);
@@ -78,49 +52,40 @@ class UserNew extends React.Component {
     }
     componentDidMount() {
         var d = this.props;
-        this.setState({ documentType: [...this.props.Value.DocumentType] });
+
         this.setState({ Value: this.props.Value });
         userBL.CreateValidator();
         documentBL.CreateValidator();
         if (this.props.PageMode == "Edit") {
-
             //Role 
             let data = [];
-            this.props.Data.userRoleList.map((i, index) => (
-                data.push({ Id: i.userRoleId, Name: i.userRoleName, value: i.userRoleName, label: i.userRoleName, color: '#0052CC' })
-            ));
+            if (this.props.Data.RoleId) {
+                let role = this.props.Value.Role.find(r => r.Id == this.props.Data.RoleId);
+                if (role) data.push(role);
+                else data.push({ Id: this.props.Data.RoleId, Name: this.props.Data.RoleName, value: this.props.Data.RoleName, label: this.props.Data.RoleName, color: '#0052CC' });
+            }
             this.onDropDownMultiSelectChange(data);
 
             //Property 
             let dataProperty = [];
-            this.props.Data.userPropertyList.map((i, index) => (
-                dataProperty.push({ Id: i.userPropertyId, Name: i.userPropertyName, value: i.userPropertyName, label: i.userPropertyName, color: '#0052CC' })
-            ));
+            if (this.props.Data.PropertyIds) {
+                this.props.Data.PropertyIds.forEach(pid => {
+                    let prop = this.props.Value.Property.find(p => p.Id == pid);
+                    if (prop) dataProperty.push(prop);
+                });
+            }
             this.onDropDownMultiSelectChangeProperty(dataProperty);
 
-            //Drop Document type
-            //let documentId = [];
-            //let documentType = [];
-
-
-            let arrayCopy = [...this.props.Value.DocumentType];
-            this.props.Data.userDocumentList.map((item) => {
-                this.removeByAttr(arrayCopy, 'Id', item.documentTypeId.toString());
-            });
-            this.setState({ documentType: arrayCopy });
-
-            this.setState({ documentTypeId: "0" });
-
             //Document Grid
-            this.setState({ gridData: this.props.Data.userDocumentList });
+            this.setState({ gridData: [] });
 
             //Set DropDown
-            this.onSelected("UserType", this.props.Data.userTypeId.toString());
-            this.onSelected("City", this.props.Data.cityId.toString());
-            this.onSelected("Branch", this.props.Data.branchId.toString());
-            this.onSelected("Departments", this.props.Data.departmentId.toString());
-            this.onSelected("Vendor", this.props.Data.vendorId.toString());
-            this.onSelected("Company", this.props.Data.companyId.toString());
+            this.onSelected("UserType", (this.props.Data.UserTypeId || "0").toString());
+            this.onSelected("City", (this.props.Data.CityId || "0").toString());
+            this.onSelected("Branch", (this.props.Data.BranchId || "0").toString());
+            this.onSelected("Departments", (this.props.Data.DepartmentId || "0").toString());
+            this.onSelected("Vendor", (this.props.Data.VendorId || "0").toString());
+            this.onSelected("Company", (this.props.Data.CompanyId || "0").toString());
         }
     }
 
@@ -139,66 +104,71 @@ class UserNew extends React.Component {
     }
 
     handleUserSave = () => {
-
         var userId = 0;
-        let url = new UrlProvider().MainUrl;
         if (this.props.PageMode == "Edit")
-            userId = this.props.Data.userId
+            userId = this.props.Data.UserId || this.props.Data.userId;
 
         if (userBL.ValidateControls() == "") {
-            const formData = new FormData();
-            formData.append('imageFile', this.state.pictures != null ? this.state.pictures[0] : null);
-            formData.append('userId', userId);
-            formData.append('firstName', $('#txtFirstName').val());
-            formData.append('lastName', $('#txtLastName').val());
-            formData.append('emailAddress', $('#txtEmailAddress').val());
-            formData.append('contactNumber', $('#txtContactNumber').val());
-            formData.append('userTypeId', this.state.Value.userTypeId);
-            formData.append('cityId', this.state.Value.cityId);
-            formData.append('branchId', this.state.Value.branchId);
-            formData.append('departmentId', this.state.Value.departmentsId);
-            formData.append('VendorId', this.state.Value.vendorId);
-            formData.append('companyId', this.state.Value.companyId);
-            formData.append('roleId', this.state.setSelectedOptions.map((item) => { return item.Id }));
-            formData.append('propertyId', this.state.setSelectedOptionsProperty.map((item) => { return item.Id }));
+            if (this.props.PageMode == "Edit") {
+                let userDto = {
+                    UserId: userId,
+                    EmpCode: this.props.Data.EmpCode,
+                    FirstName: $('#txtFirstName').val(),
+                    LastName: $('#txtLastName').val(),
+                    Email: $('#txtEmailAddress').length ? $('#txtEmailAddress').val() : this.props.Data.EmailAddress,
+                    PhoneNumber: $('#txtContactNumber').val(),
+                    CityId: parseInt(this.state.Value.cityId) || 0,
+                    UserTypeId: parseInt(this.state.Value.userTypeId) || 0,
+                    PropertyIds: this.state.setSelectedOptionsProperty.map(item => item.Id).join(','),
+                    IsActive: true,
+                    BranchId: parseInt(this.state.Value.branchId) || 0,
+                    VendorId: parseInt(this.state.Value.vendorId) || 0,
+                    DepartmentId: parseInt(this.state.Value.departmentsId) || 0,
+                    RoleId: this.state.setSelectedOptions.length > 0 ? parseInt(this.state.setSelectedOptions[0].Id) : 0,
+                    UpdatedBy: parseInt(localStorage.getItem('userId')) || 1
+                };
 
-            this.state.gridData.map((item) => {
-                formData.append('files', item.selectedFile);
-            });
-            formData.append('document', JSON.stringify(this.state.gridData));
-
-            // promiseWrapper(this.props.actions.saveUser, { data: formData }).then((jdata) => {
-            //     
-            // });
-            this.ApiProviderr.saveUser(formData)
-                .then(res => {
-                    if (res.data <= 0) {
-                        appCommon.ShownotifyError("User Email is already created");
-                    }
-                    else {
-                        if (this.props.PageMode != "Edit")
-                            appCommon.showtextalert("User Created Successfully", "", "success");
-                        else
-                            appCommon.showtextalert("User Updated Successfully", "", "success");
+                this.ApiProviderr.updateUser(userDto).then(res => {
+                    if (res.ok) {
+                        appCommon.showtextalert("User Updated Successfully", "", "success");
                         this.props.Action('Home');
+                    } else {
+                        appCommon.ShownotifyError("Failed to update user");
                     }
                 });
-            // axios.post(url + `Master/User/Save`, formData, {
-            //     headers: {
-            //         'Content-Type': 'multipart/form-data'
-            //     }
-            // }).then(res => {
-            //     if (res.data <= 0) {
-            //         appCommon.ShownotifyError("User Email is already created");
-            //     }
-            //     else {
-            //         if (this.props.PageMode != "Edit")
-            //             appCommon.showtextalert("User Created Successfully", "", "success");
-            //         else
-            //             appCommon.showtextalert("User Updated Successfully", "", "success");
-            //         this.props.Action('Home');
-            //     }
-            // });
+            } else {
+                const formData = new FormData();
+                formData.append('imageFile', this.state.pictures != null ? this.state.pictures[0] : null);
+                formData.append('userId', userId);
+                formData.append('firstName', $('#txtFirstName').val());
+                formData.append('lastName', $('#txtLastName').val());
+                formData.append('emailAddress', $('#txtEmailAddress').val());
+                formData.append('contactNumber', $('#txtContactNumber').val());
+                formData.append('userTypeId', this.state.Value.userTypeId);
+                formData.append('cityId', this.state.Value.cityId);
+                formData.append('branchId', this.state.Value.branchId);
+                formData.append('departmentId', this.state.Value.departmentsId);
+                formData.append('VendorId', this.state.Value.vendorId);
+                formData.append('companyId', this.state.Value.companyId);
+                formData.append('roleId', this.state.setSelectedOptions.map((item) => { return item.Id }));
+                formData.append('propertyId', this.state.setSelectedOptionsProperty.map((item) => { return item.Id }));
+
+                this.state.gridData.map((item) => {
+                    formData.append('files', item.selectedFile);
+                });
+                formData.append('document', JSON.stringify(this.state.gridData));
+
+                this.ApiProviderr.saveUser(formData)
+                    .then(res => {
+                        if (res.data <= 0) {
+                            appCommon.ShownotifyError("User Email is already created");
+                        }
+                        else {
+                            appCommon.showtextalert("User Created Successfully", "", "success");
+                            this.props.Action('Home');
+                        }
+                    });
+            }
         }
         else {
             appCommon.ShownotifyError(VALIDATION_ERROR);
@@ -332,52 +302,7 @@ class UserNew extends React.Component {
         };
     }
 
-    onDocumentGridData(gridLink) {
-        window.open(gridLink);
-    }
 
-    onDocumentGridDelete(gridId) {
-        let myhtml = document.createElement("div");
-        //myhtml.innerHTML = "Save your changes otherwise all change will be lost! </br></br> Are you sure want to close this page?" + "</hr>"
-        myhtml.innerHTML = DELETE_CONFIRMATION_MSG + "</hr>"
-        alert: (
-            swal({
-                buttons: {
-                    ok: "Yes",
-                    cancel: "No",
-                },
-                content: myhtml,
-                icon: "warning",
-                closeOnClickOutside: false,
-                dangerMode: true
-            }).then((value) => {
-                switch (value) {
-                    case "ok":
-
-                        this.setState({ gridData: this.removeByAttr(this.state.gridData, 'documentTypeId', gridId) });
-
-                        //dropdown
-
-                        let documentType = this.state.documentType;
-                        this.props.Value.DocumentType.map((item) => {
-                            if (item.Id == gridId)
-                                documentType.push(item);
-                        });
-                        let arrayCopy = [...this.state.documentType];
-                        arrayCopy.sort(this.compareBy("Id"));
-                        this.setState({ documentType: arrayCopy });
-                        this.setState({ documentTypeId: "0" });
-                        appCommon.showtextalert("Document Deleted Successfully", "", "success");
-                        break;
-                    case "cancel":
-                        //do nothing 
-                        break;
-                    default:
-                        break;
-                }
-            })
-        );
-    }
     onImageChange() {
         alert('test');
     }
@@ -397,7 +322,7 @@ class UserNew extends React.Component {
                                         <InputBox Id="txtFirstName"
                                             onChange={this.updateuser.bind(this)}
                                             PlaceHolder="First Name"
-                                            Value={this.props.Data.firstName}
+                                            Value={this.props.Data.FirstName}
                                             Class="form-control form-control-sm"
                                         />
                                     }
@@ -417,7 +342,7 @@ class UserNew extends React.Component {
                                         <InputBox Id="txtLastName"
                                             onChange={this.updateuser.bind(this)}
                                             PlaceHolder="Last Name"
-                                            Value={this.props.Data.lastName}
+                                            Value={this.props.Data.LastName}
                                             Class="form-control form-control-sm"
                                         />
                                     }
@@ -437,7 +362,7 @@ class UserNew extends React.Component {
                                     <label for="lbEmailAddress">Email Address</label>
                                     {this.props.PageMode == "Edit" && this.props.Data != undefined &&
                                         <div className="dummyBox">
-                                            {this.props.Data.emailAddress}
+                                            {this.props.Data.EmailAddress}
                                         </div>
                                     }
                                     {this.props.PageMode == "Add" &&
@@ -456,7 +381,7 @@ class UserNew extends React.Component {
                                         <InputBox Id="txtContactNumber"
                                             onChange={this.updateuser.bind(this)}
                                             PlaceHolder="Contact Number"
-                                            Value={this.props.Data.contactNumber}
+                                            Value={this.props.Data.ContactNumber}
                                             Class="form-control form-control-sm"
                                         />
                                     }
@@ -700,7 +625,7 @@ class UserNew extends React.Component {
 
                                     {this.props.PageMode === "Edit" && this.props.Data !== undefined && this.state.Showimguploader === false &&
                                         <div style={{ marginRight: "15px" }}>
-                                            <img className="ImageView" src={this.props.Data.profileImageUrl} style={{ height: "90px" }} />
+                                            <img className="ImageView" src={this.props.Data.ProfileImageUrl} style={{ height: "90px" }} />
 
                                         </div>
 
@@ -725,99 +650,7 @@ class UserNew extends React.Component {
                         <div className="row">
                             <div className="modal-content">
                                 <div className="modal-body">
-                                    <div className="row">
-                                        <div className="col-sm-6">
-                                            <div className="form-group">
-                                                <label for="lbDocumentType">Document Type</label>
-                                                {this.props.PageMode === "Edit" && this.props.Data !== undefined &&
-                                                    <SelectBox
-                                                        ID="ddlDocumentType"
-                                                        Value={this.state.documentTypeId}
-                                                        onSelected={this.onSelected.bind(this, "DocumentType")}
-                                                        Options={this.state.documentType}
-                                                        ClassName="form-control form-control-sm" />
-                                                }
-                                                {this.props.PageMode === "Add" &&
-                                                    <SelectBox
-                                                        ID="ddlDocumentType"
-                                                        Value={this.state.documentTypeId}
-                                                        onSelected={this.onSelected.bind(this, "DocumentType")}
-                                                        Options={this.state.documentType}
-                                                        ClassName="form-control form-control-sm" />
-                                                }
-                                            </div>
-                                        </div>
-                                        <div className="col-sm-6">
-                                            <div className="form-group">
-                                                <label for="lbDocumentNumber">Document Number</label>
-                                                {this.props.PageMode === "Edit" && this.props.Data !== undefined &&
-                                                    <InputBox Id="txtDocumentNumber"
-                                                        onChange={this.updateDocumentNumber.bind(this)}
-                                                        PlaceHolder="Document Number"
-                                                        Value={this.state.documentNumber}
-                                                        Class="form-control form-control-sm"
-                                                    />
-                                                }
-                                                {this.props.PageMode === "Add" &&
-                                                    <InputBox Id="txtDocumentNumber"
-                                                        onChange={this.updateDocumentNumber.bind(this)}
-                                                        PlaceHolder="Document Number"
-                                                        Value={this.state.documentNumber}
-                                                        Class="form-control form-control-sm"
-                                                    />
-                                                }
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="row">
-                                        <div className="col-sm-6">
-                                            <div className="form-group">
-                                                <label for="lbDocumentUpload">Select Upload</label>
-                                                <div className="pr-inner-block mar-bottom-zero-cover">
-                                                    {this.props.PageMode === "Edit" && this.props.Data !== undefined &&
-                                                        <DocumentUploader
-                                                            Class={"form-control form-control-sm"}
-                                                            Id={"fileDocumentUploader"}
-                                                            type={"file"}
-                                                            value={this.state.value}
-                                                            onChange={this.onFileChange.bind(this)} />
-                                                    }
-                                                    {this.props.PageMode === "Add" &&
-                                                        <DocumentUploader
-                                                            Class={"form-control form-control-sm"}
-                                                            Id={"fileDocumentUploader"}
-                                                            type={"file"}
-                                                            value={this.state.value}
-                                                            onChange={this.onFileChange.bind(this)}
-                                                        />
-                                                    }
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div className="row">
-                                        <div className="col-sm-6">
-                                            <Button
-                                                Id="btnAddDoc"
-                                                Text="Upload Document"
-                                                Action={this.handleDocSave.bind(this)}
-                                                ClassName="btn btn-primary" />
-                                        </div>
-                                    </div>
-                                    <div className="row">
-                                        <div className="col-sm-12">
-                                            <DataGrid
-                                                Id="grdDoc"
-                                                IsPagination={false}
-                                                ColumnCollection={this.state.gridHeader}
-                                                // onEditMethod={this.ongridedit.bind(this)}
-                                                // onGridViewMethod={this.ongridview.bind(this)}
-                                                onGridDeleteMethod={this.onDocumentGridDelete.bind(this)}
-                                                onGridDownloadMethod={this.onDocumentGridData.bind(this)}
-                                                GridData={this.state.gridData}
-                                            />
-                                        </div>
-                                    </div>
+
                                 </div>
                             </div>
                         </div>

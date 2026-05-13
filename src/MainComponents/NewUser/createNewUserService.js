@@ -47,17 +47,34 @@ export const fetchUserTypes = async () => {
     return await fetchData("/GetAllUserTypes"); // Replace with your actual API endpoint
 };
 
-// Service function to submit the form data using fetch
-export const submitUserForm = async (formDataToSend) => {
-    try {console.log(formDataToSend);
-        const response = await fetch(`${API_BASE_URL}/CreateNewUser`, {
+export const fetchDepartments = async () => {
+    return await fetchData("/GetAllDepartment");
+};
 
+export const fetchVendors = async () => {
+    return await fetchData("/GetAllVendor");
+};
+
+export const fetchCompanies = async () => {
+    return await fetchData("/GetAllCompany");
+};
+
+// Service function to submit the form data using fetch
+export const submitUserForm = async (payload) => {
+    try {
+        const formData = new FormData();
+        for (const key in payload) {
+            if (payload[key] !== null && payload[key] !== undefined) {
+                formData.append(key, payload[key]);
+            }
+        }
+
+        const response = await fetch(`${API_BASE_URL}/CreateNewUser`, {
             method: "POST",
             headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json',
+                'Accept': 'application/json'
             },
-            body: JSON.stringify(formDataToSend), // Send the FormData object as the body of the request
+            body: formData,
         });
         // Check if the response is successful
         if (!response.ok) {

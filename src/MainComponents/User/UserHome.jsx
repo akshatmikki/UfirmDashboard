@@ -12,8 +12,9 @@ import departmentActions from '../../redux/department/action';
 import { connect } from 'react-redux';
 import { promiseWrapper } from '../../utility/common';
 import { bindActionCreators } from 'redux';
-import './User.css';
+import ApiProvider from './DataProvider.js';
 const $ = window.$;
+
 class UserHome extends React.Component {
     constructor(props) {
         super(props);
@@ -22,14 +23,11 @@ class UserHome extends React.Component {
             pageSize: 10,
             pageNumber: 1,
             gridHeader: [
-                { sTitle: 'Id', titleValue: 'userId', "orderable": false,  },
-                { sTitle: 'First Name', titleValue: 'firstName', "orderable": true },
-                { sTitle: 'Last Name', titleValue: 'lastName', "orderable": true },
-               // { sTitle: 'Email Address', titleValue: 'emailAddress', "orderable": true },
-                { sTitle: 'Mobile', titleValue: 'contactNumber', "orderable": true },
-                { sTitle: 'User Type', titleValue: 'userType', "orderable": true, className:"setwidth" },
-                // { sTitle: 'Branch', titleValue: 'branchName', "orderable": true , className:"setwidth"},
-                { sTitle: 'Department', titleValue: 'departmentName', "orderable": true, className:"setwidth" },
+                { sTitle: 'Id', titleValue: 'UserId', "orderable": false,  },
+                { sTitle: 'First Name', titleValue: 'FirstName', "orderable": true },
+                { sTitle: 'Last Name', titleValue: 'LastName', "orderable": true },
+                { sTitle: 'Mobile', titleValue: 'ContactNumber', "orderable": true },
+                { sTitle: 'Role', titleValue: 'RoleName', "orderable": true, className:"setwidth" },
                 { sTitle: 'Action', titleValue: 'Action', Action: "ALL", Index: '0', "orderable": false }
             ],
             grdTotalRows: 0,
@@ -95,10 +93,16 @@ class UserHome extends React.Component {
     }
 
     loadUser = () => {
-        promiseWrapper(this.props.actions.fetchUser, { SearchValue: this.state.searchValue, PageSize: this.state.pageSize, PageNumber: this.state.pageNumber }).then((data) => {
-            this.setState({ grdTotalPages: data.totalPages });
-            this.setState({ grdTotalRows: data.totalRows });
-            this.setState({ gridData: data.usersModel, });
+        new ApiProvider().getAllUsers(null, null, true).then(res => {
+            if (res.ok) {
+                res.json().then(data => {
+                    this.setState({ 
+                        gridData: data,
+                        grdTotalRows: data.length,
+                        grdTotalPages: 1 // Since it's not server-side paginated in the new API
+                    });
+                });
+            }
         });
     }
 
@@ -137,7 +141,7 @@ class UserHome extends React.Component {
 
     findItem(userId) {
         return this.state.gridData.find((item) => {
-            if (item.userId === userId) {
+            if (item.UserId === userId) {
                 return item;
             }
         });
@@ -165,10 +169,10 @@ class UserHome extends React.Component {
             }).then((value) => {
                 switch (value) {
                     case "ok":
-                        promiseWrapper(this.props.actions.deleteUser, { userId: userId }).then((data) => {
+                        let updatedBy = localStorage.getItem('userId') || 1; // Fallback to 1 if not found
+                        new ApiProvider().deactivateUser(userId, updatedBy).then((res) => {
                             this.loadUser();
-                            appCommon.showtextalert("User Deleted Successfully", "", "success");
-
+                            appCommon.showtextalert("User Deactivated Successfully", "", "success");
                         });
                         break;
                     case "cancel":
