@@ -122,6 +122,19 @@
   color: #ef4444;
 }
 
+.task-summary-onhold {
+  border: 1px solid rgba(245, 158, 11, 0.22);
+  background: #ffffff;
+}
+
+.task-summary-onhold .task-summary-value {
+  color: #f59e0b;
+}
+
+.task-summary-onhold .task-summary-label {
+  color: #f59e0b;
+}
+
 .task-summary-overdue {
   border: 1px solid rgba(239, 68, 68, 0.22);
   background: #ffffff;
@@ -646,6 +659,11 @@
   border-color: #f0dfac;
 }
 
+.task-line-item.on-hold {
+  background: #ffffff;
+  border-color: #fde68a;
+}
+
 .task-line-content {
   width: 1088px;
   max-width: 100%;
@@ -803,6 +821,11 @@
   color: #ea580c;
 }
 
+.task-chip-status.on-hold {
+  background: #fffbeb;
+  color: #d97706;
+}
+
 .task-chip-status.overdue {
   background: #fde5e6;
   color: #d94a4a;
@@ -951,6 +974,11 @@
 .task-card.complete {
   background: #ffffff;
   border-color: #d6dfea;
+}
+
+.task-card.on-hold {
+  background: #ffffff;
+  border-color: #fde68a;
 }
 
 

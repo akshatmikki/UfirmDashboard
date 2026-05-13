@@ -13,7 +13,9 @@ export default function ViewTaskPage(props) {
   const isActionable =
     normalizedTaskStatus === "actionable" ||
     normalizedTaskStatus === "in-progress" ||
-    normalizedTaskStatus === "in progress";
+    normalizedTaskStatus === "in progress" ||
+    normalizedTaskStatus === "on-hold" ||
+    normalizedTaskStatus === "on hold";
 
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "checklist", "assets", "fmRemarks"]);
   const ctrl = useViewTaskController({ rowData });

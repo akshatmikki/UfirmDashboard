@@ -375,7 +375,10 @@ export default function AttendanceSheet() {
             nhDays: att.NHDays ?? "",
             fhDays: att.FHDays ?? "",
             holidays: att.Holidays ?? "",
-            divideByDays: att.DivideByDays ?? globalTotalDays,
+            divideByDays:
+              att.DivideByDays && Number(att.DivideByDays) > 0
+                ? att.DivideByDays
+                : getDaysInMonth(month, year),
             otMonthDays: att.OtMonthDays ?? "",
             pfArrear: att.PFArrear ?? "",
             otherArrear: att.OtherArrear ?? "",
@@ -624,9 +627,10 @@ export default function AttendanceSheet() {
               fhDays: att?.FHDays ?? "",
               holidays: att?.Holidays ?? "",
 
-              divideByDays: att?.AttendanceId
-                ? (att.DivideByDays ?? "")
-                : (employeeSGMap[empId]?.divideByDays ?? globalTotalDays),
+              divideByDays:
+                att?.DivideByDays && Number(att.DivideByDays) > 0
+                  ? att.DivideByDays
+                  : getDaysInMonth(month, year),
 
               otMonthDays: att?.OtMonthDays ?? "",
               pfArrear: att?.PFArrear ?? "",
@@ -898,7 +902,7 @@ export default function AttendanceSheet() {
     const blob = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    saveAs(blob, `attendance_${month}_${year}.xlsx`);
+    saveAs(blob, `${propertyName}_${month}_${year}.xlsx`);
   }
 
   // ── Import ──
@@ -1264,9 +1268,10 @@ export default function AttendanceSheet() {
                   nhDays: att?.NHDays ?? "",
                   fhDays: att?.FHDays ?? "",
                   holidays: att?.Holidays ?? "",
-                  divideByDays: att?.AttendanceId
-                    ? (att.DivideByDays ?? "")
-                    : (employeeSGMap[empId]?.divideByDays ?? globalTotalDays),
+                  divideByDays:
+                    att?.DivideByDays && Number(att.DivideByDays) > 0
+                      ? att.DivideByDays
+                      : getDaysInMonth(month, year),
                   otMonthDays: att?.OtMonthDays ?? "",
                   pfArrear: att?.PFArrear ?? "",
                   otherArrear: att?.OtherArrear ?? "",

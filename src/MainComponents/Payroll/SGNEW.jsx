@@ -48,7 +48,7 @@ export default function SGNEW() {
     PF: false,
     ESI: false,
   });
-  const [otBaseType, setOtBaseType] = useState("Base");
+  const [otBaseType, setOtBaseType] = useState("Gross");
   const isLoadingSG = React.useRef(false);
   const [unitList, setUnitList] = useState([]);
   const [selectedUnitId, setSelectedUnitId] = useState(null);
@@ -628,7 +628,7 @@ export default function SGNEW() {
     setOdDoubleFlags({});
     setMultiplyValues({});
     setPerDayOD({});
-    setOtBaseType("Base");
+    setOtBaseType("Gross");
     setOtStandalone(false);
 
     // 🔥 Store SG-based exclusions & designations
@@ -1160,7 +1160,7 @@ export default function SGNEW() {
       PF: false,
       ESI: false,
     });
-    setOtBaseType("Base");
+    setOtBaseType("Gross");
     setOtStandalone(false);
   };
 

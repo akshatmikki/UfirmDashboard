@@ -102,6 +102,8 @@ const StaffPage = () => {
   const [deptSearch, setDeptSearch] = useState("");
   const salaryDropdownRef = useRef(null);
   const [newEmployeeId, setNewEmployeeId] = useState(null);
+  const [sortFieldState, setSortFieldState] = useState("Profile.EmployeeCode");
+  const [sortOrderState, setSortOrderState] = useState(1);
   // Salary & Loan dialog states
   const [showSalaryGroupView, setShowSalaryGroupView] = useState(false);
   const [selectedFacilityMemberId, setSelectedFacilityMemberId] = useState(null);
@@ -1474,6 +1476,7 @@ const StaffPage = () => {
       // 🔥 STEP 1: Refresh staff
       const data = await getEmployeesByOffices([activePropertyId]);
       setStaff(data || []);
+      setNewEmployeeId(null);
 
       // 🔥 STEP 2: Update view dialog (ONLY for edit)
       if (isEditMode) {
@@ -1655,6 +1658,7 @@ const StaffPage = () => {
       // Reload staff
       const data = await getEmployeesByOffices([activePropertyId]);
       setStaff(data || []);
+      setNewEmployeeId(null);
 
     } catch (error) {
       toast.current.show({
@@ -1959,31 +1963,21 @@ const StaffPage = () => {
     );
   };
 
-  const sortedStaff = useMemo(() => {
+  const finalStaffList = useMemo(() => {
     if (!staff) return [];
 
-    return [...staff].sort((a, b) => {
-      const nameA = (a?.Profile?.EmployeeName || "").toLowerCase();
-      const nameB = (b?.Profile?.EmployeeName || "").toLowerCase();
-      return nameA.localeCompare(nameB);
-    });
-  }, [staff]);
+    if (!newEmployeeId) return staff;
 
-  const finalStaffList = useMemo(() => {
-    if (!sortedStaff) return [];
-
-    if (!newEmployeeId) return sortedStaff;
-
-    const newEmp = sortedStaff.find(
+    const newEmp = staff.find(
       emp => emp?.FacilityMember?.FacilityMemberId === newEmployeeId
     );
 
-    const rest = sortedStaff.filter(
+    const rest = staff.filter(
       emp => emp?.FacilityMember?.FacilityMemberId !== newEmployeeId
     );
 
-    return newEmp ? [newEmp, ...rest] : sortedStaff;
-  }, [sortedStaff, newEmployeeId]);
+    return newEmp ? [newEmp, ...rest] : staff;
+  }, [staff, newEmployeeId]);
 
   const overlayStyle = {
     position: "fixed",
@@ -2131,6 +2125,14 @@ const StaffPage = () => {
                       )
                       : finalStaffList
                   }
+                  sortField={sortFieldState}
+                  sortOrder={sortOrderState}
+                  onSort={(e) => {
+                    setSortFieldState(e.sortField);
+                    setSortOrderState(e.sortOrder);
+                    setNewEmployeeId(null); // 🔥 kill top behavior when user sorts
+                  }}
+                  removableSort
                   dataKey="FacilityMember.FacilityMemberId"
                   header={header}
                   paginator
@@ -2157,8 +2159,8 @@ const StaffPage = () => {
                   ]}
                 >
                   <Column selectionMode="single" headerStyle={{ width: '3em' }} />
-                  <Column header="Employee Code" body={(row) => row.Profile?.EmployeeCode || "-"} />
-                  <Column header="Name" body={(row) => row.Profile?.EmployeeName || "-"} />
+                  <Column field="Profile.EmployeeCode" header="Employee Code" sortable body={(row) => row.Profile?.EmployeeCode || "-"} />
+                  <Column field="Profile.EmployeeName" header="Name" sortable body={(row) => row.Profile?.EmployeeName || "-"} />
                   <Column
                     header={
                       <div

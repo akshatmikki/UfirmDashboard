@@ -142,6 +142,7 @@ export default function createInitialState(ctx) {
     pendingTasks: 0,
     completedTasks: 0,
     actionableTasks: 0,
+    onHoldTasks: 0,
     assignedProperty: [],
     exporting: false,
     exportProcessed: 0,
@@ -154,9 +155,9 @@ export default function createInitialState(ctx) {
     dateStatusFilters: {},
     showFilterPanel: false,
     cardPage: 1,
-    cardPageSize: 12,
+    cardPageSize: 10,
     tablePage: 1,
-    tablePageSize: 12,
+    tablePageSize: 10,
     deleteConfirmTask: null,
   };
 }

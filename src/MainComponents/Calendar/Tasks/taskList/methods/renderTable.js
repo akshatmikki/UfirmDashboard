@@ -9,13 +9,14 @@ const hasActiveStatusFilter = (filter) => {
 };
 const isActionableStatus = (status) => {
   const normalized = normalizeStatus(status);
-  return normalized === "actionable" || normalized === "in-progress" || normalized === "in progress";
+  return normalized === "actionable" || normalized === "in-progress" || normalized === "in progress" || normalized === "on-hold" || normalized === "on hold";
 };
 const getStatusRank = (status) => {
   const normalized = normalizeStatus(status);
   if (normalized === "pending" || normalized.includes("overdue")) return 0;
-  if (normalized === "actionable" || normalized === "in-progress" || normalized === "in progress") return 1;
-  if (normalized === "completed" || normalized === "complete") return 2;
+  if (normalized === "on-hold" || normalized === "on hold") return 1;
+  if (normalized === "actionable" || normalized === "in-progress" || normalized === "in progress") return 2;
+  if (normalized === "completed" || normalized === "complete") return 3;
   return 99;
 };
 const matchesStatusFilter = (taskStatus, statusFilter) => {
@@ -34,6 +35,10 @@ const matchesStatusFilter = (taskStatus, statusFilter) => {
 
   if (fStatus === "pending") {
     return tStatus === "pending" || tStatus.includes("overdue");
+  }
+
+  if (fStatus === "on-hold" || fStatus === "on hold") {
+    return tStatus === "on-hold" || tStatus === "on hold";
   }
 
   return tStatus === fStatus;
@@ -74,15 +79,17 @@ const getStatusCounts = (tasks = []) => {
   let completed = 0;
   let pending = 0;
   let actionable = 0;
+  let onHold = 0;
 
   tasks.forEach((task) => {
     const status = String(task?.TaskStatus || "").trim().toLowerCase();
     if (status === "completed" || status === "complete") completed += 1;
     else if (status === "pending") pending += 1;
     else if (status === "actionable" || status === "in-progress" || status === "in progress") actionable += 1;
+    else if (status === "on-hold" || status === "on hold") onHold += 1;
   });
 
-  return { completed, pending, actionable };
+  return { completed, pending, actionable, onHold };
 };
 
 export default function attachRenderTable(TaskList) {
@@ -152,18 +159,18 @@ export default function attachRenderTable(TaskList) {
           const isCompletedActive = isFilterActive && (normalizeStatus(effectiveFilter) === "complete" || normalizeStatus(effectiveFilter) === "completed");
           const isPendingActive = isFilterActive && normalizeStatus(effectiveFilter) === "pending";
           const isActionableActive = isFilterActive && (normalizeStatus(effectiveFilter) === "actionable" || normalizeStatus(effectiveFilter) === "in-progress" || normalizeStatus(effectiveFilter) === "in progress");
+          const isOnHoldActive = isFilterActive && (normalizeStatus(effectiveFilter) === "on-hold" || normalizeStatus(effectiveFilter) === "on hold");
 
           // Don't hide the header if tasks exist for this date but are filtered out by status
           if (displayTasks.length === 0 && !isFilterActive) return null;
 
           const isExpanded = activeDate === date;
-          const { completed, pending, actionable } = getStatusCounts(tasks);
-          const tablePageSize = Number(this.state.tablePageSize || 12);
+          const { completed, pending, actionable, onHold } = getStatusCounts(tasks);
+          const tablePageSize = Number(this.state.tablePageSize || 10);
           const tablePage = Number(this.state.tablePage || 1);
-          const totalPages = Math.max(1, Math.ceil(displayTasks.length / tablePageSize));
-          const currentPage = Math.min(tablePage, totalPages);
-          const startIndex = (currentPage - 1) * tablePageSize;
-          const pagedTasks = isExpanded ? displayTasks.slice(startIndex, startIndex + tablePageSize) : [];
+          const totalPages = Number(this.state.totalPages || 1);
+          const currentPage = tablePage;
+          const pagedTasks = isExpanded ? displayTasks : [];
 
           return (
             <div key={date} className="mb-3">
@@ -218,6 +225,18 @@ export default function attachRenderTable(TaskList) {
                     title="Filter actionable tasks"
                   >
                     {actionable} Actionable
+                  </button>
+                  <button
+                    type="button"
+                    className={`badge badge-light border text-secondary ${isOnHoldActive ? "task-badge-active" : ""}`}
+                    style={{ cursor: "pointer" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      this.handleDateStatusFilter?.(date, "On Hold");
+                    }}
+                    title="Filter on hold tasks"
+                  >
+                    {onHold} On Hold
                   </button>
                   <span className="badge badge-light border text-muted">Total {tasks.length}</span>
                 </div>
@@ -308,12 +327,12 @@ export default function attachRenderTable(TaskList) {
                     ))}
                   </div>
 
-                  {displayTasks.length > tablePageSize ? (
+                  {totalPages > 1 ? (
                     <div className="task-pager">
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage <= 1}
-                        onClick={() => this.setState({ tablePage: currentPage - 1 })}
+                        onClick={() => this.setState({ tablePage: currentPage - 1 }, () => this.getTasks())}
                         type="button"
                       >
                         Prev
@@ -324,7 +343,7 @@ export default function attachRenderTable(TaskList) {
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage >= totalPages}
-                        onClick={() => this.setState({ tablePage: currentPage + 1 })}
+                        onClick={() => this.setState({ tablePage: currentPage + 1 }, () => this.getTasks())}
                         type="button"
                       >
                         Next
