@@ -165,11 +165,19 @@ export default function AttendanceMaster() {
     // ✅ Fetch all manual attendance and separate pending vs approved/rejected
     useEffect(() => {
         const controller = new AbortController();
-        
+
         const fetchManualAttendance = async () => {
             if (!propertyId) return;
             try {
-                const savedData = await getManualAttendanceByProperty(propertyId, { signal: controller.signal });
+                const month = currentDate.getMonth() + 1;
+                const year = currentDate.getFullYear();
+
+                const savedData = await getManualAttendanceByProperty(
+                    propertyId,
+                    month,
+                    year,
+                    { signal: controller.signal }
+                );
                 if (!savedData) return;
 
                 const formattedData = savedData.map(item => ({
@@ -211,13 +219,20 @@ export default function AttendanceMaster() {
 
         fetchManualAttendance();
         return () => controller.abort();
-    }, [propertyId, employeeMap]);
+    }, [propertyId, employeeMap, currentDate]);
 
     // This is used for refresh after actions
     const refreshManualAttendance = async () => {
         if (!propertyId) return;
         try {
-            const savedData = await getManualAttendanceByProperty(propertyId);
+            const month = currentDate.getMonth() + 1;
+            const year = currentDate.getFullYear();
+
+            const savedData = await getManualAttendanceByProperty(
+                propertyId,
+                month,
+                year
+            );
             const formattedData = savedData.map(item => ({
                 Id: item.Id,
                 EmployeeId: item.EmployeeId,

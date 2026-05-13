@@ -13,6 +13,7 @@ import {
   getAllowancesDeductions,
   getUngeneratedSalaryByProperties,
   getGeneratedSalaryByProperties,
+  getApprovedEmployees
 } from "../../Services/PayrollService";
 import {
   getAllClients,
@@ -378,27 +379,27 @@ export default function GenerateSalary() {
   }, []);
 
   useEffect(() => {
-  let filtered = allEmployees;
+    let filtered = allEmployees;
 
-  if (selectedDepartment) {
-    filtered = filtered.filter(
-      (emp) => emp.Department === selectedDepartment
-    );
-  }
+    if (selectedDepartment) {
+      filtered = filtered.filter(
+        (emp) => emp.Department === selectedDepartment
+      );
+    }
 
-  const uniqueDesignations = [
-    ...new Set(
-      filtered
-        .map((emp) => emp.Designation)
-        .filter(Boolean)
-    ),
-  ].sort();
+    const uniqueDesignations = [
+      ...new Set(
+        filtered
+          .map((emp) => emp.Designation)
+          .filter(Boolean)
+      ),
+    ].sort();
 
-  setDesignations(uniqueDesignations);
+    setDesignations(uniqueDesignations);
 
-  // Optional: reset designation if it no longer exists
-  setSelectedDesignation("");
-}, [selectedDepartment, allEmployees]);
+    // Optional: reset designation if it no longer exists
+    setSelectedDesignation("");
+  }, [selectedDepartment, allEmployees]);
 
   // ----------------------------
   // Fetch helpers
@@ -852,7 +853,7 @@ export default function GenerateSalary() {
           <td>Joining Kits</td><td class="v-light">${row.Joiningkits || row.JoiningKits || 0}</td>
         </tr>
         <tr class="no-horiz-border">
-          <td>Spl. All.</td><td class="v-bold">${row.SplAll || row.SpecialAllowance || 0}</td>
+          <td>Spl. All.</td><td class="v-bold">${row.SPLALL || row.SpecialAllowance || 0}</td>
           <td>BGV</td><td class="v-light">${row.BGV || 0}</td>
         </tr>
         <tr class="no-horiz-border">
@@ -989,7 +990,7 @@ export default function GenerateSalary() {
       FHAmount: Number(row.FHAmount) || 0,
       EducationAllowance: Number(row.EduAll || row.EducationAllowance) || 0,
       PerformanceAllowance: Number(row.PerfAll || row.PerformanceAllowance) || 0,
-      SpecialAllowance: Number(row.SplAll || row.SpecialAllowance) || 0,
+      SpecialAllowance: Number(row.SPLALL || row.SpecialAllowance) || 0,
       WashingAllowance: Number(row.WASH || row.WashingAllowance) || 0,
       TotalEarning: Number(row.TotalAllowance || row.TotalGross || row.TotalGrossSalary) || 0,
 
@@ -1044,6 +1045,34 @@ export default function GenerateSalary() {
       alert("Please select at least one employee");
       return;
     }
+    const monthValue = selectedMonth
+      ? monthNames[selectedMonth - 1]
+      : null;
+
+    // ✅ Approved employee ids fetch
+    const approvedEmployeesData =
+      await getApprovedEmployees(
+        effectivePropertyId,
+        monthValue,
+        selectedYear
+      );
+
+    // ✅ Only approved employees allowed
+    const approvedEmployees = selectedEmployees.filter(
+      (emp) =>
+        approvedEmployeesData.some(
+          (x) =>
+            Number(x.EmployeeId) ===
+            Number(emp.EmployeeId || emp.FacilityMemberId) &&
+            Number(x.PropertyId) ===
+            Number(effectivePropertyId)
+        )
+    );
+
+    if (approvedEmployees.length === 0) {
+      alert("Selected employee funds are not approved.");
+      return;
+    }
 
     setGenerating(true);
     setGeneratingBatchStatus(`Starting...`);
@@ -1052,15 +1081,17 @@ export default function GenerateSalary() {
       const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : null;
       const yearValue = selectedYear;
 
-      const idsForNet = selectedEmployees.map((e) => e.EmployeeId).filter(Boolean);
+      const idsForNet = approvedEmployees
+        .map((e) => e.EmployeeId)
+        .filter(Boolean);
       setGeneratingBatchStatus("Fetching details...");
       const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
       const CHUNK_SIZE = 5;
-      const totalEmployees = selectedEmployees.length;
+      const totalEmployees = approvedEmployees.length;
 
       for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
-        const chunk = selectedEmployees.slice(i, i + CHUNK_SIZE);
+        const chunk = approvedEmployees.slice(i, i + CHUNK_SIZE);
         const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
         const totalBatches = Math.ceil(totalEmployees / CHUNK_SIZE);
 
@@ -1096,13 +1127,16 @@ export default function GenerateSalary() {
 
         setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Uploading...`);
         await createGeneratedSalary(formData);
+        console.log("Generated for:", chunk);
       }
 
-      alert(`Successfully generated salary for ${selectedEmployees.length} employee(s)`);
+      alert(`Successfully generated salary for ${approvedEmployees.length} employee(s)`);
       setSelectedEmployees([]);
       await fetchGeneratedEmployees();
 
-      const generatedIds = selectedEmployees.map((emp) => emp.EmployeeId);
+      const generatedIds = approvedEmployees.map(
+        (emp) => emp.EmployeeId
+      );
       await fetchSalaryDetails(generatedIds);
       setShowGrid(true);
     } catch (error) {
@@ -1260,6 +1294,7 @@ export default function GenerateSalary() {
   };
 
   const handleCreatePDF = async () => {
+
     const selectedRows = salaryData.filter((row) =>
       selectedSalaryRows.includes(row.FacilityMemberId)
     );
@@ -1268,6 +1303,37 @@ export default function GenerateSalary() {
       alert("Please select at least one employee to generate PDF.");
       return;
     }
+
+    const monthValue = selectedMonth
+      ? monthNames[selectedMonth - 1]
+      : null;
+
+    // ✅ Approved employee ids
+    const approvedEmployeesData =
+      await getApprovedEmployees(
+        effectivePropertyId,
+        monthValue,
+        selectedYear
+      );
+
+    // ✅ Check approval
+    const unApprovedEmployees = selectedRows.filter(
+      (row) =>
+        !approvedEmployeesData.some(
+          (x) =>
+            Number(x.EmployeeId) ===
+            Number(row.FacilityMemberId || row.EmployeeId) &&
+            Number(x.PropertyId) ===
+            Number(effectivePropertyId)
+        )
+    );
+
+    if (unApprovedEmployees.length > 0) {
+      alert("Funds are not approved for this employee.");
+      return;
+    }
+
+
 
     setCreatingPayslipPdf(true);
     setGeneratingBatchStatus("Initializing...");
@@ -1322,17 +1388,61 @@ export default function GenerateSalary() {
       }
 
       if (mergedCount > 0) {
+
         setGeneratingBatchStatus("Saving merged PDF...");
+
         const mergedPdfBytes = await mergedPdf.save();
-        const blob = new Blob([mergedPdfBytes], { type: "application/pdf" });
+
+        const blob = new Blob([mergedPdfBytes], {
+          type: "application/pdf",
+        });
+
         const link = document.createElement("a");
+
         link.href = URL.createObjectURL(blob);
+
         link.download = `SalarySlips_${monthName || "All"}_${selectedYear}.pdf`;
+
         link.click();
+
       } else {
-        alert(
-          "No pre-generated PDFs found for selection. Please ensure salaries are generated first."
+
+        // ✅ FALLBACK PDF GENERATION
+        const selectedRowsData = salaryData.filter((row) =>
+          selectedSalaryRows.includes(
+            row.FacilityMemberId || row.EmployeeId
+          )
         );
+
+        if (!selectedRowsData.length) {
+          alert("No salary data found.");
+          return;
+        }
+
+        for (const row of selectedRowsData) {
+
+          const pdfBlob = await generatePdfBlobForEmployee(row);
+
+          if (pdfBlob) {
+
+            const url = window.URL.createObjectURL(pdfBlob);
+
+            const a = document.createElement("a");
+
+            a.href = url;
+
+            a.download = `SalarySlip_${row.FacilityMemberName || row.EmployeeName
+              }.pdf`;
+
+            document.body.appendChild(a);
+
+            a.click();
+
+            document.body.removeChild(a);
+
+            window.URL.revokeObjectURL(url);
+          }
+        }
       }
     } catch (err) {
       console.error("Failed to merge PDFs:", err);

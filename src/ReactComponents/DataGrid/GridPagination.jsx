@@ -1,5 +1,6 @@
 import React from 'react';
 import DataGridBL from './DataGridBL.js';
+import '../../Scripts/pagination/jquery.simplePagination.js';
 import '../../Scripts/pagination/simplePagination.css';
 // import '../../App.css';
 const $ = window.$;

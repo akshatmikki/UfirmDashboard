@@ -1,4 +1,4 @@
-﻿import moment from 'moment';
+import moment from 'moment';
 import * as appCommon from '../../../../../Common/AppCommon.js';
 
 const toTaskDateMoment = (value) => {
@@ -35,6 +35,10 @@ const matchesStatusFilter = (taskStatus, filterStatus) => {
     return tStatus === "pending" || tStatus.includes("overdue");
   }
 
+  if (fStatus === "on-hold" || fStatus === "on hold") {
+    return tStatus === "on-hold" || tStatus === "on hold";
+  }
+
   return tStatus === fStatus;
 };
 
@@ -67,6 +71,8 @@ export default function attachApiModelsManage(TaskList) {
       taskStatus,
       propertyId,
       taskPriority,
+      pageNumber,
+      pageSize
   ) {
       var model = [];
       switch (type) {
@@ -82,6 +88,8 @@ export default function attachApiModelsManage(TaskList) {
             TaskStatus: taskStatus,
             PropertyId: propertyId,
             TaskPriority: taskPriority,
+            PageNumber: pageNumber,
+            PageSize: pageSize,
           });
           break;
         default:
@@ -160,7 +168,11 @@ export default function attachApiModelsManage(TaskList) {
             switch (type) {
               case "R":
                 let taskData = [];
-                rData.forEach((element) => {
+                const responseData = Array.isArray(rData) ? rData : (rData.Data || []);
+                const totalRecords = rData.TotalRecords || responseData.length;
+                const totalPages = rData.TotalPages || 1;
+
+                responseData.forEach((element) => {
                   taskData.push({
                     Id: element.Id,
                     TaskId: element.TaskId,
@@ -168,15 +180,15 @@ export default function attachApiModelsManage(TaskList) {
                     TaskSubCategoryId: element.TaskSubCategoryId,
                     Name: element.Name,
                     Description: element.Description,
-                    DateFrom: element.DateFrom.split("T")[0],
-                    DateTo: element.DateTo.split("T")[0],
-                    TimeFrom: element.TimeFrom.split("T")[1],
-                    TimeTo: element.TimeTo.split("T")[1],
+                    DateFrom: element.DateFrom ? element.DateFrom.split("T")[0] : "",
+                    DateTo: element.DateTo ? element.DateTo.split("T")[0] : "",
+                    TimeFrom: element.TimeFrom ? element.TimeFrom.split("T")[1] : "",
+                    TimeTo: element.TimeTo ? element.TimeTo.split("T")[1] : "",
                     Remarks: element.Remarks,
                     TaskStatus: element.TaskStatus,
-                    Occurence: element.Occurence.split(" ")[0],
+                    Occurence: element.Occurence ? element.Occurence.split(" ")[0] : "",
                     OccurenceView: this.modifyOccurence(
-                      element.Occurence.split(" ")[0],
+                      element.Occurence ? element.Occurence.split(" ")[0] : "",
                     ),
                     CategoryName: element.CategoryName,
                     SubCategoryName: element.SubCategoryName,
@@ -245,6 +257,8 @@ export default function attachApiModelsManage(TaskList) {
                       ? 1
                       : clampPage(prevState.tablePage, itemsForExpanded.length, prevState.tablePageSize),
                     dateStatusFilters: {},
+                    totalRecords: totalRecords,
+                    totalPages: totalPages,
                   };
                 });
                 break;
