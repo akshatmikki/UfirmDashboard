@@ -33,6 +33,7 @@ const EmployeeOnboarding = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedRow, setSelectedRow] = useState(null);
   const [globalFilterValue, setGlobalFilterValue] = useState("");
+  const [documents, setDocuments] = useState([]);
 
   // Form fields state
   const [formData, setFormData] = useState({
@@ -65,10 +66,6 @@ const EmployeeOnboarding = () => {
     ESINumber: ""
   });
 
-  const [workHistories, setWorkHistories] = useState([
-    { company: "", role: "", start: null, end: null }
-  ]);
-
   const genders = [
     { label: "Male", value: "Male" },
     { label: "Female", value: "Female" },
@@ -87,10 +84,22 @@ const EmployeeOnboarding = () => {
     { label: "Arunachal Pradesh", value: "Arunachal Pradesh" },
     { label: "Assam", value: "Assam" },
     { label: "Bihar", value: "Bihar" },
-    { label: "Delhi", value: "Delhi" },
     { label: "Maharashtra", value: "Maharashtra" },
     { label: "Uttar Pradesh", value: "Uttar Pradesh" },
-    // ... more can be added
+    { label: "West Bengal", value: "West Bengal" },
+    { label: "Tamil Nadu", value: "Tamil Nadu" },
+    { label: "Karnataka", value: "Karnataka" },
+    { label: "Gujarat", value: "Gujarat" },
+    { label: "Rajasthan", value: "Rajasthan" },
+    { label: "Punjab", value: "Punjab" },
+    { label: "Haryana", value: "Haryana" },
+    { label: "Kerala", value: "Kerala" },
+    { label: "Odisha", value: "Odisha" },
+    { label: "Telangana", value: "Telangana" },
+    { label: "Madhya Pradesh", value: "Madhya Pradesh" },
+    { label: "Jharkhand", value: "Jharkhand" },
+    { label: "Chhattisgarh", value: "Chhattisgarh" },
+    { label: "Uttarakhand", value: "Uttarakhand" },
   ];
 
   const indianBanks = [
@@ -131,38 +140,37 @@ const EmployeeOnboarding = () => {
       ESINumber: ""
     });
 
-    setWorkHistories([
-      {
-        company: "",
-        role: "",
-        start: null,
-        end: null,
-      },
-    ]);
-
     setIsEditMode(false);
   };
 
   const openNew = () => {
     resetForm();
+    setDocuments([]);
     setDialogVisible(true);
   };
 
   const editEmployee = (emp) => {
     setFormData({
       ...emp,
-
-      DateOfBirth: emp.DateOfBirth
-        ? emp.DateOfBirth.split("T")[0]
-        : "",
-
-      DateOfJoining: emp.DateOfJoining
-        ? emp.DateOfJoining.split("T")[0]
-        : "",
+      DateOfBirth: emp.DateOfBirth ? emp.DateOfBirth.split("T")[0] : "",
+      DateOfJoining: emp.DateOfJoining ? emp.DateOfJoining.split("T")[0] : "",
     });
 
-    setIsEditMode(true);
+    // 🔥 IMPORTANT: map documents from API
+    if (emp.Documents && emp.Documents.length > 0) {
+      const mappedDocs = emp.Documents.map((doc) => ({
+        type: doc.DocumentType,
+        file: null, // no actual file object
+        fileName: doc.FileName,
+        url: doc.FileUrl,
+      }));
 
+      setDocuments(mappedDocs);
+    } else {
+      setDocuments([]);
+    }
+
+    setIsEditMode(true);
     setDialogVisible(true);
   };
 
@@ -194,13 +202,22 @@ const EmployeeOnboarding = () => {
 
   const saveEmployee = async () => {
     try {
-      if (!formData.Name || !formData.Designation || !formData.Gender) {
+      if (
+        !formData.Name ||
+        !formData.Designation ||
+        !formData.Gender ||
+        !formData.AadharCard ||
+        !formData.PanCard ||
+        !formData.DateOfJoining ||
+        !formData.BankAccountNumber ||
+        !formData.BankIFSCCode ||
+        !formData.UANNumber
+      ) {
         toast.current.show({
           severity: "warn",
           summary: "Validation",
-          detail: "Please fill required fields",
+          detail: "Please fill all required fields",
         });
-
         return;
       }
 
@@ -242,7 +259,7 @@ const EmployeeOnboarding = () => {
         BankName: formData.BankName,
 
         UANNumber: formData.UANNumber,
-        PF_Number: formData.PF_Number,
+        PFNumber: formData.PF_Number,
         ESINumber: formData.ESINumber,
       };
 
@@ -254,7 +271,8 @@ const EmployeeOnboarding = () => {
       if (isEditMode && formData.TempId) {
         response = await updateOnboardingTemp(
           formData.TempId,
-          payload
+          payload,
+          documents
         );
 
         toast.current.show({
@@ -268,8 +286,7 @@ const EmployeeOnboarding = () => {
       // CREATE
       // =========================
       else {
-        response = await saveOnboardingTemp(payload);
-
+        response = await saveOnboardingTemp(payload, documents);
         toast.current.show({
           severity: "success",
           summary: "Success",
@@ -282,6 +299,7 @@ const EmployeeOnboarding = () => {
       setDialogVisible(false);
 
       resetForm();
+      setDocuments([]);
 
     } catch (error) {
       console.log(error);
@@ -305,16 +323,6 @@ const EmployeeOnboarding = () => {
         toast.current.show({ severity: "success", summary: "Deleted", detail: "Employee removed" });
       }
     });
-  };
-
-  const handleWorkHistoryChange = (index, field, value) => {
-    const updated = [...workHistories];
-    updated[index][field] = value;
-    setWorkHistories(updated);
-  };
-
-  const addWorkHistory = () => {
-    setWorkHistories([...workHistories, { company: "", role: "", start: null, end: null }]);
   };
 
   const header = (
@@ -363,7 +371,7 @@ const EmployeeOnboarding = () => {
                   <Column field="BankName" header="Bank Name" style={{ minWidth: '120px' }} />
                   <Column field="BankAccountNumber" header="Bank Account Number" style={{ minWidth: '120px' }} />
                   <Column field="BankIFSCCode" header="Bank IFSC Code" style={{ minWidth: '120px' }} />
-                  <Column field="PF_Number" header="PF Number" style={{ minWidth: '120px' }} />
+                  <Column field="PFNumber" header="PF Number" style={{ minWidth: '120px' }} />
                   <Column field="ESINumber" header="ESI Number" style={{ minWidth: '120px' }} />
                   <Column field="DateOfJoining" header="Date of Joining" body={(rowData) => rowData.DateOfJoining ? rowData.DateOfJoining.split("T")[0] : "-"} style={{ minWidth: '150px' }} />
 
@@ -434,24 +442,24 @@ const EmployeeOnboarding = () => {
                 </div>
                 <div className="col-12 md:col-4 mb-3">
                   <label>Date of Birth</label>
-                  <Calendar 
-                    value={formData.DateOfBirth ? new Date(formData.DateOfBirth) : null} 
-                    onChange={(e) => setFormData({ ...formData, DateOfBirth: e.value ? e.value.toLocaleDateString('en-CA') : "" })} 
-                    showIcon 
+                  <Calendar
+                    value={formData.DateOfBirth ? new Date(formData.DateOfBirth) : null}
+                    onChange={(e) => setFormData({ ...formData, DateOfBirth: e.value ? e.value.toLocaleDateString('en-CA') : "" })}
+                    showIcon
                     dateFormat="yy-mm-dd"
                   />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
-                  <label>Date of Joining</label>
-                  <Calendar 
-                    value={formData.DateOfJoining ? new Date(formData.DateOfJoining) : null} 
-                    onChange={(e) => setFormData({ ...formData, DateOfJoining: e.value ? e.value.toLocaleDateString('en-CA') : "" })} 
-                    showIcon 
+                  <label>Date of Joining *</label>
+                  <Calendar
+                    value={formData.DateOfJoining ? new Date(formData.DateOfJoining) : null}
+                    onChange={(e) => setFormData({ ...formData, DateOfJoining: e.value ? e.value.toLocaleDateString('en-CA') : "" })}
+                    showIcon
                     dateFormat="yy-mm-dd"
                   />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
-                  <label>Father/Husband Name</label>
+                  <label>Father's Name</label>
                   <InputText value={formData.FatherName} onChange={(e) => setFormData({ ...formData, FatherName: e.target.value })} />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
@@ -459,17 +467,28 @@ const EmployeeOnboarding = () => {
                   <InputText value={formData.MotherName} onChange={(e) => setFormData({ ...formData, MotherName: e.target.value })} />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
-                  <label>Spouse Name</label>
+                  <label>Spouse's Name</label>
                   <InputText value={formData.SpouseName} onChange={(e) => setFormData({ ...formData, SpouseName: e.target.value })} />
                 </div>
               </div>
             </TabPanel>
 
-            <TabPanel header="Address & KYC">
+            <TabPanel header="Personal Address">
               <div className="p-fluid grid mt-2">
-                <div className="col-12 mb-3">
-                  <label>Permanent Address</label>
-                  <InputText value={formData.AddressLine1} onChange={(e) => setFormData({ ...formData, AddressLine1: e.target.value })} />
+                <div className="col-12 md:col-6 mb-3">
+                  <label>Address Line 1</label>
+                  <InputText
+                    value={formData.AddressLine1}
+                    onChange={(e) => setFormData({ ...formData, AddressLine1: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-12 md:col-6 mb-3">
+                  <label>Address Line 2</label>
+                  <InputText
+                    value={formData.AddressLine2}
+                    onChange={(e) => setFormData({ ...formData, AddressLine2: e.target.value })}
+                  />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
                   <label>City</label>
@@ -479,25 +498,34 @@ const EmployeeOnboarding = () => {
                   <label>State</label>
                   <Dropdown value={formData.State} options={indianStates} onChange={(e) => setFormData({ ...formData, State: e.value })} placeholder="Select State" filter />
                 </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Aadhar Card Number</label>
-                  <InputText value={formData.AadharCard} onChange={(e) => setFormData({ ...formData, AadharCard: e.target.value })} maxLength={12} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>PAN Card Number</label>
-                  <InputText value={formData.PanCard} onChange={(e) => setFormData({ ...formData, PanCard: e.target.value.toUpperCase() })} maxLength={10} />
-                </div>
               </div>
             </TabPanel>
 
             <TabPanel header="Bank & Financials">
               <div className="p-fluid grid mt-2">
                 <div className="col-12 md:col-4 mb-3">
-                  <label>Bank Account Number</label>
+                  <label>Aadhar Card Number *</label>
+                  <InputText
+                    value={formData.AadharCard}
+                    onChange={(e) => setFormData({ ...formData, AadharCard: e.target.value })}
+                    maxLength={12}
+                  />
+                </div>
+
+                <div className="col-12 md:col-4 mb-3">
+                  <label>PAN Card Number *</label>
+                  <InputText
+                    value={formData.PanCard}
+                    onChange={(e) => setFormData({ ...formData, PanCard: e.target.value.toUpperCase() })}
+                    maxLength={10}
+                  />
+                </div>
+                <div className="col-12 md:col-4 mb-3">
+                  <label>Bank Account Number *</label>
                   <InputText value={formData.BankAccountNumber} onChange={(e) => setFormData({ ...formData, BankAccountNumber: e.target.value })} />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
-                  <label>IFSC Code</label>
+                  <label>IFSC Code *</label>
                   <InputText value={formData.BankIFSCCode} onChange={(e) => setFormData({ ...formData, BankIFSCCode: e.target.value.toUpperCase() })} />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
@@ -505,7 +533,14 @@ const EmployeeOnboarding = () => {
                   <Dropdown value={formData.BankName} options={indianBanks} onChange={(e) => setFormData({ ...formData, BankName: e.value })} editable placeholder="Select/Type Bank" />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
-                  <label>PF Number (Universal)</label>
+                  <label>UAN Number *</label>
+                  <InputText
+                    value={formData.UANNumber}
+                    onChange={(e) => setFormData({ ...formData, UANNumber: e.target.value })}
+                  />
+                </div>
+                <div className="col-12 md:col-4 mb-3">
+                  <label>PF Number</label>
                   <InputText value={formData.PF_Number} onChange={(e) => setFormData({ ...formData, PF_Number: e.target.value })} />
                 </div>
                 <div className="col-12 md:col-4 mb-3">
@@ -515,31 +550,112 @@ const EmployeeOnboarding = () => {
               </div>
             </TabPanel>
 
-            <TabPanel header="Experience">
-              {workHistories.map((wh, i) => (
-                <div key={i} className="card p-3 mb-3 bg-light border-0">
-                  <div className="p-fluid grid">
-                    <div className="col-12 md:col-4 mb-2">
-                      <label>Previous Company</label>
-                      <InputText value={wh.company} onChange={(e) => handleWorkHistoryChange(i, 'company', e.target.value)} />
-                    </div>
-                    <div className="col-12 md:col-4 mb-2">
-                      <label>Designation/Role</label>
-                      <InputText value={wh.role} onChange={(e) => handleWorkHistoryChange(i, 'role', e.target.value)} />
-                    </div>
-                    <div className="col-12 md:col-2 mb-2">
-                      <label>Start Date</label>
-                      <Calendar value={wh.start} onChange={(e) => handleWorkHistoryChange(i, 'start', e.value)} showIcon />
-                    </div>
-                    <div className="col-12 md:col-2 mb-2">
-                      <label>End Date</label>
-                      <Calendar value={wh.end} onChange={(e) => handleWorkHistoryChange(i, 'end', e.value)} showIcon />
-                    </div>
-                  </div>
+            <TabPanel header="Documents">
+              <div className="p-fluid grid mt-2">
+
+                {/* PROFILE */}
+                <div className="col-12 md:col-4 mb-3">
+                  <label>Profile Photo (only once)</label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    disabled={documents.some(d => d.type === "Profile")}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      if (documents.some(d => d.type === "Profile")) return;
+
+                      setDocuments(prev => [...prev, { type: "Profile", file }]);
+                    }}
+                  />
+                  {documents.find(d => d.type === "Profile" && d.fileName) && (
+                    <small style={{ display: "block" }}>
+                      Existing: {documents.find(d => d.type === "Profile").fileName}
+                    </small>
+                  )}
                 </div>
-              ))}
-              <Button label="Add More Experience" icon="pi pi-plus" className="p-button-text" onClick={addWorkHistory} />
+
+                {/* RESUME */}
+                <div className="col-12 md:col-4 mb-3">
+                  <label>Resume (only once)</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    disabled={documents.some(d => d.type === "Resume")}
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      if (documents.some(d => d.type === "Resume")) return;
+
+                      setDocuments(prev => [...prev, { type: "Resume", file }]);
+                    }}
+                  />
+                  {documents.find(d => d.type === "Resume" && d.fileName) && (
+                    <small>
+                      Existing: {documents.find(d => d.type === "Resume").fileName}
+                    </small>
+                  )}
+                </div>
+
+                {/* AADHAR */}
+                <div className="col-12 md:col-4 mb-3">
+                  <label>Aadhar Document</label>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      if (documents.some(d => d.type === "Aadhar")) return;
+                      setDocuments(prev => [...prev, { type: "Aadhar", file }]);
+                    }}
+                  />
+                </div>
+
+                {/* PAN */}
+                <div className="col-12 md:col-4 mb-3">
+                  <label>PAN Document</label>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      if (documents.some(d => d.type === "PAN")) return;
+                      setDocuments(prev => [...prev, { type: "PAN", file }]);
+                    }}
+                  />
+                </div>
+
+                {/* BANK PASSBOOK */}
+                <div className="col-12 md:col-4 mb-3">
+                  <label>Bank Passbook</label>
+                  <input
+                    type="file"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (!file) return;
+
+                      if (documents.some(d => d.type === "Bank Passbook")) return;
+                      setDocuments(prev => [...prev, { type: "Bank Passbook", file }]);
+                    }}
+                  />
+                </div>
+
+                {/* PREVIEW */}
+                <div className="col-12">
+                  {documents.map((doc, i) => (
+                    <div key={i}>
+                      <b>{doc.type}</b>: {doc.file?.name}
+                    </div>
+                  ))}
+                </div>
+
+              </div>
             </TabPanel>
+
           </TabView>
         </Dialog>
       </div>

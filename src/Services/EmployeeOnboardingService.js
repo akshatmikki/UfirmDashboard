@@ -1,25 +1,28 @@
 import axios from "axios";
 
-// const API_URL = "https://api.urest.in:8096/";
-const API_URL = "http://localhost:62929/";
+const API_URL = "https://api.urest.in:8096/";
+//const API_URL = "http://localhost:62929/";
 
 
 // SAVE ONBOARDING TEMP DATA
 
-export const saveOnboardingTemp = async (model) => {
+export const saveOnboardingTemp = async (model, documents = []) => {
     try {
-        const response = await fetch(`${API_URL}api/onboarding/temp`, {
-            method: "POST",
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(model),
+        const formData = new FormData();
+
+        formData.append("data", JSON.stringify(model));
+
+        documents.forEach(doc => {
+            formData.append("file", doc.file);
+            formData.append("DocumentType", doc.type || "Others");
         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const response = await fetch(`${API_URL}api/onboarding/temp`, {
+            method: "POST",
+            body: formData,
+        });
+
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
 
         return await response.json();
     } catch (error) {
@@ -51,17 +54,22 @@ export const getOnboardingTemp = async (propertyId = 0) => {
 // UPDATE ONBOARDING TEMP DATA
 // =====================================
 
-export const updateOnboardingTemp = async (tempId, model) => {
+export const updateOnboardingTemp = async (tempId, model, documents = []) => {
     try {
+        const formData = new FormData();
+
+        formData.append("data", JSON.stringify(model));
+
+        documents.forEach(doc => {
+            formData.append("file", doc.file);
+            formData.append("DocumentType", doc.type || "Others");
+        });
+
         const response = await fetch(
             `${API_URL}api/onboarding/temp/${tempId}`,
             {
                 method: "PUT",
-                headers: {
-                    Accept: "application/json",
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify(model),
+                body: formData,
             }
         );
 

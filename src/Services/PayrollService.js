@@ -2,6 +2,7 @@
 import axios from "axios";
 
 const API_BASE_URL = "https://api.urest.in:8096/api/allowancedeductions";
+const API_BASE = "https://api.urest.in:8096/api";
 
 export async function getAllowancesDeductions() {
   try {
@@ -18,6 +19,7 @@ export async function getAllowancesDeductions() {
     throw error;
   }
 }
+
 export const getApprovedEmployees = async (
   propertyId,
   month,
@@ -25,7 +27,7 @@ export const getApprovedEmployees = async (
 ) => {
 
   const response = await fetch(
-    `${API_BASE_URL}/fundsapproval/get-approved-employees?propertyId=${propertyId}&month=${month}&year=${year}`
+    `${API_BASE}/fundsapproval/get-approved-employees?propertyId=${propertyId}&month=${month}&year=${year}`
   );
 
   return await response.json();
