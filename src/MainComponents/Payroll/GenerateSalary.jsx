@@ -1041,112 +1041,117 @@ export default function GenerateSalary() {
   };
 
   const handleGenerateFromGrid = async () => {
-    if (selectedEmployees.length === 0) {
-      alert("Please select at least one employee");
-      return;
-    }
+  if (selectedEmployees.length === 0) {
+    alert("Please select at least one employee");
+    return;
+  }
+
+  setGenerating(true);
+  setGeneratingBatchStatus(`Starting...`);
+
+  try {
     const monthValue = selectedMonth
       ? monthNames[selectedMonth - 1]
       : null;
+    const yearValue = selectedYear;
 
-    // ✅ Approved employee ids fetch
-    // const approvedEmployeesData =
-    //   await getApprovedEmployees(
-    //     effectivePropertyId,
-    //     monthValue,
-    //     selectedYear
-    //   );
+    // Directly use selected employees
+    const employeesToGenerate = selectedEmployees;
 
-    // // ✅ Only approved employees allowed
-    // const approvedEmployees = selectedEmployees.filter(
-    //   (emp) =>
-    //     approvedEmployeesData.some(
-    //       (x) =>
-    //         Number(x.EmployeeId) ===
-    //         Number(emp.EmployeeId || emp.FacilityMemberId) &&
-    //         Number(x.PropertyId) ===
-    //         Number(effectivePropertyId)
-    //     )
-    // );
+    const idsForNet = employeesToGenerate
+      .map((e) => e.EmployeeId)
+      .filter(Boolean);
 
-    // if (approvedEmployees.length === 0) {
-    //   alert("Selected employee funds are not approved.");
-    //   return;
-    // }
+    setGeneratingBatchStatus("Fetching details...");
 
-    setGenerating(true);
-    setGeneratingBatchStatus(`Starting...`);
+    const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
-    try {
-      const monthValue = selectedMonth ? monthNames[selectedMonth - 1] : null;
-      const yearValue = selectedYear;
+    const CHUNK_SIZE = 5;
+    const totalEmployees = employeesToGenerate.length;
 
-      const idsForNet = approvedEmployees
-        .map((e) => e.EmployeeId)
-        .filter(Boolean);
-      setGeneratingBatchStatus("Fetching details...");
-      const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
+    for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
+      const chunk = employeesToGenerate.slice(i, i + CHUNK_SIZE);
 
-      const CHUNK_SIZE = 5;
-      const totalEmployees = approvedEmployees.length;
+      const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
+      const totalBatches = Math.ceil(totalEmployees / CHUNK_SIZE);
 
-      for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
-        const chunk = approvedEmployees.slice(i, i + CHUNK_SIZE);
-        const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
-        const totalBatches = Math.ceil(totalEmployees / CHUNK_SIZE);
-
-        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Generating PDFs...`);
-
-        const payload = chunk.map((emp) =>
-          buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId)
-        );
-
-        const formData = new FormData();
-        formData.append("employees", JSON.stringify(payload));
-
-        const pdfPromises = chunk.map(async (emp) => {
-          const row = rowDataMap.get(emp.EmployeeId);
-          if (!row) return null;
-          const pdfBlob = await generatePdfBlobForEmployee(row);
-          if (pdfBlob) {
-            return { emp, pdfBlob };
-          }
-          return null;
-        });
-
-        const pdfResults = await Promise.all(pdfPromises);
-        pdfResults.forEach((res) => {
-          if (res && res.pdfBlob) {
-            formData.append(
-              "file",
-              res.pdfBlob,
-              `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-            );
-          }
-        });
-
-        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Uploading...`);
-        await createGeneratedSalary(formData);
-        console.log("Generated for:", chunk);
-      }
-
-      alert(`Successfully generated salary for ${approvedEmployees.length} employee(s)`);
-      setSelectedEmployees([]);
-      await fetchGeneratedEmployees();
-
-      const generatedIds = approvedEmployees.map(
-        (emp) => emp.EmployeeId
+      setGeneratingBatchStatus(
+        `Batch ${currentBatch}/${totalBatches}: Generating PDFs...`
       );
-      await fetchSalaryDetails(generatedIds);
-      setShowGrid(true);
-    } catch (error) {
-      console.error("Failed to generate salary:", error);
-      alert("Failed to generate salary. Please try again.");
-    } finally {
-      setGenerating(false);
-      setGeneratingBatchStatus("");
+
+      const payload = chunk.map((emp) =>
+        buildPayload(
+          emp,
+          netMap,
+          rowDataMap,
+          monthValue,
+          yearValue,
+          effectivePropertyId
+        )
+      );
+
+      const formData = new FormData();
+      formData.append("employees", JSON.stringify(payload));
+
+      const pdfPromises = chunk.map(async (emp) => {
+        const row = rowDataMap.get(emp.EmployeeId);
+
+        if (!row) return null;
+
+        const pdfBlob = await generatePdfBlobForEmployee(row);
+
+        if (pdfBlob) {
+          return { emp, pdfBlob };
+        }
+
+        return null;
+      });
+
+      const pdfResults = await Promise.all(pdfPromises);
+
+      pdfResults.forEach((res) => {
+        if (res?.pdfBlob) {
+          formData.append(
+            "file",
+            res.pdfBlob,
+            `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+          );
+        }
+      });
+
+      setGeneratingBatchStatus(
+        `Batch ${currentBatch}/${totalBatches}: Uploading...`
+      );
+
+      await createGeneratedSalary(formData);
+
+      console.log("Generated for:", chunk);
     }
-  };
+
+    alert(
+      `Successfully generated salary for ${employeesToGenerate.length} employee(s)`
+    );
+
+    setSelectedEmployees([]);
+
+    await fetchGeneratedEmployees();
+
+    const generatedIds = employeesToGenerate.map(
+      (emp) => emp.EmployeeId
+    );
+
+    await fetchSalaryDetails(generatedIds);
+
+    setShowGrid(true);
+
+  } catch (error) {
+    console.error("Failed to generate salary:", error);
+    alert("Failed to generate salary. Please try again.");
+  } finally {
+    setGenerating(false);
+    setGeneratingBatchStatus("");
+  }
+};
 
   const handleViewSelected = async () => {
     if (selectedRegenEmployees.length === 0) {
@@ -1309,31 +1314,29 @@ export default function GenerateSalary() {
       : null;
 
     // ✅ Approved employee ids
-    // const approvedEmployeesData =
-    //   await getApprovedEmployees(
-    //     effectivePropertyId,
-    //     monthValue,
-    //     selectedYear
-    //   );
+    const approvedEmployeesData =
+      await getApprovedEmployees(
+        effectivePropertyId,
+        monthValue,
+        selectedYear
+      );
 
-    // // ✅ Check approval
-    // const unApprovedEmployees = selectedRows.filter(
-    //   (row) =>
-    //     !approvedEmployeesData.some(
-    //       (x) =>
-    //         Number(x.EmployeeId) ===
-    //         Number(row.FacilityMemberId || row.EmployeeId) &&
-    //         Number(x.PropertyId) ===
-    //         Number(effectivePropertyId)
-    //     )
-    // );
+    // ✅ Check approval
+    const unApprovedEmployees = selectedRows.filter(
+      (row) =>
+        !approvedEmployeesData.some(
+          (x) =>
+            Number(x.EmployeeId) ===
+            Number(row.FacilityMemberId || row.EmployeeId) &&
+            Number(x.PropertyId) ===
+            Number(effectivePropertyId)
+        )
+    );
 
-    // if (unApprovedEmployees.length > 0) {
-    //   alert("Funds are not approved for this employee.");
-    //   return;
-    // }
-
-
+    if (unApprovedEmployees.length > 0) {
+      alert("Funds are not approved for this employee.");
+      return;
+    }
 
     setCreatingPayslipPdf(true);
     setGeneratingBatchStatus("Initializing...");
