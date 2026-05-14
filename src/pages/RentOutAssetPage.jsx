@@ -57,19 +57,35 @@ const RentOut = ({ Close, setData, asset, showModeToggle, locationOptions = [], 
     event.preventDefault();
     setData({
       assigneeName: formData.assigneeName,
-      rentOutDateTime: joinDateTime(formData.rentOutDate, formData.rentOutTime),
-      tentativeReturnDate: formData.tentativeReturnDate,
+
+      rentOutDateTime: formData.rentOutDate
+        ? joinDateTime(formData.rentOutDate, formData.rentOutTime)
+        : null,
+
+      tentativeReturnDate: formData.tentativeReturnDate || null,
+
       rentedTo: formData.rentedTo,
+
       outFrom: formData.outFrom,
+
       location: formData.outFrom,
+
       manufacturer: formData.manufacturer,
+
       rentalCharges: formData.rentalCharges,
+
       imageOut: formData.imageOut,
+
       imageOutName: formData.assetImageName || "",
+
       securityDeposit: formData.securityDeposit,
-      rentOutTime: joinDateTime(formData.rentOutDate, formData.rentOutTime),
+
+      rentOutTime: formData.rentOutTime || null,
+
       rentalContract: formData.rentalContractData || "",
+
       rentalContractName: formData.rentalContractName || "",
+
       approvedBy: formData.approvedBy,
     });
     if (Close) Close();
@@ -97,7 +113,7 @@ const RentOut = ({ Close, setData, asset, showModeToggle, locationOptions = [], 
               value={assetName}
               placeholder="Name"
               options={[{ label: assetName, value: assetName }]}
-              onChange={() => {}} // Read-only in this context
+              onChange={() => { }} // Read-only in this context
             />
           </div>
         )}
