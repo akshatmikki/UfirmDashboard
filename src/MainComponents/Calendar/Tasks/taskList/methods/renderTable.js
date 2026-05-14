@@ -1,5 +1,6 @@
 import React from "react";
 import moment from "moment";
+import { downloadQRCode } from "../../../../../Common/QRUtils";
 
 const getStatusClass = (status) => String(status || "").toLowerCase().replace(/\s+/g, "-");
 const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
@@ -98,11 +99,11 @@ export default function attachRenderTable(TaskList) {
     const searchStr = String(searchTerm || "").trim().toLowerCase();
     const filteredData = searchStr
       ? data.filter((task) =>
-          Object.values(task || {}).some((value) => {
-            if (value === null || value === undefined || typeof value === "object") return false;
-            return String(value).toLowerCase().includes(searchStr);
-          })
-        )
+        Object.values(task || {}).some((value) => {
+          if (value === null || value === undefined || typeof value === "object") return false;
+          return String(value).toLowerCase().includes(searchStr);
+        })
+      )
       : data;
 
     if (filteredData.length === 0) {
@@ -292,6 +293,24 @@ export default function attachRenderTable(TaskList) {
                                     <i className="fa fa-commenting-o" />
                                   </button>
                                 ) : null}
+                                {!!task.AssetId && (
+                                  <button
+                                    className="btn btn-link task-action-download"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      downloadQRCode({
+                                        qrValue: String(task.QRCode || task.AssetId || "").trim(),
+                                        name: task.Name || "Task",
+                                        templatePath: "/Assets/task-template.png",
+                                        fileName: `${task.Name || "Task"}_QR`,
+                                      });
+                                    }}
+                                    title="Download QR"
+                                    type="button"
+                                  >
+                                    <i className="fa fa-download" />
+                                  </button>
+                                )}
                                 <button className="btn btn-link task-action-edit" onClick={(e) => { e.stopPropagation(); this.EditTask(task); }} title="Edit Task" type="button">
                                   <i className="fa fa-pencil-square-o" />
                                 </button>

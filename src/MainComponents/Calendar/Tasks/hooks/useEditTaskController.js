@@ -68,7 +68,7 @@ export default function useEditTaskController({ rowData, categoryData }) {
     assetPhoto: null,
     lastServiceDate: null,
     nextServiceDate: null,
-    QRCode: rowData?.QRcode || "",
+    QRCode: rowData?.QRCode || "",
   }));
 
   const updateForm = useCallback((patch) => {

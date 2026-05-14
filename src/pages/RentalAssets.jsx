@@ -261,11 +261,14 @@ const toNumberPayload = (value) => {
 
 const toApiDateTime = (value) => {
   const raw = String(value || "").trim();
-  if (!raw) return "";
+
+  if (!raw) return null;
+
   if (raw.includes("T")) {
     if (raw.length === 16) return `${raw}:00`;
     return raw;
   }
+
   return `${raw}T00:00:00`;
 };
 
@@ -370,7 +373,13 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
     RentalCharges: toNumberPayload(getFirstValue(form.RentalCharges, form.Cost, asset.RentalCharges, rentOutData.RentalCharges, asset.MonthlyRent, asset.Cost)),
     ApprovedBy: getFirstValue(form.ApprovedBy, asset.ApprovedBy, rentOutData.ApprovedBy),
     SecurityDeposit: toNumberPayload(getFirstValue(form.SecurityDeposit, asset.SecurityDeposit, rentOutData.SecurityDeposit)),
-    RentOutTime: getFirstValue(form.RentOutTime, asset.RentOutTime, rentOutData.RentOutTime, rentOutDateTime),
+    RentOutTime: form.RentOutTime
+      ? (
+        form.RentOutTime.includes("T")
+          ? form.RentOutTime.split("T")[1]
+          : form.RentOutTime
+      )
+      : null,
     Manufacturer: getFirstValue(form.Manufacturer, asset.Manufacturer, rentOutData.Manufacturer),
     Location: getFirstValue(form.Location, asset.Location, rentOutData.Location, form.OutFrom, asset.OutFrom),
     ImageOutBase64: toBase64Field(getFirstValue(form.ImageOutBase64, asset.ImageOutBase64, rentOutData.ImageOutBase64, asset.ImageData, asset.AssetImage, asset.Image), imageOutName),
@@ -1138,7 +1147,7 @@ const RentalAssets = ({ propId, history }) => {
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const valid = ["jpg", "jpeg", "png", "webp"];
+    const valid = ["jpg", "jpeg", "png"];
     const extension = file.name.split(".").pop().toLowerCase();
     if (!valid.includes(extension)) {
       alert(`Invalid file type. Please select ${valid.join(", ")}`);
@@ -1178,7 +1187,7 @@ const RentalAssets = ({ propId, history }) => {
                 <label className="asset-hero-edit-overlay">
                   <i className="fa fa-camera" />
                   <span>Change photo</span>
-                  <input type="file" accept=".jpg,.jpeg,.png,.webp" style={{ display: "none" }} onChange={handleImageUpload} />
+                  <input type="file" accept=".jpg,.jpeg,.png" style={{ display: " none" }} onChange={handleImageUpload} />
                 </label>
               </div>
             ) : (

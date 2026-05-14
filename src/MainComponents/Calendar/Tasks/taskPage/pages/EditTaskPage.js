@@ -9,6 +9,7 @@ import { TaskQuestionsEditSection } from "../TaskQuestionsSections";
 import TaskScheduleSection from "../TaskScheduleSection";
 import ViewQuestionImg from "../../ViewQuestionImg";
 import EditQuestion from "../../EditQuestion";
+import { downloadQRCode } from "../../../../../Common/QRUtils";
 
 export default function EditTaskPage(props) {
   const { visible, closeModal, rowData, categoryData, onTaskUpdated } = props;
@@ -112,7 +113,31 @@ export default function EditTaskPage(props) {
 
   return (
     <div>
-      <TaskShell visible={visible} title="Edit Task" onClose={closeModal} footer={footer}>
+      <TaskShell
+        visible={visible}
+        title="Edit Task"
+        onClose={closeModal}
+        footer={footer}
+        rightActions={
+          !!ctrl.form.assetId && (
+            <button
+              type="button"
+              className="btn btn-outline-primary btn-sm"
+              onClick={() =>
+                downloadQRCode({
+                  qrValue: ctrl.form.QRCode || ctrl.form.assetId || "",
+                  name: ctrl.form.taskName || "Task",
+                  templatePath: "/Assets/task-template.png",
+                  fileName: `${ctrl.form.taskName || "Task"}_QR`,
+                })
+              }
+              style={{ fontWeight: "600" }}
+            >
+              Generate QR
+            </button>
+          )
+        }
+      >
         <TaskSection title="Task Details" isOpen={isOpen("details")} onToggle={() => toggleSection("details")}>
           <TaskDetailsForm
             showTaskId

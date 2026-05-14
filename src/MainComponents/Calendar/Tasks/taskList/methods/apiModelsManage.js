@@ -196,7 +196,7 @@ export default function attachApiModelsManage(TaskList) {
                     EntryType: element.EntryType,
                     AssignedTo: element.AssignedTo,
                     AssignedToId: element.AssignedToId,
-                    QRcode: element.QRCode,
+                    QRCode: element.QRCode,
                     UpdatedOn: element.UpdatedOn,
                     PropertyId: element.PropertyId,
                     AssetId: element.AssetId,

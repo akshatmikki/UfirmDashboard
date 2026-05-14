@@ -97,7 +97,7 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle, locationOptions = 
               value={assetName}
               placeholder="Name"
               options={[{ label: assetName, value: assetName }]}
-              onChange={() => {}} // Read-only in this context
+              onChange={() => { }} // Read-only in this context
             />
           </div>
         )}
@@ -144,7 +144,7 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle, locationOptions = 
             <CustomDatePicker value={formData.returnDate} onChange={(e) => handleInputChange({ target: { name: "returnDate", value: e.target.value } })} />
           </div>
           <div className="rental-asset-field">
-            <label className="rental-asset-label">Rent -n time</label>
+            <label className="rental-asset-label">Rent in time</label>
             <input className="rental-asset-input" type="time" name="returnTime" value={formData.returnTime} onChange={handleInputChange} required />
           </div>
           <div className="rental-asset-field">

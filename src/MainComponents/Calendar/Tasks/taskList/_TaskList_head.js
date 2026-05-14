@@ -20,6 +20,7 @@ import { CSVLink } from "react-csv";
 import LayoutDataProvider from "../../../Routing/LayoutDataProvider";
 import { getFrequencyList } from "../../../Services/masterService";
 import * as XLSX from "xlsx";
+import { downloadQRCode } from "../../../../Common/QRUtils";
 
 const $ = window.$;
 
@@ -1255,6 +1256,19 @@ class TaskList extends Component {
                               onClick={() => this.ViewTask(task)}
                               title="View Detail"
                               style={{ fontSize: "14px", cursor: "pointer" }}></i>
+                            {!!task.AssetId && (
+                              <i className="fa fa-download text-primary mr-3"
+                                onClick={() =>
+                                  downloadQRCode({
+                                    qrValue: task.QRCode || task.AssetId || "",
+                                    name: task.Name || "Task",
+                                    templatePath: "/Assets/task-template.png",
+                                    fileName: `${task.Name || "Task"}_QR`,
+                                  })
+                                }
+                                title="Download QR"
+                                style={{ fontSize: "14px", cursor: "pointer" }}></i>
+                            )}
                             <i className="fa fa-edit text-success mr-3"
                               onClick={() => this.EditTask(task)}
                               title="Edit Task"
@@ -1500,6 +1514,22 @@ class TaskList extends Component {
                               <button className="btn btn-sm btn-link text-info p-1 mr-2" onClick={() => this.ViewTask(task)} title="View Detail">
                                 <i className="fa fa-eye"></i>
                               </button>
+                               {!!task.AssetId && (
+                                <button
+                                  className="btn btn-sm btn-link text-primary p-1 mr-2"
+                                  onClick={() =>
+                                    downloadQRCode({
+                                      qrValue: task.QRCode || task.AssetId || "",
+                                      name: task.Name || "Task",
+                                      templatePath: "/Assets/task-template.png",
+                                      fileName: `${task.Name || "Task"}_QR`,
+                                    })
+                                  }
+                                  title="Download QR"
+                                >
+                                  <i className="fa fa-download"></i>
+                                </button>
+                              )}
                               <button className="btn btn-sm btn-link text-success p-1 mr-2" onClick={() => this.EditTask(task)} title="Edit Task">
                                 <i className="fa fa-edit"></i>
                               </button>

@@ -121,6 +121,7 @@ import Designation from "../MainComponents/Payroll/Designation.jsx";
 import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
 import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx"
+import EmployeeOnboarding from "../pages/EmployeeOnboarding.jsx"
 
 var currentpropertyid;
 var currentclientid;
@@ -1061,6 +1062,15 @@ class MainNav extends React.Component {
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Facility Member </p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/EmployeeOnboarding"
+                            className="nav-link"
+                          >
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Employee Onboarding </p>
                           </Link>
                         </li>
                         <li className="nav-item">
@@ -2144,6 +2154,9 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
+            </Route>
+            <Route path="/Account/App/EmployeeOnboarding">
+              <EmployeeOnboarding />
             </Route>
 
             {/* <Route path="/AttendanceSummary">
