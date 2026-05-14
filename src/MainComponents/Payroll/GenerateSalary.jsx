@@ -1050,29 +1050,29 @@ export default function GenerateSalary() {
       : null;
 
     // ✅ Approved employee ids fetch
-    const approvedEmployeesData =
-      await getApprovedEmployees(
-        effectivePropertyId,
-        monthValue,
-        selectedYear
-      );
+    // const approvedEmployeesData =
+    //   await getApprovedEmployees(
+    //     effectivePropertyId,
+    //     monthValue,
+    //     selectedYear
+    //   );
 
-    // ✅ Only approved employees allowed
-    const approvedEmployees = selectedEmployees.filter(
-      (emp) =>
-        approvedEmployeesData.some(
-          (x) =>
-            Number(x.EmployeeId) ===
-            Number(emp.EmployeeId || emp.FacilityMemberId) &&
-            Number(x.PropertyId) ===
-            Number(effectivePropertyId)
-        )
-    );
+    // // ✅ Only approved employees allowed
+    // const approvedEmployees = selectedEmployees.filter(
+    //   (emp) =>
+    //     approvedEmployeesData.some(
+    //       (x) =>
+    //         Number(x.EmployeeId) ===
+    //         Number(emp.EmployeeId || emp.FacilityMemberId) &&
+    //         Number(x.PropertyId) ===
+    //         Number(effectivePropertyId)
+    //     )
+    // );
 
-    if (approvedEmployees.length === 0) {
-      alert("Selected employee funds are not approved.");
-      return;
-    }
+    // if (approvedEmployees.length === 0) {
+    //   alert("Selected employee funds are not approved.");
+    //   return;
+    // }
 
     setGenerating(true);
     setGeneratingBatchStatus(`Starting...`);
@@ -1256,7 +1256,7 @@ export default function GenerateSalary() {
     }
 
     if (record.IsFreezed) {
-      alert("Frozen salary record cannot be deleted.");
+      alert("Freezed salary record cannot be deleted.");
       return;
     }
 
@@ -1309,29 +1309,29 @@ export default function GenerateSalary() {
       : null;
 
     // ✅ Approved employee ids
-    const approvedEmployeesData =
-      await getApprovedEmployees(
-        effectivePropertyId,
-        monthValue,
-        selectedYear
-      );
+    // const approvedEmployeesData =
+    //   await getApprovedEmployees(
+    //     effectivePropertyId,
+    //     monthValue,
+    //     selectedYear
+    //   );
 
-    // ✅ Check approval
-    const unApprovedEmployees = selectedRows.filter(
-      (row) =>
-        !approvedEmployeesData.some(
-          (x) =>
-            Number(x.EmployeeId) ===
-            Number(row.FacilityMemberId || row.EmployeeId) &&
-            Number(x.PropertyId) ===
-            Number(effectivePropertyId)
-        )
-    );
+    // // ✅ Check approval
+    // const unApprovedEmployees = selectedRows.filter(
+    //   (row) =>
+    //     !approvedEmployeesData.some(
+    //       (x) =>
+    //         Number(x.EmployeeId) ===
+    //         Number(row.FacilityMemberId || row.EmployeeId) &&
+    //         Number(x.PropertyId) ===
+    //         Number(effectivePropertyId)
+    //     )
+    // );
 
-    if (unApprovedEmployees.length > 0) {
-      alert("Funds are not approved for this employee.");
-      return;
-    }
+    // if (unApprovedEmployees.length > 0) {
+    //   alert("Funds are not approved for this employee.");
+    //   return;
+    // }
 
 
 
