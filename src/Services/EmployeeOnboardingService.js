@@ -1,7 +1,7 @@
 import axios from "axios";
 
-// const API_URL = "https://api.urest.in:8096/";
-const API_URL = "http://localhost:62929/";
+const API_URL = "https://api.urest.in:8096/";
+//const API_URL = "http://localhost:62929/";
 
 
 // SAVE ONBOARDING TEMP DATA

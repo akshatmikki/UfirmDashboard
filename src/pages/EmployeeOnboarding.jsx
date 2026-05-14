@@ -152,18 +152,25 @@ const EmployeeOnboarding = () => {
   const editEmployee = (emp) => {
     setFormData({
       ...emp,
-
-      DateOfBirth: emp.DateOfBirth
-        ? emp.DateOfBirth.split("T")[0]
-        : "",
-
-      DateOfJoining: emp.DateOfJoining
-        ? emp.DateOfJoining.split("T")[0]
-        : "",
+      DateOfBirth: emp.DateOfBirth ? emp.DateOfBirth.split("T")[0] : "",
+      DateOfJoining: emp.DateOfJoining ? emp.DateOfJoining.split("T")[0] : "",
     });
 
-    setIsEditMode(true);
+    // 🔥 IMPORTANT: map documents from API
+    if (emp.Documents && emp.Documents.length > 0) {
+      const mappedDocs = emp.Documents.map((doc) => ({
+        type: doc.DocumentType,
+        file: null, // no actual file object
+        fileName: doc.FileName,
+        url: doc.FileUrl,
+      }));
 
+      setDocuments(mappedDocs);
+    } else {
+      setDocuments([]);
+    }
+
+    setIsEditMode(true);
     setDialogVisible(true);
   };
 
@@ -292,6 +299,7 @@ const EmployeeOnboarding = () => {
       setDialogVisible(false);
 
       resetForm();
+      setDocuments([]);
 
     } catch (error) {
       console.log(error);
@@ -561,6 +569,11 @@ const EmployeeOnboarding = () => {
                       setDocuments(prev => [...prev, { type: "Profile", file }]);
                     }}
                   />
+                  {documents.find(d => d.type === "Profile" && d.fileName) && (
+                    <small style={{ display: "block" }}>
+                      Existing: {documents.find(d => d.type === "Profile").fileName}
+                    </small>
+                  )}
                 </div>
 
                 {/* RESUME */}
@@ -579,6 +592,11 @@ const EmployeeOnboarding = () => {
                       setDocuments(prev => [...prev, { type: "Resume", file }]);
                     }}
                   />
+                  {documents.find(d => d.type === "Resume" && d.fileName) && (
+                    <small>
+                      Existing: {documents.find(d => d.type === "Resume").fileName}
+                    </small>
+                  )}
                 </div>
 
                 {/* AADHAR */}
@@ -590,6 +608,7 @@ const EmployeeOnboarding = () => {
                       const file = e.target.files[0];
                       if (!file) return;
 
+                      if (documents.some(d => d.type === "Aadhar")) return;
                       setDocuments(prev => [...prev, { type: "Aadhar", file }]);
                     }}
                   />
@@ -604,6 +623,7 @@ const EmployeeOnboarding = () => {
                       const file = e.target.files[0];
                       if (!file) return;
 
+                      if (documents.some(d => d.type === "PAN")) return;
                       setDocuments(prev => [...prev, { type: "PAN", file }]);
                     }}
                   />
@@ -618,7 +638,8 @@ const EmployeeOnboarding = () => {
                       const file = e.target.files[0];
                       if (!file) return;
 
-                      setDocuments(prev => [...prev, { type: "BankPassbook", file }]);
+                      if (documents.some(d => d.type === "Bank Passbook")) return;
+                      setDocuments(prev => [...prev, { type: "Bank Passbook", file }]);
                     }}
                   />
                 </div>
