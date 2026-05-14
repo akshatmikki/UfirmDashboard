@@ -20,6 +20,8 @@ import {
   saveOnboardingTemp,
   getOnboardingTemp,
   updateOnboardingTemp,
+  approveEmployeeTemp,
+  rejectEmployeeTemp
 } from "../Services/EmployeeOnboardingService";
 
 
@@ -172,6 +174,64 @@ const EmployeeOnboarding = () => {
 
     setIsEditMode(true);
     setDialogVisible(true);
+  };
+
+
+  const approveEmployee = async (rowData) => {
+    try {
+
+      const response = await approveEmployeeTemp(
+        rowData.TempId,
+        rowData.PropertyId
+      );
+
+      toast.current.show({
+        severity: "success",
+        summary: "Approved",
+        detail: response?.Message || "Employee approved successfully",
+      });
+
+      fetchEmployees();
+
+    } catch (error) {
+
+      console.log(error);
+
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail:
+          error?.response?.data ||
+          error?.response?.data?.Message ||
+          error.message ||
+          "Failed to approve employee",
+      });
+    }
+  };
+
+  const rejectEmployee = async (rowData) => {
+    try {
+
+      const response = await rejectEmployeeTemp(
+        rowData.TempId,
+        rowData.PropertyId
+      );
+
+      toast.current.show({
+        severity: "success",
+        summary: "Rejected",
+        detail: response?.Message || "Employee rejected successfully",
+      });
+
+      fetchEmployees();
+
+    } catch (error) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: error?.response?.data?.Message || "Failed to reject employee",
+      });
+    }
   };
 
   const fetchEmployees = async () => {
@@ -374,13 +434,65 @@ const EmployeeOnboarding = () => {
                   <Column field="PFNumber" header="PF Number" style={{ minWidth: '120px' }} />
                   <Column field="ESINumber" header="ESI Number" style={{ minWidth: '120px' }} />
                   <Column field="DateOfJoining" header="Date of Joining" body={(rowData) => rowData.DateOfJoining ? rowData.DateOfJoining.split("T")[0] : "-"} style={{ minWidth: '150px' }} />
+                  <Column
+                    header="Status"
+                    body={(rowData) => {
 
+                      // APPROVED
+                      if (rowData.IsApproved) {
+                        return (
+                          <span className="badge bg-success">
+                            Approved
+                          </span>
+                        );
+                      }
+
+                      // REJECTED
+                      if (rowData.IsRejected) {
+                        return (
+                          <span className="badge bg-danger">
+                            Rejected
+                          </span>
+                        );
+                      }
+
+                      // PENDING
+                      return (
+                        <span className="badge bg-warning text-dark">
+                          Pending
+                        </span>
+                      );
+                    }}
+                    style={{ minWidth: "120px" }}
+                  />
                   <Column
                     header="Actions"
                     body={(rowData) => (
                       <div className="d-flex gap-2">
-                        <Button icon="pi pi-pencil" className="p-button-text p-button-info p-0" onClick={() => editEmployee(rowData)} />
-                        <Button icon="pi pi-trash" className="p-button-text p-button-danger p-0" onClick={() => confirmDelete(rowData)} />
+
+                        <Button
+                          icon="pi pi-check"
+                          disabled={rowData.IsApproved || rowData.IsRejected}
+                          className="p-button-success p-button-sm"
+                          tooltip="Approve"
+                          onClick={() => approveEmployee(rowData)}
+                        />
+
+                        <Button
+                          icon="pi pi-times"
+                          disabled={rowData.IsApproved || rowData.IsRejected}
+                          className="p-button-danger p-button-sm"
+                          tooltip="Reject"
+                          onClick={() => rejectEmployee(rowData)}
+                        />
+
+                        <Button
+                          icon="pi pi-pencil"
+                          disabled={rowData.IsApproved || rowData.IsRejected}
+                          className="p-button-info p-button-sm"
+                          onClick={() => editEmployee(rowData)}
+                        />
+
                       </div>
                     )}
                     style={{ minWidth: '100px' }}
