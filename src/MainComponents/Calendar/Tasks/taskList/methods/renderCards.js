@@ -1,5 +1,6 @@
 import React from "react";
 import moment from "moment";
+import { downloadQRCode } from "../../../../../Common/QRUtils";
 
 const getStatusClass = (status) => String(status || "").toLowerCase().replace(/\s+/g, "-");
 const normalizeStatus = (status) => String(status || "").trim().toLowerCase();
@@ -98,11 +99,11 @@ export default function attachRenderCards(TaskList) {
     const searchStr = String(searchTerm || "").trim().toLowerCase();
     const filteredData = searchStr
       ? data.filter((task) =>
-          Object.values(task || {}).some((value) => {
-            if (value === null || value === undefined || typeof value === "object") return false;
-            return String(value).toLowerCase().includes(searchStr);
-          })
-        )
+        Object.values(task || {}).some((value) => {
+          if (value === null || value === undefined || typeof value === "object") return false;
+          return String(value).toLowerCase().includes(searchStr);
+        })
+      )
       : data;
 
     if (filteredData.length === 0) {
@@ -253,105 +254,123 @@ export default function attachRenderCards(TaskList) {
                       </div>
                     ) : (
                       pagedTasks.map((task, index) => (
-                      <div
-                        key={`${task.TaskId}-${index}`}
-                        className={`task-card ${getStatusClass(task.TaskStatus)}`}
-                        onClick={() => this.ViewTask(task)}
-                        role="button"
-                        tabIndex={0}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") this.ViewTask(task);
-                        }}
-                      >
-                        <div className="task-card-head">
-                          <span>
-                            {task.CategoryName} / {task.SubCategoryName}
-                          </span>
-                          <span className={`task-chip-status ${getStatusClass(task.TaskStatus)}`}>
-                            {String(task.TaskStatus || "").trim().toLowerCase() === "pending" ? (
-                              <span className="task-status-dot" aria-hidden="true" />
-                            ) : null}
-                            {getDisplayStatus(task.TaskStatus)}
-                          </span>
-                        </div>
-
-                        <div className="task-card-body">
-                          <div className="task-card-content">
-                            <div className="task-card-title-group">
-                              <h6 className="task-card-title">{task.Name || "Task"}</h6>
-                              <p className="task-card-id">({task.TaskId})</p>
-                            </div>
-
-                            <div className="task-card-kv">
-                              <span>Priority</span>
-                              <b className={`task-priority ${getPriorityClass(task.TaskPriority)}`}>{task.TaskPriority || "-"}</b>
-                              
-                              <span>Assigned to</span>
-                              <b>{task.AssignedTo || "-"}</b>
-                              
-                              <span>Location</span>
-                              <b>{task.Location || "-"}</b>
-                              
-                              <span>Due date</span>
-                              <b>{getTaskDateDisplay(task.UpdatedOn)}</b>
-                            </div>
+                        <div
+                          key={`${task.TaskId}-${index}`}
+                          className={`task-card ${getStatusClass(task.TaskStatus)}`}
+                          onClick={() => this.ViewTask(task)}
+                          role="button"
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") this.ViewTask(task);
+                          }}
+                        >
+                          <div className="task-card-head">
+                            <span>
+                              {task.CategoryName} / {task.SubCategoryName}
+                            </span>
+                            <span className={`task-chip-status ${getStatusClass(task.TaskStatus)}`}>
+                              {String(task.TaskStatus || "").trim().toLowerCase() === "pending" ? (
+                                <span className="task-status-dot" aria-hidden="true" />
+                              ) : null}
+                              {getDisplayStatus(task.TaskStatus)}
+                            </span>
                           </div>
 
-                          <div className="task-card-actions">
-                            <div className="task-card-action-group">
-                              {isActionableStatus(task.TaskStatus) ? (
+                          <div className="task-card-body">
+                            <div className="task-card-content">
+                              <div className="task-card-title-group">
+                                <h6 className="task-card-title">{task.Name || "Task"}</h6>
+                                <p className="task-card-id">({task.TaskId})</p>
+                              </div>
+
+                              <div className="task-card-kv">
+                                <span>Priority</span>
+                                <b className={`task-priority ${getPriorityClass(task.TaskPriority)}`}>{task.TaskPriority || "-"}</b>
+
+                                <span>Assigned to</span>
+                                <b>{task.AssignedTo || "-"}</b>
+
+                                <span>Location</span>
+                                <b>{task.Location || "-"}</b>
+
+                                <span>Due date</span>
+                                <b>{getTaskDateDisplay(task.UpdatedOn)}</b>
+                              </div>
+                            </div>
+
+                            <div className="task-card-actions">
+                              <div className="task-card-action-group">
+                                {isActionableStatus(task.TaskStatus) ? (
+                                  <button
+                                    className="btn btn-link task-action-remarks"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      this.ViewTask(task, "fmRemarks");
+                                    }}
+                                    title="Remarks"
+                                    type="button"
+                                  >
+                                    <i className="fa fa-commenting-o" />
+                                  </button>
+                                ) : null}
+                                {!!task.AssetId && (
+                                  <button
+                                    className="btn btn-link task-action-download"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      downloadQRCode({
+                                        qrValue: String(task.QRCode || task.AssetId || "").trim(),
+                                        name: task.Name || "Task",
+                                        templatePath: "/Assets/task-template.png",
+                                        fileName: `${task.Name || "Task"}_QR`,
+                                      });
+                                    }}
+                                    title="Download QR"
+                                    type="button"
+                                  >
+                                    <i className="fa fa-download" />
+                                  </button>
+                                )}
                                 <button
-                                  className="btn btn-link task-action-remarks"
+                                  className="btn btn-link task-action-edit"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    this.ViewTask(task, "fmRemarks");
+                                    this.EditTask(task);
                                   }}
-                                  title="Remarks"
+                                  title="Edit Task"
                                   type="button"
                                 >
-                                  <i className="fa fa-commenting-o" />
+                                  <i className="fa fa-pencil-square-o" />
+                                </button>
+                                <button
+                                  className="btn btn-link task-action-delete"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    this.DeleteTask(task);
+                                  }}
+                                  title="Delete Task"
+                                  type="button"
+                                >
+                                  <i className="fa fa-trash-o" />
+                                </button>
+                              </div>
+                              {task.EntryType === "PPM" ? (
+                                <button
+                                  className="btn btn-link task-action-add"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    this.AddQuestion(task);
+                                  }}
+                                  title="Add Question"
+                                  type="button"
+                                >
+                                  <i className="fa fa-plus-square-o" />
                                 </button>
                               ) : null}
-                              <button
-                                className="btn btn-link task-action-edit"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  this.EditTask(task);
-                                }}
-                                title="Edit Task"
-                                type="button"
-                              >
-                                <i className="fa fa-pencil-square-o" />
-                              </button>
-                              <button
-                                className="btn btn-link task-action-delete"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  this.DeleteTask(task);
-                                }}
-                                title="Delete Task"
-                                type="button"
-                              >
-                                <i className="fa fa-trash-o" />
-                              </button>
                             </div>
-                            {task.EntryType === "PPM" ? (
-                              <button
-                                className="btn btn-link task-action-add"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  this.AddQuestion(task);
-                                }}
-                                title="Add Question"
-                                type="button"
-                              >
-                                <i className="fa fa-plus-square-o" />
-                              </button>
-                            ) : null}
                           </div>
                         </div>
-                      </div>
-                    )))}
+                      )))}
                   </div>
 
                   {totalPages > 1 ? (

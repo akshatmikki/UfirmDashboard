@@ -6,6 +6,7 @@ import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import { TaskQuestionsCreateSection } from "../TaskQuestionsSections";
 import TaskScheduleSection from "../TaskScheduleSection";
+import { downloadQRCode } from "../../../../../Common/QRUtils";
 
 export default function CreateTaskPage(props) {
   const { visible, closeModal, categoryData, onTaskAdded, type, PropertyId } = props;
@@ -69,7 +70,31 @@ export default function CreateTaskPage(props) {
   );
 
   return (
-    <TaskShell visible={visible} title="Add Task" onClose={closeModal} footer={footer}>
+    <TaskShell
+      visible={visible}
+      title="Add Task"
+      onClose={closeModal}
+      footer={footer}
+      rightActions={
+        ctrl.form.assetId && (
+          <button
+            type="button"
+            className="btn btn-outline-primary btn-sm"
+            onClick={() =>
+              downloadQRCode({
+                qrValue: ctrl.form.QRCode || ctrl.form.assetId || "",
+                name: ctrl.form.taskName || "New Task",
+                templatePath: "/Assets/task-template.png",
+                fileName: `${ctrl.form.taskName || "Task"}_QR`,
+              })
+            }
+            style={{ fontWeight: "600" }}
+          >
+            Generate QR
+          </button>
+        )
+      }
+    >
       <TaskSection title="Task Details" isOpen={openSection === "details"} onToggle={() => toggleSection("details")}>
         <TaskDetailsForm
           showTaskId={false}
@@ -115,7 +140,7 @@ export default function CreateTaskPage(props) {
         />
       </TaskSection>
 
-      
+
 
       <TaskInlineSection
         title="Checklist "

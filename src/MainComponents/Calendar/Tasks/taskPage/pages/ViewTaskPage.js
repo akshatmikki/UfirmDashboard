@@ -5,6 +5,7 @@ import TaskAssetSection from "../TaskAssetSection";
 import TaskFmRemarksSection from "../TaskFmRemarksSection";
 import { TaskQuestionsViewSection } from "../TaskQuestionsSections";
 import ViewQuestionImg from "../../ViewQuestionImg";
+import { downloadQRCode } from "../../../../../Common/QRUtils";
 
 export default function ViewTaskPage(props) {
   const { visible, closeModal, rowData, onTaskUpdated, viewOnlySection, initialOpenSection, onEdit, onDelete } = props;
@@ -105,6 +106,32 @@ export default function ViewTaskPage(props) {
         rightActions={
           fmOnly ? null : (
             <>
+              {!!rowData?.AssetId && (
+                <button
+                  type="button"
+                  title="Download QR Code"
+                  onClick={() =>
+                    downloadQRCode({
+                      qrValue: rowData?.QRCode || rowData?.AssetId || "",
+                      name: rowData?.Name || "Task",
+                      templatePath: "/Assets/task-template.png",
+                      fileName: `${rowData?.Name || "Task"}_QR`,
+                    })
+                  }
+                  style={{
+                    border: "none",
+                    background: "transparent",
+                    color: "#0369a1",
+                    padding: "0",
+                    fontSize: "18px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <i className="fa fa-download" />
+                </button>
+              )}
               <button 
                 type="button" 
                 onClick={onEdit}
@@ -208,7 +235,7 @@ export default function ViewTaskPage(props) {
                 lastServiceDate={ctrl.assetDetails.lastServiceDate}
                 nextServiceDate={ctrl.assetDetails.nextServiceDate}
                 assetPhoto={ctrl.assetDetails.assetPhoto}
-                QRCode={rowData?.QRcode || ctrl.assetDetails.QRCode || ""}
+                QRCode={rowData?.QRCode || ctrl.assetDetails.QRCode || ""}
               />
             </TaskSection>
           </>

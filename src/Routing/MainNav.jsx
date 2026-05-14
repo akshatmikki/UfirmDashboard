@@ -121,6 +121,7 @@ import Designation from "../MainComponents/Payroll/Designation.jsx";
 import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
 import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx"
+import EmployeeOnboarding from "../pages/EmployeeOnboarding.jsx"
 
 var currentpropertyid;
 var currentclientid;
@@ -1044,8 +1045,8 @@ class MainNav extends React.Component {
                     </li>
                   ) : null}
 
-	                  {canAccessFacilityManagement ? (
-	                    <li className="nav-item has-treeview">
+                  {canAccessFacilityManagement ? (
+                    <li className="nav-item has-treeview">
                       <a href="#" className="nav-link">
                         <i className="nav-icon fas fa-address-book"></i>
                         <p>
@@ -1065,6 +1066,15 @@ class MainNav extends React.Component {
                         </li>
                         <li className="nav-item">
                           <Link
+                            to="/Account/App/EmployeeOnboarding"
+                            className="nav-link"
+                          >
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Employee Onboarding </p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link
                             to="/Account/App/EmployeeTransfer"
                             className="nav-link"
                           >
@@ -1072,14 +1082,14 @@ class MainNav extends React.Component {
                             <p>Emp Search & Transfer</p>
                           </Link>
                         </li>
-                       {!isManagerOnly && (
-	                          <li className="nav-item">
-	                            <Link to="/Account/App/Facility" className="nav-link">
-	                              <i className=" fas fa-caret-right nav-icon"></i>
-	                              <p>Facility Latlong </p>
-	                            </Link>
-	                          </li>
-	                        )}
+                        {!isManagerOnly && (
+                          <li className="nav-item">
+                            <Link to="/Account/App/Facility" className="nav-link">
+                              <i className=" fas fa-caret-right nav-icon"></i>
+                              <p>Facility Latlong </p>
+                            </Link>
+                          </li>
+                        )}
 
                         {canSeeAllPages ? (
                           <li className="nav-item">
@@ -1117,28 +1127,28 @@ class MainNav extends React.Component {
                           </li>
                         )}
 
-		                        {!hideAttendanceForPropertyManager && !isManagerOnly && (
-		                          <li className="nav-item">
-		                            <Link
-		                              to="/Account/App/leavemaster"
-	                              className="nav-link"
-	                            >
-	                              <i className=" fas fa-caret-right nav-icon"></i>
-	                              <p>Leave Master </p>
-	                            </Link>
-	                          </li>
-	                        )}
-	                        {!hideAttendanceForPropertyManager && !isManagerOnly && (
-	                          <li className="nav-item">
-	                            <Link
-	                              to="/Account/App/EmployeeLeave"
-	                              className="nav-link"
-	                            >
-	                              <i className=" fas fa-caret-right nav-icon"></i>
-	                              <p>Employee Leave </p>
-	                            </Link>
-	                          </li>
-	                        )}
+                        {!hideAttendanceForPropertyManager && !isManagerOnly && (
+                          <li className="nav-item">
+                            <Link
+                              to="/Account/App/leavemaster"
+                              className="nav-link"
+                            >
+                              <i className=" fas fa-caret-right nav-icon"></i>
+                              <p>Leave Master </p>
+                            </Link>
+                          </li>
+                        )}
+                        {!hideAttendanceForPropertyManager && !isManagerOnly && (
+                          <li className="nav-item">
+                            <Link
+                              to="/Account/App/EmployeeLeave"
+                              className="nav-link"
+                            >
+                              <i className=" fas fa-caret-right nav-icon"></i>
+                              <p>Employee Leave </p>
+                            </Link>
+                          </li>
+                        )}
 
                         {!hideAttendanceForPropertyManager && (
                           <li className="nav-item">
@@ -1794,7 +1804,7 @@ class MainNav extends React.Component {
               }}
             />
           )}
-	          <Switch>
+          <Switch>
             <Route
               exact
               path="/"
@@ -1821,39 +1831,39 @@ class MainNav extends React.Component {
             <Route path="/Account/App/UserProfile">
               <UserProfile />
             </Route>
-	            <Route path="/Account/App/FacilityMember">
-	              <FacilityMember />
-	            </Route>
-	            <Route
-	              path="/Account/App/CreateNewUser"
-	              render={() =>
-	                ROLE_RULES.isAdminRole(roles) ? (
-	                  <CreateNewUser />
-	                ) : (
-	                  <Redirect to="/Account/App" />
-	                )
-	              }
-	            />
-	            <Route
-	              path="/Account/App/AddNewUser"
-	              render={() =>
-	                ROLE_RULES.isAdminRole(roles) ? (
-	                  <AddNewUser />
-	                ) : (
-	                  <Redirect to="/Account/App" />
-	                )
-	              }
-	            />
-	            <Route
-	              path="/Account/App/Facility"
-	              render={() => {
-	                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
-	                  return <Redirect to="/Account/App" />;
-	                }
-	                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
-	                return <FacilityLatlongPage />;
-	              }}
-	            />
+            <Route path="/Account/App/FacilityMember">
+              <FacilityMember />
+            </Route>
+            <Route
+              path="/Account/App/CreateNewUser"
+              render={() =>
+                ROLE_RULES.isAdminRole(roles) ? (
+                  <CreateNewUser />
+                ) : (
+                  <Redirect to="/Account/App" />
+                )
+              }
+            />
+            <Route
+              path="/Account/App/AddNewUser"
+              render={() =>
+                ROLE_RULES.isAdminRole(roles) ? (
+                  <AddNewUser />
+                ) : (
+                  <Redirect to="/Account/App" />
+                )
+              }
+            />
+            <Route
+              path="/Account/App/Facility"
+              render={() => {
+                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
+                  return <Redirect to="/Account/App" />;
+                }
+                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
+                return <FacilityLatlongPage />;
+              }}
+            />
             <Route path="/Account/App/PropertyMember">
               <PropertyMember />
             </Route>
@@ -2109,29 +2119,29 @@ class MainNav extends React.Component {
               path="/Account/App/ExpenseMaster"
               component={ExpenseMaster}
             />
-	            <Route path="/Account/App/leave" component={Leave} />
-	            <Route
-	              path="/Account/App/leavemaster"
-	              render={() => {
-	                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
-	                  return <Redirect to="/Account/App" />;
-	                }
-	                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
-	                return <LeaveMaster />;
-	              }}
-	            />
-	            <Route path="/Account/App/DMRReport" component={DMRReport} />
-	            <Route path="/Account/App/AttendanceBiometricReport" component={AttendanceBiometricReport} />
-	            <Route
-	              path="/Account/App/EmployeeLeave"
-	              render={() => {
-	                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
-	                  return <Redirect to="/Account/App" />;
-	                }
-	                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
-	                return <EmployeeLeave />;
-	              }}
-	            />
+            <Route path="/Account/App/leave" component={Leave} />
+            <Route
+              path="/Account/App/leavemaster"
+              render={() => {
+                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
+                  return <Redirect to="/Account/App" />;
+                }
+                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
+                return <LeaveMaster />;
+              }}
+            />
+            <Route path="/Account/App/DMRReport" component={DMRReport} />
+            <Route path="/Account/App/AttendanceBiometricReport" component={AttendanceBiometricReport} />
+            <Route
+              path="/Account/App/EmployeeLeave"
+              render={() => {
+                if (!ROLE_RULES.canAccessFacilityManagement(roles)) {
+                  return <Redirect to="/Account/App" />;
+                }
+                if (isManagerOnly) return <Redirect to="/Account/App/FacilityMember" />;
+                return <EmployeeLeave />;
+              }}
+            />
             <Route path="/Account/App/EmployeeLeaveRemaining" component={LeaveDashboard} />
             <Route path="/Account/App/ItemSpecification">
               <ItemSpecificationPage />
@@ -2144,6 +2154,9 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
+            </Route>
+            <Route path="/Account/App/EmployeeOnboarding">
+              <EmployeeOnboarding />
             </Route>
 
             {/* <Route path="/AttendanceSummary">
