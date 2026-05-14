@@ -1200,10 +1200,10 @@ const SparePage = () => {
                   <div className="asset-master-toolbar-actions">
                     <button
                       type="button"
-                      className="btn btn-primary"
-                      style={{ backgroundColor: "#1f4e7a", borderColor: "#1f4e7a", color: "#ffffff" }}
+                      className="btn asset-toolbar-download"
                       onClick={downloadAllQRCodes}
                     >
+
                       Download QR
                     </button>
                     <button type="button" className={`btn asset-toolbar-filter ${showFilterPanel ? "active" : ""}`} onClick={() => setShowFilterPanel((prev) => !prev)}>

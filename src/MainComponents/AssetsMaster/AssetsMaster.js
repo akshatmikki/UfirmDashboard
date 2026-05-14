@@ -115,7 +115,7 @@ class AssetsMaster extends Component {
       searchTerm: "",
       showFilterPanel: false,
       filterCapacity: "",
-      filterVendor: "",
+      filterName: "",
       filterManufacturer: "",
       filterStatus: "",
       filterServiceStatus: "",
@@ -152,7 +152,7 @@ class AssetsMaster extends Component {
     const filterKeys = [
       "searchTerm",
       "filterCapacity",
-      "filterVendor",
+      "filterName",
       "filterManufacturer",
       "filterServiceStatus",
       "filterType",
@@ -1070,7 +1070,7 @@ class AssetsMaster extends Component {
     this.setState({
       searchTerm: "",
       filterCapacity: "",
-      filterVendor: "",
+      filterName: "",
       filterManufacturer: "",
       filterStatus: "",
       filterServiceStatus: "",
@@ -1095,13 +1095,13 @@ class AssetsMaster extends Component {
 
         <div className="asset-filter-grid">
           <div className="asset-filter-field">
-            <label>Vendor</label>
+            <label>Name</label>
             <CustomDropdown
               variant="long"
-              value={this.state.filterVendor}
-              onChange={(e) => this.setState({ filterVendor: e.target.value })}
+              value={this.state.filterName}
+              onChange={(e) => this.setState({ filterName: e.target.value })}
               placeholder="Enter name"
-              options={this.getVendorOptions().map(v => ({ label: v, value: v }))}
+              options={this.getNameOptions().map(v => ({ label: v, value: v }))}
             />
           </div>
           <div className="asset-filter-field">
@@ -1187,7 +1187,7 @@ class AssetsMaster extends Component {
       return (
         (!search || rowId.includes(search) || rowName.includes(search)) &&
         (!this.state.filterManufacturer || String(item?.Manufacturer || "").toLowerCase().includes(this.state.filterManufacturer.toLowerCase())) &&
-        (!this.state.filterVendor || String(item?.Vendor || "").toLowerCase().includes(this.state.filterVendor.toLowerCase())) &&
+        (!this.state.filterName || String(item?.Name || item?.name || item?.AssetName || "").toLowerCase().includes(this.state.filterName.toLowerCase())) &&
         (!this.state.filterStatus || this.getAssetStatusMeta(item).label === this.state.filterStatus) &&
         (!this.state.filterType || this.getAssetTypeLabel(item) === this.state.filterType) &&
         this.matchesServiceStatus(item, this.state.filterServiceStatus)
@@ -1319,11 +1319,11 @@ class AssetsMaster extends Component {
 
   getSelectedAssetRecord = () => (this.state.selectedRowId ? this.findItem(this.state.selectedRowId) : null);
 
-  getVendorOptions = () =>
+  getNameOptions = () =>
     Array.from(
       new Set(
         (this.state.GridData || [])
-          .map((item) => String(item?.Vendor || item?.Distributor || item?.VendorName || "").trim())
+          .map((item) => String(item?.Name || item?.name || item?.AssetName || "").trim())
           .filter(Boolean)
       )
     ).sort((a, b) => a.localeCompare(b));
@@ -2346,6 +2346,8 @@ class AssetsMaster extends Component {
       this.state.filterCategory,
       this.state.filterLocation,
       this.state.filterCapacity,
+      this.state.filterName,
+      this.state.filterManufacturer,
     ].filter((item) => String(item || "") !== "").length;
     const hasSidePanel = this.state.PageMode === "View" || this.state.PageMode === "Edit";
     const showAssetModal = this.state.PageMode === "Add";
@@ -2414,10 +2416,11 @@ class AssetsMaster extends Component {
 
               <div className="asset-master-toolbar-actions">
                 <button
-                  className="btn btn-primary"
-                  style={{ backgroundColor: "#1f4e7a", borderColor: "#1f4e7a", color: "#ffffff" }}
+                  type="button"
+                  className="btn asset-toolbar-download"
                   onClick={() => this.downloadAllQRCodes()}
                 >
+
                   Download QR
                 </button>
                 <button className={`btn asset-toolbar-filter ${this.state.showFilterPanel ? "active" : ""}`} type="button" onClick={() => this.setState({ showFilterPanel: !this.state.showFilterPanel })}>
