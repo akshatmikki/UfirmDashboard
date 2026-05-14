@@ -50,6 +50,7 @@ import ManageFlatPage from "../pages/ManageFlatPage";
 import DocumentTypeMasterPage from "../pages/DocumentTypeMasterPage";
 import AssetsMasterPage from "../pages/AssetsMasterPage";
 import CheckInCheckOut from "../pages/checkIn-checkOutPage.jsx";
+import EmployeeOnboarding from "../pages/EmployeeOnboarding.jsx";
 import RentalAssets from "../pages/RentalAssets.jsx";
 import CategoryPage from "../MainComponents/Inventory/CategoryPage.jsx";
 import VendorPage from "../MainComponents/Inventory/VendorPage.jsx";
@@ -120,7 +121,7 @@ import AttendanceBiometricReport from "../MainComponents/Reports/AttendanceBiome
 import Designation from "../MainComponents/Payroll/Designation.jsx";
 import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
-import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx"
+import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx";
 
 var currentpropertyid;
 var currentclientid;
@@ -515,6 +516,7 @@ class MainNav extends React.Component {
 
       // Facility Management
       "/Account/App/FacilityMember",
+      "/Account/App/EmployeeOnboarding",
       "/Account/App/Facility",
       "/Account/App/Attendance",
       "/Account/App/CompOff",
@@ -1061,6 +1063,15 @@ class MainNav extends React.Component {
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Facility Member </p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/EmployeeOnboarding"
+                            className="nav-link"
+                          >
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Employee Onboarding</p>
                           </Link>
                         </li>
                         <li className="nav-item">
@@ -1957,6 +1968,9 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/CheckIn&CheckOut">
               <CheckInCheckOut />
+            </Route>
+            <Route path="/Account/App/EmployeeOnboarding">
+              <EmployeeOnboarding />
             </Route>
             <Route path="/Account/App/Designation">
               <Designation />

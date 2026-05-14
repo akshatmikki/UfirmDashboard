@@ -802,7 +802,7 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>OTHoursAmount</td><td class="v-bold">${row.OTHoursAmount || 0}</td>
-          <td>OthDed</td><td class="v-light">${row.OthDeduction || row.OthDed || 0}</td>
+          <td>OthDed</td><td class="v-light">${row.OtherDed || row.OthDed || 0}</td>
           <td>Duty Days</td><td>${row.WorkingDays || 0}</td>
         </tr>
         <tr class="no-horiz-border">
@@ -1000,7 +1000,7 @@ export default function GenerateSalary() {
       LWF: Number(row.LWF || row.LwfAmount || row.LwfEmployeeAmount) || 0,
       PFT: Number(row.PftAmount || row.PFT) || 0,
       Advance: Number(row.AdvanceDed || row.AdvanceAmount || row.Advance || row.LoanAdvanceAmount) || 0,
-      OthDed: Number(row.OthDeduction || row.OthDed) || 0,
+      OthDed: Number(row.OtherDed || row.OthDed) || 0,
       DocDed: Number(row.DocDeduction || row.DocDed) || 0,
       Food: Number(row.FOOD || row.Food) || 0,
       Maintenance: Number(row.MaintDeduction || row.Maintenance) || 0,
