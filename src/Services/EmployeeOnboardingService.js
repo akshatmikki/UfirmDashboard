@@ -83,12 +83,17 @@ export const approveEmployeeTemp = async (tempId, propertyId) => {
 // REJECT EMPLOYEE
 // =====================================
 
-export const rejectEmployeeTemp = async (tempId, propertyId) => {
+export const rejectEmployeeTemp = async (data) => {
     try {
+
         const response = await fetch(
-            `${API_URL}reject-employee?tempId=${tempId}&propertyId=${propertyId}`,
+            `${API_URL}reject-employee`,
             {
                 method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
             }
         );
 
@@ -97,7 +102,9 @@ export const rejectEmployeeTemp = async (tempId, propertyId) => {
         }
 
         return await response.json();
+
     } catch (error) {
+
         console.error("Error rejecting employee:", error);
         throw error;
     }

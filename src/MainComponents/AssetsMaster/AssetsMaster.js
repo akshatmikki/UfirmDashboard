@@ -138,10 +138,16 @@ class AssetsMaster extends Component {
       selectedAssetIds: [],
     };
     this.ApiProviderr = new ApiProvider();
+    this._isMounted = false;
   }
 
   componentDidMount() {
+    this._isMounted = true;
     this.loadHomagePageData();
+  }
+
+  componentWillUnmount() {
+    this._isMounted = false;
   }
 
   componentDidUpdate(prevProps, prevState) {
@@ -182,19 +188,128 @@ class AssetsMaster extends Component {
 
     const pdf = new jsPDF("p", "mm", "a4");
 
-    for (let i = 0; i < assets.length; i++) {
-      this.setState({ downloadQRProgress: Math.round((i / assets.length) * 100) });
-      const item = assets[i];
-      const qrValue = this.getAssetQrValue(item);
+    try {
+      for (let i = 0; i < assets.length; i++) {
+        if (!this._isMounted) break;
 
-      // 🔥 Container (single card per page)
-      const container = document.createElement("div");
-      container.style.width = "400px";
-      container.style.height = "600px";
-      container.style.position = "relative";
-      container.style.background = "#fff";
+        this.setState({ downloadQRProgress: Math.round((i / assets.length) * 100) });
+        const item = assets[i];
+        const qrValue = this.getAssetQrValue(item);
 
-      // ✅ Canva background (WITHOUT QR)
+        const container = document.createElement("div");
+        container.style.width = "400px";
+        container.style.height = "600px";
+        container.style.position = "fixed";
+        container.style.left = "-9999px";
+        container.style.top = "-9999px";
+        container.style.background = "#fff";
+        container.style.zIndex = "-1";
+
+        const img = new Image();
+        img.src = "/Assets/canva-template.png";
+        img.style.width = "100%";
+        img.style.height = "100%";
+        img.style.position = "absolute";
+
+        await new Promise((resolve) => {
+          img.onload = resolve;
+          img.onerror = resolve; // Continue even if bg image fails
+        });
+
+        container.appendChild(img);
+
+        const qrWrapper = document.createElement("div");
+        qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
+        qrWrapper.style.position = "absolute";
+        qrWrapper.style.top = "101px";
+        qrWrapper.style.left = "58px";
+        qrWrapper.style.width = "284px";
+        qrWrapper.style.height = "284px";
+        qrWrapper.style.padding = "10px";
+        qrWrapper.style.background = "#ffffff";
+        container.appendChild(qrWrapper);
+
+        const brownBox = document.createElement("div");
+        const brownBoxLeft = 58;
+        const brownBoxTop = (40.2 / 59.4) * 600;
+        const brownBoxWidth = 284;
+        const brownBoxHeight = (2.63 / 59.4) * 600;
+        brownBox.style.position = "absolute";
+        brownBox.style.top = `${brownBoxTop}px`;
+        brownBox.style.left = `${brownBoxLeft}px`;
+        brownBox.style.width = `${brownBoxWidth}px`;
+        brownBox.style.height = `${brownBoxHeight}px`;
+        brownBox.style.background = "#3f2a21";
+        brownBox.style.zIndex = "1";
+
+        const nameText = document.createElement("div");
+        nameText.innerText = this.getAssetNameValue(item).toUpperCase();
+        nameText.style.position = "absolute";
+        nameText.style.top = `${brownBoxTop}px`;
+        nameText.style.left = `${brownBoxLeft}px`;
+        nameText.style.width = `${brownBoxWidth}px`;
+        nameText.style.height = `${brownBoxHeight}px`;
+        nameText.style.textAlign = "center";
+        nameText.style.color = "#ffffff";
+        nameText.style.fontSize = "13px";
+        nameText.style.fontWeight = "bold";
+        nameText.style.letterSpacing = "1px";
+        nameText.style.lineHeight = `${brownBoxHeight}px`;
+        nameText.style.overflow = "hidden";
+        nameText.style.whiteSpace = "nowrap";
+        nameText.style.textOverflow = "ellipsis";
+        nameText.style.zIndex = "2";
+
+        container.appendChild(brownBox);
+        container.appendChild(nameText);
+        document.body.appendChild(container);
+
+        try {
+          await new Promise((resolve) => setTimeout(resolve, 300));
+          const canvas = await html2canvas(container, { scale: 2, useCORS: true });
+          const imgData = canvas.toDataURL("image/jpeg", 0.7);
+          if (i !== 0) pdf.addPage();
+          pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
+        } catch (err) {
+          console.error("Failed to generate QR page", err);
+        } finally {
+          if (document.body.contains(container)) {
+            document.body.removeChild(container);
+          }
+        }
+      }
+
+      if (this._isMounted) {
+        this.setState({ downloadQRProgress: 100 });
+        pdf.save("Assets_QR.pdf");
+      }
+    } finally {
+      if (this._isMounted) {
+        this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
+      }
+    }
+  };
+
+  downloadAssetQRCode = async (item = {}) => {
+    const qrValue = this.getAssetQrValue(item);
+    if (!qrValue) {
+      alert("No QR found");
+      return;
+    }
+
+    this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
+
+    const pdf = new jsPDF("p", "mm", "a4");
+    const container = document.createElement("div");
+    container.style.width = "400px";
+    container.style.height = "600px";
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "-9999px";
+    container.style.background = "#fff";
+    container.style.zIndex = "-1";
+
+    try {
       const img = new Image();
       img.src = "/Assets/canva-template.png";
       img.style.width = "100%";
@@ -203,15 +318,13 @@ class AssetsMaster extends Component {
 
       await new Promise((resolve) => {
         img.onload = resolve;
+        img.onerror = resolve;
       });
 
       container.appendChild(img);
 
-      // ✅ Dynamic QR
       const qrWrapper = document.createElement("div");
-
       qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
-
       qrWrapper.style.position = "absolute";
       qrWrapper.style.top = "101px";
       qrWrapper.style.left = "58px";
@@ -219,10 +332,8 @@ class AssetsMaster extends Component {
       qrWrapper.style.height = "284px";
       qrWrapper.style.padding = "10px";
       qrWrapper.style.background = "#ffffff";
-
       container.appendChild(qrWrapper);
 
-      // ✅ 🔥 Asset Name on Brown Bar
       const brownBox = document.createElement("div");
       const brownBoxLeft = 58;
       const brownBoxTop = (40.2 / 59.4) * 600;
@@ -238,13 +349,11 @@ class AssetsMaster extends Component {
 
       const nameText = document.createElement("div");
       nameText.innerText = this.getAssetNameValue(item).toUpperCase();
-
       nameText.style.position = "absolute";
       nameText.style.top = `${brownBoxTop}px`;
       nameText.style.left = `${brownBoxLeft}px`;
       nameText.style.width = `${brownBoxWidth}px`;
       nameText.style.height = `${brownBoxHeight}px`;
-
       nameText.style.textAlign = "center";
       nameText.style.color = "#ffffff";
       nameText.style.fontSize = "13px";
@@ -258,132 +367,28 @@ class AssetsMaster extends Component {
 
       container.appendChild(brownBox);
       container.appendChild(nameText);
-
       document.body.appendChild(container);
 
-      // wait render
       await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const canvas = await html2canvas(container, {
-        scale: 2,
-        useCORS: true,
-
-      });
-
-      // ✅ reduce PDF size
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true });
       const imgData = canvas.toDataURL("image/jpeg", 0.7);
-
-      if (i !== 0) pdf.addPage();
-
       pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
 
-      document.body.removeChild(container);
+      if (this._isMounted) {
+        this.setState({ downloadQRProgress: 100 });
+        const assetName = this.getAssetNameValue(item) || "Asset";
+        pdf.save(`${assetName}_QR.pdf`);
+      }
+    } catch (err) {
+      console.error("Failed to download QR", err);
+    } finally {
+      if (document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+      if (this._isMounted) {
+        this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
+      }
     }
-
-    this.setState({ downloadQRProgress: 100 });
-    pdf.save("Assets_QR.pdf");
-    this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
-  };
-
-  downloadAssetQRCode = async (item = {}) => {
-    const qrValue = this.getAssetQrValue(item);
-
-    if (!qrValue) {
-      alert("No QR found");
-      return;
-    }
-
-    this.setState({ isDownloadingQR: true, downloadQRProgress: 0 });
-
-    const pdf = new jsPDF("p", "mm", "a4");
-
-    const container = document.createElement("div");
-    container.style.width = "400px";
-    container.style.height = "600px";
-    container.style.position = "relative";
-    container.style.background = "#fff";
-
-    const img = new Image();
-    img.src = "/Assets/canva-template.png";
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.position = "absolute";
-
-    await new Promise((resolve) => {
-      img.onload = resolve;
-    });
-
-    container.appendChild(img);
-
-    const qrWrapper = document.createElement("div");
-
-    qrWrapper.innerHTML = renderToStaticMarkup(<QRCode value={qrValue} size={264} />);
-
-    qrWrapper.style.position = "absolute";
-    qrWrapper.style.top = "101px";
-    qrWrapper.style.left = "58px";
-    qrWrapper.style.width = "284px";
-    qrWrapper.style.height = "284px";
-    qrWrapper.style.padding = "10px";
-    qrWrapper.style.background = "#ffffff";
-
-    container.appendChild(qrWrapper);
-
-    const brownBox = document.createElement("div");
-    const brownBoxLeft = 58;
-    const brownBoxTop = (40.2 / 59.4) * 600;
-    const brownBoxWidth = 284;
-    const brownBoxHeight = (2.63 / 59.4) * 600;
-    brownBox.style.position = "absolute";
-    brownBox.style.top = `${brownBoxTop}px`;
-    brownBox.style.left = `${brownBoxLeft}px`;
-    brownBox.style.width = `${brownBoxWidth}px`;
-    brownBox.style.height = `${brownBoxHeight}px`;
-    brownBox.style.background = "#3f2a21";
-    brownBox.style.zIndex = "1";
-
-    const nameText = document.createElement("div");
-    nameText.innerText = this.getAssetNameValue(item).toUpperCase();
-
-    nameText.style.position = "absolute";
-    nameText.style.top = `${brownBoxTop}px`;
-    nameText.style.left = `${brownBoxLeft}px`;
-    nameText.style.width = `${brownBoxWidth}px`;
-    nameText.style.height = `${brownBoxHeight}px`;
-
-    nameText.style.textAlign = "center";
-    nameText.style.color = "#ffffff";
-    nameText.style.fontSize = "13px";
-    nameText.style.fontWeight = "bold";
-    nameText.style.letterSpacing = "1px";
-    nameText.style.lineHeight = `${brownBoxHeight}px`;
-    nameText.style.overflow = "hidden";
-    nameText.style.whiteSpace = "nowrap";
-    nameText.style.textOverflow = "ellipsis";
-    nameText.style.zIndex = "2";
-
-    container.appendChild(brownBox);
-    container.appendChild(nameText);
-
-    document.body.appendChild(container);
-
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    const canvas = await html2canvas(container, {
-      scale: 2,
-      useCORS: true,
-    });
-
-    const imgData = canvas.toDataURL("image/jpeg", 0.7);
-
-    pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);
-
-    document.body.removeChild(container);
-
-    this.setState({ downloadQRProgress: 100 });
-    const assetName = this.getAssetNameValue(item) || "Asset";
-    pdf.save(`${assetName}_QR.pdf`);
-    this.setState({ isDownloadingQR: false, downloadQRProgress: 0 });
   };
 
   normalizeDate = (value) => {

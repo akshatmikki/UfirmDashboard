@@ -36,6 +36,12 @@ const EmployeeOnboarding = () => {
   const [selectedRow, setSelectedRow] = useState(null);
   const [globalFilterValue, setGlobalFilterValue] = useState("");
   const [documents, setDocuments] = useState([]);
+  const [rejectDialog, setRejectDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
+  const [selectedRejectEmployee, setSelectedRejectEmployee] = useState(null);
+
+  const [viewDialog, setViewDialog] = useState(false);
+  const [selectedEmployeeView, setSelectedEmployeeView] = useState(null);
 
   // Form fields state
   const [formData, setFormData] = useState({
@@ -209,13 +215,15 @@ const EmployeeOnboarding = () => {
     }
   };
 
-  const rejectEmployee = async (rowData) => {
+  const rejectEmployee = async () => {
+
     try {
 
-      const response = await rejectEmployeeTemp(
-        rowData.TempId,
-        rowData.PropertyId
-      );
+      const response = await rejectEmployeeTemp({
+        TempId: selectedRejectEmployee.TempId,
+        PropertyId: selectedRejectEmployee.PropertyId,
+        RejectionReason: rejectReason
+      });
 
       toast.current.show({
         severity: "success",
@@ -223,13 +231,20 @@ const EmployeeOnboarding = () => {
         detail: response?.Message || "Employee rejected successfully",
       });
 
+      setRejectDialog(false);
+      setRejectReason("");
+      setSelectedRejectEmployee(null);
+
       fetchEmployees();
 
     } catch (error) {
+
       toast.current.show({
         severity: "error",
         summary: "Error",
-        detail: error?.response?.data?.Message || "Failed to reject employee",
+        detail:
+          error?.response?.data?.Message ||
+          "Failed to reject employee",
       });
     }
   };
@@ -396,6 +411,7 @@ const EmployeeOnboarding = () => {
   );
 
   return (
+
     <PrimeReactProvider>
       <div className="content-wrapper">
         <section className="content mt-3">
@@ -438,8 +454,17 @@ const EmployeeOnboarding = () => {
                     header="Status"
                     body={(rowData) => {
 
-                      // APPROVED
-                      if (rowData.IsApproved) {
+                      const isApproved =
+                        rowData.IsApproved === true ||
+                        rowData.IsApproved === 1 ||
+                        rowData.IsApproved === "1";
+
+                      const isRejected =
+                        rowData.IsRejected === true ||
+                        rowData.IsRejected === 1 ||
+                        rowData.IsRejected === "1";
+
+                      if (isApproved) {
                         return (
                           <span className="badge bg-success">
                             Approved
@@ -447,8 +472,7 @@ const EmployeeOnboarding = () => {
                         );
                       }
 
-                      // REJECTED
-                      if (rowData.IsRejected) {
+                      if (isRejected) {
                         return (
                           <span className="badge bg-danger">
                             Rejected
@@ -456,7 +480,6 @@ const EmployeeOnboarding = () => {
                         );
                       }
 
-                      // PENDING
                       return (
                         <span className="badge bg-warning text-dark">
                           Pending
@@ -467,35 +490,63 @@ const EmployeeOnboarding = () => {
                   />
                   <Column
                     header="Actions"
-                    body={(rowData) => (
-                      <div className="d-flex gap-2">
+                    body={(rowData) => {
 
-                        <Button
-                          icon="pi pi-check"
-                          disabled={rowData.IsApproved || rowData.IsRejected}
-                          className="p-button-success p-button-sm"
-                          tooltip="Approve"
-                          onClick={() => approveEmployee(rowData)}
-                        />
+                      const isApproved =
+                        rowData.IsApproved === true ||
+                        rowData.IsApproved === 1 ||
+                        rowData.IsApproved === "1";
 
-                        <Button
-                          icon="pi pi-times"
-                          disabled={rowData.IsApproved || rowData.IsRejected}
-                          className="p-button-danger p-button-sm"
-                          tooltip="Reject"
-                          onClick={() => rejectEmployee(rowData)}
-                        />
+                      const isRejected =
+                        rowData.IsRejected === true ||
+                        rowData.IsRejected === 1 ||
+                        rowData.IsRejected === "1";
 
-                        <Button
-                          icon="pi pi-pencil"
-                          disabled={rowData.IsApproved || rowData.IsRejected}
-                          className="p-button-info p-button-sm"
-                          onClick={() => editEmployee(rowData)}
-                        />
+                      return (
+                        <div className="d-flex gap-2">
 
-                      </div>
-                    )}
-                    style={{ minWidth: '100px' }}
+                          {!isApproved && !isRejected && (
+                            <>
+                              <Button
+                                icon="pi pi-check"
+                                className="p-button-success p-button-sm"
+                                tooltip="Approve"
+                                onClick={() => approveEmployee(rowData)}
+                              />
+
+                              <Button
+                                icon="pi pi-times"
+                                className="p-button-danger p-button-sm"
+                                tooltip="Reject"
+                                onClick={() => {
+                                  setSelectedRejectEmployee(rowData);
+                                  setRejectDialog(true);
+                                }}
+                              />
+
+                              <Button
+                                icon="pi pi-pencil"
+                                className="p-button-info p-button-sm"
+                                tooltip="Edit"
+                                onClick={() => editEmployee(rowData)}
+                              />
+                            </>
+                          )}
+
+                          <Button
+                            icon="pi pi-eye"
+                            className="p-button-secondary p-button-sm"
+                            tooltip="View Details"
+                            onClick={() => {
+                              setSelectedEmployeeView(rowData);
+                              setViewDialog(true);
+                            }}
+                          />
+
+                        </div>
+                      );
+                    }}
+                    style={{ minWidth: "220px" }}
                   />
                 </DataTable>
               </div>
@@ -770,6 +821,183 @@ const EmployeeOnboarding = () => {
 
           </TabView>
         </Dialog>
+        {/* Reject Dialog */}
+        <Dialog
+          header="Reject Employee"
+          visible={rejectDialog}
+          style={{ width: "450px" }}
+          modal
+          onHide={() => setRejectDialog(false)}
+          footer={
+            <div className="d-flex justify-content-end gap-2">
+              <Button
+                label="Cancel"
+                className="p-button-text"
+                onClick={() => setRejectDialog(false)}
+              />
+
+              <Button
+                label="Submit"
+                icon="pi pi-check"
+                className="p-button-danger"
+                onClick={rejectEmployee}
+              />
+            </div>
+          }
+        >
+          <div className="p-fluid">
+            <label>Rejection Reason</label>
+
+            <InputText
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Enter rejection reason"
+            />
+          </div>
+        </Dialog>
+
+        {/* Reason View Dialog */}
+        {/* View Employee Dialog */}
+        <Dialog
+          header="Employee Details"
+          visible={viewDialog}
+          style={{ width: "900px" }}
+          modal
+          maximizable
+          onHide={() => setViewDialog(false)}
+        >
+
+          {selectedEmployeeView && (
+
+            <div className="grid p-fluid">
+
+              <div className="col-12 md:col-6">
+                <b>Name:</b> {selectedEmployeeView.Name}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Gender:</b> {selectedEmployeeView.Gender}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Mobile:</b> {selectedEmployeeView.MobileNumber}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Email:</b> {selectedEmployeeView.Email}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Designation:</b> {selectedEmployeeView.Designation}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Department:</b> {selectedEmployeeView.Department}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>PAN:</b> {selectedEmployeeView.PanCard}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Aadhar:</b> {selectedEmployeeView.AadharCard}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Bank:</b> {selectedEmployeeView.BankName}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>IFSC:</b> {selectedEmployeeView.BankIFSCCode}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Account Number:</b> {selectedEmployeeView.BankAccountNumber}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>UAN:</b> {selectedEmployeeView.UANNumber}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>PF Number:</b> {selectedEmployeeView.PFNumber || "-"}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>ESI Number:</b> {selectedEmployeeView.ESINumber}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Date Of Joining:</b>{" "}
+                {selectedEmployeeView.DateOfJoining
+                  ? selectedEmployeeView.DateOfJoining.split("T")[0]
+                  : "-"}
+              </div>
+
+              <div className="col-12 md:col-6">
+                <b>Status:</b>{" "}
+
+                {selectedEmployeeView.IsApproved ? (
+                  <span className="badge bg-success">
+                    Approved
+                  </span>
+                ) : selectedEmployeeView.IsRejected ? (
+                  <span className="badge bg-danger">
+                    Rejected
+                  </span>
+                ) : (
+                  <span className="badge bg-warning text-dark">
+                    Pending
+                  </span>
+                )}
+              </div>
+
+              {selectedEmployeeView.RejectionReason && (
+                <div className="col-12">
+                  <b>Rejection Reason:</b>{" "}
+                  {selectedEmployeeView.RejectionReason}
+                </div>
+              )}
+
+              {/* DOCUMENTS */}
+
+              <div className="col-12 mt-3">
+                <h5>Documents</h5>
+
+                <div className="d-flex flex-column gap-2">
+
+                  {selectedEmployeeView.Documents?.map((doc, index) => (
+
+                    <div
+                      key={index}
+                      className="border rounded p-2 d-flex justify-content-between align-items-center"
+                    >
+                      <div>
+                        <b>{doc.DocumentType}</b> - {doc.FileName}
+                      </div>
+
+                      <a
+                        href={doc.FileUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-button p-button-sm p-button-info"
+                      >
+                        View
+                      </a>
+
+                    </div>
+
+                  ))}
+
+                </div>
+              </div>
+
+            </div>
+
+          )}
+
+        </Dialog>
+
       </div>
     </PrimeReactProvider>
   );
