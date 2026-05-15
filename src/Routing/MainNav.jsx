@@ -589,10 +589,13 @@ class MainNav extends React.Component {
                       Disabled={false}
                       Value={this.state.selectedClientId}
                       onSelected={this.onClientChanged}
-                      Options={(this.state.clientData || []).map((item) => ({
-                        Value: item.ClientID || item.Value || item.id || 0,
-                        Name: item.ClientName || item.Name || item.text || "",
-                      }))}
+                      Options={(this.state.clientData || [])
+                        .map((item) => ({
+                          Value: item.ClientID || item.Value || item.id || 0,
+                          Name: item.ClientName || item.Name || item.text || "",
+                        }))
+                        .sort((a, b) => a.Name.localeCompare(b.Name))
+                      }
                     />
                   </div>
                   <div className="input-group input-group-sm" style={{ minWidth: "260px" }}>
