@@ -1123,10 +1123,10 @@ const RentalAssets = ({ propId, history }) => {
             <button
               type="button"
               className="rental-text-link rental-panel-link-row"
-              onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.IsRented ? "return" : "rentout")}
+              onClick={() => handleOpenRentModal(selectedAsset, "rentout")}
             >
-              <i className={`fa ${selectedAsset.IsRented ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
-              {selectedAsset.IsRented ? "Rent in" : "Rent out"}
+              <i className="fa fa-sign-out mr-1" aria-hidden="true" />
+              Rent out
             </button>
           </div>
         </div>
@@ -1381,7 +1381,7 @@ const RentalAssets = ({ propId, history }) => {
                     <button
                       type="button"
                       className="btn rental-primary-btn"
-                      onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "toggle")}
+                      onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "rentout")}
                       disabled={!selectedAsset && filteredAssets.length === 0}
                     >
                       <i className="fa fa-sign-out" aria-hidden="true" />
