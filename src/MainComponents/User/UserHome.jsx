@@ -23,11 +23,19 @@ class UserHome extends React.Component {
             pageSize: 10,
             pageNumber: 1,
             gridHeader: [
-                { sTitle: 'Id', titleValue: 'UserId', "orderable": false,  },
+                // Keep UserId as first (hidden) column for DataGrid action buttons
+                { sTitle: 'UserId', titleValue: 'UserId', "orderable": false, "visible": false },
+                { sTitle: 'Email', titleValue: 'EmailAddress', "orderable": true },
                 { sTitle: 'First Name', titleValue: 'FirstName', "orderable": true },
                 { sTitle: 'Last Name', titleValue: 'LastName', "orderable": true },
                 { sTitle: 'Mobile', titleValue: 'ContactNumber', "orderable": true },
                 { sTitle: 'Role', titleValue: 'RoleName', "orderable": true, className:"setwidth" },
+                { sTitle: 'Company', titleValue: 'CompanyNameDisplay', "orderable": true },
+                { sTitle: 'Branch', titleValue: 'BranchNameDisplay', "orderable": true },
+                { sTitle: 'Department', titleValue: 'DepartmentNameDisplay', "orderable": true },
+                { sTitle: 'City', titleValue: 'CityNameDisplay', "orderable": true },
+                { sTitle: 'User Type', titleValue: 'UserTypeNameDisplay', "orderable": true },
+                { sTitle: 'Property', titleValue: 'PropertyNamesDisplay', "orderable": false },
                 { sTitle: 'Action', titleValue: 'Action', Action: "ALL", Index: '0', "orderable": false }
             ],
             grdTotalRows: 0,
@@ -37,6 +45,73 @@ class UserHome extends React.Component {
             searchValue: null,
             filterName:"emailAddress"
         }
+    }
+
+    normalizeDisplay = (value) => {
+        if (value == null) return "";
+        const s = String(value).trim();
+        if (!s || s.toLowerCase() === "n/a") return "";
+        return s;
+    }
+
+    getNameById = (list, id) => {
+        if (!Array.isArray(list)) return "";
+        const found = list.find((x) => String(x?.Id) === String(id));
+        return this.normalizeDisplay(found?.Name);
+    }
+
+    buildDisplayRow = (user) => {
+        const Value = this.props.Value || {};
+
+        const companyName =
+            this.normalizeDisplay(user?.CompanyName) ||
+            this.getNameById(Value.Company, user?.CompanyId);
+        const branchName =
+            this.normalizeDisplay(user?.BranchName) ||
+            this.getNameById(Value.Branch, user?.BranchId);
+        const departmentName =
+            this.normalizeDisplay(user?.DepartmentName) ||
+            this.getNameById(Value.Departments, user?.DepartmentId);
+        const cityName =
+            this.normalizeDisplay(user?.CityName) ||
+            this.getNameById(Value.City, user?.CityId);
+
+        const roleName =
+            this.normalizeDisplay(user?.RoleName) ||
+            this.getNameById(Value.Role, user?.RoleId);
+
+        const userTypeName =
+            this.normalizeDisplay(user?.UserTypeName) ||
+            this.getNameById(Value.UserType, user?.UserTypeId);
+
+        const propertyIdsRaw =
+            (Array.isArray(user?.PropertyIds) && user.PropertyIds) ||
+            (Array.isArray(user?.PropertyIDList) && user.PropertyIDList) ||
+            (user?.PropertyId != null ? [user.PropertyId] : null) ||
+            (user?.PropertyID != null ? [user.PropertyID] : null) ||
+            [];
+
+        const propertyIds = Array.from(
+            new Set(propertyIdsRaw.map((x) => Number(x) || 0).filter((x) => x > 0))
+        );
+        const propertyNames = propertyIds
+            .map((pid) => this.getNameById(Value.Property, pid))
+            .filter(Boolean);
+
+        return {
+            ...user,
+            EmailAddress: this.normalizeDisplay(user?.EmailAddress) || this.normalizeDisplay(user?.emailAddress),
+            FirstName: this.normalizeDisplay(user?.FirstName) || this.normalizeDisplay(user?.firstName),
+            LastName: this.normalizeDisplay(user?.LastName) || this.normalizeDisplay(user?.lastName),
+            ContactNumber: this.normalizeDisplay(user?.ContactNumber) || this.normalizeDisplay(user?.contactNumber),
+            RoleName: roleName,
+            CompanyNameDisplay: companyName,
+            BranchNameDisplay: branchName,
+            DepartmentNameDisplay: departmentName,
+            CityNameDisplay: cityName,
+            UserTypeNameDisplay: userTypeName,
+            PropertyNamesDisplay: propertyNames.join(", "),
+        };
     }
 
     loadUserTypeAhead = (searchtext) => {
@@ -96,9 +171,10 @@ class UserHome extends React.Component {
         new ApiProvider().getAllUsers(null, null, true).then(res => {
             if (res.ok) {
                 res.json().then(data => {
+                    const rows = Array.isArray(data) ? data.map(this.buildDisplayRow) : [];
                     this.setState({ 
-                        gridData: data,
-                        grdTotalRows: data.length,
+                        gridData: rows,
+                        grdTotalRows: rows.length,
                         grdTotalPages: 1 // Since it's not server-side paginated in the new API
                     });
                 });

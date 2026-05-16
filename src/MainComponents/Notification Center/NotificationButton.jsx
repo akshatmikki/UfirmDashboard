@@ -1,46 +1,30 @@
 import React from "react";
-import FontAwesome from "react-fontawesome";
 
 const NotificationButton = ({ count = 0, type, onClick = () => {} }) => {
-    // Decide the icon name based on type
-    const getIconName = () => {
+    const getIconClass = () => {
         switch (type) {
-            case 'asset':
-                return 'cog'; // gear icon
-            case 'complaint':
-                return 'exclamation-circle'; // complaint-related icon
+            case "asset":
+                return "fas fa-tools"; // crossed tools
+            case "complaint":
+                return "far fa-bell"; // outline bell
             default:
-                return 'check-circle'; // default icon
+                return "far fa-check-square"; // outline checkbox with tick
         }
     };
 
     return (
-        <div className="nav-item dropdown ml-auto">
+        <div className="nav-item ufirm-topbar-icon">
             <a
                 href="#"
-                className="nav-link dropdown-notification-link"
+                className="nav-link dropdown-notification-link ufirm-topbar-icon-link"
                 onClick={onClick}
                 role="button"
                 aria-label={`You have ${count} new notifications`}
             >
-                <FontAwesome
-                    name={getIconName()}
-                    className="notification-icon"
-                    style={{
-                        fontSize: "22px",
-                        color: "#fff",
-                        marginRight: "10px",
-                    }}
-                />
+                <i className={`notification-icon notification-icon-${type} ${getIconClass()}`} aria-hidden="true"></i>
                 {count > 0 && (
                     <span
-                        className="badge badge-danger navbar-badge"
-                        style={{
-                            position: "absolute",
-                            top: "1px",
-                            right: "3px",
-                            borderRadius: "50%",
-                        }}
+                        className={`navbar-badge ufirm-topbar-badge ufirm-badge-${type}`}
                     >
                         {count}
                     </span>

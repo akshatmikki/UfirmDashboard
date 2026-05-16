@@ -4,7 +4,7 @@ import axios from 'axios';
 
 let srv = new ServiceProvider();
 const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
-const BASE_URL = isLocal ? "http://localhost:62929/" : "https://api.urest.in:8096/";
+const BASE_URL = isLocal ? "https://api.urest.in:8096/" : "https://api.urest.in:8096/";
 
 class DataProvider {
 

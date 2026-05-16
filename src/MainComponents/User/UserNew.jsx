@@ -308,9 +308,11 @@ class UserNew extends React.Component {
     }
     render() {
         return (
-            <div>
-                <div className="modal-content">
-                    <div className="modal-body">
+            <div className="card shadow-sm">
+                <div className="card-header d-flex align-items-center justify-content-between">
+                    <h3 className="card-title mb-0">{this.props.PageMode === "Edit" ? "Edit User" : "Add New User"}</h3>
+                </div>
+                <div className="card-body">
                         <div className="row">
 
                         </div>
@@ -647,14 +649,8 @@ class UserNew extends React.Component {
                                 </div>
                             </div>
                         </div>
-                        <div className="row">
-                            <div className="modal-content">
-                                <div className="modal-body">
-
-                                </div>
-                            </div>
-                        </div>
-                        <div className="modal-footer">
+                </div>
+                <div className="card-footer d-flex justify-content-end">
                             <Button
                                 Id="btnSave"
                                 Text="Save"
@@ -666,8 +662,6 @@ class UserNew extends React.Component {
                                 Action={this.handleUserCancel}
                                 ClassName="btn btn-secondary" />
 
-                        </div>
-                    </div>
                 </div>
                 <ToastContainer
                     position="top-right"

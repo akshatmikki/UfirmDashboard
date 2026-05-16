@@ -169,9 +169,12 @@ export default function attachRenderCards(TaskList) {
           const { completed, pending, actionable, onHold } = getStatusCounts(tasks);
           const cardPageSize = Number(this.state.cardPageSize || 10);
           const cardPage = Number(this.state.cardPage || 1);
-          const totalPages = Number(this.state.totalPages || 1);
+          const totalRecords = Number(this.state.totalRecords || 0);
+          const stateTotalPages = Number(this.state.totalPages || 0);
+          const totalPages = stateTotalPages || (totalRecords ? Math.ceil(totalRecords / (cardPageSize || 10)) : 1);
           const currentPage = cardPage;
           const pagedTasks = isExpanded ? displayTasks : [];
+          const showPager = totalPages > 1 || totalRecords > cardPageSize;
 
           return (
             <div key={date} className="mb-3">
@@ -373,7 +376,7 @@ export default function attachRenderCards(TaskList) {
                       )))}
                   </div>
 
-                  {totalPages > 1 ? (
+                  {showPager ? (
                     <div className="task-pager">
                       <button
                         className="btn btn-sm btn-outline-primary"
@@ -383,9 +386,7 @@ export default function attachRenderCards(TaskList) {
                       >
                         Prev
                       </button>
-                      <span className="text-muted">
-                        Page {currentPage} of {totalPages}
-                      </span>
+                      <span className="text-muted">Page {currentPage} of {totalPages}{totalRecords ? ` • Total ${totalRecords}` : ""}</span>
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage >= totalPages}

@@ -42,6 +42,12 @@ function parseMonthYear(monthyear) {
   return { year: y, month: m };
 }
 
+function getAttendanceIdValue(att) {
+  const raw = att?.AttendanceId ?? att?.AttendanceID ?? 0;
+  const num = Number(raw);
+  return Number.isFinite(num) ? num : 0;
+}
+
 function safeDate(year, month, day) {
   const clamped = Math.min(Math.max(1, Number(day) || 1), getDaysInMonth(month, year));
   return new Date(Date.UTC(year, month - 1, clamped));
@@ -235,6 +241,30 @@ export default function AttendanceSheet() {
     currentPage * recordsPerPage
   );
 
+  // Row keys:
+  // - Saved rows use AttendanceId/AttendanceID as the key (stringified number)
+  // - Unsaved rows use "temp:<EmpID>" to keep a stable unique key without "empid_number" formatting
+  const makeRowKey = (empId, att) => {
+    const attendanceId = getAttendanceIdValue(att);
+    return attendanceId > 0 ? String(attendanceId) : `temp:${empId}`;
+  };
+
+  const getAttendanceIdFromRowKey = (rowKey) => {
+    const key = String(rowKey);
+    return /^\d+$/.test(key) ? Number(key) : 0;
+  };
+
+  const getEmpIdFromRowKey = (rowKey) => {
+    const key = String(rowKey);
+    if (key.startsWith("temp:")) return Number(key.slice("temp:".length)) || 0;
+
+    const attendanceId = getAttendanceIdFromRowKey(key);
+    if (attendanceId <= 0) return 0;
+
+    const match = filteredAttendance.find((a) => getAttendanceIdValue(a) === attendanceId);
+    return Number(match?.EmpID) || 0;
+  };
+
   // Month/year options
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
@@ -359,7 +389,7 @@ export default function AttendanceSheet() {
         // Build dayInputs from attendance records
         const mappedInputs = {};
         safeData.forEach((att) => {
-          const key = `${att.EmpID}_${att.AttendanceId}`;
+          const key = makeRowKey(att.EmpID, att);
           const otMatch = otList.find((ot) => ot.EmployeeCode === att.EmployeeCode);
 
           mappedInputs[key] = {
@@ -498,7 +528,7 @@ export default function AttendanceSheet() {
 
       const mappedInputs = {};
       safeData.forEach((att) => {
-        const key = `${att.EmpID}_${att.AttendanceId}`;
+        const key = makeRowKey(att.EmpID, att);
         mappedInputs[key] = {
           workingDays: att.WorkingDays ?? "",
           EL: att.EL ?? "",
@@ -658,8 +688,8 @@ export default function AttendanceSheet() {
   const paginatedEmpIds = paginatedEmployees.map((e) => {
     const atts = filteredAttendance.filter((a) => a.EmpID === e.EmpID);
     return atts.length > 0
-      ? atts.map((a) => `${e.EmpID}_${a.AttendanceId}`)
-      : [`${e.EmpID}_0`];
+      ? atts.map((a) => makeRowKey(e.EmpID, a))
+      : [`temp:${e.EmpID}`];
   }).flat();
 
   const isAllSelected =
@@ -673,6 +703,58 @@ export default function AttendanceSheet() {
     });
   }
 
+  function buildAttendanceModel({ empId, emp, inp, currMonthYear }) {
+    const n = (v) => (v === "" || v == null ? 0 : Number(v));
+    const EL = n(inp.EL), CL = n(inp.CL), SL = n(inp.SL);
+
+    const expectedDivideByDays = getComputedDivideByDays(
+      employeeSGMap?.[empId] || null,
+      currMonthYear,
+      month,
+      year
+    );
+    const fallbackDivideByDays =
+      Number.isFinite(expectedDivideByDays) && expectedDivideByDays > 0
+        ? expectedDivideByDays
+        : globalTotalDays;
+
+    const inputDivideByDays = n(inp.divideByDays);
+    const divideByDaysToSave = inputDivideByDays > 0 ? inputDivideByDays : fallbackDivideByDays;
+
+    return {
+      EmpID: empId,
+      EmployeeName: emp.EmployeeName,
+      PropertyID: emp.PropertyID,
+      monthyear: currMonthYear,
+      IsActive: true,
+      CreatedOn: new Date().toISOString(),
+      WorkingDays: n(inp.workingDays),
+      LeaveDays: EL + CL + SL,
+      WeekDaysOff: n(inp.weekDaysOff),
+      EL, CL, SL,
+      NHDays: n(inp.nhDays),
+      FHDays: n(inp.fhDays),
+      Holidays: n(inp.holidays),
+      DivideByDays: divideByDaysToSave,
+      OtMonthDays: n(inp.otMonthDays),
+      PFArrear: n(inp.pfArrear),
+      OtherArrear: n(inp.otherArrear),
+      Incentive: n(inp.incentive),
+      AdvanceDed: n(inp.advanceDed),
+      UniformDed: n(inp.uniformDed),
+      BGVDed: n(inp.bgvDed),
+      RoomDed: n(inp.roomDed),
+      FineDed: n(inp.fineDed),
+      JoiningKits: n(inp.joiningKits),
+      OtherDed: n(inp.otherDed),
+      FoodDed: n(inp.foodDed),
+      OtDays: n(inp.otDays),
+      OtHours: n(inp.otHours),
+      PayableDays: n(inp.totalDays),
+      Status: inp.status || "",
+    };
+  }
+
   // ── Save ──
   async function handleSaveAttendance() {
     if (selectedEmpIds.size === 0) {
@@ -681,7 +763,6 @@ export default function AttendanceSheet() {
     }
     setSaving(true);
     const currMonthYear = getMonthYearString(month, year);
-    const n = (v) => (v === "" || v == null ? 0 : Number(v));
 
     try {
       const updatePromises = [];
@@ -689,66 +770,20 @@ export default function AttendanceSheet() {
       const savedModelsByKey = {};
 
       selectedEmpIds.forEach((rowKey) => {
-        const [empId, attendanceId] = rowKey.split("_").map(Number);
+        const empId = getEmpIdFromRowKey(rowKey);
+        const attendanceId = getAttendanceIdFromRowKey(rowKey);
         const emp = employeeMap[empId];
         if (!emp) return;
 
         const inp = dayInputs[rowKey] || {};
-        const EL = n(inp.EL), CL = n(inp.CL), SL = n(inp.SL);
-
-        const expectedDivideByDays = getComputedDivideByDays(
-          employeeSGMap?.[empId] || null,
-          currMonthYear,
-          month,
-          year
-        );
-        const fallbackDivideByDays =
-          Number.isFinite(expectedDivideByDays) && expectedDivideByDays > 0
-            ? expectedDivideByDays
-            : globalTotalDays;
-
-        const inputDivideByDays = n(inp.divideByDays);
-        const divideByDaysToSave = inputDivideByDays > 0 ? inputDivideByDays : fallbackDivideByDays;
-
-        const model = {
-          EmpID: empId,
-          EmployeeName: emp.EmployeeName,
-          PropertyID: emp.PropertyID,
-          monthyear: currMonthYear,
-          IsActive: true,
-          CreatedOn: new Date().toISOString(),
-          WorkingDays: n(inp.workingDays),
-          LeaveDays: EL + CL + SL,
-          WeekDaysOff: n(inp.weekDaysOff),
-          EL, CL, SL,
-          NHDays: n(inp.nhDays),
-          FHDays: n(inp.fhDays),
-          Holidays: n(inp.holidays),
-          DivideByDays: divideByDaysToSave,
-          OtMonthDays: n(inp.otMonthDays),
-          PFArrear: n(inp.pfArrear),
-          OtherArrear: n(inp.otherArrear),
-          Incentive: n(inp.incentive),
-          AdvanceDed: n(inp.advanceDed),
-          UniformDed: n(inp.uniformDed),
-          BGVDed: n(inp.bgvDed),
-          RoomDed: n(inp.roomDed),
-          FineDed: n(inp.fineDed),
-          JoiningKits: n(inp.joiningKits),
-          OtherDed: n(inp.otherDed),
-          FoodDed: n(inp.foodDed),
-          OtDays: n(inp.otDays),
-          OtHours: n(inp.otHours),
-          PayableDays: n(inp.totalDays),
-          Status: inp.status || "",
-        };
+        const model = buildAttendanceModel({ empId, emp, inp, currMonthYear });
 
         savedModelsByKey[rowKey] = model;
 
         const existing = filteredAttendance.find(
           (a) => String(a.EmpID) === String(empId) && String(a.monthyear) === String(currMonthYear)
         );
-        const currentAttendanceId = existing?.AttendanceId || attendanceId;
+        const currentAttendanceId = getAttendanceIdValue(existing) || attendanceId;
 
         if (existing && currentAttendanceId !== -1 && currentAttendanceId !== 0) {
           updatePromises.push(
@@ -809,12 +844,10 @@ export default function AttendanceSheet() {
     if (!window.confirm("Are you sure you want to delete selected attendance?")) return;
     setDeleting(true);
     try {
-      const attendanceIds = Array.from(selectedEmpIds)
-        .map((rowKey) => {
-          const parts = String(rowKey).split("_");
-          return parts.length > 1 ? Number(parts[1]) : 0;
-        })
-        .filter((id) => id > 0);
+      // Delete is done by AttendanceId(s) only
+      const attendanceIds = Array.from(
+        new Set(Array.from(selectedEmpIds).map(getAttendanceIdFromRowKey).filter((id) => id > 0))
+      );
 
       if (!attendanceIds.length) {
         alert("No valid attendance records selected for deletion. Unsaved records cannot be deleted.");
@@ -839,7 +872,7 @@ export default function AttendanceSheet() {
 
     const data = filteredEmployees.map((emp, idx) => {
       const saved = filteredAttendance.find((a) => a.EmpID === emp.EmpID) || null;
-      const rowKey = saved ? `${emp.EmpID}_${saved.AttendanceId}` : `${emp.EmpID}_0`;
+      const rowKey = makeRowKey(emp.EmpID, saved || {});
       const inp = dayInputs[rowKey] || {};
       const getVal = (val, fallback = 0) =>
         val === "" || val == null ? fallback : Number(val);
@@ -1245,14 +1278,17 @@ export default function AttendanceSheet() {
           </thead>
 
           <tbody>
-            {paginatedEmployees.flatMap((emp, idx) => {
+            {(() => {
+              let serialNo = (currentPage - 1) * recordsPerPage;
+              return paginatedEmployees.flatMap((emp) => {
               const empId = emp.EmpID;
               const empAttendances = filteredAttendance.filter((a) => a.EmpID === empId);
               const rows = empAttendances.length > 0 ? empAttendances : [{}];
 
               return rows.map((att, index) => {
-                const attendanceId = att.AttendanceId || 0;
-                const rowKey = `${empId}_${attendanceId}`;
+                serialNo += 1;
+                const attendanceId = getAttendanceIdValue(att);
+                const rowKey = makeRowKey(empId, att);
                 const isChecked = selectedEmpIds.has(rowKey);
 
                 const inp = dayInputs[rowKey] ?? {
@@ -1299,7 +1335,7 @@ export default function AttendanceSheet() {
 
                 return (
                   <tr key={rowKey}>
-                    <td style={tdStyle}>{(currentPage - 1) * recordsPerPage + idx + 1}.{index + 1}</td>
+                    <td style={tdStyle}>{serialNo}</td>
                     <td style={{ ...tdStyle, fontWeight: 500 }}>{emp.EmployeeCode || "-"}</td>
                     <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>{emp.EmployeeName || "Unknown"}</td>
                     <td style={{ ...tdStyle, textAlign: "left" }}>{att?.Designation || emp.Designation || "-"}</td>
@@ -1338,7 +1374,8 @@ export default function AttendanceSheet() {
                   </tr>
                 );
               });
-            })}
+              });
+            })()}
           </tbody>
         </table>
       </div>

@@ -42,13 +42,6 @@ const matchesStatusFilter = (taskStatus, filterStatus) => {
   return tStatus === fStatus;
 };
 
-const clampPage = (page, totalItems, pageSize) => {
-  const safeSize = Number(pageSize) > 0 ? Number(pageSize) : 1;
-  const totalPages = Math.max(1, Math.ceil((Number(totalItems) || 0) / safeSize));
-  const desired = Number(page) || 1;
-  return Math.min(Math.max(1, desired), totalPages);
-};
-
 export default function attachApiModelsManage(TaskList) {
     TaskList.prototype.loadProperty = function () {
       this.comdbprovider.getUserAssignedproperty().then((resp) => {
@@ -169,8 +162,16 @@ export default function attachApiModelsManage(TaskList) {
               case "R":
                 let taskData = [];
                 const responseData = Array.isArray(rData) ? rData : (rData.Data || []);
-                const totalRecords = rData.TotalRecords || responseData.length;
-                const totalPages = rData.TotalPages || 1;
+                const requestedPage = Number(model?.[0]?.PageNumber || 1);
+                const requestedPageSize = Number(model?.[0]?.PageSize || 10);
+
+                const pageNumberFromResp = Number(rData?.PageNumber || requestedPage || 1);
+                const pageSizeFromResp = Number(rData?.PageSize || requestedPageSize || 10);
+                const totalRecords = Number(rData?.TotalRecords ?? responseData.length ?? 0);
+                const totalPages = Number(
+                  rData?.TotalPages ?? (totalRecords ? Math.ceil(totalRecords / (pageSizeFromResp || 10)) : 1) ?? 1
+                );
+                const clampedPageNumber = Math.min(Math.max(1, pageNumberFromResp || 1), totalPages || 1);
 
                 responseData.forEach((element) => {
                   taskData.push({
@@ -221,41 +222,15 @@ export default function attachApiModelsManage(TaskList) {
 
                   const expandedDate = hasCurrentExpandedDate ? prevState.expandedDate : (sortedDates[0] || null);
                   const expandedDateChanged = expandedDate !== prevState.expandedDate;
-
-                  const searchStr = String(prevState.searchTerm || "").trim().toLowerCase();
-                  const filteredData = searchStr
-                    ? taskData.filter((task) =>
-                        Object.values(task || {}).some((value) => {
-                          if (value === null || value === undefined || typeof value === "object") return false;
-                          return String(value).toLowerCase().includes(searchStr);
-                        })
-                      )
-                    : taskData;
-
-                  const groupedByDate = filteredData.reduce((acc, task) => {
-                    const dateKey = getTaskDateLabel(task?.UpdatedOn);
-                    if (!acc[dateKey]) acc[dateKey] = [];
-                    acc[dateKey].push(task);
-                    return acc;
-                  }, {});
-
-                  const itemsForExpanded = expandedDate
-                    ? (groupedByDate[expandedDate] || []).filter((task) =>
-                        matchesStatusFilter(task?.TaskStatus, prevState.uiTaskStatus)
-                      )
-                    : [];
+                  const isCardView = prevState.viewMode === "card";
 
                   return {
                     data: taskData,
                     dataLoading: false,
                     ...counts,
                     expandedDate,
-                    cardPage: expandedDateChanged
-                      ? 1
-                      : clampPage(prevState.cardPage, itemsForExpanded.length, prevState.cardPageSize),
-                    tablePage: expandedDateChanged
-                      ? 1
-                      : clampPage(prevState.tablePage, itemsForExpanded.length, prevState.tablePageSize),
+                    cardPage: isCardView ? (expandedDateChanged ? 1 : clampedPageNumber) : prevState.cardPage,
+                    tablePage: !isCardView ? (expandedDateChanged ? 1 : clampedPageNumber) : prevState.tablePage,
                     dateStatusFilters: {},
                     totalRecords: totalRecords,
                     totalPages: totalPages,

@@ -216,67 +216,54 @@ const ChatBox = ({
   };
 
   return (
-    <div className="container mt-3" style={{ height: fillHeight ? "100%" : "auto", display: "flex", flexDirection: "column" }}>
-
+    <div className={`ufirm-chatbox ${fillHeight ? "is-fill" : ""}`}>
       <div
-        className={`alert alert-secondary ${context === "asset" ? "mb-3" : "mb-0"}`}
+        className={`ufirm-chat-surface ufirm-chat-surface-${context || "task"} ${context === "asset" ? "mb-3" : "mb-0"}`}
         style={
           context === "asset"
             ? {}
             : {
-                maxHeight: fillHeight ? "none" : containerMaxHeight || "300px",
+                maxHeight: fillHeight ? "none" : containerMaxHeight || "320px",
                 height: fillHeight ? "100%" : undefined,
                 display: "flex",
                 flexDirection: "column",
-                border: "none",
-                borderRadius: "8px",
               }
         }
       >
         {context !== "asset" && (
           <div
+            className="ufirm-chat-scroll"
             style={{
-              ...styles.chatScroll,
-              maxHeight: fillHeight ? "none" : chatScrollMaxHeight || styles.chatScroll.maxHeight,
+              maxHeight: fillHeight ? "none" : chatScrollMaxHeight || "240px",
               flex: 1,
               minHeight: 0,
             }}
             ref={chatScrollRef}
           >
             {remarks.length === 0 ? (
-              <p style={{ color: "#6c757d" }}>No remarks available</p>
+              <p className="ufirm-chat-empty">No remarks available</p>
             ) : (
               remarks.map((item, index) => {
                 const isFM = item.RemarkHtml?.includes("FM:");
                 return (
                   <div
                     key={index}
-                    style={{
-                      ...styles.chatRow,
-                      ...(isFM ? styles.chatRight : styles.chatLeft),
-                    }}
+                    className={`ufirm-chat-row ${isFM ? "is-right" : "is-left"}`}
                   >
                     <div
-                      style={{
-                        ...styles.bubble,
-                        ...(isFM ? styles.fmBubble : styles.supBubble),
-                      }}
+                      className={`ufirm-chat-bubble ${isFM ? "is-fm" : "is-sup"}`}
                     >
                       {(() => {
                         const { label, message, date } = parseRemark(item.RemarkHtml);
                         const finalDate = context === "ticket" ? formatDateTime(item.RemarkDate) : date;
                         return (
                           <>
-                            <div style={{ fontWeight: 400, color: "#000" }}>
-                              {label}:{" "}
-                              <span style={{ fontWeight: 400, color: "#000", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                                {message}
-                              </span>
+                            <div className="ufirm-chat-line">
+                              <span className="ufirm-chat-label">{label}:</span>{" "}
+                              <span className="ufirm-chat-message">{message}</span>
                             </div>
                             {finalDate && (
-                              <div style={{ fontSize: "13px", fontWeight: 400, color: "#000", marginTop: "4px" }}>
-                                {finalDate}
-                              </div>
+                              <div className="ufirm-chat-date">{finalDate}</div>
                             )}
                           </>
                         );
@@ -335,17 +322,17 @@ const ChatBox = ({
             </Button>
           </div>
         ) : (
-          <div className="d-flex mt-2 align-items-end" style={{ marginTop: "auto" }}>
+          <div className="ufirm-chat-composer">
             <Form.Control
               as="textarea"
               rows={2}
               placeholder="Type your message here..."
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              className="me-2"
+              className="ufirm-chat-input"
               style={{ resize: "vertical" }}
             />
-            <Button variant="primary" onClick={handleSend}>
+            <Button variant="primary" onClick={handleSend} className="ufirm-chat-send">
               Send
             </Button>
           </div>

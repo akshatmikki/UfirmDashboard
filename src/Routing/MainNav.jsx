@@ -37,6 +37,8 @@ import { getConfig } from "../utility/apiConfig";
 import { getManagedEmployeesByIdentity } from "../Services/UserAccessService";
 import { normalizeRoles } from "../Common/roleUtils";
 import { ROLE_RULES } from "../Common/roleAccess";
+import "./MainNav.css";
+import LocationDropdown from "./LocationDropdown";
 //redux
 import AgreementMaster from "../MainComponents/AgreementMaster/Agreementmaster.jsx";
 import departmentActions from "../redux/department/action";
@@ -350,8 +352,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc3NTMyMjY1LCJleHAiOjE4MDkwNjgyNjUsImlhdCI6MTc3NzUzMjI2NX0.uTRDx7t8wQ8gE_9l7W3Xo9cvM_K04PV5GiS4WfigAVA";
-    var token = window.sessionStorage.getItem("userinfo_key")
+    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiSFIiLCJpbmZvX3QiOiJFSGRGSW9WWGNVd3FaKzdJcmJyRUlyTnZyUHhlOWtGTmRiYVNBU3R1UDdSdlpvRDh0U1UwbmhxLzgvZkQzOHFXUCtDWDlVcFhueUtMZ2VSaEVqRktXYUI3WFhMYWh3eHJ4TW1qYldOcEp3b28ydXZ4dkk5Qm1YeVhGWThTZ3I2YkJ2ZnVTSkZIdGRmOW1rTW45UjFEaUtzM1hPb1hJd3RwcWJyVG9XUFpXaXRFVW5SZjR5dnNyZEIybzU3c2tLUEF1OW8razdaaUI1ZXpianI1T3I3VlozZC8vZmIrWXV3b3FvZWNLRnl2YUVKODB0ZytPUW04Y0tzQWhrRktiakgwIiwibmJmIjoxNzc4OTA3MjIxLCJleHAiOjE4MTA0NDMyMjEsImlhdCI6MTc3ODkwNzIyMX0.3NSD9fBXKe0ZZDsTIAbSTqLwDYLOzvPCRRU0rcQEe0A";
+    //var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -556,10 +558,16 @@ class MainNav extends React.Component {
       return hrAllowedPrefixes.some((prefix) => path.startsWith(prefix));
     };
 
+    const getUserBadgeLetter = (name) => {
+      const raw = (name || "").trim();
+      if (!raw) return "U";
+      return raw[0].toUpperCase();
+    };
+
     return (
       <Router>
         <div className="wrapper">
-          <nav className="main-header sticky-top navbar navbar-expand navbar-dark navbar-primary">
+          <nav className="main-header sticky-top navbar navbar-expand navbar-white navbar-light ufirm-topbar">
             <div className="navbar-nav">
               <div className="nav-item">
                 <a
@@ -579,82 +587,96 @@ class MainNav extends React.Component {
                 </div>
               )}
             </div>
-            <form className="form-inline ml-3">
+            <div className="ufirm-topbar-left ml-3">
               {isHrRole ? (
                 <Fragment>
-                  <div className="input-group input-group-sm mr-2">
+                  <div className="input-group ufirm-location-group mr-2">
+                    <div className="input-group-prepend">
+                      <span className="input-group-text ufirm-location-icon">
+                        <i className="fas fa-map-marker-alt"></i>
+                      </span>
+                    </div>
                     <DropDownList
                       Id="ddlClient"
                       Name="Client"
                       Disabled={false}
                       Value={this.state.selectedClientId}
                       onSelected={this.onClientChanged}
+                      ClassName="form-control ufirm-location-control"
                       Options={(this.state.clientData || []).map((item) => ({
                         Value: item.ClientID || item.Value || item.id || 0,
                         Name: item.ClientName || item.Name || item.text || "",
                       }))}
                     />
                   </div>
-                  <div className="input-group input-group-sm" style={{ minWidth: "260px" }}>
-                    <DropDownList
-                      key={`hr-property-${this.state.selectedClientId}`}
-                      Id="ddlProperty"
-                      Name="Property"
-                      Disabled={disablePropertyDropdownForPayroll || this.state.selectedClientId <= 0}
-                      Value={this.state.selectedPropertyId}
-                      onSelected={this.onPropertyChanged.bind(this)}
-                      Options={this.state.PropertyData}
+                  <div className="input-group ufirm-location-group">
+                    <div className="input-group-prepend">
+                      <span className="input-group-text ufirm-location-icon">
+                        <i className="fas fa-map-marker-alt"></i>
+                      </span>
+                    </div>
+                    <LocationDropdown
+                      id={`ddlProperty-hr-${this.state.selectedClientId}`}
+                      disabled={disablePropertyDropdownForPayroll || this.state.selectedClientId <= 0}
+                      value={this.state.selectedPropertyId}
+                      onChange={(v) => this.onPropertyChanged(v)}
+                      options={this.state.PropertyData}
+                      placeholder="Select Location"
                     />
                   </div>
                 </Fragment>
               ) : (
                 <Fragment>
                   {this.state.PropertyData.length > 1 && (
-                    <div className="input-group input-group-sm">
-                      <DropDownList
-                        Id="ddlProperty"
-                        Disabled={disablePropertyDropdownForPayroll}
-                        Value={this.state.selectedPropertyId}
-                        onSelected={this.onPropertyChanged.bind(this)}
-                        Options={this.state.PropertyData}
+                    <div className="input-group ufirm-location-group">
+                      <div className="input-group-prepend">
+                        <span className="input-group-text ufirm-location-icon">
+                          <i className="fas fa-map-marker-alt"></i>
+                        </span>
+                      </div>
+                      <LocationDropdown
+                        id="ddlProperty"
+                        disabled={disablePropertyDropdownForPayroll}
+                        value={this.state.selectedPropertyId}
+                        onChange={(v) => this.onPropertyChanged(v)}
+                        options={this.state.PropertyData}
+                        placeholder="Select Location"
                       />
                     </div>
                   )}
                 </Fragment>
               )}
-            </form>
-            <div className="navbar-nav  ml-auto ">
-              {!isHrRole && <Notification />}
+            </div>
+            <div className="navbar-nav ml-auto align-items-center ufirm-topbar-right">
+              <Notification />
+              <span className="ufirm-topbar-divider" aria-hidden="true"></span>
               <div className="nav-item dropdown">
                 <a
                   href="#"
                   data-toggle="dropdown"
-                  className="dropdown-toggle nav-link dropdown-user-link"
+                  className="dropdown-toggle nav-link dropdown-user-link ufirm-user-toggle"
                 >
                   <span className="avatar avatar-online">
-                    <img
-                      src={this.state.UserProfileImg}
-                      className="rounded-circle"
-                      alt="Avatar"
-                      width="35"
-                      height="35"
-                    ></img>
+                    <span className="ufirm-user-initials" aria-hidden="true">
+                      {getUserBadgeLetter(this.state.UserName)}
+                    </span>
                   </span>
                   <span id="lblusername" className="user-name">
                     {this.state.UserName}
                   </span>
+                  <i className="fas fa-chevron-down ufirm-user-caret" aria-hidden="true"></i>
                 </a>
                 <div className="dropdown-menu dropdown-menu-lg dropdown-menu-right">
-                  <Link to="/Account/App/UserProfile" className="dropdown-item">
-                    <p>My Profile</p>
+                  <Link to="/Account/App/UserProfile" className="dropdown-item ufirm-profile-item">
+                    My Profile
                   </Link>
                   <div className="dropdown-divider"></div>
-                  <Link to="/Account/App/ChangePassword" className="dropdown-item">
-                    <p>Change Password </p>
+                  <Link to="/Account/App/ChangePassword" className="dropdown-item ufirm-profile-item">
+                    Change Password
                   </Link>
-                  <div className="dropdown-divider"></div>
-                  <a href="/Account/Logout" className="dropdown-item">
-                    Logout
+                  <div className="dropdown-divider ufirm-profile-divider"></div>
+                  <a href="/Account/Logout" className="dropdown-item ufirm-profile-item ufirm-profile-signout">
+                    Sign out
                   </a>
                 </div>
               </div>

@@ -11,6 +11,22 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
   const [taskRemarks, setTaskRemarks] = useState([]);
   const [complaintRemarks, setComplaintRemarks] = useState([]);
 
+  const modalKind = isTaskNotification
+    ? "task"
+    : isAssetNotification
+      ? "asset"
+      : isTicketNotification
+        ? "complaint"
+        : "default";
+
+  const modalTitle = isTaskNotification
+    ? "Task Notification"
+    : isAssetNotification
+      ? "Asset Notification"
+      : isTicketNotification
+        ? "Complaints"
+        : "Notification";
+
   useEffect(() => {
     if (!isTaskNotification) return;
 
@@ -33,31 +49,58 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
 
 
   return (
-    <Modal show={!!notification} onHide={onClose} centered>
-      <Modal.Header closeButton>
-        <Modal.Title>
-          {isTaskNotification
-            ? 'Task Notification'
-            : isAssetNotification
-              ? 'Asset Notification'
-              : isTicketNotification
-                ? 'Complaint Notification'
-                : 'Notification'}
+    <Modal
+      show={!!notification}
+      onHide={onClose}
+      centered
+      dialogClassName="ufirm-notification-dialog"
+      contentClassName={`ufirm-notification-modal ufirm-notification-modal-${modalKind}`}
+    >
+      <Modal.Header closeButton className={`ufirm-modal-header ufirm-modal-header-${modalKind}`}>
+        <Modal.Title className="ufirm-modal-title">
+          <span className={`ufirm-modal-title-icon ufirm-modal-title-icon-${modalKind}`} aria-hidden="true">
+            <i
+              className={
+                modalKind === "asset"
+                  ? "fas fa-tools"
+                  : modalKind === "complaint"
+                    ? "far fa-bell"
+                    : "far fa-check-square"
+              }
+            ></i>
+          </span>
+          <span className="ufirm-modal-title-text">{modalTitle}</span>
         </Modal.Title>
       </Modal.Header>
 
       <Modal.Body>
         {notification && (
-          <div>
+          <div className="ufirm-modal-body">
             {/* ---------------- TASK NOTIFICATION ---------------- */}
             {isTaskNotification ? (
               <>
-                <p><strong>Task ID:</strong> {notification.TaskId}</p>
-                <p><strong>Task Name:</strong> {notification.TaskName}</p>
-                <p><strong>Question ID:</strong> {notification.QuestionId}</p>
-                <p><strong>Question Name:</strong> {notification.QuestionName}</p>
-                <p><strong>Property ID:</strong> {notification.PropertyId}</p>
-                <p><strong>Property Name:</strong> {notification.PropertyName}</p>
+                <div className="ufirm-modal-kv">
+                  <div className="ufirm-kv-item">
+                    <span className="ufirm-kv-label">Task ID</span>
+                    <span className="ufirm-kv-value">{notification.TaskId}</span>
+                  </div>
+                  <div className="ufirm-kv-item ufirm-kv-item-full">
+                    <span className="ufirm-kv-label">Task Name</span>
+                    <span className="ufirm-kv-value">{notification.TaskName}</span>
+                  </div>
+                  <div className="ufirm-kv-item">
+                    <span className="ufirm-kv-label">Question ID</span>
+                    <span className="ufirm-kv-value">{notification.QuestionId}</span>
+                  </div>
+                  <div className="ufirm-kv-item ufirm-kv-item-full">
+                    <span className="ufirm-kv-label">Question</span>
+                    <span className="ufirm-kv-value">{notification.QuestionName}</span>
+                  </div>
+                  <div className="ufirm-kv-item ufirm-kv-item-full">
+                    <span className="ufirm-kv-label">Property</span>
+                    <span className="ufirm-kv-value">{notification.PropertyName}</span>
+                  </div>
+                </div>
 
                 <ChatBox
                   remarks={taskRemarks}
@@ -71,27 +114,58 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
               /* ---------------- ASSET NOTIFICATION ---------------- */
               isAssetNotification ? (
                 <>
-                  <p><strong>Asset ID:</strong> {notification.AssetId}</p>
-                  <p><strong>Asset Name:</strong> {notification.AssetName}</p>
-                  <p><strong>Last Service Date:</strong>
-                    {notification.LastServiceDate
-                      ? new Date(notification.LastServiceDate).toLocaleDateString()
-                      : 'Not available'}
-                  </p>
-                  <p><strong>Next Service Date:</strong>
-                    {notification.NextServiceDate
-                      ? new Date(notification.NextServiceDate).toLocaleDateString()
-                      : 'Not available'}
-                  </p>
-                  <p><strong>Days Remaining:</strong> {notification.DaysRemaining}</p>
-                  <p><strong>Service Status:</strong> {notification.ServiceStatus}</p>
-                  <p><strong>Last Service Remark:</strong>
-                    {notification.LastServiceRemark || 'No remarks available'}
-                  </p>
-                  <p><strong>Last Serviced By:</strong>
-                    {notification.LastServicedBy || 'Unknown'}
-                  </p>
-                  <p><strong>Last Service Cost:</strong> ₹{notification.LastServiceCost || 0}</p>
+                  <div className="ufirm-modal-kv">
+                    <div className="ufirm-kv-item">
+                      <span className="ufirm-kv-label">Asset ID</span>
+                      <span className="ufirm-kv-value">{notification.AssetId}</span>
+                    </div>
+                    <div className="ufirm-kv-item ufirm-kv-item-full">
+                      <span className="ufirm-kv-label">Asset Name</span>
+                      <span className="ufirm-kv-value">{notification.AssetName}</span>
+                    </div>
+                    <div className="ufirm-kv-item">
+                      <span className="ufirm-kv-label">Last Service</span>
+                      <span className="ufirm-kv-value">
+                        {notification.LastServiceDate
+                          ? new Date(notification.LastServiceDate).toLocaleDateString()
+                          : "Not available"}
+                      </span>
+                    </div>
+                    <div className="ufirm-kv-item">
+                      <span className="ufirm-kv-label">Next Service</span>
+                      <span className="ufirm-kv-value">
+                        {notification.NextServiceDate
+                          ? new Date(notification.NextServiceDate).toLocaleDateString()
+                          : "Not available"}
+                      </span>
+                    </div>
+                    <div className="ufirm-kv-item">
+                      <span className="ufirm-kv-label">Days Remaining</span>
+                      <span className="ufirm-kv-value">{notification.DaysRemaining}</span>
+                    </div>
+                    <div className="ufirm-kv-item">
+                      <span className="ufirm-kv-label">Status</span>
+                      <span className="ufirm-kv-value">{notification.ServiceStatus}</span>
+                    </div>
+                    {(notification.LastServicedBy || notification.ServicedBy) && (
+                      <div className="ufirm-kv-item">
+                        <span className="ufirm-kv-label">Last Serviced By</span>
+                        <span className="ufirm-kv-value">{notification.LastServicedBy || notification.ServicedBy}</span>
+                      </div>
+                    )}
+                    {(notification.LastServiceCost !== undefined && notification.LastServiceCost !== null) && (
+                      <div className="ufirm-kv-item">
+                        <span className="ufirm-kv-label">Last Service Cost</span>
+                        <span className="ufirm-kv-value">₹{notification.LastServiceCost || 0}</span>
+                      </div>
+                    )}
+                    {notification.LastServiceRemark && (
+                      <div className="ufirm-kv-item ufirm-kv-item-full">
+                        <span className="ufirm-kv-label">Last Service Remark</span>
+                        <span className="ufirm-kv-value ufirm-kv-multiline">{notification.LastServiceRemark}</span>
+                      </div>
+                    )}
+                  </div>
 
                   <ChatBox
                     remark={notification.LastServiceRemark || 'No remarks yet'}
@@ -111,27 +185,51 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
                 /* ---------------- COMPLAINT/TICKET NOTIFICATION ---------------- */
                 isTicketNotification ? (
                   <>
-                    <p><strong>Ticket ID:</strong> {notification.TicketId}</p>
-                    <p><strong>Ticket Number:</strong> {notification.TicketNumber}</p>
-                    <p><strong>Location:</strong> {notification.Title || 'Not specified'}</p>
-                    <p><strong>Reported To:</strong> {notification.SupName || 'All'}</p>
-                    <p><strong>Created On:</strong> {new Date(notification.CreatedOn).toLocaleString()}</p>
-                    <p><strong>Status:</strong> {notification.Status}</p>
-                    <p><strong>Description:</strong> {notification.Description}</p>
+                    <div className="ufirm-modal-kv">
+                      <div className="ufirm-kv-item">
+                        <span className="ufirm-kv-label">Ticket</span>
+                        <span className="ufirm-kv-value">{notification.TicketNumber || notification.TicketId}</span>
+                      </div>
+                      <div className="ufirm-kv-item ufirm-kv-item-full">
+                        <span className="ufirm-kv-label">Location</span>
+                        <span className="ufirm-kv-value">{notification.Title || "Not specified"}</span>
+                      </div>
+                      <div className="ufirm-kv-item">
+                        <span className="ufirm-kv-label">Reported To</span>
+                        <span className="ufirm-kv-value">{notification.SupName || "All"}</span>
+                      </div>
+                      <div className="ufirm-kv-item">
+                        <span className="ufirm-kv-label">Created</span>
+                        <span className="ufirm-kv-value">
+                          {notification.CreatedOn ? new Date(notification.CreatedOn).toLocaleString() : "—"}
+                        </span>
+                      </div>
+                      <div className="ufirm-kv-item">
+                        <span className="ufirm-kv-label">Status</span>
+                        <span className="ufirm-kv-value">{notification.Status}</span>
+                      </div>
+                      {notification.Description && (
+                        <div className="ufirm-kv-item ufirm-kv-item-full">
+                          <span className="ufirm-kv-label">Description</span>
+                          <span className="ufirm-kv-value">{notification.Description}</span>
+                        </div>
+                      )}
+                    </div>
                     {notification.CustomerMobileNo && (
-                      <p>
-                        <strong>Customer Mobile Number:</strong> {notification.CustomerMobileNo}
-                      </p>
+                      <div className="ufirm-modal-subrow">
+                        <span className="ufirm-kv-label">Customer Mobile</span>
+                        <span className="ufirm-kv-value">{notification.CustomerMobileNo}</span>
+                      </div>
                     )}
 
 
                     {notification.AttachmentUrl && (
-                      <p>
-                        <strong>Attachment:</strong>{' '}
-                        <a href={notification.AttachmentUrl} target="_blank" rel="noopener noreferrer">
-                          {notification.AttachmentName || 'View Attachment'}
+                      <div className="ufirm-modal-subrow">
+                        <span className="ufirm-kv-label">Attachment</span>
+                        <a className="ufirm-modal-link" href={notification.AttachmentUrl} target="_blank" rel="noopener noreferrer">
+                          {notification.AttachmentName || "View Attachment"}
                         </a>
-                      </p>
+                      </div>
                     )}
 
                     <ChatBox

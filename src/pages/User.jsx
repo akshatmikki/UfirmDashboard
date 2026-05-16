@@ -157,6 +157,7 @@ class User extends React.Component {
                             {this.state.PageMode === 'Home' &&
                                 <UserHome
                                     Id="AddNewDepartment"
+                                    Value={this.state.Value}
                                     Action={this.managepagemode.bind(this)} />
                             }
                             {this.state.PageMode === 'Add' &&

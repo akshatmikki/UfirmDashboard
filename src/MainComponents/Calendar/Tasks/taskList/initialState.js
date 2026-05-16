@@ -158,6 +158,8 @@ export default function createInitialState(ctx) {
     cardPageSize: 10,
     tablePage: 1,
     tablePageSize: 10,
+    totalRecords: 0,
+    totalPages: 1,
     deleteConfirmTask: null,
   };
 }

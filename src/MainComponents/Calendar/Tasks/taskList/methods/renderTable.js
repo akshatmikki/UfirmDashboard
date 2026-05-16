@@ -169,9 +169,12 @@ export default function attachRenderTable(TaskList) {
           const { completed, pending, actionable, onHold } = getStatusCounts(tasks);
           const tablePageSize = Number(this.state.tablePageSize || 10);
           const tablePage = Number(this.state.tablePage || 1);
-          const totalPages = Number(this.state.totalPages || 1);
+          const totalRecords = Number(this.state.totalRecords || 0);
+          const stateTotalPages = Number(this.state.totalPages || 0);
+          const totalPages = stateTotalPages || (totalRecords ? Math.ceil(totalRecords / (tablePageSize || 10)) : 1);
           const currentPage = tablePage;
           const pagedTasks = isExpanded ? displayTasks : [];
+          const showPager = totalPages > 1 || totalRecords > tablePageSize;
 
           return (
             <div key={date} className="mb-3">
@@ -346,7 +349,7 @@ export default function attachRenderTable(TaskList) {
                     ))}
                   </div>
 
-                  {totalPages > 1 ? (
+                  {showPager ? (
                     <div className="task-pager">
                       <button
                         className="btn btn-sm btn-outline-primary"
@@ -356,9 +359,7 @@ export default function attachRenderTable(TaskList) {
                       >
                         Prev
                       </button>
-                      <span className="text-muted">
-                        Page {currentPage} of {totalPages}
-                      </span>
+                      <span className="text-muted">Page {currentPage} of {totalPages}{totalRecords ? ` • Total ${totalRecords}` : ""}</span>
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage >= totalPages}

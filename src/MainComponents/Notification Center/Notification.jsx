@@ -100,6 +100,7 @@ const Notification = ({ propId }) => {
 
       {showType && (
         <NotificationList
+          type={showType}
           nList={dataMap[showType]}
           apiCall={() => loadNotification(showType)}
         />
