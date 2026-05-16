@@ -13,7 +13,8 @@ import {
   getAllowancesDeductions,
   getUngeneratedSalaryByProperties,
   getGeneratedSalaryByProperties,
-  getApprovedEmployees
+  getApprovedEmployees,
+  getEmployeesByOffices
 } from "../../Services/PayrollService";
 import {
   getAllClients,
@@ -100,6 +101,8 @@ export default function GenerateSalary() {
 
   const [propertyList, setPropertyList] = useState([]);
   const [selectedPropertyId, setSelectedPropertyId] = useState([]);
+  const [empCodeMap, setEmpCodeMap] = useState({});
+  const [loadingAll, setLoadingAll] = useState(true);
 
   const officeId =
     selectedPropertyId.length === 1
@@ -307,59 +310,77 @@ export default function GenerateSalary() {
     loadMaster();
   }, [officeId]);
 
-  // ----------------------------
-  // Fetch employees / generated lists
-  // ----------------------------
   useEffect(() => {
-    if (selectedPropertyId.length && selectedMonth && selectedYear) {
-      const monthName = monthNames[selectedMonth - 1];
+    const loadBaseData = async () => {
+      if (!selectedPropertyId.length || !selectedMonth || !selectedYear) return;
 
-      getUngeneratedSalaryByProperties(
-        selectedPropertyId,
-        monthName,
-        selectedYear
-      )
-        .then((data) => {
-          setAllEmployees(data || []);
-          const uniqueDepartments = [
-            ...new Set(
-              (data || [])
-                .map((emp) => emp.Department)
-                .filter(Boolean)
-            ),
-          ].sort();
+      setLoadingAll(true);
 
-          setDepartments(uniqueDepartments);
-          const uniqueDesignations = [
-            ...new Set(
-              (data || [])
-                .map((emp) => emp.Designation)
-                .filter(Boolean)
-            ),
-          ].sort();
-          setDesignations(uniqueDesignations);
-        })
-        .catch(() => {
-          setAllEmployees([]);
-          setDesignations([]);
+      try {
+        const monthName = monthNames[selectedMonth - 1];
+
+        const [empList, empCodes] = await Promise.all([
+          getUngeneratedSalaryByProperties(
+            selectedPropertyId,
+            monthName,
+            selectedYear
+          ),
+          getEmployeesByOffices(selectedPropertyId),
+        ]);
+
+        // employees
+        const employees = empList || [];
+        setAllEmployees(employees);
+
+        // departments
+        const uniqueDepartments = [
+          ...new Set(employees.map(e => e.Department).filter(Boolean))
+        ].sort();
+        setDepartments(uniqueDepartments);
+
+        // designations
+        const uniqueDesignations = [
+          ...new Set(employees.map(e => e.Designation).filter(Boolean))
+        ].sort();
+        setDesignations(uniqueDesignations);
+
+        // employee code map
+        const map = {};
+        (empCodes || []).forEach(item => {
+          const id = item.FacilityMember?.FacilityMemberId;
+          const code = item.Profile?.EmployeeCode;
+          if (id) map[id] = code;
         });
-    }
+        setEmpCodeMap(map);
+
+      } catch (err) {
+        console.log(err);
+        setAllEmployees([]);
+        setDepartments([]);
+        setDesignations([]);
+      } finally {
+        setLoadingAll(false);
+      }
+    };
+
+    loadBaseData();
   }, [selectedPropertyId, selectedMonth, selectedYear]);
-
-  useEffect(() => {
-    filterEmployees();
-  }, [selectedDepartment, selectedDesignation, allEmployees, searchText, generatedEmployees]);
-
-  useEffect(() => {
-    setSelectedEmployees((prev) => prev.filter((emp) => !isEmployeeFrozen(emp)));
-    setSelectedRegenEmployees((prev) => prev.filter((emp) => !isEmployeeFrozen(emp)));
-  }, [generatedEmployees]);
 
   useEffect(() => {
     if (selectedPropertyId.length && selectedMonth && selectedYear) {
       fetchGeneratedEmployees();
     }
-  }, [selectedPropertyId, selectedMonth, selectedYear]);
+  }, [selectedPropertyId, selectedMonth, selectedYear, searchGeneratedText, empCodeMap]);
+
+
+  useEffect(() => {
+    filterEmployees();
+  }, [selectedDepartment, selectedDesignation, allEmployees, searchText, generatedEmployees, empCodeMap]);
+
+  useEffect(() => {
+    setSelectedEmployees((prev) => prev.filter((emp) => !isEmployeeFrozen(emp)));
+    setSelectedRegenEmployees((prev) => prev.filter((emp) => !isEmployeeFrozen(emp)));
+  }, [generatedEmployees]);
 
   useEffect(() => {
     // Whenever property changes → clear regen box + hide grid
@@ -439,13 +460,19 @@ export default function GenerateSalary() {
 
     // Search filter
     if (searchText.trim()) {
-      filtered = filtered.filter(
-        (emp) =>
+      const search = searchText.toLowerCase();
+
+      filtered = filtered.filter((emp) => {
+        const nameMatch =
           emp.EmployeeName &&
-          emp.EmployeeName
-            .toLowerCase()
-            .includes(searchText.toLowerCase())
-      );
+          emp.EmployeeName.toLowerCase().includes(search);
+
+        const codeMatch =
+          empCodeMap[emp.EmployeeId] &&
+          empCodeMap[emp.EmployeeId].toLowerCase().includes(search);
+
+        return nameMatch || codeMatch;
+      });
     }
 
     setFilteredEmployees(filtered);
@@ -463,11 +490,27 @@ export default function GenerateSalary() {
         : null;
 
       const filtered = data.filter((emp) => {
-        if (!monthName) return emp.Year === selectedYear;
-        return (
-          emp.Month === monthName &&
-          emp.Year === selectedYear
-        );
+        const monthMatch = !monthName
+          ? emp.Year === selectedYear
+          : emp.Month === monthName && emp.Year === selectedYear;
+
+        if (!monthMatch) return false;
+
+        if (searchGeneratedText.trim()) {
+          const search = searchGeneratedText.toLowerCase();
+
+          const nameMatch =
+            emp.EmployeeName &&
+            emp.EmployeeName.toLowerCase().includes(search);
+
+          const codeMatch =
+            empCodeMap[emp.EmployeeId] &&
+            empCodeMap[emp.EmployeeId].toLowerCase().includes(search);
+
+          return nameMatch || codeMatch;
+        }
+
+        return true;
       });
 
       setGeneratedEmployees(filtered || []);
@@ -689,10 +732,10 @@ export default function GenerateSalary() {
   <html>
     <head>
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 11px; line-height: 1.2; }
-        .co-bold { font-size: 14px; font-weight: 800; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 9px; line-height: 1.1; }
+        .co-bold { font-size: 11px; font-weight: 800; }
         .info-table { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
-        .info-table td { padding: 2px 5px; border: none; font-size: 11px;}
+        .info-table td { padding: 1px 3px; border: none; font-size: 11px;}
         table.pay-slip-table {
           width: 100%; border-collapse: collapse; margin-top: 6px;
         }
@@ -703,7 +746,7 @@ export default function GenerateSalary() {
           font-size: 11px;
         }
         table.pay-slip-table td {
-          font-size: 10.5px; border: none; padding: 2px 6px;
+          font-size: 10.5px; border: none; padding: 1px 4px;
         }
         .v-bold { border-right: 1.5px solid #111 !important; }
         .v-light { border-right: 1px solid #bababa !important; }
@@ -896,7 +939,7 @@ export default function GenerateSalary() {
     const pdfWidthMm = 210;
     const pdfHeightMm = 297;
     const payslipMaxWidthMm = pdfWidthMm * 0.88;
-    const payslipMaxHeightMm = pdfHeightMm * 0.88;
+    const payslipMaxHeightMm = pdfHeightMm * 0.45;
 
     const payslipHtml = generatePayslipHTML(row);
     const container = document.createElement("div");
@@ -1041,117 +1084,117 @@ export default function GenerateSalary() {
   };
 
   const handleGenerateFromGrid = async () => {
-  if (selectedEmployees.length === 0) {
-    alert("Please select at least one employee");
-    return;
-  }
-
-  setGenerating(true);
-  setGeneratingBatchStatus(`Starting...`);
-
-  try {
-    const monthValue = selectedMonth
-      ? monthNames[selectedMonth - 1]
-      : null;
-    const yearValue = selectedYear;
-
-    // Directly use selected employees
-    const employeesToGenerate = selectedEmployees;
-
-    const idsForNet = employeesToGenerate
-      .map((e) => e.EmployeeId)
-      .filter(Boolean);
-
-    setGeneratingBatchStatus("Fetching details...");
-
-    const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
-
-    const CHUNK_SIZE = 5;
-    const totalEmployees = employeesToGenerate.length;
-
-    for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
-      const chunk = employeesToGenerate.slice(i, i + CHUNK_SIZE);
-
-      const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
-      const totalBatches = Math.ceil(totalEmployees / CHUNK_SIZE);
-
-      setGeneratingBatchStatus(
-        `Batch ${currentBatch}/${totalBatches}: Generating PDFs...`
-      );
-
-      const payload = chunk.map((emp) =>
-        buildPayload(
-          emp,
-          netMap,
-          rowDataMap,
-          monthValue,
-          yearValue,
-          effectivePropertyId
-        )
-      );
-
-      const formData = new FormData();
-      formData.append("employees", JSON.stringify(payload));
-
-      const pdfPromises = chunk.map(async (emp) => {
-        const row = rowDataMap.get(emp.EmployeeId);
-
-        if (!row) return null;
-
-        const pdfBlob = await generatePdfBlobForEmployee(row);
-
-        if (pdfBlob) {
-          return { emp, pdfBlob };
-        }
-
-        return null;
-      });
-
-      const pdfResults = await Promise.all(pdfPromises);
-
-      pdfResults.forEach((res) => {
-        if (res?.pdfBlob) {
-          formData.append(
-            "file",
-            res.pdfBlob,
-            `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-          );
-        }
-      });
-
-      setGeneratingBatchStatus(
-        `Batch ${currentBatch}/${totalBatches}: Uploading...`
-      );
-
-      await createGeneratedSalary(formData);
-
-      console.log("Generated for:", chunk);
+    if (selectedEmployees.length === 0) {
+      alert("Please select at least one employee");
+      return;
     }
 
-    alert(
-      `Successfully generated salary for ${employeesToGenerate.length} employee(s)`
-    );
+    setGenerating(true);
+    setGeneratingBatchStatus(`Starting...`);
 
-    setSelectedEmployees([]);
+    try {
+      const monthValue = selectedMonth
+        ? monthNames[selectedMonth - 1]
+        : null;
+      const yearValue = selectedYear;
 
-    await fetchGeneratedEmployees();
+      // Directly use selected employees
+      const employeesToGenerate = selectedEmployees;
 
-    const generatedIds = employeesToGenerate.map(
-      (emp) => emp.EmployeeId
-    );
+      const idsForNet = employeesToGenerate
+        .map((e) => e.EmployeeId)
+        .filter(Boolean);
 
-    await fetchSalaryDetails(generatedIds);
+      setGeneratingBatchStatus("Fetching details...");
 
-    setShowGrid(true);
+      const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
-  } catch (error) {
-    console.error("Failed to generate salary:", error);
-    alert("Failed to generate salary. Please try again.");
-  } finally {
-    setGenerating(false);
-    setGeneratingBatchStatus("");
-  }
-};
+      const CHUNK_SIZE = 5;
+      const totalEmployees = employeesToGenerate.length;
+
+      for (let i = 0; i < totalEmployees; i += CHUNK_SIZE) {
+        const chunk = employeesToGenerate.slice(i, i + CHUNK_SIZE);
+
+        const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
+        const totalBatches = Math.ceil(totalEmployees / CHUNK_SIZE);
+
+        setGeneratingBatchStatus(
+          `Batch ${currentBatch}/${totalBatches}: Generating PDFs...`
+        );
+
+        const payload = chunk.map((emp) =>
+          buildPayload(
+            emp,
+            netMap,
+            rowDataMap,
+            monthValue,
+            yearValue,
+            effectivePropertyId
+          )
+        );
+
+        const formData = new FormData();
+        formData.append("employees", JSON.stringify(payload));
+
+        const pdfPromises = chunk.map(async (emp) => {
+          const row = rowDataMap.get(emp.EmployeeId);
+
+          if (!row) return null;
+
+          const pdfBlob = await generatePdfBlobForEmployee(row);
+
+          if (pdfBlob) {
+            return { emp, pdfBlob };
+          }
+
+          return null;
+        });
+
+        const pdfResults = await Promise.all(pdfPromises);
+
+        pdfResults.forEach((res) => {
+          if (res?.pdfBlob) {
+            formData.append(
+              "file",
+              res.pdfBlob,
+              `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+            );
+          }
+        });
+
+        setGeneratingBatchStatus(
+          `Batch ${currentBatch}/${totalBatches}: Uploading...`
+        );
+
+        await createGeneratedSalary(formData);
+
+        console.log("Generated for:", chunk);
+      }
+
+      alert(
+        `Successfully generated salary for ${employeesToGenerate.length} employee(s)`
+      );
+
+      setSelectedEmployees([]);
+
+      await fetchGeneratedEmployees();
+
+      const generatedIds = employeesToGenerate.map(
+        (emp) => emp.EmployeeId
+      );
+
+      await fetchSalaryDetails(generatedIds);
+
+      setShowGrid(true);
+
+    } catch (error) {
+      console.error("Failed to generate salary:", error);
+      alert("Failed to generate salary. Please try again.");
+    } finally {
+      setGenerating(false);
+      setGeneratingBatchStatus("");
+    }
+  };
 
   const handleViewSelected = async () => {
     if (selectedRegenEmployees.length === 0) {
@@ -1539,9 +1582,21 @@ export default function GenerateSalary() {
     setCurrentPage(page);
   };
 
-  const filteredGeneratedEmployees = generatedEmployees.filter((emp) =>
-    emp.EmployeeName && emp.EmployeeName.toLowerCase().includes(searchGeneratedText.toLowerCase())
-  );
+  const filteredGeneratedEmployees = generatedEmployees.filter((emp) => {
+    const search = searchGeneratedText.toLowerCase();
+
+    if (!search) return true;
+
+    const nameMatch =
+      emp.EmployeeName &&
+      emp.EmployeeName.toLowerCase().includes(search);
+
+    const codeMatch =
+      empCodeMap[emp.EmployeeId] &&
+      empCodeMap[emp.EmployeeId].toLowerCase().includes(search);
+
+    return nameMatch || codeMatch;
+  });
 
   const getUnitSummaryText = () => {
     if (selectedPropertyId.length === 0) return "-- Select Unit --";
@@ -1760,16 +1815,50 @@ export default function GenerateSalary() {
           {/* Employee Names */}
           <div style={boxStyle}>
             <div style={{ height: 36, background: "#f0f3fa", textAlign: "center", fontWeight: 600, padding: 8, borderBottom: "1px solid #b0b8cc" }}>Employee Names</div>
-            <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search name..." style={{ margin: 14, padding: 7, borderRadius: 5, border: "1px solid #b0b8cc", width: "88%", fontSize: 15 }} />
+            <input type="text" value={searchText} onChange={(e) => setSearchText(e.target.value)} placeholder="Search name or emp code..." style={{ margin: 14, padding: 7, borderRadius: 5, border: "1px solid #b0b8cc", width: "88%", fontSize: 15 }} />
             <div style={{ flex: 1, overflowY: "auto", padding: "0 10px", maxHeight: "150px" }}>
-              {loading ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>Loading...</div> :
-                filteredEmployees.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>No employees found</div> :
-                  filteredEmployees.map((emp) => (
-                    <div key={emp.EmployeeId} onClick={() => handleEmployeeClick(emp)} style={{ padding: "8px 10px", margin: "5px 0", cursor: "pointer", borderRadius: 4, background: selectedEmployees.some(s => s.EmployeeId === emp.EmployeeId) ? "#e0f2fe" : "transparent", border: selectedEmployees.some(s => s.EmployeeId === emp.EmployeeId) ? "1px solid #0ea5e9" : "none", transition: "all 0.2s" }}>
-                      <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>{emp.EmployeeName}</div>
+              {loadingAll ? (
+                <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>
+                  Loading...
+                </div>
+              ) : filteredEmployees.length === 0 ? (
+                <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>
+                  No employees found
+                </div>
+              ) : (
+                filteredEmployees.map((emp) => (
+                  <div
+                    key={emp.EmployeeId}
+                    onClick={() => handleEmployeeClick(emp)}
+                    style={{
+                      padding: "8px 10px",
+                      margin: "5px 0",
+                      cursor: "pointer",
+                      borderRadius: 4,
+                      background: selectedEmployees.some(
+                        (s) => s.EmployeeId === emp.EmployeeId
+                      )
+                        ? "#e0f2fe"
+                        : "transparent",
+                      border: selectedEmployees.some(
+                        (s) => s.EmployeeId === emp.EmployeeId
+                      )
+                        ? "1px solid #0ea5e9"
+                        : "none",
+                      transition: "all 0.2s",
+                    }}
+                  >
+                    <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>
+                      {emp.EmployeeName}
                     </div>
-                  ))
-              }
+
+                    {/* 👇 OPTIONAL BUT SMART (code display) */}
+                    <div style={{ fontSize: "0.75rem", color: "#888" }}>
+                      {empCodeMap[emp.EmployeeId] || ""}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
@@ -1799,25 +1888,86 @@ export default function GenerateSalary() {
         <div className="d-flex justify-content-center align-items-center" style={{ gap: 60 }}>
           <div style={boxStyle}>
             <div style={{ height: 36, background: "#f0f3fa", textAlign: "center", fontWeight: 600, padding: 8, borderBottom: "1px solid #b0b8cc" }}>Generated Salaries</div>
-            <input type="text" value={searchGeneratedText} onChange={(e) => setSearchGeneratedText(e.target.value)} placeholder="Search name..." style={{ margin: 14, padding: 7, borderRadius: 5, border: "1px solid #b0b8cc", width: "88%", fontSize: 15 }} />
+            <input type="text" value={searchGeneratedText} onChange={(e) => setSearchGeneratedText(e.target.value)} placeholder="Search name or emp code..." style={{ margin: 14, padding: 7, borderRadius: 5, border: "1px solid #b0b8cc", width: "88%", fontSize: 15 }} />
             <div style={{ flex: 1, overflowY: "auto", padding: "10px", maxHeight: "170px" }}>
-              {loadingGenerated ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>Loading...</div> :
-                generatedEmployees.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>No generated salaries for {selectedMonth ? monthNames[selectedMonth - 1] : "Whole Year"} {selectedYear}</div> :
-                  filteredGeneratedEmployees.map((emp) => {
-                    const isFrozen = isEmployeeFrozen(emp);
-                    return (
-                      <div key={emp.EmployeeId} onClick={() => {
-                        if (selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId)) {
-                          setSelectedRegenEmployees(selectedRegenEmployees.filter(e => e.EmployeeId !== emp.EmployeeId));
+              {loadingAll ? (
+                <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>
+                  Loading...
+                </div>
+              ) : generatedEmployees.length === 0 ? (
+                <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>
+                  No generated salaries for{" "}
+                  {selectedMonth ? monthNames[selectedMonth - 1] : "Whole Year"}{" "}
+                  {selectedYear}
+                </div>
+              ) : (
+                filteredGeneratedEmployees.map((emp) => {
+                  const isFrozen = isEmployeeFrozen(emp);
+
+                  return (
+                    <div
+                      key={emp.EmployeeId}
+                      onClick={() => {
+                        if (
+                          selectedRegenEmployees.some(
+                            (e) => e.EmployeeId === emp.EmployeeId
+                          )
+                        ) {
+                          setSelectedRegenEmployees(
+                            selectedRegenEmployees.filter(
+                              (e) => e.EmployeeId !== emp.EmployeeId
+                            )
+                          );
                         } else {
-                          setSelectedRegenEmployees([...selectedRegenEmployees, emp]);
+                          setSelectedRegenEmployees([
+                            ...selectedRegenEmployees,
+                            emp,
+                          ]);
                         }
-                      }} style={{ padding: "6px 10px", margin: "4px 0", borderRadius: 5, fontWeight: 500, fontSize: "0.92rem", cursor: "pointer", background: selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId) ? "#e0f2fe" : isFrozen ? "#f8fafc" : "transparent", border: selectedRegenEmployees.some(e => e.EmployeeId === emp.EmployeeId) ? "1px solid #1e90ff" : isFrozen ? "1px solid #cbd5e1" : "1px solid transparent", transition: "all 0.2s", color: isFrozen ? "#94a3b8" : "#0f172a" }}>
-                        {emp.EmployeeName}{isFrozen ? " (Freeze)" : ""}
+                      }}
+                      style={{
+                        padding: "6px 10px",
+                        margin: "4px 0",
+                        borderRadius: 5,
+                        fontWeight: 500,
+                        fontSize: "0.92rem",
+                        cursor: "pointer",
+                        background: selectedRegenEmployees.some(
+                          (e) => e.EmployeeId === emp.EmployeeId
+                        )
+                          ? "#e0f2fe"
+                          : isFrozen
+                            ? "#f8fafc"
+                            : "transparent",
+                        border: selectedRegenEmployees.some(
+                          (e) => e.EmployeeId === emp.EmployeeId
+                        )
+                          ? "1px solid #1e90ff"
+                          : isFrozen
+                            ? "1px solid #cbd5e1"
+                            : "1px solid transparent",
+                        transition: "all 0.2s",
+                        color: isFrozen ? "#94a3b8" : "#0f172a",
+                      }}
+                    >
+                      {/* 👇 Name */}
+                      <div>{emp.EmployeeName}</div>
+
+                      {/* 👇 Code (important for search clarity) */}
+                      <div style={{ fontSize: "0.75rem", color: "#888" }}>
+                        {empCodeMap[emp.EmployeeId] || ""}
                       </div>
-                    );
-                  })
-              }
+
+                      {/* 👇 Freeze label */}
+                      {isFrozen && (
+                        <div style={{ fontSize: "0.7rem", color: "#94a3b8" }}>
+                          Freeze
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
