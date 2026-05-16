@@ -170,7 +170,6 @@ const EmployeeSearch = () => {
               <Column field="BranchName" header="Branch" />
               <Column field="ClientName" header="Client" />
               <Column field="PropertyName" header="Property" />
-
               <Column
                 field="DateOfJoining"
                 header="DOJ"
@@ -180,6 +179,13 @@ const EmployeeSearch = () => {
                     : "-"
                 }
               />
+              <Column field="Aadhaar" header="Aadhaar" />
+              <Column field="Pan" header="PAN" />
+              <Column field="UAN" header="UAN" />
+              <Column field="PF" header="PF Number" />
+              <Column field="ESI" header="ESI Number" />
+              <Column field="BankAccount" header="Bank Account" />
+              <Column field="IFSC" header="IFSC" />
             </DataTable>
           </div>
         </div>

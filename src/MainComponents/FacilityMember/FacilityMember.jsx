@@ -22,6 +22,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import { OverlayPanel } from "primereact/overlaypanel";
+import AllBanks from "../../ReactComponents/DataGrid/AllBanks";
 
 import {
   // getEmployeesByOffice,
@@ -1721,27 +1722,6 @@ const StaffPage = () => {
     { label: "Uttar Pradesh", value: "Uttar Pradesh" },
     { label: "Uttarakhand", value: "Uttarakhand" },
     { label: "West Bengal", value: "West Bengal" },
-    { label: "Delhi", value: "Delhi" },
-  ];
-
-  const indianBanks = [
-    { label: "State Bank of India", value: "State Bank of India" },
-    { label: "HDFC Bank", value: "HDFC Bank" },
-    { label: "ICICI Bank", value: "ICICI Bank" },
-    { label: "Axis Bank", value: "Axis Bank" },
-    { label: "Punjab National Bank", value: "Punjab National Bank" },
-    { label: "Bank of Baroda", value: "Bank of Baroda" },
-    { label: "Canara Bank", value: "Canara Bank" },
-    { label: "Union Bank of India", value: "Union Bank of India" },
-    { label: "Kotak Mahindra Bank", value: "Kotak Mahindra Bank" },
-    { label: "IndusInd Bank", value: "IndusInd Bank" },
-    { label: "Yes Bank", value: "Yes Bank" },
-    { label: "IDFC First Bank", value: "IDFC First Bank" },
-    { label: "Indian Bank", value: "Indian Bank" },
-    { label: "Central Bank of India", value: "Central Bank of India" },
-    { label: "UCO Bank", value: "UCO Bank" },
-    { label: "Bandhan Bank", value: "Bandhan Bank" },
-    { label: "RBL Bank", value: "RBL Bank" },
   ];
 
   const header = (
@@ -2551,7 +2531,7 @@ const StaffPage = () => {
                 <label>Bank Name</label>
                 <Dropdown
                   value={bankName}
-                  options={indianBanks}
+                  options={AllBanks}
                   onChange={(e) => setBankName(e.value)}
                   placeholder="Select Bank"
                   className="mb-3"
@@ -2639,6 +2619,7 @@ const StaffPage = () => {
                       onChange={(e) =>
                         handleWorkHistoryChange(index, "StartDate", e.value)
                       }
+                      maxDate={new Date()}
                       className="mb-3 w-full"
                       dateFormat="dd-mm-yy"
                       showIcon
