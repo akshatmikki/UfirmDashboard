@@ -72,7 +72,6 @@ const ReturnAsset = ({ Close, setData, asset, showModeToggle, locationOptions = 
       rentalContractName: formData.rentalContractName || "",
       assetImageName: formData.assetImageName || "",
     });
-    if (Close) Close();
   };
 
   return (

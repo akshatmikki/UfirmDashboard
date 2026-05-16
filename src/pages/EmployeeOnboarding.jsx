@@ -21,13 +21,18 @@ import {
   getOnboardingTemp,
   updateOnboardingTemp,
   approveEmployeeTemp,
-  rejectEmployeeTemp
+  rejectEmployeeTemp,
+  deleteOnboardingTemp
 } from "../Services/EmployeeOnboardingService";
+import { getapitoken } from "../Common/AppCommon";
 
 
 const EmployeeOnboarding = () => {
   const toast = useRef(null);
   const puidn = useSelector((state) => state.Commonreducer.puidn);
+  const userData = useSelector(
+    (state) => state.Commonreducer.userData
+  );
 
   const [employees, setEmployees] = useState([]);
 
@@ -42,6 +47,19 @@ const EmployeeOnboarding = () => {
 
   const [viewDialog, setViewDialog] = useState(false);
   const [selectedEmployeeView, setSelectedEmployeeView] = useState(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [maxEnabledTab, setMaxEnabledTab] = useState(0);
+
+  const userRole = useMemo(() => {
+    try {
+      const token = getapitoken();
+      if (!token) return "Admin";
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.lastname; // "HR" or "Admin"
+    } catch (e) {
+      return "Admin";
+    }
+  }, []);
 
   // Form fields state
   const [formData, setFormData] = useState({
@@ -149,11 +167,15 @@ const EmployeeOnboarding = () => {
     });
 
     setIsEditMode(false);
+    setActiveIndex(0);
+    setMaxEnabledTab(0);
   };
 
   const openNew = () => {
     resetForm();
     setDocuments([]);
+    setActiveIndex(0);
+    setMaxEnabledTab(0);
     setDialogVisible(true);
   };
 
@@ -179,6 +201,8 @@ const EmployeeOnboarding = () => {
     }
 
     setIsEditMode(true);
+    setActiveIndex(0);
+    setMaxEnabledTab(3); // All tabs enabled in edit mode
     setDialogVisible(true);
   };
 
@@ -188,7 +212,8 @@ const EmployeeOnboarding = () => {
 
       const response = await approveEmployeeTemp(
         rowData.TempId,
-        rowData.PropertyId
+        rowData.PropertyId,
+        userData?.UserId
       );
 
       toast.current.show({
@@ -222,7 +247,8 @@ const EmployeeOnboarding = () => {
       const response = await rejectEmployeeTemp({
         TempId: selectedRejectEmployee.TempId,
         PropertyId: selectedRejectEmployee.PropertyId,
-        RejectionReason: rejectReason
+        RejectionReason: rejectReason,
+        UserId: userData?.UserId
       });
 
       toast.current.show({
@@ -256,7 +282,9 @@ const EmployeeOnboarding = () => {
       if (response?.Data) {
         // Filter data strictly by selected puidn
         const filtered = response.Data.filter(
-          (emp) => Number(emp.PropertyId) === (Number(puidn) || 0)
+          (emp) =>
+            Number(emp.PropertyId) === (Number(puidn) || 0) &&
+            !(emp.IsApproved === true || emp.IsApproved === 1 || emp.IsApproved === "1")
         );
         setEmployees(filtered);
       }
@@ -275,64 +303,56 @@ const EmployeeOnboarding = () => {
     fetchEmployees();
   }, [puidn]);
 
-  const saveEmployee = async () => {
+  const saveEmployee = async (stepIndex, isFinal = false) => {
     try {
-      if (
-        !formData.Name ||
-        !formData.Designation ||
-        !formData.Gender ||
-        !formData.AadharCard ||
-        !formData.PanCard ||
-        !formData.DateOfJoining ||
-        !formData.BankAccountNumber ||
-        !formData.BankIFSCCode ||
-        !formData.UANNumber
-      ) {
-        toast.current.show({
-          severity: "warn",
-          summary: "Validation",
-          detail: "Please fill all required fields",
-        });
-        return;
+      // Step-specific validation
+      if (stepIndex === 0) {
+        if (!formData.Name || !formData.Designation || !formData.Gender || !formData.DateOfJoining) {
+          toast.current.show({
+            severity: "warn",
+            summary: "Validation",
+            detail: "Please fill required personal info (Name, Designation, Gender, Date of Joining)",
+          });
+          return;
+        }
+      }
+
+      if (stepIndex === 2) {
+        if (!formData.AadharCard || !formData.PanCard || !formData.BankAccountNumber || !formData.BankIFSCCode || !formData.UANNumber) {
+          toast.current.show({
+            severity: "warn",
+            summary: "Validation",
+            detail: "Please fill required financial details (Aadhar, PAN, Bank Details, UAN)",
+          });
+          return;
+        }
       }
 
       const payload = {
         PropertyId: puidn || 0,
-
+        TempId: formData.TempId || 0,
         Name: formData.Name,
         Gender: formData.Gender,
-
         MobileNumber: formData.MobileNumber,
         OtherNumber: formData.OtherNumber,
-
         EmploymentType: formData.EmploymentType,
-
         Email: formData.Email,
-
         Designation: formData.Designation,
         Department: formData.Department,
-
         DateOfBirth: formData.DateOfBirth ? `${formData.DateOfBirth}T00:00:00` : null,
-
         PanCard: formData.PanCard,
         AadharCard: formData.AadharCard,
-
         AddressLine1: formData.AddressLine1,
         AddressLine2: formData.AddressLine2,
-
         City: formData.City,
         State: formData.State,
-
         FatherName: formData.FatherName,
         MotherName: formData.MotherName,
         SpouseName: formData.SpouseName,
-
         DateOfJoining: formData.DateOfJoining ? `${formData.DateOfJoining}T00:00:00` : null,
-
         BankAccountNumber: formData.BankAccountNumber,
         BankIFSCCode: formData.BankIFSCCode,
         BankName: formData.BankName,
-
         UANNumber: formData.UANNumber,
         PFNumber: formData.PF_Number,
         ESINumber: formData.ESINumber,
@@ -341,11 +361,12 @@ const EmployeeOnboarding = () => {
       let response;
 
       // =========================
-      // UPDATE
+      // UPDATE (PUT)
       // =========================
-      if (isEditMode && formData.TempId) {
+      if ((isEditMode || formData.TempId > 0)) {
+        const idToUpdate = formData.TempId;
         response = await updateOnboardingTemp(
-          formData.TempId,
+          idToUpdate,
           payload,
           documents
         );
@@ -356,29 +377,44 @@ const EmployeeOnboarding = () => {
           detail: response?.Message || "Employee updated successfully",
         });
       }
-
       // =========================
-      // CREATE
+      // CREATE (POST)
       // =========================
       else {
         response = await saveOnboardingTemp(payload, documents);
+
+        // Robust TempId extraction
+        const newId = response?.Data?.TempId || response?.TempId || (typeof response?.Data === 'number' ? response.Data : null);
+
+        if (newId) {
+          setFormData(prev => ({ ...prev, TempId: newId }));
+          setIsEditMode(true); // 🔥 Switch to edit mode to ensure subsequent saves use PUT
+        }
+
         toast.current.show({
           severity: "success",
           summary: "Success",
-          detail: response || "Employee saved successfully",
+          detail: response?.Message || "Employee saved successfully",
         });
       }
 
       fetchEmployees();
 
-      setDialogVisible(false);
-
-      resetForm();
-      setDocuments([]);
+      if (isFinal) {
+        setDialogVisible(false);
+        resetForm();
+        setDocuments([]);
+      } else {
+        // Automatically move to next tab
+        const nextStep = stepIndex + 1;
+        if (nextStep > maxEnabledTab) {
+          setMaxEnabledTab(nextStep);
+        }
+        setActiveIndex(nextStep);
+      }
 
     } catch (error) {
       console.log(error);
-
       toast.current.show({
         severity: "error",
         summary: "Error",
@@ -388,14 +424,36 @@ const EmployeeOnboarding = () => {
   };
 
   const confirmDelete = (emp) => {
+
     confirmDialog({
       message: "Are you sure you want to delete this employee?",
       header: "Confirm Delete",
       icon: "pi pi-exclamation-triangle",
       acceptClassName: "p-button-danger",
-      accept: () => {
-        setEmployees(employees.filter(e => e.TempId !== emp.TempId));
-        toast.current.show({ severity: "success", summary: "Deleted", detail: "Employee removed" });
+
+      accept: async () => {
+
+        try {
+
+          const response = await deleteOnboardingTemp(emp.TempId);
+
+          toast.current.show({
+            severity: "success",
+            summary: "Deleted",
+            detail: response?.Message || "Employee deleted successfully",
+          });
+
+          fetchEmployees();
+
+        } catch (error) {
+
+          toast.current.show({
+            severity: "error",
+            summary: "Error",
+            detail:
+              error?.message || "Failed to delete employee",
+          });
+        }
       }
     });
   };
@@ -504,31 +562,43 @@ const EmployeeOnboarding = () => {
 
                       return (
                         <div className="d-flex gap-2">
-
-                          {!isApproved && !isRejected && (
+                          {userRole === "HR" ? (
                             <>
-                              <Button
-                                icon="pi pi-check"
-                                className="p-button-success p-button-sm"
-                                tooltip="Approve"
-                                onClick={() => approveEmployee(rowData)}
-                              />
+                              {!isApproved && !isRejected && (
+                                <Button
+                                  icon="pi pi-check"
+                                  className="p-button-success p-button-sm"
+                                  tooltip="Approve"
+                                  onClick={() => approveEmployee(rowData)}
+                                />
+                              )}
 
-                              <Button
-                                icon="pi pi-times"
-                                className="p-button-danger p-button-sm"
-                                tooltip="Reject"
-                                onClick={() => {
-                                  setSelectedRejectEmployee(rowData);
-                                  setRejectDialog(true);
-                                }}
-                              />
-
+                              {!isApproved && !isRejected && (
+                                <Button
+                                  icon="pi pi-times"
+                                  className="p-button-danger p-button-sm"
+                                  tooltip="Reject"
+                                  onClick={() => {
+                                    setSelectedRejectEmployee(rowData);
+                                    setRejectDialog(true);
+                                  }}
+                                />
+                              )}
+                            </>
+                          ) : (
+                            <>
                               <Button
                                 icon="pi pi-pencil"
                                 className="p-button-info p-button-sm"
                                 tooltip="Edit"
                                 onClick={() => editEmployee(rowData)}
+                              />
+
+                              <Button
+                                icon="pi pi-trash"
+                                className="p-button-danger p-button-sm"
+                                tooltip="Delete"
+                                onClick={() => confirmDelete(rowData)}
                               />
                             </>
                           )}
@@ -564,11 +634,21 @@ const EmployeeOnboarding = () => {
           footer={
             <div className="d-flex justify-content-end gap-2">
               <Button label="Cancel" className="p-button-text" onClick={() => setDialogVisible(false)} />
-              <Button label="Save Details" icon="pi pi-check" onClick={saveEmployee} />
             </div>
           }
         >
-          <TabView>
+          <TabView activeIndex={activeIndex} onTabChange={(e) => {
+            // Allow going back or moving to a tab that is within maxEnabledTab
+            if (e.index > maxEnabledTab && !isEditMode) {
+              toast.current.show({
+                severity: 'warn',
+                summary: 'Save Required',
+                detail: 'Please save current section before moving to next.'
+              });
+              return;
+            }
+            setActiveIndex(e.index);
+          }}>
             <TabPanel header="Personal Info">
               <div className="p-fluid grid mt-2">
                 <div className="col-12 md:col-4 mb-3">
@@ -633,6 +713,9 @@ const EmployeeOnboarding = () => {
                   <label>Spouse's Name</label>
                   <InputText value={formData.SpouseName} onChange={(e) => setFormData({ ...formData, SpouseName: e.target.value })} />
                 </div>
+                <div className="col-12 d-flex justify-content-end mt-2">
+                  <Button label="Save Personal Info" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(0)} />
+                </div>
               </div>
             </TabPanel>
 
@@ -660,6 +743,9 @@ const EmployeeOnboarding = () => {
                 <div className="col-12 md:col-4 mb-3">
                   <label>State</label>
                   <Dropdown value={formData.State} options={indianStates} onChange={(e) => setFormData({ ...formData, State: e.value })} placeholder="Select State" filter />
+                </div>
+                <div className="col-12 d-flex justify-content-end mt-2">
+                  <Button label="Save Address" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(1)} />
                 </div>
               </div>
             </TabPanel>
@@ -709,6 +795,9 @@ const EmployeeOnboarding = () => {
                 <div className="col-12 md:col-4 mb-3">
                   <label>ESI Number</label>
                   <InputText value={formData.ESINumber} onChange={(e) => setFormData({ ...formData, ESINumber: e.target.value })} />
+                </div>
+                <div className="col-12 d-flex justify-content-end mt-2">
+                  <Button label="Save Financials" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(2)} />
                 </div>
               </div>
             </TabPanel>
@@ -811,9 +900,18 @@ const EmployeeOnboarding = () => {
                 <div className="col-12">
                   {documents.map((doc, i) => (
                     <div key={i}>
-                      <b>{doc.type}</b>: {doc.file?.name}
+                      <b>{doc.type}</b>: {doc.file?.name || doc.fileName}
                     </div>
                   ))}
+                </div>
+
+                <div className="col-12 d-flex justify-content-end mt-4">
+                  <Button
+                    label={
+                      formData?.IsRejected
+                        ? "Resubmit"
+                        : "Save All Details"
+                    } icon="pi pi-check-circle" className="p-button-success" onClick={() => saveEmployee(3, true)} />
                 </div>
 
               </div>

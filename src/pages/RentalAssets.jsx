@@ -1283,16 +1283,17 @@ const RentalAssets = ({ propId, history }) => {
                 <label>Expiry date</label>
                 <CustomDatePicker value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
               </div>
-              <div className="form-group asset-form-group-custom">
-                <label>Location</label>
-                <CustomDropdown
-                  variant="short"
-                  value={editForm.Location}
-                  onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
-                  placeholder="Select location"
-                  options={locationOptions.map(v => ({ label: v, value: v }))}
-                />
-              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Location</label>
+              <CustomDropdown
+                variant="long"
+                value={editForm.Location}
+                onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
+                placeholder="Select location"
+                options={locationOptions.map(v => ({ label: v, value: v }))}
+              />
             </div>
 
             <div className="form-group asset-form-group-custom">

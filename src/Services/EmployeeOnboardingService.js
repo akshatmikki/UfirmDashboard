@@ -59,10 +59,10 @@ export const getOnboardingTemp = async (propertyId = 0) => {
 // APPROVE EMPLOYEE
 // =====================================
 
-export const approveEmployeeTemp = async (tempId, propertyId) => {
+export const approveEmployeeTemp = async (tempId, propertyId, userId) => {
     try {
         const response = await fetch(
-            `${API_URL}approve-employee?tempId=${tempId}&propertyId=${propertyId}`,
+            `${API_URL}approve-employee?tempId=${tempId}&propertyId=${propertyId}&userId=${userId}`,
             {
                 method: "POST",
             }
@@ -106,6 +106,29 @@ export const rejectEmployeeTemp = async (data) => {
     } catch (error) {
 
         console.error("Error rejecting employee:", error);
+        throw error;
+    }
+};
+
+export const deleteOnboardingTemp = async (tempId) => {
+    try {
+
+        const response = await fetch(
+            `${API_URL}api/onboarding/temp/${tempId}`,
+            {
+                method: "DELETE",
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+
+    } catch (error) {
+
+        console.error("Error deleting employee:", error);
         throw error;
     }
 };

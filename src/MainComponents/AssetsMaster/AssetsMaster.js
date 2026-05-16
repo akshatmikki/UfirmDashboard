@@ -594,21 +594,33 @@ class AssetsMaster extends Component {
   getModel = (type, overrides = {}) => [
     (() => {
       const statusPayload = this.getAssetStatusPayload();
+      const isRentable = this.getApiBoolean(this.state.IsRentable);
+      const isRented = this.getApiBoolean(this.state.IsRented);
+      let calculatedAssetType = this.state.AssetType;
+
+      if (isRented || isRentable) {
+        if (!calculatedAssetType || calculatedAssetType === "In house" || calculatedAssetType === "Owned") {
+          calculatedAssetType = "Rented Out";
+        }
+      } else if (calculatedAssetType === "Rented Out" || calculatedAssetType === "Outbound") {
+        calculatedAssetType = "In house";
+      }
+
       return {
         Id: this.state.Id,
         Name: this.state.Name,
         Description: this.state.Description,
         QRCode: this.state.QRCode,
-        AssetType: this.state.AssetType,
+        AssetType: calculatedAssetType,
         Manufacturer: this.state.ManufacturerName,
         AssetModel: this.state.AssetModel,
         IsMoveable: this.getApiBoolean(this.state.IsMoveable),
-        IsRented: this.getApiBoolean(this.state.IsRented),
+        IsRented: isRented,
         Flag: type,
         AssetImage: this.state.AssetImage,
         LastServiceDate: this.state.LastServiceDate,
         NextServiceDate: this.state.NextServiceDate,
-        IsRentable: this.getApiBoolean(this.state.IsRentable),
+        IsRentable: isRentable,
         AssetValue: this.state.AssetValue,
         Capacity: this.state.Capacity,
         AMCFile: this.state.AMCimage,
@@ -812,7 +824,7 @@ class AssetsMaster extends Component {
       status: this.getStatusFormValue(rowData.Status || rowData.AssetStatus),
       category: rowData.Category || rowData.category || "",
       location: rowData.Location || rowData.location || "",
-      serviceReminderDay: rowData.serviceReminderDay || rowData.ServiceReminderDay || "",
+      serviceReminderDay: rowData.ReminderDays || rowData.ReminderDays || "",
       PurchaseDate: this.normalizeDate(rowData.PurchaseDate || rowData.DateOfPurchase),
       WarrantyDate: this.normalizeDate(rowData.WarrantyDate || rowData.WarrantyExpiry || rowData.ExpiryDate),
       showAddQrPreview: false,
