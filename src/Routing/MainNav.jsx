@@ -650,8 +650,12 @@ class MainNav extends React.Component {
               )}
             </div>
             <div className="navbar-nav ml-auto align-items-center ufirm-topbar-right">
-              <Notification />
-              <span className="ufirm-topbar-divider" aria-hidden="true"></span>
+              {!isHrRole ? (
+                <Fragment>
+                  <Notification />
+                  <span className="ufirm-topbar-divider" aria-hidden="true"></span>
+                </Fragment>
+              ) : null}
               <div className="nav-item dropdown">
                 <a
                   href="#"

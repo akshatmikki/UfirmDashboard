@@ -9,7 +9,9 @@ const LocationDropdown = ({
   onChange,
 }) => {
   const rootRef = useRef(null);
+  const searchRef = useRef(null);
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
 
   const normalizedOptions = useMemo(
     () =>
@@ -39,6 +41,15 @@ const LocationDropdown = ({
     return () => document.removeEventListener("mousedown", onDocMouseDown);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) {
+      setQuery("");
+      return;
+    }
+    const t = setTimeout(() => searchRef.current?.focus?.(), 0);
+    return () => clearTimeout(t);
+  }, [open]);
+
   const onToggle = (e) => {
     e.preventDefault();
     if (disabled) return;
@@ -50,6 +61,12 @@ const LocationDropdown = ({
     if (typeof onChange === "function") onChange(nextValue);
     setOpen(false);
   };
+
+  const filteredOptions = useMemo(() => {
+    const q = String(query || "").trim().toLowerCase();
+    if (!q) return normalizedOptions;
+    return normalizedOptions.filter((o) => String(o.label || "").toLowerCase().includes(q));
+  }, [normalizedOptions, query]);
 
   return (
     <div ref={rootRef} className={`ufirm-location-dropdown ${disabled ? "is-disabled" : ""}`}>
@@ -68,7 +85,28 @@ const LocationDropdown = ({
 
       {open && (
         <div className="ufirm-location-panel" role="listbox" aria-label={placeholder}>
-          {normalizedOptions.map((o) => {
+          <div className="ufirm-location-search">
+            <input
+              ref={searchRef}
+              className="form-control form-control-sm"
+              type="text"
+              value={query}
+              placeholder="Search location..."
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") setOpen(false);
+              }}
+              disabled={disabled}
+            />
+          </div>
+
+          {filteredOptions.length === 0 ? (
+            <div className="text-muted px-2 py-2" role="note">
+              No results
+            </div>
+          ) : null}
+
+          {filteredOptions.map((o) => {
             const isSelected = Number(o.value) === Number(selected?.value);
             return (
               <button
@@ -91,4 +129,3 @@ const LocationDropdown = ({
 };
 
 export default LocationDropdown;
-
