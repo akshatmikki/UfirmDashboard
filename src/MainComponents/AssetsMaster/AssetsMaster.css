@@ -172,6 +172,7 @@
 }
 
 .asset-toolbar-add,
+.asset-toolbar-download,
 .asset-side-panel-footer .btn-primary {
   background: #1f4f82;
   border-color: #1f4f82;
@@ -179,6 +180,8 @@
 
 .asset-toolbar-add:hover,
 .asset-toolbar-add:focus,
+.asset-toolbar-download:hover,
+.asset-toolbar-download:focus,
 .asset-side-panel-footer .btn-primary:hover,
 .asset-side-panel-footer .btn-primary:focus,
 .spare-add-footer .btn-primary:hover,
@@ -209,13 +212,15 @@
 
 .asset-toolbar-filter,
 .asset-export-btn,
-.asset-toolbar-add {
+.asset-toolbar-add,
+.asset-toolbar-download {
   font-family: Inter, sans-serif !important;
   font-size: 15px !important;
   letter-spacing: -0.15px !important;
   text-align: center;
   min-height: 40px;
   border-radius: 8px !important;
+  white-space: nowrap !important;
 }
 
 .asset-inline-filters {
@@ -470,7 +475,8 @@
   margin-right: 0 !important;
 }
 
-.asset-toolbar-add {
+.asset-toolbar-add,
+.asset-toolbar-download {
   color: #fefefe !important;
   font-weight: 400 !important;
   line-height: 100% !important;
@@ -478,7 +484,8 @@
   padding: 8px 18px !important;
 }
 
-.asset-toolbar-add i {
+.asset-toolbar-add i,
+.asset-toolbar-download i {
   font-size: 16px;
   line-height: 1;
   width: 16px;

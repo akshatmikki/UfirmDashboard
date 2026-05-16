@@ -88,7 +88,6 @@ const RentOut = ({ Close, setData, asset, showModeToggle, locationOptions = [], 
 
       approvedBy: formData.approvedBy,
     });
-    if (Close) Close();
   };
 
   return (

@@ -1,10 +1,11 @@
 import axios from "axios";
 
-const API_URL = "https://api.urest.in:8096/";
-//const API_URL = "http://localhost:62929/";
+// const API_URL = "https://api.urest.in:8096/";
+const API_URL = "http://localhost:62929/";
 
-
+// =====================================
 // SAVE ONBOARDING TEMP DATA
+// =====================================
 
 export const saveOnboardingTemp = async (model, documents = []) => {
     try {
@@ -22,7 +23,9 @@ export const saveOnboardingTemp = async (model, documents = []) => {
             body: formData,
         });
 
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         return await response.json();
     } catch (error) {
@@ -31,8 +34,10 @@ export const saveOnboardingTemp = async (model, documents = []) => {
     }
 };
 
+// =====================================
 // GET ONBOARDING TEMP DATA
 // =====================================
+
 export const getOnboardingTemp = async (propertyId = 0) => {
     try {
         const response = await fetch(
@@ -46,6 +51,84 @@ export const getOnboardingTemp = async (propertyId = 0) => {
         return await response.json();
     } catch (error) {
         console.error("Error fetching onboarding temp data:", error);
+        throw error;
+    }
+};
+
+// =====================================
+// APPROVE EMPLOYEE
+// =====================================
+
+export const approveEmployeeTemp = async (tempId, propertyId, userId) => {
+    try {
+        const response = await fetch(
+            `${API_URL}approve-employee?tempId=${tempId}&propertyId=${propertyId}&userId=${userId}`,
+            {
+                method: "POST",
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+    } catch (error) {
+        console.error("Error approving employee:", error);
+        throw error;
+    }
+};
+
+// =====================================
+// REJECT EMPLOYEE
+// =====================================
+
+export const rejectEmployeeTemp = async (data) => {
+    try {
+
+        const response = await fetch(
+            `${API_URL}reject-employee`,
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify(data),
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+
+    } catch (error) {
+
+        console.error("Error rejecting employee:", error);
+        throw error;
+    }
+};
+
+export const deleteOnboardingTemp = async (tempId) => {
+    try {
+
+        const response = await fetch(
+            `${API_URL}api/onboarding/temp/${tempId}`,
+            {
+                method: "DELETE",
+            }
+        );
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        return await response.json();
+
+    } catch (error) {
+
+        console.error("Error deleting employee:", error);
         throw error;
     }
 };
@@ -84,5 +167,3 @@ export const updateOnboardingTemp = async (tempId, model, documents = []) => {
         throw error;
     }
 };
-
-

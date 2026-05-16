@@ -2185,9 +2185,9 @@ class MainNav extends React.Component {
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
             </Route>
-            <Route path="/Account/App/EmployeeOnboarding">
+            {/* <Route path="/Account/App/EmployeeOnboarding">
               <EmployeeOnboarding />
-            </Route>
+            </Route> */}
 
             {/* <Route path="/AttendanceSummary">
                             <AttendanceSummaryPage />
