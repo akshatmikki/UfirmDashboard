@@ -15,7 +15,6 @@ import User from "../pages/User";
 import PropertyMember from "../pages/PropertyMember";
 import UserProfile from "../pages/UserProfilePage";
 import ChangePassword from "../MainComponents/ChangePassword/ChangePassword";
-import DropDownList from "../ReactComponents/SelectBox/DropdownList";
 import ComplainManagement from "../pages/ComplainManagement";
 import PropertyMaster from "../MainComponents/PropertyMaster/PropertyMaster.jsx";
 import PropertyDetailsPage from "../pages/PropertyDetailsPage";
@@ -352,8 +351,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiSFIiLCJpbmZvX3QiOiJFSGRGSW9WWGNVd3FaKzdJcmJyRUlyTnZyUHhlOWtGTmRiYVNBU3R1UDdSdlpvRDh0U1UwbmhxLzgvZkQzOHFXUCtDWDlVcFhueUtMZ2VSaEVqRktXYUI3WFhMYWh3eHJ4TW1qYldOcEp3b28ydXZ4dkk5Qm1YeVhGWThTZ3I2YkJ2ZnVTSkZIdGRmOW1rTW45UjFEaUtzM1hPb1hJd3RwcWJyVG9XUFpXaXRFVW5SZjR5dnNyZEIybzU3c2tLUEF1OW8razdaaUI1ZXpianI1T3I3VlozZC8vZmIrWXV3b3FvZWNLRnl2YUVKODB0ZytPUW04Y0tzQWhrRktiakgwIiwibmJmIjoxNzc4OTA3MjIxLCJleHAiOjE4MTA0NDMyMjEsImlhdCI6MTc3ODkwNzIyMX0.3NSD9fBXKe0ZZDsTIAbSTqLwDYLOzvPCRRU0rcQEe0A";
-    //var token = window.sessionStorage.getItem("userinfo_key")
+    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiSFIiLCJpbmZvX3QiOiJFSGRGSW9WWGNVd3FaKzdJcmJyRUlyTnZyUHhlOWtGTmRiYVNBU3R1UDdSdlpvRDh0U1UwbmhxLzgvZkQzOHFXUCtDWDlVcFhueUtMZ2VSaEVqRktXYUI3WFhMYWh3eHJ4TW1qYldOcEp3b28ydXZ4dkk5Qm1YeVhGWThTZ3I2YkJ2ZnVTSkZIdGRmOW1rTW45UjFEaUtzM1hPb1hJd3RwcWJyVG9XUFpXaXRFVW5SZjR5dnNyZEIybzU3c2tLUEF1OW8razdaaUI1ZXpianI1T3I3VlozZC8vZmIrWXV3b3FvZWNLRnl2YUVKODB0ZytPUW04Y0tzQWhrRktiakgwIiwibmJmIjoxNzc4OTA3MjIxLCJleHAiOjE4MTA0NDMyMjEsImlhdCI6MTc3ODkwNzIyMX0.3NSD9fBXKe0ZZDsTIAbSTqLwDYLOzvPCRRU0rcQEe0A";
+    var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -596,19 +595,18 @@ class MainNav extends React.Component {
                         <i className="fas fa-map-marker-alt"></i>
                       </span>
                     </div>
-                    <DropDownList
-                      Id="ddlClient"
-                      Name="Client"
-                      Disabled={false}
-                      Value={this.state.selectedClientId}
-                      onSelected={this.onClientChanged}
-                      Options={(this.state.clientData || [])
+                    <LocationDropdown
+                      id="ddlClient"
+                      disabled={false}
+                      value={this.state.selectedClientId}
+                      onChange={(v) => this.onClientChanged(v)}
+                      options={(this.state.clientData || [])
                         .map((item) => ({
                           Value: item.ClientID || item.Value || item.id || 0,
                           Name: item.ClientName || item.Name || item.text || "",
                         }))
-                        .sort((a, b) => a.Name.localeCompare(b.Name))
-                      }
+                        .sort((a, b) => a.Name.localeCompare(b.Name))}
+                      placeholder="Select Client"
                     />
                   </div>
                   <div className="input-group ufirm-location-group">
