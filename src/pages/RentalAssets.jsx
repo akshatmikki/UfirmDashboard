@@ -369,6 +369,11 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
     RentOutDateTime: rentOutDateTime,
     TentativeReturnDate: tentativeReturnDate,
     RentedTo: getFirstValue(form.RentedTo, form.Vendor, asset.RentedTo, rentOutData.RentedTo, asset.Vendor, asset.VendorName, asset.Distributor),
+    Vendor: getFirstValue(
+      form.Vendor,
+      asset.Vendor,
+      rentOutData.Vendor
+    ),
     OutFrom: getFirstValue(form.OutFrom, asset.OutFrom, rentOutData.OutFrom, form.Location, asset.Location),
     RentalCharges: toNumberPayload(getFirstValue(form.RentalCharges, form.Cost, asset.RentalCharges, rentOutData.RentalCharges, asset.MonthlyRent, asset.Cost)),
     ApprovedBy: getFirstValue(form.ApprovedBy, asset.ApprovedBy, rentOutData.ApprovedBy),
@@ -436,7 +441,7 @@ const RentalAssets = ({ propId, history }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [showFilterPanel, setShowFilterPanel] = useState(false);
   const [filterManufacturer, setFilterManufacturer] = useState("");
-  const [filterVendor, setFilterVendor] = useState("");
+  const [filterName, setFilterName] = useState("");
   const [filterLease, setFilterLease] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -526,23 +531,24 @@ const RentalAssets = ({ propId, history }) => {
       const assetSearchFields = [asset?.Id, asset?.AssetID, asset?.Name, asset?.name, asset?.AssetName];
       const matchesSearch =
         !query ||
-        assetSearchFields
-          .filter(Boolean)
-          .some((item) => String(item).toLowerCase().includes(query));
+        String(asset.Name || "").toLowerCase().includes(query) ||
+        String(asset.AssetId || "").toLowerCase().includes(query);
+
       const matchesManufacturer = !filterManufacturer || String(asset.Manufacturer || "").toLowerCase().includes(filterManufacturer.toLowerCase());
       const matchesLease = !filterLease || getLeaseMeta(asset).label === filterLease;
-      const matchesStatus = !filterStatus || getStatusMeta(asset).label === filterStatus;
-      const matchesVendor = !filterVendor || String(asset.Vendor || asset.VendorName || "").toLowerCase().includes(filterVendor.toLowerCase());
-      const matchesType = !filterType || getAssetTypeLabel(asset) === filterType;
+      const matchesStatus = !filterStatus || String(getStatusMeta(asset).label).toLowerCase() === String(filterStatus).toLowerCase();
+      const matchesName = !filterName || String(asset.Name || "").toLowerCase().includes(filterName.toLowerCase());
+      const matchesType = !filterType || String(getLeaseMeta(asset).label).toLowerCase() === String(filterType).toLowerCase();
+
       const passesServiceStatus = matchesServiceStatus(asset, filterServiceStatus);
 
-      return matchesSearch && matchesManufacturer && matchesStatus && matchesVendor && matchesType && passesServiceStatus;
+      return matchesSearch && matchesManufacturer && matchesLease && matchesStatus && matchesName && matchesType && passesServiceStatus;
     });
-  }, [rentalAssets, searchTerm, filterManufacturer, filterVendor, filterStatus, filterType, filterServiceStatus]);
+  }, [rentalAssets, searchTerm, filterManufacturer, filterLease, filterName, filterStatus, filterType, filterServiceStatus]);
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, filterManufacturer, filterVendor, filterStatus, filterType, filterServiceStatus]);
+  }, [searchTerm, filterManufacturer, filterLease, filterName, filterStatus, filterType, filterServiceStatus]);
 
   const totalPages = Math.max(1, Math.ceil(filteredAssets.length / ROWS_PER_PAGE));
   const safeCurrentPage = Math.min(currentPage, totalPages);
@@ -563,15 +569,13 @@ const RentalAssets = ({ propId, history }) => {
     [rentalAssets]
   );
 
-  const vendorOptions = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          rentalAssets
-            .map((asset) => String(asset?.Vendor || asset?.VendorName || asset?.Distributor || "").trim())
-            .filter(Boolean)
-        )
-      ).sort((a, b) => a.localeCompare(b)),
+  const nameOptions = useMemo(
+    () => {
+      const names = rentalAssets
+        .map((asset) => String(asset?.Name || "").trim())
+        .filter((v, i, a) => v && a.indexOf(v) === i);
+      return names.sort();
+    },
     [rentalAssets]
   );
 
@@ -591,7 +595,7 @@ const RentalAssets = ({ propId, history }) => {
 
   const resetFilters = () => {
     setFilterManufacturer("");
-    setFilterVendor("");
+    setFilterName("");
     setFilterLease("");
     setFilterStatus("");
     setFilterType("");
@@ -1124,10 +1128,10 @@ const RentalAssets = ({ propId, history }) => {
             <button
               type="button"
               className="rental-text-link rental-panel-link-row"
-              onClick={() => handleOpenRentModal(selectedAsset, selectedAsset.IsRented ? "return" : "rentout")}
+              onClick={() => handleOpenRentModal(selectedAsset, "rentout")}
             >
-              <i className={`fa ${selectedAsset.IsRented ? "fa-sign-in" : "fa-sign-out"} mr-1`} aria-hidden="true" />
-              {selectedAsset.IsRented ? "Rent in" : "Rent out"}
+              <i className="fa fa-sign-out mr-1" aria-hidden="true" />
+              Rent out
             </button>
           </div>
         </div>
@@ -1284,16 +1288,17 @@ const RentalAssets = ({ propId, history }) => {
                 <label>Expiry date</label>
                 <CustomDatePicker value={editForm.ExpiryDate} onChange={(e) => setEditForm({ ...editForm, ExpiryDate: e.target.value })} />
               </div>
-              <div className="form-group asset-form-group-custom">
-                <label>Location</label>
-                <CustomDropdown
-                  variant="short"
-                  value={editForm.Location}
-                  onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
-                  placeholder="Select location"
-                  options={locationOptions.map(v => ({ label: v, value: v }))}
-                />
-              </div>
+            </div>
+
+            <div className="form-group asset-form-group-custom">
+              <label>Location</label>
+              <CustomDropdown
+                variant="long"
+                value={editForm.Location}
+                onChange={(e) => setEditForm({ ...editForm, Location: e.target.value })}
+                placeholder="Select location"
+                options={locationOptions.map(v => ({ label: v, value: v }))}
+              />
             </div>
 
             <div className="form-group asset-form-group-custom">
@@ -1381,7 +1386,7 @@ const RentalAssets = ({ propId, history }) => {
                     <button
                       type="button"
                       className="btn rental-primary-btn"
-                      onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "toggle")}
+                      onClick={() => handleOpenRentModal(selectedAsset || filteredAssets[0] || {}, "rentout")}
                       disabled={!selectedAsset && filteredAssets.length === 0}
                     >
                       <i className="fa fa-sign-out" aria-hidden="true" />
@@ -1402,13 +1407,13 @@ const RentalAssets = ({ propId, history }) => {
 
                     <div className="asset-filter-grid">
                       <div className="asset-filter-field">
-                        <label>Vendor</label>
+                        <label>Asset Name</label>
                         <CustomDropdown
                           variant="long"
-                          value={filterVendor}
-                          onChange={(e) => setFilterVendor(e.target.value)}
+                          value={filterName}
+                          onChange={(e) => setFilterName(e.target.value)}
                           placeholder="Enter name"
-                          options={vendorOptions.map(v => ({ label: v, value: v }))}
+                          options={nameOptions.map(v => ({ label: v, value: v }))}
                         />
                       </div>
                       <div className="asset-filter-field">
