@@ -369,6 +369,11 @@ const buildRentOutAssetPayload = (asset = {}, form = {}) => {
     RentOutDateTime: rentOutDateTime,
     TentativeReturnDate: tentativeReturnDate,
     RentedTo: getFirstValue(form.RentedTo, form.Vendor, asset.RentedTo, rentOutData.RentedTo, asset.Vendor, asset.VendorName, asset.Distributor),
+    Vendor: getFirstValue(
+      form.Vendor,
+      asset.Vendor,
+      rentOutData.Vendor
+    ),
     OutFrom: getFirstValue(form.OutFrom, asset.OutFrom, rentOutData.OutFrom, form.Location, asset.Location),
     RentalCharges: toNumberPayload(getFirstValue(form.RentalCharges, form.Cost, asset.RentalCharges, rentOutData.RentalCharges, asset.MonthlyRent, asset.Cost)),
     ApprovedBy: getFirstValue(form.ApprovedBy, asset.ApprovedBy, rentOutData.ApprovedBy),
