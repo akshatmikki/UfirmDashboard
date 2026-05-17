@@ -208,18 +208,25 @@ const EmployeeOnboarding = () => {
 
 
   const approveEmployee = async (rowData) => {
+
     try {
+
+      const userId = userData?.UserId || 1;
+
+      console.log("Approving UserId:", userId);
 
       const response = await approveEmployeeTemp(
         rowData.TempId,
         rowData.PropertyId,
-        userData?.UserId
+        userId
       );
 
       toast.current.show({
         severity: "success",
         summary: "Approved",
-        detail: response?.Message || "Employee approved successfully",
+        detail:
+          response?.Message ||
+          "Employee approved successfully",
       });
 
       fetchEmployees();
@@ -232,9 +239,8 @@ const EmployeeOnboarding = () => {
         severity: "error",
         summary: "Error",
         detail:
-          error?.response?.data ||
           error?.response?.data?.Message ||
-          error.message ||
+          error?.message ||
           "Failed to approve employee",
       });
     }
@@ -468,636 +474,698 @@ const EmployeeOnboarding = () => {
     </div>
   );
 
+  const actionButtonStyles = `
+.action-buttons-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.action-btn {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 12px !important;
+  border: none !important;
+
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+
+  transition: all 0.25s ease-in-out !important;
+
+  box-shadow: 0 3px 8px rgba(0,0,0,0.12);
+}
+
+.action-btn .pi {
+  font-size: 1rem !important;
+  color: #fff !important;
+}
+
+.action-btn:hover {
+  transform: translateY(-3px) scale(1.05);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.2);
+}
+
+.approve-action {
+  background: linear-gradient(135deg, #22c55e, #16a34a) !important;
+}
+
+.reject-action {
+  background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+.edit-action {
+  background: linear-gradient(135deg, #0ea5e9, #0284c7) !important;
+}
+
+.delete-action {
+  background: linear-gradient(135deg, #f43f5e, #e11d48) !important;
+}
+
+.view-action {
+  background: linear-gradient(135deg, #64748b, #475569) !important;
+}
+
+.action-btn:focus {
+  box-shadow: none !important;
+}
+`;
+
   return (
 
-    <PrimeReactProvider>
-      <div className="content-wrapper">
-        <section className="content mt-3">
-          <div className="container-fluid">
-            <Toast ref={toast} />
-            <ConfirmDialog />
+    <>
+      <style>{actionButtonStyles}</style>
+      <PrimeReactProvider>
 
-            <div className="card shadow-sm border-0">
-              <div className="p-3">
-                <DataTable
-                  value={employees}
-                  dataKey="TempId"
-                  header={header}
-                  paginator rows={10}
-                  globalFilter={globalFilterValue}
-                  responsiveLayout="scroll"
-                  className="p-datatable-sm"
-                  emptyMessage="No employees found."
-                >
-                  <Column field="Name" header="Name" sortable style={{ minWidth: '150px' }} />
-                  <Column field="Designation" header="Designation" sortable style={{ minWidth: '150px' }} />
-                  <Column field="Department" header="Department" sortable style={{ minWidth: '120px' }} />
-                  <Column field="Gender" header="Gender" style={{ minWidth: '100px' }} />
-                  <Column field="MobileNumber" header="Contact" style={{ minWidth: '120px' }} />
-                  <Column field="Email" header="Email" style={{ minWidth: '180px' }} />
-                  <Column field="DateOfBirth" header="DOB" body={(rowData) => rowData.DateOfBirth ? rowData.DateOfBirth.split("T")[0] : "-"} style={{ minWidth: '120px' }} />
-                  <Column field="FatherName" header="Father's Name" style={{ minWidth: '150px' }} />
-                  <Column field="AadharCard" header="Aadhar" style={{ minWidth: '150px' }} />
-                  <Column field="PanCard" header="PAN" style={{ minWidth: '120px' }} />
-                  <Column field="City" header="City" style={{ minWidth: '120px' }} />
-                  <Column field="State" header="State" style={{ minWidth: '120px' }} />
-                  <Column field="AddressLine1" header="Address" style={{ minWidth: '120px' }} />
-                  <Column field="BankName" header="Bank Name" style={{ minWidth: '120px' }} />
-                  <Column field="BankAccountNumber" header="Bank Account Number" style={{ minWidth: '120px' }} />
-                  <Column field="BankIFSCCode" header="Bank IFSC Code" style={{ minWidth: '120px' }} />
-                  <Column field="PFNumber" header="PF Number" style={{ minWidth: '120px' }} />
-                  <Column field="ESINumber" header="ESI Number" style={{ minWidth: '120px' }} />
-                  <Column field="DateOfJoining" header="Date of Joining" body={(rowData) => rowData.DateOfJoining ? rowData.DateOfJoining.split("T")[0] : "-"} style={{ minWidth: '150px' }} />
-                  <Column
-                    header="Status"
-                    body={(rowData) => {
+        <div className="content-wrapper">
+          <section className="content mt-3">
+            <div className="container-fluid">
+              <Toast ref={toast} />
+              <ConfirmDialog />
 
-                      const isApproved =
-                        rowData.IsApproved === true ||
-                        rowData.IsApproved === 1 ||
-                        rowData.IsApproved === "1";
+              <div className="card shadow-sm border-0">
+                <div className="p-3">
+                  <DataTable
+                    value={employees}
+                    dataKey="TempId"
+                    header={header}
+                    paginator rows={10}
+                    globalFilter={globalFilterValue}
+                    responsiveLayout="scroll"
+                    className="p-datatable-sm"
+                    emptyMessage="No employees found."
+                  >
+                    <Column field="Name" header="Name" sortable style={{ minWidth: '150px' }} />
+                    <Column field="Designation" header="Designation" sortable style={{ minWidth: '150px' }} />
+                    <Column field="Department" header="Department" sortable style={{ minWidth: '120px' }} />
+                    <Column field="Gender" header="Gender" style={{ minWidth: '100px' }} />
+                    <Column field="MobileNumber" header="Contact" style={{ minWidth: '120px' }} />
+                    <Column field="Email" header="Email" style={{ minWidth: '180px' }} />
+                    <Column field="DateOfBirth" header="DOB" body={(rowData) => rowData.DateOfBirth ? rowData.DateOfBirth.split("T")[0] : "-"} style={{ minWidth: '120px' }} />
+                    <Column field="FatherName" header="Father's Name" style={{ minWidth: '150px' }} />
+                    <Column field="AadharCard" header="Aadhar" style={{ minWidth: '150px' }} />
+                    <Column field="PanCard" header="PAN" style={{ minWidth: '120px' }} />
+                    <Column field="City" header="City" style={{ minWidth: '120px' }} />
+                    <Column field="State" header="State" style={{ minWidth: '120px' }} />
+                    <Column field="AddressLine1" header="Address" style={{ minWidth: '120px' }} />
+                    <Column field="BankName" header="Bank Name" style={{ minWidth: '120px' }} />
+                    <Column field="BankAccountNumber" header="Bank Account Number" style={{ minWidth: '120px' }} />
+                    <Column field="BankIFSCCode" header="Bank IFSC Code" style={{ minWidth: '120px' }} />
+                    <Column field="PFNumber" header="PF Number" style={{ minWidth: '120px' }} />
+                    <Column field="ESINumber" header="ESI Number" style={{ minWidth: '120px' }} />
+                    <Column field="DateOfJoining" header="Date of Joining" body={(rowData) => rowData.DateOfJoining ? rowData.DateOfJoining.split("T")[0] : "-"} style={{ minWidth: '150px' }} />
+                    <Column
+                      header="Status"
+                      body={(rowData) => {
 
-                      const isRejected =
-                        rowData.IsRejected === true ||
-                        rowData.IsRejected === 1 ||
-                        rowData.IsRejected === "1";
+                        const isApproved =
+                          rowData.IsApproved === true ||
+                          rowData.IsApproved === 1 ||
+                          rowData.IsApproved === "1";
 
-                      if (isApproved) {
+                        const isRejected =
+                          rowData.IsRejected === true ||
+                          rowData.IsRejected === 1 ||
+                          rowData.IsRejected === "1";
+
+                        if (isApproved) {
+                          return (
+                            <span className="badge bg-success">
+                              Approved
+                            </span>
+                          );
+                        }
+
+                        if (isRejected) {
+                          return (
+                            <span className="badge bg-danger">
+                              Rejected
+                            </span>
+                          );
+                        }
+
                         return (
-                          <span className="badge bg-success">
-                            Approved
+                          <span className="badge bg-warning text-dark">
+                            Pending
                           </span>
                         );
-                      }
+                      }}
+                      style={{ minWidth: "120px" }}
+                    />
+                    <Column
+                      header="Actions"
+                      body={(rowData) => {
 
-                      if (isRejected) {
+                        const isApproved =
+                          rowData.IsApproved === true ||
+                          rowData.IsApproved === 1 ||
+                          rowData.IsApproved === "1";
+
+                        const isRejected =
+                          rowData.IsRejected === true ||
+                          rowData.IsRejected === 1 ||
+                          rowData.IsRejected === "1";
+
                         return (
-                          <span className="badge bg-danger">
-                            Rejected
-                          </span>
+                          <div className="d-flex gap-2">
+                            {userRole === "HR" ? (
+                              <>
+                                {!isApproved && !isRejected && (
+                                  <Button
+                                    icon="pi pi-check"
+                                    className="action-btn approve-action"
+                                    tooltip="Approve"
+                                    onClick={() => approveEmployee(rowData)}
+                                  />
+                                )}
+
+                                {!isApproved && !isRejected && (
+                                  <Button
+                                    icon="pi pi-times"
+                                    className="action-btn reject-action"
+                                    tooltip="Reject"
+                                    onClick={() => {
+                                      setSelectedRejectEmployee(rowData);
+                                      setRejectDialog(true);
+                                    }}
+                                  />
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <Button
+                                  icon="pi pi-pencil"
+                                  className="action-btn edit-action"
+                                  tooltip="Edit"
+                                  onClick={() => editEmployee(rowData)}
+                                />
+
+                                <Button
+                                  icon="pi pi-trash"
+                                  className="action-btn delete-action"
+                                  tooltip="Delete"
+                                  onClick={() => confirmDelete(rowData)}
+                                />
+                              </>
+                            )}
+
+                            <Button
+                              icon="pi pi-eye"
+                              className="action-btn view-action"
+                              tooltip="View Details"
+                              onClick={() => {
+                                setSelectedEmployeeView(rowData);
+                                setViewDialog(true);
+                              }}
+                            />
+
+                          </div>
                         );
-                      }
-
-                      return (
-                        <span className="badge bg-warning text-dark">
-                          Pending
-                        </span>
-                      );
-                    }}
-                    style={{ minWidth: "120px" }}
-                  />
-                  <Column
-                    header="Actions"
-                    body={(rowData) => {
-
-                      const isApproved =
-                        rowData.IsApproved === true ||
-                        rowData.IsApproved === 1 ||
-                        rowData.IsApproved === "1";
-
-                      const isRejected =
-                        rowData.IsRejected === true ||
-                        rowData.IsRejected === 1 ||
-                        rowData.IsRejected === "1";
-
-                      return (
-                        <div className="d-flex gap-2">
-                          {userRole === "HR" ? (
-                            <>
-                              {!isApproved && !isRejected && (
-                                <Button
-                                  icon="pi pi-check"
-                                  className="p-button-success p-button-sm"
-                                  tooltip="Approve"
-                                  onClick={() => approveEmployee(rowData)}
-                                />
-                              )}
-
-                              {!isApproved && !isRejected && (
-                                <Button
-                                  icon="pi pi-times"
-                                  className="p-button-danger p-button-sm"
-                                  tooltip="Reject"
-                                  onClick={() => {
-                                    setSelectedRejectEmployee(rowData);
-                                    setRejectDialog(true);
-                                  }}
-                                />
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              <Button
-                                icon="pi pi-pencil"
-                                className="p-button-info p-button-sm"
-                                tooltip="Edit"
-                                onClick={() => editEmployee(rowData)}
-                              />
-
-                              <Button
-                                icon="pi pi-trash"
-                                className="p-button-danger p-button-sm"
-                                tooltip="Delete"
-                                onClick={() => confirmDelete(rowData)}
-                              />
-                            </>
-                          )}
-
-                          <Button
-                            icon="pi pi-eye"
-                            className="p-button-secondary p-button-sm"
-                            tooltip="View Details"
-                            onClick={() => {
-                              setSelectedEmployeeView(rowData);
-                              setViewDialog(true);
-                            }}
-                          />
-
-                        </div>
-                      );
-                    }}
-                    style={{ minWidth: "220px" }}
-                  />
-                </DataTable>
+                      }}
+                      style={{ minWidth: "220px" }}
+                    />
+                  </DataTable>
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Form Dialog */}
-        <Dialog
-          header={isEditMode ? "Edit Employee Details" : "New Employee Onboarding"}
-          visible={dialogVisible}
-          style={{ width: "90vw", maxWidth: "1000px" }}
-          modal
-          onHide={() => setDialogVisible(false)}
-          footer={
-            <div className="d-flex justify-content-end gap-2">
-              <Button label="Cancel" className="p-button-text" onClick={() => setDialogVisible(false)} />
-            </div>
-          }
-        >
-          <TabView activeIndex={activeIndex} onTabChange={(e) => {
-            // Allow going back or moving to a tab that is within maxEnabledTab
-            if (e.index > maxEnabledTab && !isEditMode) {
-              toast.current.show({
-                severity: 'warn',
-                summary: 'Save Required',
-                detail: 'Please save current section before moving to next.'
-              });
-              return;
+          {/* Form Dialog */}
+          <Dialog
+            header={isEditMode ? "Edit Employee Details" : "New Employee Onboarding"}
+            visible={dialogVisible}
+            style={{ width: "90vw", maxWidth: "1000px" }}
+            modal
+            onHide={() => setDialogVisible(false)}
+            footer={
+              <div className="d-flex justify-content-end gap-2">
+                <Button label="Cancel" className="p-button-text" onClick={() => setDialogVisible(false)} />
+              </div>
             }
-            setActiveIndex(e.index);
-          }}>
-            <TabPanel header="Personal Info">
-              <div className="p-fluid grid mt-2">
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Full Name *</label>
-                  <InputText value={formData.Name} onChange={(e) => setFormData({ ...formData, Name: e.target.value })} />
+          >
+            <TabView activeIndex={activeIndex} onTabChange={(e) => {
+              // Allow going back or moving to a tab that is within maxEnabledTab
+              if (e.index > maxEnabledTab && !isEditMode) {
+                toast.current.show({
+                  severity: 'warn',
+                  summary: 'Save Required',
+                  detail: 'Please save current section before moving to next.'
+                });
+                return;
+              }
+              setActiveIndex(e.index);
+            }}>
+              <TabPanel header="Personal Info">
+                <div className="p-fluid grid mt-2">
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Full Name *</label>
+                    <InputText value={formData.Name} onChange={(e) => setFormData({ ...formData, Name: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Gender *</label>
+                    <Dropdown value={formData.Gender} options={genders} onChange={(e) => setFormData({ ...formData, Gender: e.value })} placeholder="Select" />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Designation *</label>
+                    <InputText value={formData.Designation} onChange={(e) => setFormData({ ...formData, Designation: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Department</label>
+                    <InputText value={formData.Department} onChange={(e) => setFormData({ ...formData, Department: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Employment Type</label>
+                    <Dropdown value={formData.EmploymentType} options={employmentTypes} onChange={(e) => setFormData({ ...formData, EmploymentType: e.value })} placeholder="Select" />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Mobile Number</label>
+                    <InputText value={formData.MobileNumber} onChange={(e) => setFormData({ ...formData, MobileNumber: e.target.value })} maxLength={10} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Other Number</label>
+                    <InputText value={formData.OtherNumber} onChange={(e) => setFormData({ ...formData, OtherNumber: e.target.value })} maxLength={10} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Email Address</label>
+                    <InputText value={formData.Email} onChange={(e) => setFormData({ ...formData, Email: e.target.value })} type="email" />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Date of Birth</label>
+                    <Calendar
+                      value={formData.DateOfBirth ? new Date(formData.DateOfBirth) : null}
+                      onChange={(e) => setFormData({ ...formData, DateOfBirth: e.value ? e.value.toLocaleDateString('en-CA') : "" })}
+                      showIcon
+                      dateFormat="yy-mm-dd"
+                    />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Date of Joining *</label>
+                    <Calendar
+                      value={formData.DateOfJoining ? new Date(formData.DateOfJoining) : null}
+                      onChange={(e) => setFormData({ ...formData, DateOfJoining: e.value ? e.value.toLocaleDateString('en-CA') : "" })}
+                      showIcon
+                      dateFormat="yy-mm-dd"
+                    />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Father's Name</label>
+                    <InputText value={formData.FatherName} onChange={(e) => setFormData({ ...formData, FatherName: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Mother's Name</label>
+                    <InputText value={formData.MotherName} onChange={(e) => setFormData({ ...formData, MotherName: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Spouse's Name</label>
+                    <InputText value={formData.SpouseName} onChange={(e) => setFormData({ ...formData, SpouseName: e.target.value })} />
+                  </div>
+                  <div className="col-12 d-flex justify-content-end mt-2">
+                    <Button label="Save Personal Info" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(0)} />
+                  </div>
                 </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Gender *</label>
-                  <Dropdown value={formData.Gender} options={genders} onChange={(e) => setFormData({ ...formData, Gender: e.value })} placeholder="Select" />
+              </TabPanel>
+
+              <TabPanel header="Personal Address">
+                <div className="p-fluid grid mt-2">
+                  <div className="col-12 md:col-6 mb-3">
+                    <label>Address Line 1</label>
+                    <InputText
+                      value={formData.AddressLine1}
+                      onChange={(e) => setFormData({ ...formData, AddressLine1: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="col-12 md:col-6 mb-3">
+                    <label>Address Line 2</label>
+                    <InputText
+                      value={formData.AddressLine2}
+                      onChange={(e) => setFormData({ ...formData, AddressLine2: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>City</label>
+                    <InputText value={formData.City} onChange={(e) => setFormData({ ...formData, City: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>State</label>
+                    <Dropdown value={formData.State} options={indianStates} onChange={(e) => setFormData({ ...formData, State: e.value })} placeholder="Select State" filter />
+                  </div>
+                  <div className="col-12 d-flex justify-content-end mt-2">
+                    <Button label="Save Address" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(1)} />
+                  </div>
                 </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Designation *</label>
-                  <InputText value={formData.Designation} onChange={(e) => setFormData({ ...formData, Designation: e.target.value })} />
+              </TabPanel>
+
+              <TabPanel header="Bank & Financials">
+                <div className="p-fluid grid mt-2">
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Aadhar Card Number *</label>
+                    <InputText
+                      value={formData.AadharCard}
+                      onChange={(e) => setFormData({ ...formData, AadharCard: e.target.value })}
+                      maxLength={12}
+                    />
+                  </div>
+
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>PAN Card Number *</label>
+                    <InputText
+                      value={formData.PanCard}
+                      onChange={(e) => setFormData({ ...formData, PanCard: e.target.value.toUpperCase() })}
+                      maxLength={10}
+                    />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Bank Account Number *</label>
+                    <InputText value={formData.BankAccountNumber} onChange={(e) => setFormData({ ...formData, BankAccountNumber: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>IFSC Code *</label>
+                    <InputText value={formData.BankIFSCCode} onChange={(e) => setFormData({ ...formData, BankIFSCCode: e.target.value.toUpperCase() })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Bank Name</label>
+                    <Dropdown value={formData.BankName} options={indianBanks} onChange={(e) => setFormData({ ...formData, BankName: e.value })} editable placeholder="Select/Type Bank" />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>UAN Number *</label>
+                    <InputText
+                      value={formData.UANNumber}
+                      onChange={(e) => setFormData({ ...formData, UANNumber: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>PF Number</label>
+                    <InputText value={formData.PF_Number} onChange={(e) => setFormData({ ...formData, PF_Number: e.target.value })} />
+                  </div>
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>ESI Number</label>
+                    <InputText value={formData.ESINumber} onChange={(e) => setFormData({ ...formData, ESINumber: e.target.value })} />
+                  </div>
+                  <div className="col-12 d-flex justify-content-end mt-2">
+                    <Button label="Save Financials" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(2)} />
+                  </div>
                 </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Department</label>
-                  <InputText value={formData.Department} onChange={(e) => setFormData({ ...formData, Department: e.target.value })} />
+              </TabPanel>
+
+              <TabPanel header="Documents">
+                <div className="p-fluid grid mt-2">
+
+                  {/* PROFILE */}
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Profile Photo (only once)</label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      disabled={documents.some(d => d.type === "Profile")}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        if (documents.some(d => d.type === "Profile")) return;
+
+                        setDocuments(prev => [...prev, { type: "Profile", file }]);
+                      }}
+                    />
+                    {documents.find(d => d.type === "Profile" && d.fileName) && (
+                      <small style={{ display: "block" }}>
+                        Existing: {documents.find(d => d.type === "Profile").fileName}
+                      </small>
+                    )}
+                  </div>
+
+                  {/* RESUME */}
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Resume (only once)</label>
+                    <input
+                      type="file"
+                      accept=".pdf,.doc,.docx"
+                      disabled={documents.some(d => d.type === "Resume")}
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        if (documents.some(d => d.type === "Resume")) return;
+
+                        setDocuments(prev => [...prev, { type: "Resume", file }]);
+                      }}
+                    />
+                    {documents.find(d => d.type === "Resume" && d.fileName) && (
+                      <small>
+                        Existing: {documents.find(d => d.type === "Resume").fileName}
+                      </small>
+                    )}
+                  </div>
+
+                  {/* AADHAR */}
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Aadhar Document</label>
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        if (documents.some(d => d.type === "Aadhar")) return;
+                        setDocuments(prev => [...prev, { type: "Aadhar", file }]);
+                      }}
+                    />
+                  </div>
+
+                  {/* PAN */}
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>PAN Document</label>
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        if (documents.some(d => d.type === "PAN")) return;
+                        setDocuments(prev => [...prev, { type: "PAN", file }]);
+                      }}
+                    />
+                  </div>
+
+                  {/* BANK PASSBOOK */}
+                  <div className="col-12 md:col-4 mb-3">
+                    <label>Bank Passbook</label>
+                    <input
+                      type="file"
+                      onChange={(e) => {
+                        const file = e.target.files[0];
+                        if (!file) return;
+
+                        if (documents.some(d => d.type === "Bank Passbook")) return;
+                        setDocuments(prev => [...prev, { type: "Bank Passbook", file }]);
+                      }}
+                    />
+                  </div>
+
+                  {/* PREVIEW */}
+                  <div className="col-12">
+                    {documents.map((doc, i) => (
+                      <div key={i}>
+                        <b>{doc.type}</b>: {doc.file?.name || doc.fileName}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="col-12 d-flex justify-content-end mt-4">
+                    <Button
+                      label={
+                        formData?.IsRejected
+                          ? "Resubmit"
+                          : "Save All Details"
+                      } icon="pi pi-check-circle" className="p-button-success" onClick={() => saveEmployee(3, true)} />
+                  </div>
+
                 </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Employment Type</label>
-                  <Dropdown value={formData.EmploymentType} options={employmentTypes} onChange={(e) => setFormData({ ...formData, EmploymentType: e.value })} placeholder="Select" />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Mobile Number</label>
-                  <InputText value={formData.MobileNumber} onChange={(e) => setFormData({ ...formData, MobileNumber: e.target.value })} maxLength={10} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Other Number</label>
-                  <InputText value={formData.OtherNumber} onChange={(e) => setFormData({ ...formData, OtherNumber: e.target.value })} maxLength={10} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Email Address</label>
-                  <InputText value={formData.Email} onChange={(e) => setFormData({ ...formData, Email: e.target.value })} type="email" />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Date of Birth</label>
-                  <Calendar
-                    value={formData.DateOfBirth ? new Date(formData.DateOfBirth) : null}
-                    onChange={(e) => setFormData({ ...formData, DateOfBirth: e.value ? e.value.toLocaleDateString('en-CA') : "" })}
-                    showIcon
-                    dateFormat="yy-mm-dd"
-                  />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Date of Joining *</label>
-                  <Calendar
-                    value={formData.DateOfJoining ? new Date(formData.DateOfJoining) : null}
-                    onChange={(e) => setFormData({ ...formData, DateOfJoining: e.value ? e.value.toLocaleDateString('en-CA') : "" })}
-                    showIcon
-                    dateFormat="yy-mm-dd"
-                  />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Father's Name</label>
-                  <InputText value={formData.FatherName} onChange={(e) => setFormData({ ...formData, FatherName: e.target.value })} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Mother's Name</label>
-                  <InputText value={formData.MotherName} onChange={(e) => setFormData({ ...formData, MotherName: e.target.value })} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Spouse's Name</label>
-                  <InputText value={formData.SpouseName} onChange={(e) => setFormData({ ...formData, SpouseName: e.target.value })} />
-                </div>
-                <div className="col-12 d-flex justify-content-end mt-2">
-                  <Button label="Save Personal Info" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(0)} />
-                </div>
+              </TabPanel>
+
+            </TabView>
+          </Dialog>
+          {/* Reject Dialog */}
+          <Dialog
+            header="Reject Employee"
+            visible={rejectDialog}
+            style={{ width: "450px" }}
+            modal
+            onHide={() => setRejectDialog(false)}
+            footer={
+              <div className="d-flex justify-content-end gap-2">
+                <Button
+                  label="Cancel"
+                  className="p-button-text"
+                  onClick={() => setRejectDialog(false)}
+                />
+
+                <Button
+                  label="Submit"
+                  icon="pi pi-check"
+                  className="p-button-danger"
+                  onClick={rejectEmployee}
+                />
               </div>
-            </TabPanel>
+            }
+          >
+            <div className="p-fluid">
+              <label>Rejection Reason</label>
 
-            <TabPanel header="Personal Address">
-              <div className="p-fluid grid mt-2">
-                <div className="col-12 md:col-6 mb-3">
-                  <label>Address Line 1</label>
-                  <InputText
-                    value={formData.AddressLine1}
-                    onChange={(e) => setFormData({ ...formData, AddressLine1: e.target.value })}
-                  />
-                </div>
-
-                <div className="col-12 md:col-6 mb-3">
-                  <label>Address Line 2</label>
-                  <InputText
-                    value={formData.AddressLine2}
-                    onChange={(e) => setFormData({ ...formData, AddressLine2: e.target.value })}
-                  />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>City</label>
-                  <InputText value={formData.City} onChange={(e) => setFormData({ ...formData, City: e.target.value })} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>State</label>
-                  <Dropdown value={formData.State} options={indianStates} onChange={(e) => setFormData({ ...formData, State: e.value })} placeholder="Select State" filter />
-                </div>
-                <div className="col-12 d-flex justify-content-end mt-2">
-                  <Button label="Save Address" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(1)} />
-                </div>
-              </div>
-            </TabPanel>
-
-            <TabPanel header="Bank & Financials">
-              <div className="p-fluid grid mt-2">
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Aadhar Card Number *</label>
-                  <InputText
-                    value={formData.AadharCard}
-                    onChange={(e) => setFormData({ ...formData, AadharCard: e.target.value })}
-                    maxLength={12}
-                  />
-                </div>
-
-                <div className="col-12 md:col-4 mb-3">
-                  <label>PAN Card Number *</label>
-                  <InputText
-                    value={formData.PanCard}
-                    onChange={(e) => setFormData({ ...formData, PanCard: e.target.value.toUpperCase() })}
-                    maxLength={10}
-                  />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Bank Account Number *</label>
-                  <InputText value={formData.BankAccountNumber} onChange={(e) => setFormData({ ...formData, BankAccountNumber: e.target.value })} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>IFSC Code *</label>
-                  <InputText value={formData.BankIFSCCode} onChange={(e) => setFormData({ ...formData, BankIFSCCode: e.target.value.toUpperCase() })} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Bank Name</label>
-                  <Dropdown value={formData.BankName} options={indianBanks} onChange={(e) => setFormData({ ...formData, BankName: e.value })} editable placeholder="Select/Type Bank" />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>UAN Number *</label>
-                  <InputText
-                    value={formData.UANNumber}
-                    onChange={(e) => setFormData({ ...formData, UANNumber: e.target.value })}
-                  />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>PF Number</label>
-                  <InputText value={formData.PF_Number} onChange={(e) => setFormData({ ...formData, PF_Number: e.target.value })} />
-                </div>
-                <div className="col-12 md:col-4 mb-3">
-                  <label>ESI Number</label>
-                  <InputText value={formData.ESINumber} onChange={(e) => setFormData({ ...formData, ESINumber: e.target.value })} />
-                </div>
-                <div className="col-12 d-flex justify-content-end mt-2">
-                  <Button label="Save Financials" icon="pi pi-save" className="p-button-primary" onClick={() => saveEmployee(2)} />
-                </div>
-              </div>
-            </TabPanel>
-
-            <TabPanel header="Documents">
-              <div className="p-fluid grid mt-2">
-
-                {/* PROFILE */}
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Profile Photo (only once)</label>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    disabled={documents.some(d => d.type === "Profile")}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-
-                      if (documents.some(d => d.type === "Profile")) return;
-
-                      setDocuments(prev => [...prev, { type: "Profile", file }]);
-                    }}
-                  />
-                  {documents.find(d => d.type === "Profile" && d.fileName) && (
-                    <small style={{ display: "block" }}>
-                      Existing: {documents.find(d => d.type === "Profile").fileName}
-                    </small>
-                  )}
-                </div>
-
-                {/* RESUME */}
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Resume (only once)</label>
-                  <input
-                    type="file"
-                    accept=".pdf,.doc,.docx"
-                    disabled={documents.some(d => d.type === "Resume")}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-
-                      if (documents.some(d => d.type === "Resume")) return;
-
-                      setDocuments(prev => [...prev, { type: "Resume", file }]);
-                    }}
-                  />
-                  {documents.find(d => d.type === "Resume" && d.fileName) && (
-                    <small>
-                      Existing: {documents.find(d => d.type === "Resume").fileName}
-                    </small>
-                  )}
-                </div>
-
-                {/* AADHAR */}
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Aadhar Document</label>
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-
-                      if (documents.some(d => d.type === "Aadhar")) return;
-                      setDocuments(prev => [...prev, { type: "Aadhar", file }]);
-                    }}
-                  />
-                </div>
-
-                {/* PAN */}
-                <div className="col-12 md:col-4 mb-3">
-                  <label>PAN Document</label>
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-
-                      if (documents.some(d => d.type === "PAN")) return;
-                      setDocuments(prev => [...prev, { type: "PAN", file }]);
-                    }}
-                  />
-                </div>
-
-                {/* BANK PASSBOOK */}
-                <div className="col-12 md:col-4 mb-3">
-                  <label>Bank Passbook</label>
-                  <input
-                    type="file"
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-
-                      if (documents.some(d => d.type === "Bank Passbook")) return;
-                      setDocuments(prev => [...prev, { type: "Bank Passbook", file }]);
-                    }}
-                  />
-                </div>
-
-                {/* PREVIEW */}
-                <div className="col-12">
-                  {documents.map((doc, i) => (
-                    <div key={i}>
-                      <b>{doc.type}</b>: {doc.file?.name || doc.fileName}
-                    </div>
-                  ))}
-                </div>
-
-                <div className="col-12 d-flex justify-content-end mt-4">
-                  <Button
-                    label={
-                      formData?.IsRejected
-                        ? "Resubmit"
-                        : "Save All Details"
-                    } icon="pi pi-check-circle" className="p-button-success" onClick={() => saveEmployee(3, true)} />
-                </div>
-
-              </div>
-            </TabPanel>
-
-          </TabView>
-        </Dialog>
-        {/* Reject Dialog */}
-        <Dialog
-          header="Reject Employee"
-          visible={rejectDialog}
-          style={{ width: "450px" }}
-          modal
-          onHide={() => setRejectDialog(false)}
-          footer={
-            <div className="d-flex justify-content-end gap-2">
-              <Button
-                label="Cancel"
-                className="p-button-text"
-                onClick={() => setRejectDialog(false)}
-              />
-
-              <Button
-                label="Submit"
-                icon="pi pi-check"
-                className="p-button-danger"
-                onClick={rejectEmployee}
+              <InputText
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter rejection reason"
               />
             </div>
-          }
-        >
-          <div className="p-fluid">
-            <label>Rejection Reason</label>
+          </Dialog>
 
-            <InputText
-              value={rejectReason}
-              onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="Enter rejection reason"
-            />
-          </div>
-        </Dialog>
+          {/* Reason View Dialog */}
+          {/* View Employee Dialog */}
+          <Dialog
+            header="Employee Details"
+            visible={viewDialog}
+            style={{ width: "900px" }}
+            modal
+            maximizable
+            onHide={() => setViewDialog(false)}
+          >
 
-        {/* Reason View Dialog */}
-        {/* View Employee Dialog */}
-        <Dialog
-          header="Employee Details"
-          visible={viewDialog}
-          style={{ width: "900px" }}
-          modal
-          maximizable
-          onHide={() => setViewDialog(false)}
-        >
+            {selectedEmployeeView && (
 
-          {selectedEmployeeView && (
+              <div className="grid p-fluid">
 
-            <div className="grid p-fluid">
-
-              <div className="col-12 md:col-6">
-                <b>Name:</b> {selectedEmployeeView.Name}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Gender:</b> {selectedEmployeeView.Gender}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Mobile:</b> {selectedEmployeeView.MobileNumber}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Email:</b> {selectedEmployeeView.Email}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Designation:</b> {selectedEmployeeView.Designation}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Department:</b> {selectedEmployeeView.Department}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>PAN:</b> {selectedEmployeeView.PanCard}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Aadhar:</b> {selectedEmployeeView.AadharCard}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Bank:</b> {selectedEmployeeView.BankName}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>IFSC:</b> {selectedEmployeeView.BankIFSCCode}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Account Number:</b> {selectedEmployeeView.BankAccountNumber}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>UAN:</b> {selectedEmployeeView.UANNumber}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>PF Number:</b> {selectedEmployeeView.PFNumber || "-"}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>ESI Number:</b> {selectedEmployeeView.ESINumber}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Date Of Joining:</b>{" "}
-                {selectedEmployeeView.DateOfJoining
-                  ? selectedEmployeeView.DateOfJoining.split("T")[0]
-                  : "-"}
-              </div>
-
-              <div className="col-12 md:col-6">
-                <b>Status:</b>{" "}
-
-                {selectedEmployeeView.IsApproved ? (
-                  <span className="badge bg-success">
-                    Approved
-                  </span>
-                ) : selectedEmployeeView.IsRejected ? (
-                  <span className="badge bg-danger">
-                    Rejected
-                  </span>
-                ) : (
-                  <span className="badge bg-warning text-dark">
-                    Pending
-                  </span>
-                )}
-              </div>
-
-              {selectedEmployeeView.RejectionReason && (
-                <div className="col-12">
-                  <b>Rejection Reason:</b>{" "}
-                  {selectedEmployeeView.RejectionReason}
+                <div className="col-12 md:col-6">
+                  <b>Name:</b> {selectedEmployeeView.Name}
                 </div>
-              )}
 
-              {/* DOCUMENTS */}
+                <div className="col-12 md:col-6">
+                  <b>Gender:</b> {selectedEmployeeView.Gender}
+                </div>
 
-              <div className="col-12 mt-3">
-                <h5>Documents</h5>
+                <div className="col-12 md:col-6">
+                  <b>Mobile:</b> {selectedEmployeeView.MobileNumber}
+                </div>
 
-                <div className="d-flex flex-column gap-2">
+                <div className="col-12 md:col-6">
+                  <b>Email:</b> {selectedEmployeeView.Email}
+                </div>
 
-                  {selectedEmployeeView.Documents?.map((doc, index) => (
+                <div className="col-12 md:col-6">
+                  <b>Designation:</b> {selectedEmployeeView.Designation}
+                </div>
 
-                    <div
-                      key={index}
-                      className="border rounded p-2 d-flex justify-content-between align-items-center"
-                    >
-                      <div>
-                        <b>{doc.DocumentType}</b> - {doc.FileName}
+                <div className="col-12 md:col-6">
+                  <b>Department:</b> {selectedEmployeeView.Department}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>PAN:</b> {selectedEmployeeView.PanCard}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>Aadhar:</b> {selectedEmployeeView.AadharCard}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>Bank:</b> {selectedEmployeeView.BankName}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>IFSC:</b> {selectedEmployeeView.BankIFSCCode}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>Account Number:</b> {selectedEmployeeView.BankAccountNumber}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>UAN:</b> {selectedEmployeeView.UANNumber}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>PF Number:</b> {selectedEmployeeView.PFNumber || "-"}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>ESI Number:</b> {selectedEmployeeView.ESINumber}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>Date Of Joining:</b>{" "}
+                  {selectedEmployeeView.DateOfJoining
+                    ? selectedEmployeeView.DateOfJoining.split("T")[0]
+                    : "-"}
+                </div>
+
+                <div className="col-12 md:col-6">
+                  <b>Status:</b>{" "}
+
+                  {selectedEmployeeView.IsApproved ? (
+                    <span className="badge bg-success">
+                      Approved
+                    </span>
+                  ) : selectedEmployeeView.IsRejected ? (
+                    <span className="badge bg-danger">
+                      Rejected
+                    </span>
+                  ) : (
+                    <span className="badge bg-warning text-dark">
+                      Pending
+                    </span>
+                  )}
+                </div>
+
+                {selectedEmployeeView.RejectionReason && (
+                  <div className="col-12">
+                    <b>Rejection Reason:</b>{" "}
+                    {selectedEmployeeView.RejectionReason}
+                  </div>
+                )}
+
+                {/* DOCUMENTS */}
+
+                <div className="col-12 mt-3">
+                  <h5>Documents</h5>
+
+                  <div className="d-flex flex-column gap-2">
+
+                    {selectedEmployeeView.Documents?.map((doc, index) => (
+
+                      <div
+                        key={index}
+                        className="border rounded p-2 d-flex justify-content-between align-items-center"
+                      >
+                        <div>
+                          <b>{doc.DocumentType}</b> - {doc.FileName}
+                        </div>
+
+                        <a
+                          href={doc.FileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-button p-button-sm p-button-info"
+                        >
+                          View
+                        </a>
+
                       </div>
 
-                      <a
-                        href={doc.FileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-button p-button-sm p-button-info"
-                      >
-                        View
-                      </a>
+                    ))}
 
-                    </div>
-
-                  ))}
-
+                  </div>
                 </div>
+
               </div>
 
-            </div>
+            )}
 
-          )}
+          </Dialog>
 
-        </Dialog>
+        </div>
 
-      </div>
-    </PrimeReactProvider>
+      </PrimeReactProvider>
+    </>
   );
 };
 
