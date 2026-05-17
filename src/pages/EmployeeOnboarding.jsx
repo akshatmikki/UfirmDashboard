@@ -871,113 +871,207 @@ const EmployeeOnboarding = () => {
               <TabPanel header="Documents">
                 <div className="p-fluid grid mt-2">
 
-                  {/* PROFILE */}
-                  <div className="col-12 md:col-4 mb-3">
-                    <label>Profile Photo (only once)</label>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      disabled={documents.some(d => d.type === "Profile")}
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
+                  {[
+                    {
+                      label: "Profile Photo",
+                      type: "Profile",
+                      accept: "image/*",
+                      multiple: false,
+                    },
+                    {
+                      label: "Resume",
+                      type: "Resume",
+                      accept: ".pdf,.doc,.docx",
+                      multiple: false,
+                    },
+                    {
+                      label: "Aadhar Document",
+                      type: "Aadhar",
+                      accept: "*",
+                      multiple: true,
+                    },
+                    {
+                      label: "PAN Document",
+                      type: "PAN",
+                      accept: "*",
+                      multiple: false,
+                    },
+                    {
+                      label: "Bank Passbook",
+                      type: "Bank Passbook",
+                      accept: "*",
+                      multiple: false,
+                    },
+                  ].map((item, index) => {
 
-                        if (documents.some(d => d.type === "Profile")) return;
+                    const existingDocs = documents.filter(
+                      (d) => d.type === item.type
+                    );
 
-                        setDocuments(prev => [...prev, { type: "Profile", file }]);
-                      }}
-                    />
-                    {documents.find(d => d.type === "Profile" && d.fileName) && (
-                      <small style={{ display: "block" }}>
-                        Existing: {documents.find(d => d.type === "Profile").fileName}
-                      </small>
-                    )}
-                  </div>
+                    return (
+                      <div
+                        key={index}
+                        className="col-12 mb-4"
+                      >
+                        <div
+                          style={{
+                            border: "1px solid #e5e7eb",
+                            borderRadius: "12px",
+                            padding: "16px",
+                            background: "#fafafa",
+                          }}
+                        >
 
-                  {/* RESUME */}
-                  <div className="col-12 md:col-4 mb-3">
-                    <label>Resume (only once)</label>
-                    <input
-                      type="file"
-                      accept=".pdf,.doc,.docx"
-                      disabled={documents.some(d => d.type === "Resume")}
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
+                          {/* HEADER */}
+                          <div className="d-flex justify-content-between align-items-center flex-wrap gap-2">
 
-                        if (documents.some(d => d.type === "Resume")) return;
+                            <div>
+                              <label
+                                style={{
+                                  fontWeight: 600,
+                                  fontSize: "15px",
+                                  marginBottom: "4px",
+                                  display: "block",
+                                }}
+                              >
+                                {item.label}
+                              </label>
 
-                        setDocuments(prev => [...prev, { type: "Resume", file }]);
-                      }}
-                    />
-                    {documents.find(d => d.type === "Resume" && d.fileName) && (
-                      <small>
-                        Existing: {documents.find(d => d.type === "Resume").fileName}
-                      </small>
-                    )}
-                  </div>
+                              <small style={{ color: "#6b7280" }}>
+                                {item.multiple
+                                  ? "Multiple files allowed"
+                                  : "Single file upload"}
+                              </small>
+                            </div>
 
-                  {/* AADHAR */}
-                  <div className="col-12 md:col-4 mb-3">
-                    <label>Aadhar Document</label>
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
+                            <label
+                              style={{
+                                background: "#0d6efd",
+                                color: "#fff",
+                                padding: "8px 18px",
+                                borderRadius: "8px",
+                                cursor: "pointer",
+                                fontSize: "14px",
+                                fontWeight: 500,
+                                marginBottom: 0,
+                              }}
+                            >
+                              <i className="pi pi-upload me-2"></i>
+                              Upload
 
-                        if (documents.some(d => d.type === "Aadhar")) return;
-                        setDocuments(prev => [...prev, { type: "Aadhar", file }]);
-                      }}
-                    />
-                  </div>
+                              <input
+                                type="file"
+                                accept={item.accept}
+                                multiple={item.multiple}
+                                hidden
+                                onChange={(e) => {
 
-                  {/* PAN */}
-                  <div className="col-12 md:col-4 mb-3">
-                    <label>PAN Document</label>
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
+                                  const files = Array.from(e.target.files || []);
 
-                        if (documents.some(d => d.type === "PAN")) return;
-                        setDocuments(prev => [...prev, { type: "PAN", file }]);
-                      }}
-                    />
-                  </div>
+                                  if (!files.length) return;
 
-                  {/* BANK PASSBOOK */}
-                  <div className="col-12 md:col-4 mb-3">
-                    <label>Bank Passbook</label>
-                    <input
-                      type="file"
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (!file) return;
+                                  // SINGLE FILE TYPES -> replace old file
+                                  if (!item.multiple) {
 
-                        if (documents.some(d => d.type === "Bank Passbook")) return;
-                        setDocuments(prev => [...prev, { type: "Bank Passbook", file }]);
-                      }}
-                    />
-                  </div>
+                                    setDocuments((prev) => {
 
-                  {/* PREVIEW */}
-                  <div className="col-12">
-                    {documents.map((doc, i) => (
-                      <div key={i}>
-                        <b>{doc.type}</b>: {doc.file?.name || doc.fileName}
+                                      const filtered = prev.filter(
+                                        (d) => d.type !== item.type
+                                      );
+
+                                      return [
+                                        ...filtered,
+                                        ...files.map((file) => ({
+                                          type: item.type,
+                                          file,
+                                        })),
+                                      ];
+                                    });
+                                  }
+
+                                  // MULTIPLE FILE TYPES -> append
+                                  else {
+
+                                    setDocuments((prev) => [
+                                      ...prev,
+                                      ...files.map((file) => ({
+                                        type: item.type,
+                                        file,
+                                      })),
+                                    ]);
+                                  }
+
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          </div>
+
+                          {/* FILE LIST */}
+                          {existingDocs.length > 0 && (
+                            <div className="mt-3 d-flex flex-column gap-2">
+
+                              {existingDocs.map((doc, docIndex) => (
+
+                                <div
+                                  key={docIndex}
+                                  className="d-flex justify-content-between align-items-center"
+                                  style={{
+                                    background: "#fff",
+                                    border: "1px solid #e5e7eb",
+                                    borderRadius: "8px",
+                                    padding: "10px 14px",
+                                  }}
+                                >
+
+                                  <div
+                                    style={{
+                                      overflow: "hidden",
+                                      textOverflow: "ellipsis",
+                                      whiteSpace: "nowrap",
+                                      maxWidth: "80%",
+                                    }}
+                                  >
+                                    <i className="pi pi-file me-2 text-primary"></i>
+
+                                    {doc.file?.name || doc.fileName}
+                                  </div>
+
+                                  <Button
+                                    icon="pi pi-times"
+                                    className="p-button-rounded p-button-text p-button-danger"
+                                    onClick={() => {
+
+                                      setDocuments((prev) =>
+                                        prev.filter((_, i) => i !== documents.indexOf(doc))
+                                      );
+                                    }}
+                                  />
+
+                                </div>
+
+                              ))}
+
+                            </div>
+                          )}
+
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    );
+                  })}
 
-                  <div className="col-12 d-flex justify-content-end mt-4">
+                  {/* SAVE BUTTON */}
+                  <div className="col-12 d-flex justify-content-end mt-3">
                     <Button
                       label={
                         formData?.IsRejected
                           ? "Resubmit"
                           : "Save All Details"
-                      } icon="pi pi-check-circle" className="p-button-success" onClick={() => saveEmployee(3, true)} />
+                      }
+                      icon="pi pi-check-circle"
+                      className="p-button-success"
+                      onClick={() => saveEmployee(3, true)}
+                    />
                   </div>
 
                 </div>
@@ -1125,29 +1219,93 @@ const EmployeeOnboarding = () => {
 
                 {/* DOCUMENTS */}
 
+                {/* DOCUMENTS */}
+
                 <div className="col-12 mt-3">
                   <h5>Documents</h5>
 
-                  <div className="d-flex flex-column gap-2">
+                  <div className="d-flex flex-column gap-3">
 
-                    {selectedEmployeeView.Documents?.map((doc, index) => (
+                    {Object.entries(
+
+                      (selectedEmployeeView.Documents || []).reduce((acc, doc) => {
+
+                        if (!acc[doc.DocumentType]) {
+                          acc[doc.DocumentType] = [];
+                        }
+
+                        acc[doc.DocumentType].push(doc);
+
+                        return acc;
+
+                      }, {})
+
+                    ).map(([docType, docs], idx) => (
 
                       <div
-                        key={index}
-                        className="border rounded p-2 d-flex justify-content-between align-items-center"
+                        key={idx}
+                        style={{
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "10px",
+                          padding: "14px",
+                          background: "#fafafa"
+                        }}
                       >
-                        <div>
-                          <b>{doc.DocumentType}</b> - {doc.FileName}
+
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            marginBottom: "10px",
+                            fontSize: "15px"
+                          }}
+                        >
+                          {docType}
                         </div>
 
-                        <a
-                          href={doc.FileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-button p-button-sm p-button-info"
-                        >
-                          View
-                        </a>
+                        <div className="d-flex flex-column gap-2">
+
+                          {docs.map((doc, i) => (
+
+                            <div
+                              key={i}
+                              className="d-flex justify-content-between align-items-center"
+                              style={{
+                                background: "#fff",
+                                border: "1px solid #e5e7eb",
+                                borderRadius: "8px",
+                                padding: "10px 12px"
+                              }}
+                            >
+
+                              <div
+                                style={{
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                  whiteSpace: "nowrap",
+                                  maxWidth: "75%"
+                                }}
+                              >
+                                {doc.FileName}
+                              </div>
+
+                              <a
+                                href={doc.FileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{
+                                  color: "#0d6efd",
+                                  textDecoration: "none",
+                                  fontWeight: 500
+                                }}
+                              >
+                                View
+                              </a>
+
+                            </div>
+
+                          ))}
+
+                        </div>
 
                       </div>
 
