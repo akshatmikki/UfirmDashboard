@@ -248,7 +248,7 @@ const EmployeeOnboarding = () => {
         TempId: selectedRejectEmployee.TempId,
         PropertyId: selectedRejectEmployee.PropertyId,
         RejectionReason: rejectReason,
-        UserId: userData?.UserId
+        UserId: 1
       });
 
       toast.current.show({
