@@ -76,13 +76,13 @@ export default function CreateTaskPage(props) {
       onClose={closeModal}
       footer={footer}
       rightActions={
-        ctrl.form.assetId && (
+        !!ctrl.form.QRCode && (
           <button
             type="button"
             className="btn btn-outline-primary btn-sm"
             onClick={() =>
               downloadQRCode({
-                qrValue: ctrl.form.QRCode || ctrl.form.assetId || "",
+                qrValue: ctrl.form.QRCode,
                 name: ctrl.form.taskName || "New Task",
                 templatePath: "/Assets/task-template.png",
                 fileName: `${ctrl.form.taskName || "Task"}_QR`,

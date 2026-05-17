@@ -21,7 +21,7 @@ export default function EditTaskPage(props) {
 
   const { isOpen, toggleSection } = useMultiOpenSections(["details", "checklist", "assets", "schedule", "fmRemarks"]);
   const ctrl = useEditTaskController({ rowData, categoryData });
-  
+
   const fmCtrl = useTaskFmRemarks({
     taskId: rowData?.TaskId,
     taskName: rowData?.Name || ctrl.form.taskName,
@@ -118,25 +118,25 @@ export default function EditTaskPage(props) {
         title="Edit Task"
         onClose={closeModal}
         footer={footer}
-        rightActions={
-          !!ctrl.form.assetId && (
-            <button
-              type="button"
-              className="btn btn-outline-primary btn-sm"
-              onClick={() =>
-                downloadQRCode({
-                  qrValue: ctrl.form.QRCode || ctrl.form.assetId || "",
-                  name: ctrl.form.taskName || "Task",
-                  templatePath: "/Assets/task-template.png",
-                  fileName: `${ctrl.form.taskName || "Task"}_QR`,
-                })
-              }
-              style={{ fontWeight: "600" }}
-            >
-              Generate QR
-            </button>
-          )
-        }
+      // rightActions={
+      //   !!ctrl.form.QRCode && (
+      //     <button
+      //       type="button"
+      //       className="btn btn-outline-primary btn-sm"
+      //       onClick={() =>
+      //         downloadQRCode({
+      //           qrValue: ctrl.form.QRCode,
+      //           name: ctrl.form.taskName || "Task",
+      //           templatePath: "/Assets/task-template.png",
+      //           fileName: `${ctrl.form.taskName || "Task"}_QR`,
+      //         })
+      //       }
+      //       style={{ fontWeight: "600" }}
+      //     >
+      //       Generate QR
+      //     </button>
+      //   )
+      // }
       >
         <TaskSection title="Task Details" isOpen={isOpen("details")} onToggle={() => toggleSection("details")}>
           <TaskDetailsForm
@@ -187,7 +187,7 @@ export default function EditTaskPage(props) {
           />
         </TaskSection>
 
-        
+
 
         <TaskSection
           title="Checklist"

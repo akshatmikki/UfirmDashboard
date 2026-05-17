@@ -293,13 +293,13 @@ export default function attachRenderTable(TaskList) {
                                     <i className="fa fa-commenting-o" />
                                   </button>
                                 ) : null}
-                                {!!task.AssetId && (
+                                {!!task.QRCode && (
                                   <button
                                     className="btn btn-link task-action-download"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       downloadQRCode({
-                                        qrValue: String(task.QRCode || task.AssetId || "").trim(),
+                                        qrValue: String(task.QRCode).trim(),
                                         name: task.Name || "Task",
                                         templatePath: "/Assets/task-template.png",
                                         fileName: `${task.Name || "Task"}_QR`,
