@@ -39,7 +39,8 @@ export default function InventoryMasterConfigPage() {
       return;
     }
     try {
-      const [cats, vens] = await Promise.all([getCategories(propertyId), getVendors(propertyId)]);
+      const cats = await getCategories(propertyId).catch(() => []);
+      const vens = await getVendors(propertyId).catch(() => []);
       setCategories(Array.isArray(cats) ? cats : []);
       setVendors(Array.isArray(vens) ? vens : []);
     } catch {
@@ -181,11 +182,13 @@ export default function InventoryMasterConfigPage() {
             key: "CategoryId",
             label: "Category",
             type: "select",
-            options: ({ categories }) =>
-              (categories || []).map((c) => ({
+            options: (ctx) => [
+              { value: "", label: "Select Category" },
+              ...(ctx?.categories || ctx?.context?.categories || []).map((c) => ({
                 value: c?.Id,
                 label: c?.Name,
               })),
+            ],
           },
           { key: "MeasurementUnit", label: "Measurement Unit" },
           { key: "MinStockLevel", label: "Min Stock Level", type: "number" },
@@ -205,7 +208,7 @@ export default function InventoryMasterConfigPage() {
           Id: 0,
           Name: "",
           Description: "",
-          CategoryId: 0,
+          CategoryId: "",
           MeasurementUnit: "",
           MinStockLevel: "",
           BrandName: "",
@@ -228,6 +231,7 @@ export default function InventoryMasterConfigPage() {
         validate: ({ form, context }) => {
           if (!context?.propertyId) return "Please select a Property.";
           if (!String(form?.Name || "").trim()) return "Item name is required.";
+          if (!form?.CategoryId || Number(form.CategoryId) === 0) return "Please select a Category.";
           return null;
         },
         save: async ({ mode, form, row, context }) => {
@@ -238,6 +242,7 @@ export default function InventoryMasterConfigPage() {
             CategoryId: Number(form?.CategoryId || 0),
             MinStockLevel: String(form?.MinStockLevel ?? ""),
             IsApproved: asBool(form?.IsApproved),
+            IsActive: true,
           };
           if (mode === "add") {
             await createItem(payload);
