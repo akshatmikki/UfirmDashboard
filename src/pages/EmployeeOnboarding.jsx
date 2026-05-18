@@ -92,6 +92,44 @@ const EmployeeOnboarding = () => {
     ESINumber: ""
   });
 
+  const [designations, setDesignations] = useState([]);
+  const [departments, setDepartments] = useState([]);
+
+  useEffect(() => {
+    const fetchDropdowns = async () => {
+      try {
+        const token = getapitoken();
+        const headers = {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        };
+
+        const [desigRes, deptRes] = await Promise.all([
+          fetch("https://api.urest.in:8096/api/designations/GetAllDesignations", { headers }),
+          fetch("https://api.urest.in:8096/api/clientmaster/allDepartment", { headers })
+        ]);
+
+        const desigData = await desigRes.json();
+        const deptData = await deptRes.json();
+
+        if (Array.isArray(desigData)) {
+          setDesignations(desigData.map(d => ({ label: d.DesignationName, value: d.DesignationName })));
+        } else if (desigData?.Data) {
+          setDesignations(desigData.Data.map(d => ({ label: d.DesignationName, value: d.DesignationName })));
+        }
+
+        if (Array.isArray(deptData)) {
+          setDepartments(deptData.map(d => ({ label: d.Name, value: d.Name })));
+        } else if (deptData?.Data) {
+          setDepartments(deptData.Data.map(d => ({ label: d.Name, value: d.Name })));
+        }
+      } catch (error) {
+        console.error("Failed to fetch dropdown data", error);
+      }
+    };
+    fetchDropdowns();
+  }, []);
+
   const genders = [
     { label: "Male", value: "Male" },
     { label: "Female", value: "Female" },
@@ -727,11 +765,11 @@ const EmployeeOnboarding = () => {
                   </div>
                   <div className="col-12 md:col-4 mb-3">
                     <label>Designation *</label>
-                    <InputText value={formData.Designation} onChange={(e) => setFormData({ ...formData, Designation: e.target.value })} />
+                    <Dropdown value={formData.Designation} options={designations} onChange={(e) => setFormData({ ...formData, Designation: e.value })} placeholder="Select Designation" filter />
                   </div>
                   <div className="col-12 md:col-4 mb-3">
                     <label>Department</label>
-                    <InputText value={formData.Department} onChange={(e) => setFormData({ ...formData, Department: e.target.value })} />
+                    <Dropdown value={formData.Department} options={departments} onChange={(e) => setFormData({ ...formData, Department: e.value })} placeholder="Select Department" filter />
                   </div>
                   <div className="col-12 md:col-4 mb-3">
                     <label>Employment Type</label>
@@ -1288,18 +1326,52 @@ const EmployeeOnboarding = () => {
                                 {doc.FileName}
                               </div>
 
-                              <a
-                                href={doc.FileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                  color: "#0d6efd",
-                                  textDecoration: "none",
-                                  fontWeight: 500
-                                }}
-                              >
-                                View
-                              </a>
+                              <div className="d-flex gap-3">
+                                <a
+                                  href={doc.FileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "#0d6efd",
+                                    textDecoration: "none",
+                                    fontWeight: 500
+                                  }}
+                                >
+                                  View
+                                </a>
+                                <a
+                                  href={doc.FileUrl}
+                                  download={doc.FileName || "document"}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "#16a34a",
+                                    textDecoration: "none",
+                                    fontWeight: 500,
+                                    cursor: "pointer"
+                                  }}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    fetch(doc.FileUrl)
+                                      .then(res => res.blob())
+                                      .then(blob => {
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.style.display = 'none';
+                                        a.href = url;
+                                        a.download = doc.FileName || "document";
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                      })
+                                      .catch(() => {
+                                        window.open(doc.FileUrl, '_blank');
+                                      });
+                                  }}
+                                >
+                                  Download
+                                </a>
+                              </div>
 
                             </div>
 
