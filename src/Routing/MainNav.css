@@ -315,3 +315,11 @@
 .ufirm-topbar .ufirm-profile-signout:hover {
   color: #b91c1c;
 }
+
+.ufirm-location-item.is-highlighted {
+  background-color: rgba(226, 232, 240, 0.7);
+}
+
+.ufirm-location-item.is-highlighted.is-selected {
+  background-color: #cce0ff;
+}

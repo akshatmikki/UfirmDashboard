@@ -1010,7 +1010,7 @@ export default function AttendanceSheet() {
       const conflictOptions = normalizeSalaryGroupOptions(record?.SalaryGroupOptions || record?.SalaryGroups || []);
       const mergedOptions = conflictOptions.length ? conflictOptions : options;
       optionMap[key] = mergedOptions;
-      defaultMap[key] = mergedOptions.length ? String(mergedOptions[0].id) : "";
+      defaultMap[key] = "";
     });
     setSalaryGroupOptions(options);
     setConflictSalaryOptionsMap(optionMap);
@@ -1416,7 +1416,7 @@ export default function AttendanceSheet() {
                         <td style={{ ...tdStyle, color: "#b91c1c", textAlign: "left" }}>{record?.Error || "Employee belongs to another property"}</td>
                         <td style={tdStyle}>
                           <select value={salaryGroupMap[key] || ""} onChange={(e) => setSalaryGroupMap((prev) => ({ ...prev, [key]: e.target.value }))} style={{ minWidth: 220, padding: "5px 7px" }}>
-                            <option value="">Select Salary Group</option>
+                            <option value="" disabled hidden>-- Select Salary Group --</option>
                             {rowOptions.map((sg) => <option key={sg.id} value={String(sg.id)}>{sg.name}</option>)}
                           </select>
                         </td>

@@ -170,6 +170,7 @@ const EmployeeSearch = () => {
               <Column field="BranchName" header="Branch" />
               <Column field="ClientName" header="Client" />
               <Column field="PropertyName" header="Property" />
+              <Column field="DOB" header="DOB" body={(row) => row.DOB ? new Date(row.DOB).toLocaleDateString() : "-"} />
               <Column
                 field="DateOfJoining"
                 header="DOJ"

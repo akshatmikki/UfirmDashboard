@@ -10,8 +10,10 @@ const LocationDropdown = ({
 }) => {
   const rootRef = useRef(null);
   const searchRef = useRef(null);
+  const itemRefs = useRef([]);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
 
   const normalizedOptions = useMemo(
     () =>
@@ -28,6 +30,16 @@ const LocationDropdown = ({
     const selectedValue = Number(value) || 0;
     return normalizedOptions.find((o) => o.value === selectedValue) || null;
   }, [normalizedOptions, value]);
+
+  useEffect(() => {
+    if (open) setHighlightedIndex(0);
+  }, [open, query]);
+
+  useEffect(() => {
+  const el = itemRefs.current[highlightedIndex];
+  if (el) el.scrollIntoView({ block: "nearest" });
+}, [highlightedIndex]);
+
 
   useEffect(() => {
     const onDocMouseDown = (e) => {
@@ -94,7 +106,34 @@ const LocationDropdown = ({
               placeholder="Search location..."
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Escape") setOpen(false);
+                if (e.key === "Escape") {
+                  setOpen(false);
+                  return;
+                }
+
+                if (filteredOptions.length === 0) return;
+
+                if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setHighlightedIndex((prev) =>
+                    prev < filteredOptions.length - 1 ? prev + 1 : 0
+                  );
+                }
+
+                if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  setHighlightedIndex((prev) =>
+                    prev > 0 ? prev - 1 : filteredOptions.length - 1
+                  );
+                }
+
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const selectedItem = filteredOptions[highlightedIndex];
+                  if (selectedItem) {
+                    onSelect(selectedItem.value);
+                  }
+                }
               }}
               disabled={disabled}
             />
@@ -106,13 +145,18 @@ const LocationDropdown = ({
             </div>
           ) : null}
 
-          {filteredOptions.map((o) => {
+          {filteredOptions.map((o, index) => {
             const isSelected = Number(o.value) === Number(selected?.value);
+            const isHighlighted = index === highlightedIndex;
+
             return (
               <button
+                ref={(el) => (itemRefs.current[index] = el)}
                 key={o.value}
                 type="button"
-                className={`ufirm-location-item ${isSelected ? "is-selected" : ""}`}
+                className={`ufirm-location-item 
+        ${isSelected ? "is-selected" : ""} 
+        ${isHighlighted ? "is-highlighted" : ""}`}
                 role="option"
                 aria-selected={isSelected}
                 onClick={() => onSelect(o.value)}

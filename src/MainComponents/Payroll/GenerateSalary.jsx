@@ -732,7 +732,7 @@ export default function GenerateSalary() {
   <html>
     <head>
       <style>
-        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 9px; line-height: 1.1; }
+        body { font-family: Arial, sans-serif; margin: 0; padding: 0; color: #000; font-size: 10px; line-height: 1.1; }
         .co-bold { font-size: 11px; font-weight: 800; }
         .info-table { width: 100%; margin-bottom: 6px; border-collapse: collapse; }
         .info-table td { padding: 1px 3px; border: none; font-size: 11px;}
@@ -742,11 +742,11 @@ export default function GenerateSalary() {
         table.pay-slip-table th {
           background: #fff; font-weight: bold; border-top: 1.5px solid #111; border-bottom: 1.5px solid #111;
           text-align: left;
-          padding: 4px 6px;
+          padding: 6px 8px;
           font-size: 11px;
         }
         table.pay-slip-table td {
-          font-size: 10.5px; border: none; padding: 1px 4px;
+          font-size: 10.5px; border: none; padding: 3px 6px;
         }
         .v-bold { border-right: 1.5px solid #111 !important; }
         .v-light { border-right: 1px solid #bababa !important; }
@@ -787,7 +787,7 @@ export default function GenerateSalary() {
           </div>
         </div>
       </div>          
-      <table class="info-table">
+      <table class="info-table" style="margin-bottom:10px;">
         <tr>
           <td><b>Employee Name:</b></td><td>${safe(row.FacilityMemberName)}</td>
           <td><b>Bank Name:</b></td><td>${safe(row.BankName)}</td>
@@ -893,11 +893,11 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>Perf. All.</td><td class="v-bold">${row.PerfAll || row.PerformanceAllowance || 0}</td>
-          <td>Joining Kits</td><td class="v-light">${row.Joiningkits || row.JoiningKits || 0}</td>
+          <td>Joining Kits</td><td class="v-light">${row.JoiningKits || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>Spl. All.</td><td class="v-bold">${row.SPLALL || row.SpecialAllowance || 0}</td>
-          <td>BGV</td><td class="v-light">${row.BGV || 0}</td>
+          <td>BGV</td><td class="v-light">${row.BGVDed || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>Wash. All.</td><td class="v-bold">${row.WASH || row.WashingAllowance || 0}</td>
@@ -994,6 +994,75 @@ export default function GenerateSalary() {
     }
   };
 
+  const loadPdfLib = async () => {
+    return await import("pdf-lib");
+  };
+
+  const generatePairedPdf = async (row1, row2) => {
+    const pdf = new jsPDF("p", "mm", "a4");
+
+    const pdfWidth = 210;
+    const pdfHeight = 297;
+
+    const halfHeight = pdfHeight / 2;
+    const padding = 10;
+
+    const createCanvas = async (html) => {
+      const container = document.createElement("div");
+      container.style.position = "fixed";
+      container.style.left = "-9999px";
+      container.style.width = "180mm"; // CONTROL WIDTH
+      container.style.transform = "scale(0.7)"; // 🔥 KEY FIX (shrink BEFORE capture)
+      container.style.transformOrigin = "top left";
+
+      container.innerHTML = html;
+      document.body.appendChild(container);
+
+      const canvas = await html2canvas(container, {
+        scale: 2,
+        useCORS: true
+      });
+
+      document.body.removeChild(container);
+
+      return canvas;
+    };
+
+    const gap = 8;
+
+    // TOP SLIP
+    if (row1) {
+      const canvas1 = await createCanvas(generatePayslipHTML(row1));
+      const img1 = canvas1.toDataURL("image/jpeg", 0.9);
+
+      pdf.addImage(
+        img1,
+        "JPEG",
+        padding,
+        padding,
+        pdfWidth - 2 * padding,
+        halfHeight - padding - gap
+      );
+    }
+
+    // BOTTOM SLIP (NORMAL, NOT UPSIDE DOWN)
+    if (row2) {
+      const canvas2 = await createCanvas(generatePayslipHTML(row2));
+      const img2 = canvas2.toDataURL("image/jpeg", 0.9);
+
+      pdf.addImage(
+        img2,
+        "JPEG",
+        padding,
+        halfHeight,
+        pdfWidth - 2 * padding,
+        halfHeight - padding - gap
+      );
+    }
+
+    return pdf.output("blob");
+  };
+
   const handleMoveAllToSelected = () => {
     setSelectedEmployees((prev) => [
       ...prev,
@@ -1051,9 +1120,9 @@ export default function GenerateSalary() {
       AcmdDed: Number(row.AccommodationDeduction || row.AcmdDed) || 0,
       IncomeTax: Number(row.INCOMETAX || row.IncomeTax) || 0,
       Uniform: Number(row.UNIFORM || row.Uniform) || 0,
-      BGV: Number(row.BGV) || 0,
+      BGV: Number(row.BGVDed) || 0,
       Room: Number(row.Room) || 0,
-      JoiningKits: Number(row.Joiningkits || row.JoiningKits) || 0,
+      JoiningKits: Number(row.JoiningKits) || 0,
       LoanEMI: Number(row.LoanEMI) || 0,
       TotalDeduction: Number(row.TotalDeduction) || 0,
 
@@ -1122,51 +1191,38 @@ export default function GenerateSalary() {
           `Batch ${currentBatch}/${totalBatches}: Generating PDFs...`
         );
 
-        const payload = chunk.map((emp) =>
-          buildPayload(
+        for (const emp of chunk) {
+          const row = rowDataMap.get(emp.EmployeeId);
+
+          if (!row) continue;
+
+          // ✅ generate single PDF
+          const pdfBlob = await generatePdfBlobForEmployee(row);
+
+          if (!pdfBlob) continue;
+
+          // ✅ build single payload
+          const singlePayload = buildPayload(
             emp,
             netMap,
             rowDataMap,
             monthValue,
             yearValue,
             effectivePropertyId
-          )
-        );
+          );
 
-        const formData = new FormData();
-        formData.append("employees", JSON.stringify(payload));
+          const formData = new FormData();
 
-        const pdfPromises = chunk.map(async (emp) => {
-          const row = rowDataMap.get(emp.EmployeeId);
+          formData.append("employees", JSON.stringify([singlePayload])); // array of 1
+          formData.append(
+            "file",
+            pdfBlob,
+            `Salary_${emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+          );
 
-          if (!row) return null;
-
-          const pdfBlob = await generatePdfBlobForEmployee(row);
-
-          if (pdfBlob) {
-            return { emp, pdfBlob };
-          }
-
-          return null;
-        });
-
-        const pdfResults = await Promise.all(pdfPromises);
-
-        pdfResults.forEach((res) => {
-          if (res?.pdfBlob) {
-            formData.append(
-              "file",
-              res.pdfBlob,
-              `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-            );
-          }
-        });
-
-        setGeneratingBatchStatus(
-          `Batch ${currentBatch}/${totalBatches}: Uploading...`
-        );
-
-        await createGeneratedSalary(formData);
+          // 🚀 ONE API CALL PER EMPLOYEE
+          await createGeneratedSalary(formData);
+        }
 
         console.log("Generated for:", chunk);
       }
@@ -1243,36 +1299,36 @@ export default function GenerateSalary() {
 
         setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Generating PDFs...`);
 
-        const payload = chunk.map((emp) =>
-          buildPayload(emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId)
-        );
-
-        const formData = new FormData();
-        formData.append("employees", JSON.stringify(payload));
-
-        const pdfPromises = chunk.map(async (emp) => {
+        for (const emp of chunk) {
           const row = rowDataMap.get(emp.EmployeeId);
-          if (!row) return null;
+
+          if (!row) continue;
+
+          // ✅ SINGLE PDF
           const pdfBlob = await generatePdfBlobForEmployee(row);
-          if (pdfBlob) {
-            return { emp, pdfBlob };
-          }
-          return null;
-        });
 
-        const pdfResults = await Promise.all(pdfPromises);
-        pdfResults.forEach((res) => {
-          if (res && res.pdfBlob) {
-            formData.append(
-              "file",
-              res.pdfBlob,
-              `Salary_${res.emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-            );
-          }
-        });
+          if (!pdfBlob) continue;
 
-        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Uploading...`);
-        await regenerateEmployeeSalary(formData);
+          const singlePayload = buildPayload(
+            emp,
+            netMap,
+            rowDataMap,
+            monthValue,
+            yearValue,
+            effectivePropertyId
+          );
+
+          const formData = new FormData();
+
+          formData.append("employees", JSON.stringify([singlePayload]));
+          formData.append(
+            "file",
+            pdfBlob,
+            `Salary_${emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
+          );
+
+          await regenerateEmployeeSalary(formData);
+        }
       }
 
       const ids = employeesToRegenerate.map((e) => e.EmployeeId);
@@ -1322,27 +1378,7 @@ export default function GenerateSalary() {
     }
   };
 
-  // ----------------------------
-  // PDF Merging Logic (Uses pre-generated PDFs from server)
-  // ----------------------------
-  const loadPdfLib = () => {
-    return new Promise((resolve, reject) => {
-      if (window.PDFLib) {
-        resolve(window.PDFLib);
-        return;
-      }
-      const script = document.createElement("script");
-      script.src = "https://unpkg.com/pdf-lib/dist/pdf-lib.min.js";
-      script.async = true;
-      script.onload = () => resolve(window.PDFLib);
-      script.onerror = () =>
-        reject(new Error("Failed to load PDF library from CDN"));
-      document.head.appendChild(script);
-    });
-  };
-
   const handleCreatePDF = async () => {
-
     const selectedRows = salaryData.filter((row) =>
       selectedSalaryRows.includes(row.FacilityMemberId)
     );
@@ -1357,12 +1393,11 @@ export default function GenerateSalary() {
       : null;
 
     // ✅ Approved employee ids
-    const approvedEmployeesData =
-      await getApprovedEmployees(
-        effectivePropertyId,
-        monthValue,
-        selectedYear
-      );
+    const approvedEmployeesData = await getApprovedEmployees(
+      effectivePropertyId,
+      monthValue,
+      selectedYear
+    );
 
     // ✅ Check approval
     const unApprovedEmployees = selectedRows.filter(
@@ -1371,8 +1406,7 @@ export default function GenerateSalary() {
           (x) =>
             Number(x.EmployeeId) ===
             Number(row.FacilityMemberId || row.EmployeeId) &&
-            Number(x.PropertyId) ===
-            Number(effectivePropertyId)
+            Number(x.PropertyId) === Number(effectivePropertyId)
         )
     );
 
@@ -1382,114 +1416,57 @@ export default function GenerateSalary() {
     }
 
     setCreatingPayslipPdf(true);
-    setGeneratingBatchStatus("Initializing...");
+
     try {
-      const PDFLib = await loadPdfLib();
-      const { PDFDocument } = PDFLib;
+      const { PDFDocument } = await loadPdfLib();
 
-      setGeneratingBatchStatus("Fetching PDF links...");
-      const monthName = selectedMonth ? monthNames[selectedMonth - 1] : null;
-
-      // Call API to get all generated records for this month/year/properties
-      const allGenerated = await getGeneratedSalaryByProperties(
-        [effectivePropertyId],
-        monthName,
-        selectedYear
-      );
-
+      // 🔥 FINAL MERGED PDF
       const mergedPdf = await PDFDocument.create();
-      let mergedCount = 0;
+      const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
-      for (let i = 0; i < selectedRows.length; i++) {
-        const row = selectedRows[i];
-        setGeneratingBatchStatus(`Merging ${i + 1} of ${selectedRows.length}...`);
+      for (let i = 0; i < selectedRows.length; i += 2) {
+        const current = Math.min(i + 2, selectedRows.length);
+        setGeneratingBatchStatus(`Processing ${current}/${selectedRows.length}...`);
+        const row1 = selectedRows[i];
+        const row2 = selectedRows[i + 1];
 
-        // Find the record in allGenerated that matches this employee
-        const record = allGenerated.find(
-          (r) =>
-            Number(r.EmployeeId || r.FacilityMemberId) ===
-            Number(row.FacilityMemberId)
+        // ✅ generate 2-per-page PDF
+        const pdfBlob = await generatePairedPdf(row1, row2);
+        await delay(100);
+        if (!pdfBlob) continue;
+
+        // ✅ convert blob → arrayBuffer
+        const arrayBuffer = await pdfBlob.arrayBuffer();
+
+        const tempPdf = await PDFDocument.load(arrayBuffer);
+
+        const copiedPages = await mergedPdf.copyPages(
+          tempPdf,
+          tempPdf.getPageIndices()
         );
 
-        if (record && record.fileUrl) {
-          try {
-            const pdfBytes = await fetch(record.fileUrl).then((res) => {
-              if (!res.ok) throw new Error(`HTTP ${res.status}`);
-              return res.arrayBuffer();
-            });
-            const pdfDoc = await PDFDocument.load(pdfBytes);
-            const copiedPages = await mergedPdf.copyPages(
-              pdfDoc,
-              pdfDoc.getPageIndices()
-            );
-            copiedPages.forEach((page) => mergedPdf.addPage(page));
-            mergedCount++;
-          } catch (err) {
-            console.error(
-              `Failed to fetch PDF for ${row.FacilityMemberName} from ${record.fileUrl}:`,
-              err
-            );
-          }
-        }
+        copiedPages.forEach((page) => mergedPdf.addPage(page));
       }
 
-      if (mergedCount > 0) {
+      // ✅ SAVE FINAL PDF (ONLY ONCE)
+      const finalPdfBytes = await mergedPdf.save();
 
-        setGeneratingBatchStatus("Saving merged PDF...");
+      const finalBlob = new Blob([finalPdfBytes], {
+        type: "application/pdf",
+      });
 
-        const mergedPdfBytes = await mergedPdf.save();
+      const url = window.URL.createObjectURL(finalBlob);
 
-        const blob = new Blob([mergedPdfBytes], {
-          type: "application/pdf",
-        });
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `SalarySlips_${monthValue}_${selectedYear}.pdf`;
 
-        const link = document.createElement("a");
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
 
-        link.href = URL.createObjectURL(blob);
+      window.URL.revokeObjectURL(url);
 
-        link.download = `SalarySlips_${monthName || "All"}_${selectedYear}.pdf`;
-
-        link.click();
-
-      } else {
-
-        // ✅ FALLBACK PDF GENERATION
-        const selectedRowsData = salaryData.filter((row) =>
-          selectedSalaryRows.includes(
-            row.FacilityMemberId || row.EmployeeId
-          )
-        );
-
-        if (!selectedRowsData.length) {
-          alert("No salary data found.");
-          return;
-        }
-
-        for (const row of selectedRowsData) {
-
-          const pdfBlob = await generatePdfBlobForEmployee(row);
-
-          if (pdfBlob) {
-
-            const url = window.URL.createObjectURL(pdfBlob);
-
-            const a = document.createElement("a");
-
-            a.href = url;
-
-            a.download = `SalarySlip_${row.FacilityMemberName || row.EmployeeName
-              }.pdf`;
-
-            document.body.appendChild(a);
-
-            a.click();
-
-            document.body.removeChild(a);
-
-            window.URL.revokeObjectURL(url);
-          }
-        }
-      }
     } catch (err) {
       console.error("Failed to merge PDFs:", err);
       alert("Error: " + err.message);
