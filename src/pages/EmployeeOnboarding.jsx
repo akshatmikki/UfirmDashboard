@@ -1288,18 +1288,52 @@ const EmployeeOnboarding = () => {
                                 {doc.FileName}
                               </div>
 
-                              <a
-                                href={doc.FileUrl}
-                                target="_blank"
-                                rel="noreferrer"
-                                style={{
-                                  color: "#0d6efd",
-                                  textDecoration: "none",
-                                  fontWeight: 500
-                                }}
-                              >
-                                View
-                              </a>
+                              <div className="d-flex gap-3">
+                                <a
+                                  href={doc.FileUrl}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "#0d6efd",
+                                    textDecoration: "none",
+                                    fontWeight: 500
+                                  }}
+                                >
+                                  View
+                                </a>
+                                <a
+                                  href={doc.FileUrl}
+                                  download={doc.FileName || "document"}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  style={{
+                                    color: "#16a34a",
+                                    textDecoration: "none",
+                                    fontWeight: 500,
+                                    cursor: "pointer"
+                                  }}
+                                  onClick={(e) => {
+                                    e.preventDefault();
+                                    fetch(doc.FileUrl)
+                                      .then(res => res.blob())
+                                      .then(blob => {
+                                        const url = window.URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.style.display = 'none';
+                                        a.href = url;
+                                        a.download = doc.FileName || "document";
+                                        document.body.appendChild(a);
+                                        a.click();
+                                        window.URL.revokeObjectURL(url);
+                                      })
+                                      .catch(() => {
+                                        window.open(doc.FileUrl, '_blank');
+                                      });
+                                  }}
+                                >
+                                  Download
+                                </a>
+                              </div>
 
                             </div>
 
