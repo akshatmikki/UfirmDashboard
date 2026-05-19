@@ -135,11 +135,13 @@ const StaffPage = () => {
   const [pfNumber, setPfNumber] = useState("");
   const [esiNumber, setEsiNumber] = useState("");
   const [profileImage, setProfileImage] = useState(null);
+  const [removeProfileImage, setRemoveProfileImage] = useState(false);
   const [documents, setDocuments] = useState({
     profileImage: [],
     aadhaar: [],
     pan: [],
     bankPassbook: [],
+    resume: [],
     others: []
   });
   const [existingDocuments, setExistingDocuments] = useState({
@@ -147,6 +149,7 @@ const StaffPage = () => {
     aadhaar: [],
     pan: [],
     bankPassbook: [],
+    resume: [],
     others: []
   });
   const [viewDocuments, setViewDocuments] = useState({
@@ -154,6 +157,7 @@ const StaffPage = () => {
     aadhaar: [],
     pan: [],
     bankPassbook: [],
+    resume: [],
     others: []
   });
   const [family, setFamily] = useState("");
@@ -186,11 +190,16 @@ const StaffPage = () => {
   ];
 
   const mapRowDocuments = (row) => ({
-    profileImage: row?.FacilityMember?.ProfileImageUrl ? [row.FacilityMember.ProfileImageUrl] : [],
+    profileImage: row?.Profile?.ProfilePicture
+      ? [row.Profile.ProfilePicture]
+      : [],
     aadhaar: Array.isArray(row?.FinancialInfo?.AadhaarImageUrl) ? row.FinancialInfo.AadhaarImageUrl : [],
     pan: Array.isArray(row?.FinancialInfo?.PanCardImageUrl) ? row.FinancialInfo.PanCardImageUrl : [],
     bankPassbook: Array.isArray(row?.FinancialInfo?.BankPassbookImageUrl) ? row.FinancialInfo.BankPassbookImageUrl : [],
-    others: Array.isArray(row?.FinancialInfo?.OtherDocImageUrl) ? row.FinancialInfo.OtherDocImageUrl : []
+    others: Array.isArray(row?.FinancialInfo?.OtherDocImageUrl) ? row.FinancialInfo.OtherDocImageUrl : [],
+    resume: row?.WorkHistories?.[0]?.UploadResume
+      ? [row.WorkHistories[0].UploadResume]
+      : []
   });
 
 
@@ -1326,8 +1335,8 @@ const StaffPage = () => {
 
     // Build Payload matching backend structure
     const dobValue = dateOfBirth
-      ? toISTISOString(dateOfBirth)
-      : toISTISOString('1900-01-01');
+      ? `${dateOfBirth}T00:00:00`
+      : null;
 
     const employeeData = {
       Profile: {
@@ -1352,9 +1361,7 @@ const StaffPage = () => {
         Gender: gender && gender.trim() !== ""
           ? gender.trim()
           : latestRow?.Profile?.Gender,
-        DateOfBirth: isEditMode
-          ? latestRow?.Profile?.DateOfBirth
-          : dobValue,
+        DateOfBirth: dobValue,
         PanCard: panCard || "",
         AadharCard: aadharCard || "",
         AddressLine1: addressLine1 || "",
@@ -1363,6 +1370,11 @@ const StaffPage = () => {
         State: stateName || "",
         FatherName: family?.trim() || null,
         SpouseName: spouseName?.trim() || null,
+        ProfilePicture: removeProfileImage
+          ? null
+          : (profileImageUrl
+            ? profileImageUrl
+            : (latestRow?.Profile?.ProfilePicture ?? null)),
       },
 
       WorkHistories: formattedWorkHistories,
@@ -1391,7 +1403,6 @@ const StaffPage = () => {
         Address: (addressLine1 + " " + addressLine2).trim() || "",
         FacilityMasterId: facilityMasterId,
         Gender: gender?.trim() || latestRow?.FacilityMember?.Gender,
-        ProfileImageUrl: profileImageUrl || "",
         IsBlocked: false,
         AccessCode: "",
         IsApproved: true,
@@ -1453,12 +1464,6 @@ const StaffPage = () => {
             }
           }
         };
-
-        if (profileImage && profileImage instanceof File) {
-          const fd = new FormData();
-          fd.append("file", profileImage);
-          uploadQueue.push({ type: "profile", formData: fd });
-        }
 
         addToQueue(documents.aadhaar, "aadhar");
         addToQueue(documents.pan, "pan");
@@ -2694,11 +2699,23 @@ const StaffPage = () => {
                   {existingDocuments?.profileImage?.length > 0 && !profileImage && (
                     <div className="mb-2">
                       <strong className="d-block mb-1 text-primary">Existing Upload:</strong>
-                      <div className="d-flex align-items-center mb-1">
-                        <i className="pi pi-image mr-2 text-primary"></i>
-                        <a href={existingDocuments.profileImage[0]} target="_blank" rel="noopener noreferrer">
-                          View Profile Image
-                        </a>
+
+                      <div className="d-flex align-items-center justify-content-between">
+                        <div>
+                          <i className="pi pi-image mr-2 text-primary"></i>
+                          <a href={existingDocuments.profileImage[0]} target="_blank">
+                            View Profile Image
+                          </a>
+                        </div>
+
+                        <Button
+                          icon="pi pi-trash"
+                          className="p-button-text p-button-danger"
+                          onClick={() => {
+                            setRemoveProfileImage(true);
+                            setExistingDocuments(prev => ({ ...prev, profileImage: [] }));
+                          }}
+                        />
                       </div>
                     </div>
                   )}
@@ -3015,6 +3032,18 @@ const StaffPage = () => {
                     {viewDocuments?.bankPassbook?.length > 0 ? (
                       viewDocuments.bankPassbook.map((url, i) => <div key={i}><a href={url} target="_blank" rel="noopener noreferrer">View Bank Passbook {i + 1}</a></div>)
                     ) : <p className="text-muted">No Bank Passbook uploaded.</p>}
+                  </div>
+                  <div className="mb-3">
+                    <h6>Resume</h6>
+                    {viewDocuments?.resume?.length > 0 ? (
+                      viewDocuments.resume.map((url, i) => (
+                        <div key={i}>
+                          <a href={url} target="_blank">View Resume {i + 1}</a>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted">No resume uploaded.</p>
+                    )}
                   </div>
                   <div className="mb-3">
                     <h6>Others</h6>

@@ -212,7 +212,7 @@ export default function AttendanceSheet() {
   // Global divide-by-days fallback
   const refMonth = month === 1 ? 12 : month - 1;
   const refYear = month === 1 ? year - 1 : year;
-  const globalTotalDays = getDaysInMonth(refMonth, refYear);
+  const globalTotalDays = getDaysInMonth(month, year);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -604,23 +604,13 @@ export default function AttendanceSheet() {
         updated.divideByDays = String(monthDaysLimit);
       }
 
-      const fieldsToCheck = ["workingDays", "EL", "CL", "SL", "weekDaysOff"];
-      if (fieldsToCheck.includes(field)) {
-        const v = Number(updated[field]) || 0;
-        if (v > totalDaysResolved) updated[field] = String(totalDaysResolved);
-      }
+      if (field === "totalDays" || field === "workingDays") {
+        const divideBy = Number(updated.divideByDays) || globalTotalDays;
+        const val = Number(value) || 0;
 
-      const w = parseFloat(updated.workingDays) || 0;
-      const el = parseFloat(updated.EL) || 0;
-      const cl = parseFloat(updated.CL) || 0;
-      const sl = parseFloat(updated.SL) || 0;
-      const wk = parseFloat(updated.weekDaysOff) || 0;
-      const total = w + el + cl + sl + wk;
-
-      if (total > totalDaysResolved) {
-        const sumOther = total - (Number(updated[field]) || 0);
-        const remaining = Math.max(0, totalDaysResolved - sumOther);
-        updated[field] = String(remaining);
+        if (val > divideBy) {
+          updated[field] = String(divideBy);
+        }
       }
 
       return { ...prev, [rowKey]: updated };
@@ -1281,99 +1271,99 @@ export default function AttendanceSheet() {
             {(() => {
               let serialNo = (currentPage - 1) * recordsPerPage;
               return paginatedEmployees.flatMap((emp) => {
-              const empId = emp.EmpID;
-              const empAttendances = filteredAttendance.filter((a) => a.EmpID === empId);
-              const rows = empAttendances.length > 0 ? empAttendances : [{}];
+                const empId = emp.EmpID;
+                const empAttendances = filteredAttendance.filter((a) => a.EmpID === empId);
+                const rows = empAttendances.length > 0 ? empAttendances : [{}];
 
-              return rows.map((att, index) => {
-                serialNo += 1;
-                const attendanceId = getAttendanceIdValue(att);
-                const rowKey = makeRowKey(empId, att);
-                const isChecked = selectedEmpIds.has(rowKey);
+                return rows.map((att, index) => {
+                  serialNo += 1;
+                  const attendanceId = getAttendanceIdValue(att);
+                  const rowKey = makeRowKey(empId, att);
+                  const isChecked = selectedEmpIds.has(rowKey);
 
-                const inp = dayInputs[rowKey] ?? {
-                  ...baseExtraFields,
-                  workingDays: att?.WorkingDays ?? "",
-                  EL: att?.EL ?? "",
-                  CL: att?.CL ?? "",
-                  SL: att?.SL ?? "",
-                  weekDaysOff: att?.WeekDaysOff ?? "",
-                  otDays: att?.OtDays ?? "",
-                  otHours: att?.OtHours ?? "",
-                  totalDays: att?.PayableDays ?? "",
-                  nhDays: att?.NHDays ?? "",
-                  fhDays: att?.FHDays ?? "",
-                  holidays: att?.Holidays ?? "",
-                  divideByDays:
-                    att?.DivideByDays && Number(att.DivideByDays) > 0
-                      ? att.DivideByDays
-                      : getDaysInMonth(month, year),
-                  otMonthDays: att?.OtMonthDays ?? "",
-                  pfArrear: att?.PFArrear ?? "",
-                  otherArrear: att?.OtherArrear ?? "",
-                  incentive: att?.Incentive ?? "",
-                  advanceDed: att?.AdvanceDed ?? "",
-                  uniformDed: att?.UniformDed ?? "",
-                  bgvDed: att?.BGVDed ?? "",
-                  roomDed: att?.RoomDed ?? "",
-                  fineDed: att?.FineDed ?? "",
-                  joiningKits: att?.JoiningKits ?? "",
-                  otherDed: att?.OtherDed ?? "",
-                  foodDed: att?.FoodDed ?? "",
-                  status: att?.Status ?? "",
-                };
+                  const inp = dayInputs[rowKey] ?? {
+                    ...baseExtraFields,
+                    workingDays: att?.WorkingDays ?? "",
+                    EL: att?.EL ?? "",
+                    CL: att?.CL ?? "",
+                    SL: att?.SL ?? "",
+                    weekDaysOff: att?.WeekDaysOff ?? "",
+                    otDays: att?.OtDays ?? "",
+                    otHours: att?.OtHours ?? "",
+                    totalDays: att?.PayableDays ?? "",
+                    nhDays: att?.NHDays ?? "",
+                    fhDays: att?.FHDays ?? "",
+                    holidays: att?.Holidays ?? "",
+                    divideByDays:
+                      att?.DivideByDays && Number(att.DivideByDays) > 0
+                        ? att.DivideByDays
+                        : getDaysInMonth(month, year),
+                    otMonthDays: att?.OtMonthDays ?? "",
+                    pfArrear: att?.PFArrear ?? "",
+                    otherArrear: att?.OtherArrear ?? "",
+                    incentive: att?.Incentive ?? "",
+                    advanceDed: att?.AdvanceDed ?? "",
+                    uniformDed: att?.UniformDed ?? "",
+                    bgvDed: att?.BGVDed ?? "",
+                    roomDed: att?.RoomDed ?? "",
+                    fineDed: att?.FineDed ?? "",
+                    joiningKits: att?.JoiningKits ?? "",
+                    otherDed: att?.OtherDed ?? "",
+                    foodDed: att?.FoodDed ?? "",
+                    status: att?.Status ?? "",
+                  };
 
-                const mkInput = (field, extraStyle = {}) => (
-                  <input
-                    type="text"
-                    disabled={!isChecked}
-                    value={inp[field] ?? ""}
-                    onChange={(e) => handleInputChange(rowKey, field, e.target.value)}
-                    style={{ ...inputStyle, ...extraStyle }}
-                  />
-                );
+                  const mkInput = (field, extraStyle = {}) => (
+                    <input
+                      type="text"
+                      disabled={!isChecked}
+                      value={inp[field] ?? ""}
+                      onChange={(e) => handleInputChange(rowKey, field, e.target.value)}
+                      style={{ ...inputStyle, ...extraStyle }}
+                    />
+                  );
 
-                return (
-                  <tr key={rowKey}>
-                    <td style={tdStyle}>{serialNo}</td>
-                    <td style={{ ...tdStyle, fontWeight: 500 }}>{emp.EmployeeCode || "-"}</td>
-                    <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>{emp.EmployeeName || "Unknown"}</td>
-                    <td style={{ ...tdStyle, textAlign: "left" }}>{att?.Designation || emp.Designation || "-"}</td>
-                    <td style={tdStyle}>
-                      <input
-                        type="checkbox"
-                        checked={isChecked}
-                        onChange={() => toggleCheckbox(rowKey, att, empId)}
-                      />
-                    </td>
-                    <td style={tdStyle}>{mkInput("workingDays")}</td>
-                    <td style={tdStyle}>{mkInput("EL")}</td>
-                    <td style={tdStyle}>{mkInput("CL")}</td>
-                    <td style={tdStyle}>{mkInput("SL")}</td>
-                    <td style={tdStyle}>{mkInput("totalDays")}</td>
-                    <td style={tdStyle}>{mkInput("weekDaysOff")}</td>
-                    <td style={tdStyle}>{mkInput("otDays")}</td>
-                    <td style={tdStyle}>{mkInput("otHours")}</td>
-                    <td style={tdStyle}>{mkInput("nhDays")}</td>
-                    <td style={tdStyle}>{mkInput("fhDays")}</td>
-                    <td style={tdStyle}>{mkInput("holidays")}</td>
-                    <td style={tdStyle}>{mkInput("divideByDays")}</td>
-                    <td style={tdStyle}>{mkInput("otMonthDays")}</td>
-                    <td style={tdStyle}>{mkInput("pfArrear")}</td>
-                    <td style={tdStyle}>{mkInput("otherArrear")}</td>
-                    <td style={tdStyle}>{mkInput("incentive")}</td>
-                    <td style={tdStyle}>{mkInput("advanceDed")}</td>
-                    <td style={tdStyle}>{mkInput("uniformDed")}</td>
-                    <td style={tdStyle}>{mkInput("bgvDed")}</td>
-                    <td style={tdStyle}>{mkInput("roomDed")}</td>
-                    <td style={tdStyle}>{mkInput("fineDed")}</td>
-                    <td style={tdStyle}>{mkInput("joiningKits")}</td>
-                    <td style={tdStyle}>{mkInput("otherDed")}</td>
-                    <td style={tdStyle}>{mkInput("foodDed")}</td>
-                    <td style={tdStyle}>{mkInput("status", { width: "120px" })}</td>
-                  </tr>
-                );
-              });
+                  return (
+                    <tr key={rowKey}>
+                      <td style={tdStyle}>{serialNo}</td>
+                      <td style={{ ...tdStyle, fontWeight: 500 }}>{emp.EmployeeCode || "-"}</td>
+                      <td style={{ ...tdStyle, textAlign: "left", fontWeight: 500 }}>{emp.EmployeeName || "Unknown"}</td>
+                      <td style={{ ...tdStyle, textAlign: "left" }}>{att?.Designation || emp.Designation || "-"}</td>
+                      <td style={tdStyle}>
+                        <input
+                          type="checkbox"
+                          checked={isChecked}
+                          onChange={() => toggleCheckbox(rowKey, att, empId)}
+                        />
+                      </td>
+                      <td style={tdStyle}>{mkInput("workingDays")}</td>
+                      <td style={tdStyle}>{mkInput("EL")}</td>
+                      <td style={tdStyle}>{mkInput("CL")}</td>
+                      <td style={tdStyle}>{mkInput("SL")}</td>
+                      <td style={tdStyle}>{mkInput("totalDays")}</td>
+                      <td style={tdStyle}>{mkInput("weekDaysOff")}</td>
+                      <td style={tdStyle}>{mkInput("otDays")}</td>
+                      <td style={tdStyle}>{mkInput("otHours")}</td>
+                      <td style={tdStyle}>{mkInput("nhDays")}</td>
+                      <td style={tdStyle}>{mkInput("fhDays")}</td>
+                      <td style={tdStyle}>{mkInput("holidays")}</td>
+                      <td style={tdStyle}>{mkInput("divideByDays")}</td>
+                      <td style={tdStyle}>{mkInput("otMonthDays")}</td>
+                      <td style={tdStyle}>{mkInput("pfArrear")}</td>
+                      <td style={tdStyle}>{mkInput("otherArrear")}</td>
+                      <td style={tdStyle}>{mkInput("incentive")}</td>
+                      <td style={tdStyle}>{mkInput("advanceDed")}</td>
+                      <td style={tdStyle}>{mkInput("uniformDed")}</td>
+                      <td style={tdStyle}>{mkInput("bgvDed")}</td>
+                      <td style={tdStyle}>{mkInput("roomDed")}</td>
+                      <td style={tdStyle}>{mkInput("fineDed")}</td>
+                      <td style={tdStyle}>{mkInput("joiningKits")}</td>
+                      <td style={tdStyle}>{mkInput("otherDed")}</td>
+                      <td style={tdStyle}>{mkInput("foodDed")}</td>
+                      <td style={tdStyle}>{mkInput("status", { width: "120px" })}</td>
+                    </tr>
+                  );
+                });
               });
             })()}
           </tbody>
