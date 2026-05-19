@@ -60,11 +60,6 @@ class UserView extends React.Component {
             normalizeDisplay(this.props.Data.RoleName) ||
             getNameById(this.props.Value?.Role, this.props.Data.RoleId, "");
 
-        const vendorName =
-            normalizeDisplay(this.props.Data.vendorName) ||
-            normalizeDisplay(this.props.Data.VendorName) ||
-            getNameById(this.props.Value?.Vendor, this.props.Data.VendorId, "");
-
         const userTypeName =
             normalizeDisplay(this.props.Data.UserTypeName) ||
             getNameById(this.props.Value?.UserType, this.props.Data.UserTypeId, "");
@@ -182,14 +177,6 @@ class UserView extends React.Component {
                                 </div>
                             </div>
                             <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketTitle">Vendor</label>
-                                        <div className="dummyBox">
-                                            {vendorName}
-                                        </div>
-                                    </div>
-                                </div>
                                 <div className="col-sm-6">
                                     <div className="form-group">
                                         <label for="ticketType">User Type</label>

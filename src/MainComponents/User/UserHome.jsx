@@ -188,6 +188,20 @@ class UserHome extends React.Component {
         this.createFilterDropDown();
     }
 
+    componentDidUpdate(prevProps) {
+        if (
+            prevProps.Value?.Company !== this.props.Value?.Company ||
+            prevProps.Value?.Branch !== this.props.Value?.Branch ||
+            prevProps.Value?.Departments !== this.props.Value?.Departments ||
+            prevProps.Value?.Role !== this.props.Value?.Role ||
+            prevProps.Value?.UserType !== this.props.Value?.UserType ||
+            prevProps.Value?.City !== this.props.Value?.City ||
+            prevProps.Value?.Property !== this.props.Value?.Property
+        ) {
+            this.loadUser();
+        }
+    }
+
     filterOnChange(val){
         this.setState({filterName:val});
     }

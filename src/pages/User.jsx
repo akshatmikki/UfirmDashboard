@@ -5,8 +5,16 @@ import UserView from '../MainComponents/User/UserView.jsx';
 
 import { connect } from 'react-redux';
 import departmentAction from '../redux/department/action';
-import { promiseWrapper } from '../utility/common';
 import { bindActionCreators } from 'redux';
+import {
+    fetchBranches,
+    fetchCities,
+    fetchCompanies,
+    fetchDepartments,
+    fetchProperties,
+    fetchRoles,
+    fetchUserTypes,
+} from '../MainComponents/NewUser/createNewUserService';
 // import { CheckIsMandatory } from '../Common/Validation/ValidationCommon.js';
 
 class User extends React.Component {
@@ -21,7 +29,6 @@ class User extends React.Component {
                 Branch: [], branchId: "0",
                 Departments: [], departmentsId: "0",
                 Role: [], roleId: "0",
-                Vendor: [], vendorId: "0",
                 Company: [], companyId: "0",
                 Property: [], propertyId: "0",
             },
@@ -29,65 +36,50 @@ class User extends React.Component {
         }
     }
     componentDidMount() {
+        this.loadLookups();
+    }
 
-        promiseWrapper(this.props.actions.fetchCompany, { CompanyId: 0 }).then((data) => {
-            let companyData = [{ "Id": "0", "Name": "Select Company" }];
-            data.forEach(element => {
-                companyData.push({ Id: element.companyId, Name: element.companyName });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Company = companyData; return { Value } });
-        });
+    mapLookupList = (data, getId, getName, placeholder = null) => {
+        const rows = Array.isArray(data) ? data : [];
+        const mapped = rows
+            .map((item) => ({
+                Id: getId(item),
+                Name: getName(item),
+            }))
+            .filter((item) => item.Id != null && String(item.Name || "").trim() !== "");
+        return placeholder ? [placeholder, ...mapped] : mapped;
+    }
 
-        //Initiated Branch dropdown
-        let branchData = [{ "Id": "0", "Name": "Select Branch" }];
-        this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Branch = branchData; return { Value } });
+    loadLookups = async () => {
+        const lookups = await Promise.allSettled([
+            fetchCompanies(),
+            fetchBranches(),
+            fetchDepartments(),
+            fetchRoles(),
+            fetchUserTypes(),
+            fetchCities(),
+            fetchProperties(),
+        ]);
 
-        promiseWrapper(this.props.actions.fetchDepartments, { DepartmentsId: 0 }).then((data) => {
-            let departmentData = [{ "Id": "0", "Name": "Select Department" }];
-            data.forEach(element => {
-                departmentData.push({ Id: element.departmentId, Name: element.departmentName });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Departments = departmentData; return { Value } });
-        });
-        promiseWrapper(this.props.actions.fetchUserRole, { UserRoleId: 0 }).then((data) => {
-            let userRoleData = [];
-            data.forEach(element => {
-                userRoleData.push({ Id: element.userRoleId, Name: element.userRoleName, value: element.userRoleName, label: element.userRoleName, color: '#0052CC' });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Role = userRoleData; return { Value } });
-        });
-        promiseWrapper(this.props.actions.fetchVendor, { VendorId: 0 }).then((data) => {
-            let vendorData = [{ "Id": "0", "Name": "Select Vendor" }];
-            data.forEach(element => {
-                vendorData.push({ Id: element.vendorId, Name: element.vendorName });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Vendor = vendorData; return { Value } });
-        });
-        promiseWrapper(this.props.actions.fetchUserType, { UserTypeId: 0 }).then((data) => {
-            console.log(this.state.Data);
-            let userTypeData = [{ "Id": "0", "Name": "Select User Type" }];
-            data.forEach(element => {
-                userTypeData.push({ Id: element.userTypeId, Name: element.userTypeName });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.UserType = userTypeData; return { Value } });
-        });
-        promiseWrapper(this.props.actions.fetchCity, { CityId: 0 }).then((data) => {
-            let cityData = [{ "Id": "0", "Name": "Select City" }];
-            data.forEach(element => {
-                cityData.push({ Id: element.cityId, Name: element.cityName });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.City = cityData; return { Value } });
-        });
+        const unwrap = (index) => (lookups[index].status === "fulfilled" ? lookups[index].value : []);
 
-
-
-        promiseWrapper(this.props.actions.fetchProperty, { PropertyId: 0 }).then((data) => {
-            let propertyData = [];
-            data.forEach(element => {
-                propertyData.push({ Id: element.id, Name: element.text, value: element.text, label: element.text, color: '#0052CC' });
-            });
-            this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Property = propertyData; return { Value } });
-        });
+        const Value = {
+            Company: this.mapLookupList(unwrap(0), (item) => item.CompanyId, (item) => item.CompanyName, { Id: "0", Name: "Select Company" }),
+            Branch: this.mapLookupList(unwrap(1), (item) => item.BranchId, (item) => item.BranchName, { Id: "0", Name: "Select Branch" }),
+            Departments: this.mapLookupList(unwrap(2), (item) => item.DepartmentId, (item) => item.DepartmentName, { Id: "0", Name: "Select Department" }),
+            Role: this.mapLookupList(unwrap(3), (item) => item.UserRoleId, (item) => item.UserRoleName),
+            UserType: this.mapLookupList(unwrap(4), (item) => item.UserTypeId, (item) => item.UserTypeName, { Id: "0", Name: "Select User Type" }),
+            City: this.mapLookupList(unwrap(5), (item) => item.CityId, (item) => item.CityName, { Id: "0", Name: "Select City" }),
+            Property: this.mapLookupList(unwrap(6), (item) => item.PropertyId, (item) => item.Name),
+            userTypeId: this.state.Value.userTypeId,
+            cityId: this.state.Value.cityId,
+            branchId: this.state.Value.branchId,
+            departmentsId: this.state.Value.departmentsId,
+            roleId: this.state.Value.roleId,
+            companyId: this.state.Value.companyId,
+            propertyId: this.state.Value.propertyId,
+        };
+        this.setState({ Value });
     }
 
     componentDidUpdate() {
@@ -106,10 +98,13 @@ class User extends React.Component {
 
     onChangeBranch(value) {
         
-        promiseWrapper(this.props.actions.fetchBranch, { CompanyId: value, BranchId: 0 }).then((data) => {
+        fetchBranches().then((data) => {
             let branchData = [{ "Id": "0", "Name": "Select Branch" }];
-            data.forEach(element => {
-                branchData.push({ Id: element.branchId, Name: element.branchName });
+            const rows = Array.isArray(data) ? data : [];
+            rows.forEach(element => {
+                if (!value || String(element.CompanyId) === String(value)) {
+                    branchData.push({ Id: element.BranchId, Name: element.BranchName });
+                }
             });
             this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.Branch = branchData; return { Value } });
         });

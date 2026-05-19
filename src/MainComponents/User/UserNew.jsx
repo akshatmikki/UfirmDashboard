@@ -56,40 +56,71 @@ class UserNew extends React.Component {
         this.setState({ Value: this.props.Value });
         userBL.CreateValidator();
         documentBL.CreateValidator();
-        if (this.props.PageMode == "Edit") {
-            //Role 
-            let data = [];
-            if (this.props.Data.RoleId) {
-                let role = this.props.Value.Role.find(r => r.Id == this.props.Data.RoleId);
-                if (role) data.push(role);
-                else data.push({ Id: this.props.Data.RoleId, Name: this.props.Data.RoleName, value: this.props.Data.RoleName, label: this.props.Data.RoleName, color: '#0052CC' });
-            }
-            this.onDropDownMultiSelectChange(data);
-
-            //Property 
-            let dataProperty = [];
-            if (this.props.Data.PropertyIds) {
-                this.props.Data.PropertyIds.forEach(pid => {
-                    let prop = this.props.Value.Property.find(p => p.Id == pid);
-                    if (prop) dataProperty.push(prop);
-                });
-            }
-            this.onDropDownMultiSelectChangeProperty(dataProperty);
-
-            //Document Grid
-            this.setState({ gridData: [] });
-
-            //Set DropDown
-            this.onSelected("UserType", (this.props.Data.UserTypeId || "0").toString());
-            this.onSelected("City", (this.props.Data.CityId || "0").toString());
-            this.onSelected("Branch", (this.props.Data.BranchId || "0").toString());
-            this.onSelected("Departments", (this.props.Data.DepartmentId || "0").toString());
-            this.onSelected("Vendor", (this.props.Data.VendorId || "0").toString());
-            this.onSelected("Company", (this.props.Data.CompanyId || "0").toString());
-        }
+        this.syncEditValues();
     }
 
     componentDidUpdate() {
+        if (this.props.PageMode === "Edit") {
+            this.syncEditValues();
+        }
+    }
+
+    syncEditValues() {
+        if (this.props.PageMode !== "Edit" || !this.props.Data) {
+            return;
+        }
+
+        const roleList = Array.isArray(this.props.Value?.Role) ? this.props.Value.Role : [];
+        const propertyList = Array.isArray(this.props.Value?.Property) ? this.props.Value.Property : [];
+
+        const nextSelectedOptions = [];
+        if (this.props.Data.RoleId) {
+            const role = roleList.find((r) => String(r.Id) === String(this.props.Data.RoleId));
+            if (role) {
+                nextSelectedOptions.push(role);
+            } else if (this.props.Data.RoleName) {
+                nextSelectedOptions.push({
+                    Id: this.props.Data.RoleId,
+                    Name: this.props.Data.RoleName,
+                    value: this.props.Data.RoleName,
+                    label: this.props.Data.RoleName,
+                    color: "#0052CC",
+                });
+            }
+        }
+
+        const nextSelectedOptionsProperty = [];
+        if (Array.isArray(this.props.Data.PropertyIds)) {
+            this.props.Data.PropertyIds.forEach((pid) => {
+                const prop = propertyList.find((p) => String(p.Id) === String(pid));
+                if (prop) {
+                    nextSelectedOptionsProperty.push(prop);
+                }
+            });
+        }
+
+        const nextValue = {
+            ...this.state.Value,
+            userTypeId: (this.props.Data.UserTypeId || "0").toString(),
+            cityId: (this.props.Data.CityId || "0").toString(),
+            branchId: (this.props.Data.BranchId || "0").toString(),
+            departmentsId: (this.props.Data.DepartmentId || "0").toString(),
+            companyId: (this.props.Data.CompanyId || "0").toString(),
+        };
+
+        const hasStateChange =
+            JSON.stringify(this.state.setSelectedOptions) !== JSON.stringify(nextSelectedOptions) ||
+            JSON.stringify(this.state.setSelectedOptionsProperty) !== JSON.stringify(nextSelectedOptionsProperty) ||
+            JSON.stringify(this.state.Value) !== JSON.stringify(nextValue);
+
+        if (hasStateChange) {
+            this.setState({
+                Value: nextValue,
+                setSelectedOptions: nextSelectedOptions,
+                setSelectedOptionsProperty: nextSelectedOptionsProperty,
+                gridData: [],
+            });
+        }
     }
 
     handleUserCancel = () => {
@@ -122,7 +153,6 @@ class UserNew extends React.Component {
                     PropertyIds: this.state.setSelectedOptionsProperty.map(item => item.Id).join(','),
                     IsActive: true,
                     BranchId: parseInt(this.state.Value.branchId) || 0,
-                    VendorId: parseInt(this.state.Value.vendorId) || 0,
                     DepartmentId: parseInt(this.state.Value.departmentsId) || 0,
                     RoleId: this.state.setSelectedOptions.length > 0 ? parseInt(this.state.setSelectedOptions[0].Id) : 0,
                     UpdatedBy: parseInt(localStorage.getItem('userId')) || 1
@@ -148,7 +178,6 @@ class UserNew extends React.Component {
                 formData.append('cityId', this.state.Value.cityId);
                 formData.append('branchId', this.state.Value.branchId);
                 formData.append('departmentId', this.state.Value.departmentsId);
-                formData.append('VendorId', this.state.Value.vendorId);
                 formData.append('companyId', this.state.Value.companyId);
                 formData.append('roleId', this.state.setSelectedOptions.map((item) => { return item.Id }));
                 formData.append('propertyId', this.state.setSelectedOptionsProperty.map((item) => { return item.Id }));
@@ -239,9 +268,6 @@ class UserNew extends React.Component {
                 break;
             case "Role":
                 this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.roleId = value; return { Value } });
-                break;
-            case "Vendor":
-                this.setState(prevState => { let Value = Object.assign({}, prevState.Value); Value.vendorId = value; return { Value } });
                 break;
             case "Company":
 
@@ -571,27 +597,6 @@ class UserNew extends React.Component {
                                             Value={this.state.Value.userTypeId}
                                             onSelected={this.onSelected.bind(this, "UserType")}
                                             Options={this.state.Value.UserType}
-                                            ClassName="form-control form-control-sm" />
-                                    }
-                                </div>
-                            </div>
-                            <div className="col-sm-6">
-                                <div className="form-group">
-                                    <label for="lbVendor">Vendor</label>
-                                    {this.props.PageMode === "Edit" && this.props.Data !== undefined &&
-                                        <SelectBox
-                                            ID="ddlVendor"
-                                            Value={this.state.Value.vendorId}
-                                            onSelected={this.onSelected.bind(this, "Vendor")}
-                                            Options={this.props.Value.Vendor}
-                                            ClassName="form-control form-control-sm" />
-                                    }
-                                    {this.props.PageMode === "Add" &&
-                                        <SelectBox
-                                            ID="ddlVendor"
-                                            Value={this.state.Value.vendorId}
-                                            onSelected={this.onSelected.bind(this, "Vendor")}
-                                            Options={this.props.Value.Vendor}
                                             ClassName="form-control form-control-sm" />
                                     }
                                 </div>
