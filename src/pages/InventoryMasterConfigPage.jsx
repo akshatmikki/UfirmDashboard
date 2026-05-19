@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import { useSelector } from "react-redux";
 import { MasterConfigCommon } from "../ReactComponents/MasterConfig";
 import {
@@ -14,7 +14,12 @@ import {
   updateCategory,
   updateItem,
   updateVendor,
+  PendingApprovalCategory,
+  PendingApprovalItem,
+  PendingApprovalVendor,
 } from "../Services/InventoryService";
+import ApprovalPage from "../MainComponents/Inventory/ApprovalPage";
+
 
 function asBool(v) {
   if (typeof v === "boolean") return v;
@@ -31,27 +36,57 @@ export default function InventoryMasterConfigPage() {
 
   const [categories, setCategories] = useState([]);
   const [vendors, setVendors] = useState([]);
+  const [pendingCategories, setPendingCategories] = useState([]);
+  const [pendingItems, setPendingItems] = useState([]);
+  const [pendingVendors, setPendingVendors] = useState([]);
+  const [activeTab, setActiveTab] = useState("category");
+
+  const masterConfigRef = useRef(null);
 
   const refreshLookups = useCallback(async () => {
     if (!propertyId) {
       setCategories([]);
       setVendors([]);
+      setPendingCategories([]);
+      setPendingItems([]);
+      setPendingVendors([]);
       return;
     }
     try {
-      const cats = await getCategories(propertyId).catch(() => []);
-      const vens = await getVendors(propertyId).catch(() => []);
-      setCategories(Array.isArray(cats) ? cats : []);
-      setVendors(Array.isArray(vens) ? vens : []);
+      if (activeTab === "category") {
+        const [cats, pCats] = await Promise.all([
+          getCategories(propertyId).catch(() => []),
+          PendingApprovalCategory(propertyId).catch(() => [])
+        ]);
+        setCategories(Array.isArray(cats) ? cats : []);
+        setPendingCategories(Array.isArray(pCats?.Data) ? pCats.Data : Array.isArray(pCats) ? pCats : []);
+      } else if (activeTab === "item") {
+        const [cats, pItems] = await Promise.all([
+          getCategories(propertyId).catch(() => []),
+          PendingApprovalItem(propertyId).catch(() => [])
+        ]);
+        setCategories(Array.isArray(cats) ? cats : []);
+        setPendingItems(Array.isArray(pItems?.Data) ? pItems.Data : Array.isArray(pItems) ? pItems : []);
+      } else if (activeTab === "vendor") {
+        const [vens, pVens] = await Promise.all([
+          getVendors(propertyId).catch(() => []),
+          PendingApprovalVendor(propertyId).catch(() => [])
+        ]);
+        setVendors(Array.isArray(vens) ? vens : []);
+        setPendingVendors(Array.isArray(pVens?.Data) ? pVens.Data : Array.isArray(pVens) ? pVens : []);
+      }
     } catch {
       setCategories([]);
       setVendors([]);
+      setPendingCategories([]);
+      setPendingItems([]);
+      setPendingVendors([]);
     }
-  }, [propertyId]);
+  }, [propertyId, activeTab]);
 
   useEffect(() => {
     refreshLookups();
-  }, [refreshLookups]);
+  }, [refreshLookups, activeTab]);
 
   const context = useMemo(
     () => ({
@@ -94,15 +129,6 @@ export default function InventoryMasterConfigPage() {
         fields: [
           { key: "Name", label: "Name", required: true },
           { key: "Description", label: "Description", type: "textarea" },
-          {
-            key: "IsApproved",
-            label: "Approved",
-            type: "select",
-            options: [
-              { value: false, label: "No" },
-              { value: true, label: "Yes" },
-            ],
-          },
         ],
         initialForm: ({ context }) => ({
           Id: 0,
@@ -194,15 +220,6 @@ export default function InventoryMasterConfigPage() {
           { key: "MinStockLevel", label: "Min Stock Level", type: "number" },
           { key: "BrandName", label: "Brand Name" },
           { key: "HSNCode", label: "HSN Code" },
-          {
-            key: "IsApproved",
-            label: "Approved",
-            type: "select",
-            options: [
-              { value: false, label: "No" },
-              { value: true, label: "Yes" },
-            ],
-          },
         ],
         initialForm: ({ context }) => ({
           Id: 0,
@@ -246,12 +263,15 @@ export default function InventoryMasterConfigPage() {
           };
           if (mode === "add") {
             await createItem(payload);
+            await context.refreshLookups?.();
             return;
           }
           await updateItem(row?.Id ?? form?.Id, payload);
+          await context.refreshLookups?.();
         },
-        remove: async ({ row }) => {
+        remove: async ({ row, context }) => {
           await deleteItem(row?.Id);
+          await context.refreshLookups?.();
         },
       },
       {
@@ -293,15 +313,6 @@ export default function InventoryMasterConfigPage() {
           { key: "PANFile", label: "PAN File", type: "file" },
           { key: "GSTFile", label: "GST Certificate", type: "file" },
           { key: "BrochureFile", label: "Brochure", type: "file" },
-          {
-            key: "IsApproved",
-            label: "Approved",
-            type: "select",
-            options: [
-              { value: false, label: "No" },
-              { value: true, label: "Yes" },
-            ],
-          },
         ],
         initialForm: ({ context }) => ({
           Id: 0,
@@ -394,11 +405,199 @@ export default function InventoryMasterConfigPage() {
     console.log(msg);
   }, []);
 
+  const gridHeader = [
+    { sTitle: 'Id', titleValue: 'Id' },
+    { sTitle: 'Name', titleValue: 'Name' },
+    { sTitle: 'Description', titleValue: 'Description' },
+    { sTitle: 'IsApproved', titleValue: 'Approved' },
+  ];
+
+  const handleApproveCategory = async (id) => {
+    try {
+        const cat = pendingCategories.find(c => c.Id === id);
+        if (cat) {
+            await updateCategory(id, { ...cat, IsApproved: true });
+            refreshLookups();
+            notify({ type: "success", message: "Category Approved successfully!" });
+            
+            // Reload tabs via master config trick if needed, or just let refreshLookups handle it.
+            // Actually the load() function for category tab fetches from API, so we should trigger a grid refresh.
+            // MasterConfigCommon doesn't expose a ref, but changing context slightly can trigger it.
+        }
+    } catch (error) {
+        notify({ type: "error", message: "Failed to approve category" });
+    }
+  };
+
+  const handleRejectCategory = async (id) => {
+    try {
+        await deleteCategory(id);
+        refreshLookups();
+        notify({ type: "success", message: "Category Rejected successfully!" });
+    } catch (error) {
+        notify({ type: "error", message: "Failed to reject category" });
+    }
+  };
+
+  const handleEditCategory = (id) => {
+    const cat = pendingCategories.find(c => c.Id === id);
+    if (cat) masterConfigRef.current?.editRow(cat);
+  };
+
+  const handleDeleteCategory = (id) => {
+    const cat = pendingCategories.find(c => c.Id === id);
+    if (cat) masterConfigRef.current?.deleteRow(cat);
+  };
+
+  const handleApproveItem = async (id) => {
+    try {
+        const item = pendingItems.find(c => c.Id === id);
+        if (item) {
+            await updateItem(id, { ...item, IsApproved: true });
+            refreshLookups();
+            notify({ type: "success", message: "Item Approved successfully!" });
+        }
+    } catch (error) {
+        notify({ type: "error", message: "Failed to approve item" });
+    }
+  };
+
+  const handleRejectItem = async (id) => {
+    try {
+        await deleteItem(id);
+        refreshLookups();
+        notify({ type: "success", message: "Item Rejected successfully!" });
+    } catch (error) {
+        notify({ type: "error", message: "Failed to reject item" });
+    }
+  };
+
+  const handleEditItem = (id) => {
+    const item = pendingItems.find(c => c.Id === id);
+    if (item) masterConfigRef.current?.editRow(item);
+  };
+
+  const handleDeleteItem = (id) => {
+    const item = pendingItems.find(c => c.Id === id);
+    if (item) masterConfigRef.current?.deleteRow(item);
+  };
+
+  const handleApproveVendor = async (id) => {
+    try {
+        const vendor = pendingVendors.find(c => c.Id === id);
+        if (vendor) {
+            const fd = new FormData();
+            fd.append("Id", String(vendor.Id || 0));
+            fd.append("PropertyId", String(vendor.PropertyId || propertyId));
+            fd.append("Name", String(vendor.Name || ""));
+            fd.append("ContactPerson", String(vendor.ContactPerson || ""));
+            fd.append("ContactNumber", String(vendor.ContactNumber || ""));
+            fd.append("Email", String(vendor.Email || ""));
+            fd.append("Address", String(vendor.Address || ""));
+            fd.append("GSTNumber", String(vendor.GSTNumber || ""));
+            fd.append("PANNumber", String(vendor.PANNumber || ""));
+            fd.append("WebsiteUrl", String(vendor.WebsiteUrl || ""));
+            fd.append("IsApproved", "true");
+            await updateVendor(id, fd);
+            refreshLookups();
+            notify({ type: "success", message: "Vendor Approved successfully!" });
+        }
+    } catch (error) {
+        notify({ type: "error", message: "Failed to approve vendor" });
+    }
+  };
+
+  const handleRejectVendor = async (id) => {
+    try {
+        await deleteVendor(id);
+        refreshLookups();
+        notify({ type: "success", message: "Vendor Rejected successfully!" });
+    } catch (error) {
+        notify({ type: "error", message: "Failed to reject vendor" });
+    }
+  };
+
+  const handleEditVendor = (id) => {
+    const vendor = pendingVendors.find(c => c.Id === id);
+    if (vendor) masterConfigRef.current?.editRow(vendor);
+  };
+
+  const handleDeleteVendor = (id) => {
+    const vendor = pendingVendors.find(c => c.Id === id);
+    if (vendor) masterConfigRef.current?.deleteRow(vendor);
+  };
+
+  const renderApprovalContent = () => {
+    const activeTabConfig = tabs.find(t => t.id === activeTab);
+    const dynamicHeaders = activeTabConfig?.columns?.map(c => ({
+      sTitle: c.valueKey || c.header,
+      titleValue: c.header,
+      render: c.render
+    })) || [];
+
+    if (activeTab === 'category' && pendingCategories && pendingCategories.length > 0) {
+      return (
+        <ApprovalPage
+            title={"Pending For Approval (Categories)"}
+            gridHeader={dynamicHeaders}
+            gridData={pendingCategories}
+            onGridApprove={handleApproveCategory}
+            onGridEdit={handleEditCategory}
+            onGridReject={handleRejectCategory}
+            onGridDelete={handleDeleteCategory}
+        />
+      );
+    }
+    if (activeTab === 'item' && pendingItems && pendingItems.length > 0) {
+      return (
+        <ApprovalPage
+            title={"Pending For Approval (Items)"}
+            gridHeader={dynamicHeaders}
+            gridData={pendingItems}
+            onGridApprove={handleApproveItem}
+            onGridEdit={handleEditItem}
+            onGridReject={handleRejectItem}
+            onGridDelete={handleDeleteItem}
+        />
+      );
+    }
+    if (activeTab === 'vendor' && pendingVendors && pendingVendors.length > 0) {
+      return (
+        <ApprovalPage
+            title={"Pending For Approval (Vendors)"}
+            gridHeader={dynamicHeaders}
+            gridData={pendingVendors}
+            onGridApprove={handleApproveVendor}
+            onGridEdit={handleEditVendor}
+            onGridReject={handleRejectVendor}
+            onGridDelete={handleDeleteVendor}
+        />
+      );
+    }
+    return null;
+  };
+
+  const approvalContent = renderApprovalContent();
+
   return (
     <div className="content-wrapper">
       <section className="content">
         <div className="container-fluid">
-          <MasterConfigCommon title="Inventory" context={context} tabs={tabs} notify={notify} />
+          <MasterConfigCommon 
+            ref={masterConfigRef}
+            title="Inventory" 
+            context={context} 
+            tabs={tabs} 
+            notify={notify} 
+            onTabChange={setActiveTab}
+            topContent={
+              approvalContent ? (
+                <div style={{ padding: "10px", borderBottom: "1px solid #eee" }}>
+                  {approvalContent}
+                </div>
+              ) : null
+            }
+          />
         </div>
       </section>
     </div>
