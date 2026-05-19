@@ -3,7 +3,7 @@ export const masterConfigCss = `
 .mc-head{display:flex;align-items:center;gap:10px;font-size:22px;font-weight:700;color:#30363d;margin:0 0 12px;line-height:1;}
 .mc-head-title{font-size:inherit;font-weight:700;}
 .mc-grid{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:10px;align-items:start;}
-.mc-card{background:#fff;border:1px solid #d7dde4;border-radius:12px;overflow:hidden;padding-bottom:20px;width:100%;max-width:1136px;min-height:472px;opacity:1;transform:rotate(0deg);}
+.mc-card{background:#fff;border:1px solid #d7dde4;border-radius:12px;overflow:hidden;padding-bottom:20px;width:100%;max-width:100%;min-height:472px;opacity:1;transform:rotate(0deg);}
 .mc-tabs{display:flex;gap:8px;padding:10px 12px;border-bottom:1px solid #e8edf2;}
 .mc-tab{border:0;background:transparent;color:#66707a;font-size:14px;font-weight:700;padding:6px 10px;border-radius:4px;}
 .mc-tab.active{background:#d9e8f8;color:#244565;}
@@ -67,7 +67,6 @@ export const masterConfigCss = `
 .mc-info-box{border:1px solid #d6e5f6;background:#d9e8f8;border-radius:5px;padding:8px;font-size:12px;color:#37414c;line-height:1.7;}
 .mc-modal-foot{padding:10px;border-top:1px solid #e7ecf1;display:flex;gap:8px;justify-content:flex-end;}
 .mc-btn.delete{background:#c93535;color:#fff;}
-@media (max-width:1200px){.mc-head{font-size:40px;}}
 @media (max-width:1100px){.mc-grid{grid-template-columns:1fr;}.mc-side{min-height:auto;max-height:none;}}
 `;
 

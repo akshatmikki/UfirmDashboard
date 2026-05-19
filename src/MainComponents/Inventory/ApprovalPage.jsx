@@ -15,12 +15,12 @@ const ApprovalTable = ({
     onGridReject,
     onGridView
 }) => {
-    const userrole= useSelector((state)=>state.Commonreducer.entrolval);
-    const userid= useSelector((state)=>state.Commonreducer.userId);
-    const username= useSelector((state)=>state.Commonreducer.userName);
-    const useremail= useSelector((state)=>state.Commonreducer.userEmail);
-    const companyid= useSelector((state)=>state.Commonreducer.companyid);
-    const dispatch= useDispatch();
+    const userrole = useSelector((state) => state.Commonreducer.entrolval);
+    const userid = useSelector((state) => state.Commonreducer.userId);
+    const username = useSelector((state) => state.Commonreducer.userName);
+    const useremail = useSelector((state) => state.Commonreducer.userEmail);
+    const companyid = useSelector((state) => state.Commonreducer.companyid);
+    const dispatch = useDispatch();
     const [openDropDown, setOpenDropDown] = useState(true);
 
 
@@ -30,7 +30,7 @@ const ApprovalTable = ({
 
     const actionBodyTemplate = (rowData) => {
         const canApproveReject = userrole?.includes("Admin") || userrole?.includes("HR") || userrole === "Admin," || userrole === "HR,";
-        
+
         return (
             <div className="mc-actions">
                 {onGridEdit && (
@@ -53,11 +53,11 @@ const ApprovalTable = ({
                         <i className="far fa-times-circle"></i>
                     </button>
                 )}
-                {canApproveReject && onGridDelete && (
+                {/* {canApproveReject && onGridDelete && (
                     <button className="mc-act" onClick={() => onGridDelete(rowData.Id)} title="Delete">
                         <i className="far fa-trash-alt" aria-hidden="true"></i>
                     </button>
-                )}
+                )} */}
             </div>
         );
     };
@@ -99,7 +99,7 @@ const ApprovalTable = ({
                 <div
                     className="card-header d-flex p-0"
                     onClick={handleToggle}
-                    style={{ cursor: 'pointer', backgroundColor: '#f1e7c3' }} 
+                    style={{ cursor: 'pointer', backgroundColor: '#f1e7c3' }}
                 >
                     <h5 className="ml-3 mt-2">{title}</h5>
                     <ul className="nav ml-auto tableFilterContainer">
