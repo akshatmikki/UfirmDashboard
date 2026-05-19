@@ -26,10 +26,23 @@ const PreviewPurchaseOrder = ({ groupedItems, onRemoveVendor }) => {
 
     const totalAmount = Items.reduce((sum, item) => sum + (item.LineTotal || item.Price * item.Quantity || 0), 0);
 
-    const hasRedRows = Array.isArray(Items) && Items.some(item => item.IsCompleted === false);
+    const isItemIncomplete = (item) => {
+        if (item.IsCompleted === true) return false;
+        if (item.IsCompleted === false) {
+            const received = item.QuantityReceived !== undefined && item.QuantityReceived !== null ? Number(item.QuantityReceived) : 0;
+            const actual = item.Quantity !== undefined && item.Quantity !== null ? Number(item.Quantity) : 0;
+            if (item.QuantityReceived !== undefined && item.QuantityReceived !== null && received >= actual) {
+                return false;
+            }
+            return true;
+        }
+        return false;
+    };
+
+    const hasRedRows = Array.isArray(Items) && Items.some(item => isItemIncomplete(item));
 
     const actionTemplate = (rowData) => {
-        if (rowData.IsCompleted === false) {
+        if (isItemIncomplete(rowData)) {
             return (
                 <React.Fragment>
                     <Button
@@ -63,8 +76,8 @@ const PreviewPurchaseOrder = ({ groupedItems, onRemoveVendor }) => {
                     <p><strong>Billing Address:</strong> {BillingAddress}</p>
                 </div>
                 <DataTable value={Items} responsiveLayout="scroll" stripedRows className="p-datatable-sm" rowClassName={(rowData) => {
-                    if (rowData.IsCompleted === true) return 'row-green';
-                    if (rowData.IsCompleted === false) return 'row-red';
+                    if (isItemIncomplete(rowData)) return 'row-red';
+                    if (rowData.IsCompleted === true || (rowData.QuantityReceived !== undefined && rowData.QuantityReceived !== null && Number(rowData.QuantityReceived) >= Number(rowData.Quantity))) return 'row-green';
                     return '';
                 }}
                 >

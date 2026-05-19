@@ -159,7 +159,18 @@ const PurchaseOrderMaster = () => {
 
     const actionBodyTemplate = (rowData) => {
         const Item = rowData.Items;
-        const hasIncompleteItems = Array.isArray(Item) && Item.some(item => item.IsCompleted === false);
+        const hasIncompleteItems = Array.isArray(Item) && Item.some(item => {
+            if (item.IsCompleted === true) return false;
+            if (item.IsCompleted === false) {
+                const received = item.QuantityReceived !== undefined && item.QuantityReceived !== null ? Number(item.QuantityReceived) : 0;
+                const actual = item.Quantity !== undefined && item.Quantity !== null ? Number(item.Quantity) : 0;
+                if (item.QuantityReceived !== undefined && item.QuantityReceived !== null && received >= actual) {
+                    return false;
+                }
+                return true;
+            }
+            return false;
+        });
         if (hasIncompleteItems === true) {
             return (
             <>
@@ -207,55 +218,69 @@ const PurchaseOrderMaster = () => {
         )
     }
 
+    const header = (
+        <div className="d-flex justify-content-between align-items-center p-2" style={{ background: '#f8f9fa', borderBottom: '1px solid #dee2e6', width: '100%' }}>
+            <div>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                    <i className="fa fa-search" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#6c757d', fontSize: '14px', zIndex: 10, pointerEvents: 'none' }} />
+                    <InputText
+                        type="search"
+                        value={globalFilterValue}
+                        onChange={onGlobalFilterChange}
+                        placeholder="Search..."
+                        style={{ height: '40px', fontSize: '14px', borderRadius: '4px', paddingLeft: '38px', border: '1px solid #ced4da', width: '250px' }}
+                    />
+                </div>
+            </div>
+
+            <div className="d-flex align-items-center" style={{ gap: '12px' }}>
+                <ExportToCSV data={filteredGridData} />
+                <Button 
+                    label="Create Purchase Order" 
+                    icon="pi pi-plus" 
+                    className="p-button-success" 
+                    style={{ height: '40px', fontSize: '14px', borderRadius: '4px', backgroundColor: '#198754', borderColor: '#198754', fontWeight: 500 }}
+                    onClick={openDialog} 
+                />
+            </div>
+        </div>
+    )
+
     return (
         <div className="content-wrapper">
             <Toast ref={toast} />
             <div className="content-header">
-                <div>
-                    <div className="row ">
+                <div className="container-fluid">
+                    <div className="row mb-2">
                         <div className="col">
                             <h1 className="m-0 text-dark">Purchase Order</h1>
                         </div>
                     </div>
                 </div>
             </div>
-            <div className="card-header d-flex justify-content-between align-items-center p-2">
-                <div className="input-group input-group-sm">
-                    <span className="p-input-icon-right">
-                        <i className="pi pi-search" />
-                        <InputText
-                            type="search"
-                            value={globalFilterValue}
-                            onChange={onGlobalFilterChange}
-                            placeholder="Search..."
-                            className="form-control"
-                        />
-                    </span>
+            <section className="content">
+                <div className="container-fluid">
+                    <div className="card">
+                        <DataTable
+                            value={filteredGridData}
+                            paginator
+                            rows={15}
+                            loading={loading}
+                            stripedRows
+                            emptyMessage="No records found matching your criteria."
+                            dataKey="PurchaseOrderId"
+                            globalFilter={globalFilterValue}
+                            header={header}
+                        >
+                            <Column header="PO Id" field='PONumber' />
+                            <Column header="Vendor" field='VendorName' />
+                            <Column header="Shipping Address" field='ShippingAddress' />
+                            <Column header="Billing Address" field='BillingAddress' />
+                            <Column header="Action" body={actionBodyTemplate} />
+                        </DataTable>
+                    </div>
                 </div>
-
-                <div className="d-flex">
-                    <ExportToCSV className="btn btn-success btn-sm rounded ml-2 mr-2" data={filteredGridData}/>
-                    <Button label="Create Purchase Order" icon="pi pi-plus" className="btn btn-success btn-sm rounded" onClick={openDialog} />
-                </div>
-            </div>
-            <div className="row mt-3">
-                <DataTable
-                    value={filteredGridData}
-                    paginator
-                    rows={15}
-                    loading={loading}
-                    stripedRows
-                    emptyMessage="No records found matching your criteria."
-                    dataKey="PurchaseOrderId"
-                    globalFilter={globalFilterValue}
-                >
-                    <Column header="PO Id" field='PONumber' />
-                    <Column header="Vendor" field='VendorName' />
-                    <Column header="Shipping Address" field='ShippingAddress' />
-                    <Column header="Billing Address" field='BillingAddress' />
-                    <Column header="Action" body={actionBodyTemplate} />
-                </DataTable>
-            </div>
+            </section>
             <Dialog
                 visible={displayDialog}
                 onHide={onHideDialog}

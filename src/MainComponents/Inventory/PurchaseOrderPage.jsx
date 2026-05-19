@@ -28,7 +28,7 @@ const PurchaseOrderPage = () => {
         MeasurementUnit: "N/A",
         HSNCode: 0,
         Description: "N/A",
-        Quantity:0,
+        Quantity: 0,
         TotalAmount: 0,
         BillingAddress: "N/A",
         ShippingAddress: "N/A",
@@ -138,6 +138,10 @@ const PurchaseOrderPage = () => {
         return rowData.Price ? <span>{`₹${rowData.Price} /${rowData.MeasurementUnit}`}</span> : null;
     };
 
+    const vendorTemplate = (rowData) => {
+        return rowData.VendorId ? <span>{`${rowData.VendorName || ''}`}</span> : null;
+    };
+
 
     const openDialog = () => {
         if (selectedGridData.length > 0) {
@@ -213,7 +217,7 @@ const PurchaseOrderPage = () => {
                             onSelectionChange={(e) => setSelectedGridData(e.value)}
                             emptyMessage="No records found matching your criteria."
                         >
-                            <Column field='VendorId' header="Vendor Id" />
+                            <Column body={vendorTemplate} header="Vendor" />
                             <Column field='ItemName' header="Item" />
                             <Column field='Description' header="Item Description" />
                             <Column field='BrandName' header="Brand" />
@@ -241,7 +245,7 @@ const PurchaseOrderPage = () => {
                 style={{ width: '90vw', height: '90vh' }}
                 header="Purchase Order"
             >
-                <POQuantityComponent selectedGridData={selectedGridData} filteredGridData={filteredGridData}/>
+                <POQuantityComponent selectedGridData={selectedGridData} filteredGridData={filteredGridData} />
             </Dialog>
 
         </div>
