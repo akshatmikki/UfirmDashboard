@@ -118,6 +118,7 @@ export default function TaskListView({ ctx }) {
                   pendingTasks={ctx.state.pendingTasks}
                   actionableTasks={ctx.state.actionableTasks}
                   onHoldTasks={ctx.state.onHoldTasks}
+                  dashboardCount={ctx.state.dashboardCount}
                   activeStatus={ctx.state.uiTaskStatus}
                   onStatusClick={(status) => ctx.handleStatusFilter?.(status)}
                 />

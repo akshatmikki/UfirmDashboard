@@ -1,9 +1,40 @@
 import moment from "moment";
 import { getScheduleCategoryList, getSubCategoryList } from "../../../../../Services/masterService";
+import { fetchTaskDashboardCount } from "../../../../../Services/DashboardServices";
 
 const $ = window.$;
 
 export default function attachApiFetch(TaskList) {
+  TaskList.prototype.refreshDashboardCount = async function (params) {
+    const {
+      propID,
+      dteFr,
+      dteTo,
+      catID,
+      subCatID,
+      occurrence,
+      assingedtoID,
+      taskPriorityId,
+    } = params || {};
+
+    const key = JSON.stringify({
+      propID: Number(propID || 0),
+      dteFr: dteFr || "",
+      dteTo: dteTo || "",
+      catID: Number(catID || 0),
+      subCatID: Number(subCatID || 0),
+      occurrence: occurrence || "",
+      assingedtoID: Number(assingedtoID || 0),
+      taskPriorityId: Number(taskPriorityId || 0),
+    });
+
+    if (key === this.state.dashboardCountKey) return;
+
+    this.setState({ dashboardCountLoading: true, dashboardCountKey: key });
+    const data = await fetchTaskDashboardCount(params);
+    this.setState({ dashboardCount: data, dashboardCountLoading: false });
+  };
+
   TaskList.prototype.getCategory = async function () {
     try {
       const rows = await getScheduleCategoryList();
@@ -60,6 +91,18 @@ export default function attachApiFetch(TaskList) {
     const isCard = this.state.viewMode === "card";
     const page = isCard ? this.state.cardPage : this.state.tablePage;
     const pageSize = isCard ? this.state.cardPageSize : this.state.tablePageSize;
+
+    // Dashboard totals and date-wise counts (independent of paging/status)
+    this.refreshDashboardCount?.({
+      propID: propertyId,
+      dteFr: startDate,
+      dteTo: endDate,
+      catID: categoryId,
+      subCatID: subCategoryId,
+      occurrence: occurance,
+      assingedtoID: assignToId,
+      taskPriorityId: taskPriority,
+    });
 
     const model = this.getModel(
       type,

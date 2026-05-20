@@ -17,6 +17,43 @@ export const fetchSubCatTaskCounts = async (propertyId, fromDate, toDate) => {
     }
 };
 
+export const fetchTaskDashboardCount = async ({
+    propID,
+    dteFr,
+    dteTo,
+    catID,
+    subCatID,
+    occurrence,
+    assingedtoID,
+    taskPriorityId,
+} = {}) => {
+    const params = new URLSearchParams();
+
+    if (propID !== null && propID !== undefined && Number(propID) > 0) params.append("propID", String(propID));
+    if (dteFr) params.append("dteFr", String(dteFr));
+    if (dteTo) params.append("dteTo", String(dteTo));
+
+    if (catID !== null && catID !== undefined && Number(catID) > 0) params.append("catID", String(catID));
+    if (subCatID !== null && subCatID !== undefined && Number(subCatID) > 0) params.append("subCatID", String(subCatID));
+    if (occurrence) params.append("occurrence", String(occurrence));
+    if (assingedtoID !== null && assingedtoID !== undefined && Number(assingedtoID) > 0) params.append("assingedtoID", String(assingedtoID));
+    if (taskPriorityId !== null && taskPriorityId !== undefined && Number(taskPriorityId) > 0) params.append("taskPriorityId", String(taskPriorityId));
+
+    const url = `${BASE_URL}/TaskDashboardCount?${params.toString()}`;
+
+    try {
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) {
+            console.error(`Failed to fetch task dashboard counts. Status: ${response.status}`);
+            return null;
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Error fetching task dashboard counts:", error);
+        return null;
+    }
+};
+
 export const fetchAssetServiceRecords = async (
     propertyId,
     startDate = null,

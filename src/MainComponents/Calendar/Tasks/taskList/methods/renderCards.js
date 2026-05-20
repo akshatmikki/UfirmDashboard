@@ -93,6 +93,21 @@ const getStatusCounts = (tasks = []) => {
   return { completed, pending, actionable, onHold };
 };
 
+const normalizeDateKey = (value) => {
+  const raw = String(value || "");
+  const iso = raw.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+  if (iso) return iso;
+  const dmy = raw.match(/\d{2}-\d{2}-\d{4}/)?.[0];
+  if (dmy) {
+    const parsed = moment(dmy, "DD-MM-YYYY", true);
+    return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
+  }
+  const strict = moment(raw, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601], true);
+  if (strict.isValid()) return strict.format("YYYY-MM-DD");
+  const loose = moment(raw);
+  return loose.isValid() ? loose.format("YYYY-MM-DD") : "";
+};
+
 export default function attachRenderCards(TaskList) {
   TaskList.prototype.renderTaskCards = function () {
     const { data, searchTerm, uiTaskStatus, dateStatusFilters } = this.state;
@@ -138,6 +153,13 @@ export default function attachRenderCards(TaskList) {
     });
 
     const activeDate = this.state.expandedDate;
+    const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];
+    const dateWiseMap = new Map(
+      dateWiseRows
+        .filter((r) => r && r.Date)
+        .map((r) => [normalizeDateKey(r.Date), r])
+        .filter(([key]) => !!key)
+    );
 
     return (
       <>
@@ -166,7 +188,13 @@ export default function attachRenderCards(TaskList) {
           if (displayTasks.length === 0 && !isFilterActive) return null;
 
           const isExpanded = activeDate === date;
-          const { completed, pending, actionable, onHold } = getStatusCounts(tasks);
+          const apiRow = dateWiseMap.get(normalizeDateKey(date));
+          const localCounts = getStatusCounts(tasks);
+          const completed = apiRow ? Number(apiRow.Completed || 0) : localCounts.completed;
+          const pending = apiRow ? Number(apiRow.Pending || 0) : localCounts.pending;
+          const actionable = apiRow ? Number(apiRow.Actionable || 0) : localCounts.actionable;
+          const onHold = apiRow ? Number(apiRow.OnHold || 0) : localCounts.onHold;
+          const total = apiRow ? Number(apiRow.Total || 0) : tasks.length;
           const cardPageSize = Number(this.state.cardPageSize || 10);
           const cardPage = Number(this.state.cardPage || 1);
           const totalRecords = Number(this.state.totalRecords || 0);
@@ -242,7 +270,7 @@ export default function attachRenderCards(TaskList) {
                   >
                     {onHold} On Hold
                   </button>
-                  <span className="badge badge-light border text-muted">Total {tasks.length}</span>
+                  <span className="badge badge-light border text-muted">Total {total}</span>
                 </div>
                 <i className={`fa ${isExpanded ? "fa-chevron-up" : "fa-chevron-down"} text-primary`} />
               </div>

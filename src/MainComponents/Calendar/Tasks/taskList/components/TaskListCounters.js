@@ -5,11 +5,23 @@ const countByStatus = (rows = [], statusMatcher) =>
 
 const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
 
-export default function TaskListCounters({ tasks = [], completedTasks, pendingTasks, actionableTasks, onHoldTasks, activeStatus, onStatusClick }) {
-  const total = Array.isArray(tasks) ? tasks.length : 0;
-  const completed = Number(completedTasks || 0);
-  const pending = Number(pendingTasks || 0);
-  const inProgress = Number(actionableTasks || 0);
+export default function TaskListCounters({
+  tasks = [],
+  completedTasks,
+  pendingTasks,
+  actionableTasks,
+  onHoldTasks,
+  dashboardCount,
+  activeStatus,
+  onStatusClick,
+}) {
+  const hasDashboard = !!dashboardCount && typeof dashboardCount === "object";
+  const total = hasDashboard ? Number(dashboardCount.TotalTasks || 0) : Array.isArray(tasks) ? tasks.length : 0;
+  const visible = Array.isArray(tasks) ? tasks.length : 0;
+  const completed = hasDashboard ? Number(dashboardCount.Completed || 0) : Number(completedTasks || 0);
+  const pending = hasDashboard ? Number(dashboardCount.Pending || 0) : Number(pendingTasks || 0);
+  const inProgress = hasDashboard ? Number(dashboardCount.Actionable || 0) : Number(actionableTasks || 0);
+  const onHold = hasDashboard ? Number(dashboardCount.OnHold || 0) : Number(onHoldTasks || 0);
   const overdue = countByStatus(tasks, (status) => status.includes("overdue"));
   const active = normalizeStatus(activeStatus);
   const totalActive = active === "" || active === "none" || active === "0";
@@ -34,6 +46,7 @@ export default function TaskListCounters({ tasks = [], completedTasks, pendingTa
         <p className="task-summary-value">{total}</p>
         <p className="task-summary-label">Total Tasks</p>
       </div>
+      
       <div
         className={`task-summary-card task-summary-completed ${completedActive ? "task-summary-active" : ""}`}
         style={{ cursor: "pointer" }}
@@ -91,7 +104,7 @@ export default function TaskListCounters({ tasks = [], completedTasks, pendingTa
         }}
         title="Filter on hold tasks"
       >
-        <p className="task-summary-value">{Number(onHoldTasks || 0)}</p>
+        <p className="task-summary-value">{onHold}</p>
         <p className="task-summary-label">On Hold</p>
       </div>
       {/* <div className="task-summary-card task-summary-overdue">

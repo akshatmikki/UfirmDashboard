@@ -890,15 +890,18 @@ class TaskList extends Component {
       this.props.status === "Completed" ? "Complete" : this.props.status;
     const priority = this.props.priority;
     const subCatId = parseInt(this.props.subCatId);
-    const initialDate = this.props.dashDates;
     const today = moment();
+    const initialDate = this.props.dashDates;
+    const parsedInitial = initialDate
+      ? moment(initialDate, ["YYYY-MM-DD", "DD/MM/YYYY", moment.ISO_8601], true)
+      : null;
+    const defaultFrom = parsedInitial && parsedInitial.isValid()
+      ? parsedInitial
+      : today.clone().startOf("month");
     this.getAllFrequency();
     this.setState(
       {
-        filterFromDate:
-          status === null && priority === null
-            ? today.format("YYYY-MM-DD")
-            : initialDate,
+        filterFromDate: defaultFrom.format("YYYY-MM-DD"),
         filterToDate: today.format("YYYY-MM-DD"),
         filtered: true,
         propertyId: PropertyVal,
@@ -1153,16 +1156,44 @@ class TaskList extends Component {
     });
 
     const activeDate = this.state.expandedDate || (sortedDates.length > 0 ? sortedDates[0] : null);
+    const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];
+    const dateWiseMap = new Map(
+      dateWiseRows
+        .filter((r) => r && r.Date)
+        .map((r) => [moment(String(r.Date)).format("YYYY-MM-DD"), r])
+    );
+    const normalizeDateKey = (value) => {
+      const raw = String(value || "");
+      const iso = raw.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+      if (iso) return iso;
+      const dmy = raw.match(/\d{2}-\d{2}-\d{4}/)?.[0];
+      if (dmy) return moment(dmy, "DD-MM-YYYY", true).format("YYYY-MM-DD");
+      const strict = moment(raw, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601], true);
+      if (strict.isValid()) return strict.format("YYYY-MM-DD");
+      const loose = moment(raw);
+      return loose.isValid() ? loose.format("YYYY-MM-DD") : "";
+    };
 
     return (
       <div className="container-fluid p-0">
         {sortedDates.map((date, gIndex) => {
           const isExpanded = activeDate === date;
           const allTasks = groupedData[date];
-          
-          const completedCount = allTasks.filter(t => t.TaskStatus === 'Completed' || t.TaskStatus === 'Complete').length;
-          const pendingCount = allTasks.filter(t => t.TaskStatus === 'Pending').length;
-          const actionableCount = allTasks.filter(t => t.TaskStatus === 'Actionable').length;
+          const parsedDateStrict = moment(
+            String(date),
+            ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601],
+            true
+          );
+          const parsedDateLoose = parsedDateStrict.isValid() ? parsedDateStrict : moment(String(date));
+          const parsedDate = parsedDateLoose.isValid() ? parsedDateLoose : parsedDateStrict;
+          const dateKey = normalizeDateKey(date);
+          const apiRow = dateWiseMap.get(dateKey);
+
+          const completedCount = apiRow ? Number(apiRow.Completed || 0) : allTasks.filter((t) => t.TaskStatus === "Completed" || t.TaskStatus === "Complete").length;
+          const pendingCount = apiRow ? Number(apiRow.Pending || 0) : allTasks.filter((t) => t.TaskStatus === "Pending").length;
+          const actionableCount = apiRow ? Number(apiRow.Actionable || 0) : allTasks.filter((t) => t.TaskStatus === "Actionable").length;
+          const onHoldCount = apiRow ? Number(apiRow.OnHold || 0) : allTasks.filter((t) => String(t.TaskStatus || "").toLowerCase().includes("hold")).length;
+          const totalCount = apiRow ? Number(apiRow.Total || 0) : allTasks.length;
 
           // Step 3: Now apply local status filter to display
           const displayTasks = allTasks.filter((task) => {
@@ -1194,7 +1225,7 @@ class TaskList extends Component {
               >
                 <div className="d-flex align-items-center flex-wrap">
                   <i className="fa fa-calendar mr-2 text-primary" style={{ fontSize: "1.1rem" }}></i>
-                  <h5 className="mb-0 font-weight-bold text-primary mr-3">{date}</h5>
+                  <h5 className="mb-0 font-weight-bold text-primary mr-3">{parsedDate.isValid() ? parsedDate.format("DD-MM-YYYY") : date}</h5>
                   <div className="d-flex align-items-center bg-white px-2 py-1 rounded shadow-sm border" style={{ fontSize: "12px" }}>
                     <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Complete"); }}>
                       <i className="fa fa-check-circle text-success mr-1"></i>
@@ -1205,11 +1236,15 @@ class TaskList extends Component {
                       <b>{pendingCount}</b> Pending
                     </span>
                     <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Actionable"); }}>
-                      <i className="fa fa-clock-o text-danger mr-1"></i>
+                      <i className="fa fa-check-circle text-info mr-1"></i>
                       <b>{actionableCount}</b> Actionable
                     </span>
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("On Hold"); }}>
+                      <i className="fa fa-pause-circle text-secondary mr-1"></i>
+                      <b>{onHoldCount}</b> On Hold
+                    </span>
                     <span className="text-muted">
-                      Total: <b>{tasks.length}</b>
+                      Total <b>{totalCount}</b>
                     </span>
                   </div>
                 </div>
@@ -1387,16 +1422,44 @@ class TaskList extends Component {
     });
 
     const activeDate = this.state.expandedDate || (sortedDates.length > 0 ? sortedDates[0] : null);
+    const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];
+    const dateWiseMap = new Map(
+      dateWiseRows
+        .filter((r) => r && r.Date)
+        .map((r) => [moment(String(r.Date)).format("YYYY-MM-DD"), r])
+    );
+    const normalizeDateKey = (value) => {
+      const raw = String(value || "");
+      const iso = raw.match(/\d{4}-\d{2}-\d{2}/)?.[0];
+      if (iso) return iso;
+      const dmy = raw.match(/\d{2}-\d{2}-\d{4}/)?.[0];
+      if (dmy) return moment(dmy, "DD-MM-YYYY", true).format("YYYY-MM-DD");
+      const strict = moment(raw, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601], true);
+      if (strict.isValid()) return strict.format("YYYY-MM-DD");
+      const loose = moment(raw);
+      return loose.isValid() ? loose.format("YYYY-MM-DD") : "";
+    };
 
     return (
       <div className="container-fluid p-0">
         {sortedDates.map((date, gIndex) => {
           const isExpanded = activeDate === date;
           const allTasks = groupedData[date];
-          
-          const completedCount = allTasks.filter(t => t.TaskStatus === 'Completed' || t.TaskStatus === 'Complete').length;
-          const pendingCount = allTasks.filter(t => t.TaskStatus === 'Pending').length;
-          const actionableCount = allTasks.filter(t => t.TaskStatus === 'Actionable').length;
+          const parsedDateStrict = moment(
+            String(date),
+            ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601],
+            true
+          );
+          const parsedDateLoose = parsedDateStrict.isValid() ? parsedDateStrict : moment(String(date));
+          const parsedDate = parsedDateLoose.isValid() ? parsedDateLoose : parsedDateStrict;
+          const dateKey = normalizeDateKey(date);
+          const apiRow = dateWiseMap.get(dateKey);
+
+          const completedCount = apiRow ? Number(apiRow.Completed || 0) : allTasks.filter((t) => t.TaskStatus === "Completed" || t.TaskStatus === "Complete").length;
+          const pendingCount = apiRow ? Number(apiRow.Pending || 0) : allTasks.filter((t) => t.TaskStatus === "Pending").length;
+          const actionableCount = apiRow ? Number(apiRow.Actionable || 0) : allTasks.filter((t) => t.TaskStatus === "Actionable").length;
+          const onHoldCount = apiRow ? Number(apiRow.OnHold || 0) : allTasks.filter((t) => String(t.TaskStatus || "").toLowerCase().includes("hold")).length;
+          const totalCount = apiRow ? Number(apiRow.Total || 0) : allTasks.length;
 
           // Step 3: Now apply local status filter
           const displayTasks = allTasks.filter((task) => {
@@ -1427,7 +1490,7 @@ class TaskList extends Component {
               >
                 <div className="d-flex align-items-center flex-wrap">
                   <i className="fa fa-calendar mr-2 text-primary" style={{ fontSize: "1.1rem" }}></i>
-                  <h5 className="mb-0 font-weight-bold text-primary mr-3">{date}</h5>
+                  <h5 className="mb-0 font-weight-bold text-primary mr-3">{parsedDate.isValid() ? parsedDate.format("DD-MM-YYYY") : date}</h5>
                   <div className="d-flex align-items-center bg-white px-2 py-1 rounded shadow-sm border" style={{ fontSize: "12px" }}>
                     <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Complete"); }}>
                       <i className="fa fa-check-circle text-success mr-1"></i>
@@ -1438,11 +1501,15 @@ class TaskList extends Component {
                       <b>{pendingCount}</b> Pending
                     </span>
                     <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("Actionable"); }}>
-                      <i className="fa fa-clock-o text-danger mr-1"></i>
+                      <i className="fa fa-check-circle text-info mr-1"></i>
                       <b>{actionableCount}</b> Actionable
                     </span>
+                    <span className="mr-3" style={{ cursor: "pointer" }} onClick={(e) => { e.stopPropagation(); this.handleStatusFilter("On Hold"); }}>
+                      <i className="fa fa-pause-circle text-secondary mr-1"></i>
+                      <b>{onHoldCount}</b> On Hold
+                    </span>
                     <span className="text-muted">
-                      Total: <b>{tasks.length}</b>
+                      Total <b>{totalCount}</b>
                     </span>
                   </div>
                 </div>
