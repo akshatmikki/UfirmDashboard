@@ -1420,6 +1420,29 @@ export const getEmployeesByOffices = async (officeIds = []) => {
   }
 };
 
+export const getCrossUnitEmployeeDetails = async (employeeIds = [], monthYear) => {
+  if (!employeeIds.length) return [];
+
+  try {
+    const response = await axios.post(
+      `${EMPLOYEE_API_BASE_URL}/getCrossUnitEmployeeDetails`,
+      {
+        EmployeeIds: employeeIds,
+        MonthYear: monthYear,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: false,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch cross unit employee details", error);
+    throw error;
+  }
+};
+
 export const getEmployeesByOfficesWithAttendance = async (
   officeIds = [],
   monthYear = "",

@@ -10,7 +10,8 @@ import { getFundsApprovalHistorybyProperty } from "../../Services/PayrollService
 
 import {
     getGeneratedSalaryByPropertiesWithMonthYear,
-    getEmployeesByOffices
+    getEmployeesByOffices,
+    getCrossUnitEmployeeDetails
 } from "../../Services/PayrollService";
 import { generateWageSheetPDF } from "./WageSheetPDF";
 import { generateWageSheetExcel } from "./WageSheetExcel";
@@ -136,9 +137,25 @@ export default function SalaryReport() {
                     getEmployeesByOffices(propertyIds)
                 ]);
 
+                // 🔥 STEP 1: find cross-unit employees
+                const officeEmpIds = new Set(
+                    (employeeData || []).map(e => e?.FacilityMember?.FacilityMemberId)
+                );
+
+                const crossUnitEmpIds = (salaryData || [])
+                    .filter(emp => !officeEmpIds.has(emp.EmployeeId))
+                    .map(emp => emp.EmployeeId);
+
+                // 🔥 STEP 2: call cross-unit API
+                const crossUnitData = await getCrossUnitEmployeeDetails(
+                    crossUnitEmpIds,
+                    selectedMonth // already "2026-04"
+                );
+
                 // 🔹 Create employee map
                 const employeeMap = {};
 
+                // 🔹 same unit employees
                 (employeeData || []).forEach(emp => {
                     const fmId = emp?.FacilityMember?.FacilityMemberId;
 
@@ -155,6 +172,27 @@ export default function SalaryReport() {
                             BankName: emp?.FinancialInfo?.BankName,
                             BankAccountNumber: emp?.FinancialInfo?.BankAccountNumber,
                             BankIFSCCode: emp?.FinancialInfo?.BankIFSCCode
+                        };
+                    }
+                });
+
+                // 🔥 cross unit employees (ADD THIS BLOCK)
+                (crossUnitData || []).forEach(emp => {
+                    const fmId = emp?.FacilityMemberId;
+
+                    if (fmId) {
+                        employeeMap[fmId] = {
+                            EmployeeCode: emp?.EmployeeCode,
+                            Designation: emp?.Designation,
+                            Department: "", // you don’t have it in API
+                            FatherName: emp?.FatherName,
+
+                            UANNumber: emp?.UANNumber,
+                            ESINumber: emp?.ESINumber,
+
+                            BankName: emp?.BankName,
+                            BankAccountNumber: emp?.BankAccountNumber,
+                            BankIFSCCode: emp?.BankIFSCCode
                         };
                     }
                 });

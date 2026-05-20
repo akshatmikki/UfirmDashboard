@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import {
   getGeneratedSalaryByPropertiesWithMonthYear,
-  getEmployeesByOffices
+  getEmployeesByOffices,
+  getCrossUnitEmployeeDetails
 } from "../../Services/PayrollService";
 import {
   getAllClients,
@@ -108,9 +109,24 @@ export default function ESIReport() {
           getEmployeesByOffices(propertyIds),
         ]);
 
+        // 🔥 STEP 1: find cross-unit employees
+        const officeEmpIds = new Set(
+          (employeeData || []).map(e => e?.FacilityMember?.FacilityMemberId)
+        );
+
+        const crossUnitEmpIds = (salaryData || [])
+          .filter(emp => !officeEmpIds.has(emp.EmployeeId))
+          .map(emp => emp.EmployeeId);
+
+        const crossUnitData = await getCrossUnitEmployeeDetails(
+          crossUnitEmpIds,
+          selectedMonth
+        );
+
         // 🔗 Map employee data
         const employeeMap = {};
 
+        // 🔹 SAME UNIT
         (employeeData || []).forEach((emp) => {
           const fmId = emp?.FacilityMember?.FacilityMemberId;
 
@@ -118,6 +134,20 @@ export default function ESIReport() {
             employeeMap[fmId] = {
               EmployeeCode: emp?.Profile?.EmployeeCode,
               ESINumber: emp?.FinancialInfo?.ESINumber,
+              EmployeeName: emp?.Profile?.EmployeeName
+            };
+          }
+        });
+
+        // 🔥 CROSS UNIT (THIS WAS MISSING)
+        (crossUnitData || []).forEach((emp) => {
+          const fmId = emp?.FacilityMemberId;
+
+          if (fmId) {
+            employeeMap[fmId] = {
+              EmployeeCode: emp?.EmployeeCode,
+              ESINumber: emp?.ESINumber,
+              EmployeeName: emp?.Name
             };
           }
         });
@@ -140,7 +170,7 @@ export default function ESIReport() {
             FacilityMemberId: emp.EmployeeId,
 
             EmployeeCode: extra.EmployeeCode || "-",
-            FacilityMemberName: emp.EmployeeName,
+            FacilityMemberName: emp.EmployeeName || extra.EmployeeName || "-",
             ESINumber: extra.ESINumber || "-",
 
             WorkingDays: dutyDays,     // show 25

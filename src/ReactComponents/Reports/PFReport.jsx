@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
-import { getGeneratedSalaryByPropertiesWithMonthYear, getEmployeesByOffices } from "../../Services/PayrollService";
+import { getGeneratedSalaryByPropertiesWithMonthYear, getEmployeesByOffices, getCrossUnitEmployeeDetails } from "../../Services/PayrollService";
 import {
     getAllClients,
     getClientByPropertyId,
@@ -124,16 +124,47 @@ export default function PFReport() {
                     ),
                     getEmployeesByOffices(propertyIds)
                 ]);
+
+                // 🔥 find cross-unit employees
+                const officeEmpIds = new Set(
+                    (employeeData || []).map(e => e?.FacilityMember?.FacilityMemberId)
+                );
+
+                const crossUnitEmpIds = (salaryData || [])
+                    .filter(emp => !officeEmpIds.has(emp.EmployeeId))
+                    .map(emp => emp.EmployeeId);
+
+                const crossUnitData = await getCrossUnitEmployeeDetails(
+                    crossUnitEmpIds,
+                    selectedMonth // already "2026-04"
+                );
+
                 const employeeMap = {};
 
+                // 🔹 SAME UNIT
                 (employeeData || []).forEach(emp => {
                     const fmId = emp?.FacilityMember?.FacilityMemberId;
 
                     if (fmId) {
                         employeeMap[fmId] = {
                             EmployeeCode: emp?.Profile?.EmployeeCode,
+                            EmployeeName: emp?.Profile?.EmployeeName,
                             Designation: emp?.Profile?.Designation,
                             UAN: emp?.FinancialInfo?.UANNumber
+                        };
+                    }
+                });
+
+                // 🔥 CROSS UNIT
+                (crossUnitData || []).forEach(emp => {
+                    const fmId = emp?.FacilityMemberId;
+
+                    if (fmId) {
+                        employeeMap[fmId] = {
+                            EmployeeCode: emp?.EmployeeCode,
+                            EmployeeName: emp?.Name,
+                            Designation: emp?.Designation,
+                            UAN: emp?.UANNumber
                         };
                     }
                 });
@@ -159,7 +190,7 @@ export default function PFReport() {
                         FacilityMemberId: emp.EmployeeId,
 
                         EmployeeCode: extra.EmployeeCode || "-",
-                        FacilityMemberName: emp.EmployeeName,
+                        FacilityMemberName: emp.EmployeeName || extra.EmployeeName || "-",
                         Designation: extra.Designation || "-",
                         UAN: extra.UAN || "-",
 

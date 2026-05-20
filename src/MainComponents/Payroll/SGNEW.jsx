@@ -48,6 +48,10 @@ export default function SGNEW() {
     PF: false,
     ESI: false,
   });
+  const [statutoryOD, setStatutoryOD] = useState({
+    PFT: false,
+    LWF: false,
+  });
   const [otBaseType, setOtBaseType] = useState("Gross");
   const isLoadingSG = React.useRef(false);
   const [unitList, setUnitList] = useState([]);
@@ -437,6 +441,33 @@ export default function SGNEW() {
     adList.forEach((item) => {
       const name = item.Name;
 
+      // ✅ HANDLE PFT / LWF FIRST (VERY IMPORTANT)
+      if (item.Type === "OD" && (name === "PFT" || name === "LWF")) {
+
+        if (!statutoryOD[name]) return; // only if checkbox checked
+
+        list.push({
+          AD_Id: item.ID,
+          Name: name,
+          Type: item.Type,
+
+          FixedAmount: 0,
+          CalculatedAmount: 0,
+
+          IsPFT: name === "PFT",
+          IsLWF: name === "LWF",
+
+          Formula: null,
+          FormulaId: null,
+          IsDouble: false,
+          MultiplyValue: 0,
+          Isbasic: false,
+          Perday: false,
+        });
+
+        return;
+      }
+
       // 🔥 Special case: OTAmount must bypass zero amount filtering
       if (name === "OTAmount") {
 
@@ -630,6 +661,10 @@ export default function SGNEW() {
     setPerDayOD({});
     setOtBaseType("Gross");
     setOtStandalone(false);
+    setStatutoryOD({
+      PFT: false,
+      LWF: false,
+    });
 
     // 🔥 Store SG-based exclusions & designations
     setExcludedEmployeeIds(sg.ExcludedEmployeeIds || []);
@@ -708,6 +743,13 @@ export default function SGNEW() {
         setPerDayOD((prev) => ({
           ...prev,
           [ad.Name]: !!ad.Perday,
+        }));
+      }
+
+      if (ad.Type === "OD" && (ad.Name === "PFT" || ad.Name === "LWF")) {
+        setStatutoryOD((prev) => ({
+          ...prev,
+          [ad.Name]: ad.Name === "PFT" ? ad.IsPFT : ad.IsLWF,
         }));
       }
 
@@ -1159,6 +1201,10 @@ export default function SGNEW() {
     setActiveStatutory({
       PF: false,
       ESI: false,
+    });
+    setStatutoryOD({
+      PFT: false,
+      LWF: false,
     });
     setOtBaseType("Gross");
     setOtStandalone(false);
@@ -3540,7 +3586,7 @@ export default function SGNEW() {
                 marginLeft: -30,
               }}
             >
-              Per Day
+              Per Day / IsApplicable
             </div>
 
             {/* Empty FX column */}
@@ -3559,6 +3605,7 @@ export default function SGNEW() {
               const valueType =
                 adValueType[d.Name] ||
                 (getEffectivePercentage(d.Name) ? "PERCENT" : "FIXED");
+              const isStatutoryOD = d.Name === "PFT" || d.Name === "LWF";
 
               const isPercentage = valueType === "PERCENT";
               const showPerDay =
@@ -3663,20 +3710,22 @@ export default function SGNEW() {
                     <input
                       type="number"
                       className="form-control"
+                      disabled={isStatutoryOD || isPercentage}
                       style={{
                         width: 120,
                         height: "28px",
                         padding: "2px 6px",
                         fontSize: "13px",
 
-                        backgroundColor: isPercentage ? "#f1f5f9" : "#fff",
-                        cursor: isPercentage ? "not-allowed" : "text",
+                        backgroundColor: isStatutoryOD || isPercentage ? "#f1f5f9" : "#fff",
+                        cursor: isStatutoryOD || isPercentage ? "not-allowed" : "text",
                         border: "1px solid #e5e7eb",
 
-                        color: "#000",
+                        color: isStatutoryOD ? "rgba(0,0,0,0.4)" : "#000",
                       }}
-                      value={deductionAmounts[d.Name] ?? ""}
+                      value={isStatutoryOD ? "" : deductionAmounts[d.Name] ?? ""}
                       onChange={(e) => {
+                        if (isStatutoryOD) return;
                         const val = Number(e.target.value) || 0;
 
                         // 1️⃣ store amount
@@ -3714,6 +3763,42 @@ export default function SGNEW() {
                       style={{
                         transform: "scale(1.1)",
                         justifySelf: "center",
+                      }}
+                    />
+                  ) : isStatutoryOD ? (
+                    <input
+                      type="checkbox"
+                      checked={statutoryOD[d.Name] || false}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+
+                        // ✅ store boolean properly
+                        setStatutoryOD((prev) => ({
+                          ...prev,
+                          [d.Name]: checked,
+                        }));
+
+                        // optional cleanup (prevents ghost ₹0 logic)
+                        setDeductionAmounts((prev) => {
+                          const copy = { ...prev };
+                          delete copy[d.Name];
+                          return copy;
+                        });
+
+                        setAdValueType((prev) => ({
+                          ...prev,
+                          [d.Name]: "FIXED",
+                        }));
+
+                        setAdFormula((prev) => ({
+                          ...prev,
+                          [d.Name]: null,
+                        }));
+                      }}
+                      style={{
+                        transform: "scale(1.1)",
+                        justifySelf: "center",
+                        marginTop: 2,
                       }}
                     />
                   ) : (

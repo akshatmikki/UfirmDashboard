@@ -165,6 +165,9 @@ const EmployeeSearch = () => {
               <Column field="Name" header="Name" />
               <Column field="EmployeeCode" header="Code" />
               <Column field="Mobile" header="Mobile" />
+              <Column field="FatherName" header="Father's Name" />
+              <Column field="SpouseName" header="Spouse Name" />
+              <Column field="Email" header="Email" />
               <Column field="Department" header="Department" />
               <Column field="Designation" header="Designation" />
               <Column field="BranchName" header="Branch" />
