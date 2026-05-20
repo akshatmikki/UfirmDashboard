@@ -92,7 +92,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
 
   const worksheet = XLSX.utils.json_to_sheet(data, { origin: "A5" });
 
-  const headers = Object.keys(data[0]);
+  const headers = data.length ? Object.keys(data[0]) : [];
 
   const totalRow = headers.map((key, index) => {
     if (index === 0) return "TOTAL";
