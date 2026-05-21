@@ -31,7 +31,7 @@ const Category = (props) => {
         try {
             setLoading(true);
             const data = await PendingApprovalCategory(propertyId);
-            setGridApproval(data);
+            setGridApproval(data?.Data || data || []);
             setLoading(false);
         } catch (error) {
             console.error('error fetching pending approval');
@@ -208,7 +208,7 @@ const Category = (props) => {
         <>
             <div className="row">
                 <div className="col-12">
-                    {GridApproval.length > 0 && pageMode === "Home" && (
+                    {pageMode === "Home" && (
                         <ApprovalPage
                             title={"Pending For Approval"}
                             gridHeader={gridHeader}

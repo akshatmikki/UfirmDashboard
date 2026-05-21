@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from "react";
 import { masterConfigCss } from "./masterConfigTheme";
 
 function getByPath(obj, path) {
@@ -144,7 +144,7 @@ function Field({ field, value, onChange, context }) {
  *    }
  * - `notify` optional: ({ type, message }) => void
  */
-export default function MasterConfigCommon({ title = "Master Configuration", context = {}, tabs = [], notify, useGrid = false }) {
+const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context = {}, tabs = [], notify, useGrid = false, onTabChange, topContent }, ref) => {
   const tabMap = useMemo(() => new Map(tabs.map((t) => [t.id, t])), [tabs]);
   const defaultTabId = tabs[0]?.id || "";
   const [tabId, setTabId] = useState(defaultTabId);
@@ -200,7 +200,8 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
 
   useEffect(() => {
     setTabId(defaultTabId);
-  }, [defaultTabId]);
+    if (onTabChange) onTabChange(defaultTabId);
+  }, [defaultTabId, onTabChange]);
 
   useEffect(() => {
     refresh();
@@ -279,6 +280,16 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
     },
     [onSelect]
   );
+
+  useImperativeHandle(ref, () => ({
+    editRow: (row) => {
+      onEdit(row);
+    },
+    deleteRow: (row) => {
+      setSelectedRow(row);
+      setShowDelete(true);
+    }
+  }), [onEdit]);
 
   const openAdd = useCallback(() => {
     const initial =
@@ -364,12 +375,21 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
                 key={t.id}
                 className={`mc-tab ${tabId === t.id ? "active" : ""}`}
                 type="button"
-                onClick={() => setTabId(t.id)}
+                onClick={() => {
+                  setTabId(t.id);
+                  if (onTabChange) onTabChange(t.id);
+                }}
               >
                 {t.label}
               </button>
             ))}
           </div>
+
+          {topContent && (
+            <div className="mc-top-content">
+              {topContent}
+            </div>
+          )}
 
           <div className="mc-tools">
             <div className="mc-search">
@@ -677,4 +697,6 @@ export default function MasterConfigCommon({ title = "Master Configuration", con
       ) : null}
     </div>
   );
-}
+});
+
+export default MasterConfigCommon;

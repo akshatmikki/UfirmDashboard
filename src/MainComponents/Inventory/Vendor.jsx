@@ -319,6 +319,28 @@ const Vendor = (props) => {
 
   return (
     <>
+      <style>{`
+        .custom-transparent-scrollbar {
+          max-height: calc(100vh - 200px) !important;
+          overflow-y: auto !important;
+          scrollbar-width: thin !important;
+          scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+        }
+        .custom-transparent-scrollbar::-webkit-scrollbar {
+          width: 6px !important;
+          height: 6px !important;
+        }
+        .custom-transparent-scrollbar::-webkit-scrollbar-track {
+          background: transparent !important;
+        }
+        .custom-transparent-scrollbar::-webkit-scrollbar-thumb {
+          background-color: rgba(0, 0, 0, 0.15) !important;
+          border-radius: 3px !important;
+        }
+        .custom-transparent-scrollbar::-webkit-scrollbar-thumb:hover {
+          background-color: rgba(0, 0, 0, 0.3) !important;
+        }
+      `}</style>
       <div className="row">
                 <div className="col-12">
                     {GridApproval.length > 0 && pageMode === "Home" && (
@@ -383,7 +405,7 @@ const Vendor = (props) => {
                   {pageMode === "Add" ? "Add Vendor" : "Edit Vendor"}
                 </h5>
               </div>
-              <div className="modal-body p-2">
+              <div className="modal-body p-2 custom-transparent-scrollbar">
                 <form>
                   <div className="row">
                     <div className="col-sm-6">
@@ -587,7 +609,7 @@ const Vendor = (props) => {
               <div className="modal-header">
                 <h5 className="modal-title">View Vendor</h5>
               </div>
-              <div className="modal-body p-2">
+              <div className="modal-body p-2 custom-transparent-scrollbar">
                 <form>
                   <div className="row">
                     <div className="form-group col-sm-6">

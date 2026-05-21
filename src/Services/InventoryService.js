@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // const API_BASE_URL = 'http://localhost:62929/api/inventory';
-const API_BASE_URL = 'https://api.urest.in:8096/api/inventory';
+ const API_BASE_URL = 'https://api.urest.in:8096/api/inventory';
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -67,7 +67,7 @@ export const deleteCategory = async (id) => {
 
 export const PendingApprovalCategory = async (propertyId) => {
     try {
-        const response = await api.get(`categories/pendingApproval?propertyId=${propertyId}`);
+        const response = await api.get(`/categories/pendingApproval?propertyId=${propertyId}`);
         return response.data;
     }
     catch (error) {
@@ -123,7 +123,7 @@ export const deleteItem = async (id) => {
 
 export const PendingApprovalItem = async (propertyId) => {
     try {
-        const response = await api.get(`items/pendingApproval?propertyId=${propertyId}`);
+        const response = await api.get(`/items/pendingApproval?propertyId=${propertyId}`);
         return response.data;
     }
     catch (error) {
@@ -206,7 +206,7 @@ export const deleteVendor = async (id) => {
 
 export const PendingApprovalVendor = async (propertyId) => {
     try {
-        const response = await api.get(`vendors/pendingApproval?propertyId=${propertyId}`);
+        const response = await api.get(`/vendors/pendingApproval?propertyId=${propertyId}`);
         return response.data;
     }
     catch (error) {

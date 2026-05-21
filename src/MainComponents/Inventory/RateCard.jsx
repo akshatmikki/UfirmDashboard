@@ -294,23 +294,29 @@ const RateCard = (props) => {
   }
 
   const header = (
-    <div className="card-header d-flex justify-content-between align-items-center p-2">
-      <div className="input-group input-group-sm">
-        <span className="p-input-icon-right">
-          <i className="pi pi-search" />
+    <div className="d-flex justify-content-between align-items-center p-2" style={{ background: '#f8f9fa', borderBottom: '1px solid #dee2e6', width: '100%' }}>
+      <div>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <i className="fa fa-search" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#6c757d', fontSize: '14px', zIndex: 10, pointerEvents: 'none' }} />
           <InputText
             type="search"
             value={globalFilterValue}
             onChange={onGlobalFilterChange}
             placeholder="Search..."
-            className="form-control"
+            style={{ height: '40px', fontSize: '14px', borderRadius: '4px', paddingLeft: '38px', border: '1px solid #ced4da', width: '250px' }}
           />
-        </span>
+        </div>
       </div>
 
-      <div className="d-flex">
-        <ExportToCSV data={gridData} className="btn btn-success btn-sm rounded ml-2 mr-2" />
-        <Button label="Add New Rate" icon="pi pi-plus" className="btn btn-success btn-sm rounded" onClick={openNew} />
+      <div className="d-flex align-items-center" style={{ gap: '12px' }}>
+        <ExportToCSV data={gridData} />
+        <Button 
+          label="Add New Rate" 
+          icon="pi pi-plus" 
+          className="p-button-success" 
+          style={{ height: '40px', fontSize: '14px', borderRadius: '4px', backgroundColor: '#198754', borderColor: '#198754', fontWeight: 500 }}
+          onClick={openNew} 
+        />
       </div>
     </div>
   )

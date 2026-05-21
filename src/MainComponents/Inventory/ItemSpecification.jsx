@@ -40,6 +40,75 @@ const ItemSpecificationPage = () => {
     Specification: "",
   });
 
+  // 🔹 Group duplicate item names
+  const groupedItems = React.useMemo(() => {
+    const grouped = {};
+    items.forEach((item) => {
+      const name = item.Name;
+      if (!name) return;
+      if (!grouped[name]) {
+        grouped[name] = {
+          ...item,
+          specifications: [],
+        };
+      }
+      if (
+        item.Specification &&
+        !grouped[name].specifications.includes(item.Specification)
+      ) {
+        grouped[name].specifications.push(item.Specification);
+      }
+    });
+    return Object.values(grouped);
+  }, [items]);
+
+  // 🔹 Modern soft-color palette for specifications
+  const specColors = [
+    { bg: "#eef2ff", text: "#4f46e5", border: "#c7d2fe" }, // Indigo
+    { bg: "#ecfdf5", text: "#059669", border: "#a7f3d0" }, // Emerald
+    { bg: "#fef3c7", text: "#d97706", border: "#fde68a" }, // Amber
+    { bg: "#fdf2f8", text: "#db2777", border: "#fbcfe8" }, // Pink
+    { bg: "#f0fdf4", text: "#16a34a", border: "#bbf7d0" }, // Green
+    { bg: "#eff6ff", text: "#2563eb", border: "#bfdbfe" }, // Blue
+    { bg: "#faf5ff", text: "#9333ea", border: "#e9d5ff" }, // Purple
+    { bg: "#fff1f2", text: "#e11d48", border: "#fecdd3" }, // Rose
+  ];
+
+  const specificationBodyTemplate = (rowData) => {
+    if (!rowData.specifications || rowData.specifications.length === 0) {
+      return null;
+    }
+    return (
+      <div className="d-flex flex-wrap align-items-center gap-1">
+        {rowData.specifications.map((spec, index) => {
+          const color = specColors[index % specColors.length];
+          return (
+            <React.Fragment key={spec}>
+              <span
+                style={{
+                  backgroundColor: color.bg,
+                  color: color.text,
+                  border: `1px solid ${color.border}`,
+                  borderRadius: "20px",
+                  padding: "4px 12px",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
+                  textTransform: "capitalize",
+                  cursor: "default"
+                }}
+              >
+                {spec}
+              </span>
+            </React.Fragment>
+          );
+        })}
+      </div>
+    );
+  };
+
   // 🔹 Fetch all data on mount
   useEffect(() => {
     fetchAllItems();
@@ -157,12 +226,34 @@ const ItemSpecificationPage = () => {
     <div className="d-flex justify-content-between align-items-center p-2">
       <h3 className="m-0">Item Master</h3>
       <div className="d-flex gap-2 align-items-center">
-        <span className="p-input-icon-left">
-          <i className="pi pi-search" />
+        <span className="p-input-icon-left" style={{ position: "relative", display: "inline-block" }}>
+          <i
+            className="pi pi-search"
+            style={{
+              position: "absolute",
+              left: "14px",
+              top: "50%",
+              transform: "translateY(-50%)",
+              zIndex: 10,
+              color: "#9ca3af",
+              pointerEvents: "none",
+              fontSize: "14px",
+              lineHeight: "14px",
+              height: "14px",
+              width: "14px",
+              margin: 0,
+              padding: 0,
+              display: "block"
+            }}
+          />
           <InputText
             value={globalFilterValue}
             onChange={onGlobalFilterChange}
             placeholder="Search by name..."
+            style={{
+              paddingLeft: "38px",
+              borderRadius: "6px"
+            }}
           />
         </span>
         <Button
@@ -183,18 +274,18 @@ const ItemSpecificationPage = () => {
             <Toast ref={toast} />
             <div className="pr-6 pl-6">
               <DataTable
-                value={items}
+                value={groupedItems}
                 header={header}
                 paginator
                 rows={10}
                 filters={filters}
-                globalFilterFields={["Name", "Specification"]}
+                globalFilterFields={["Name"]}
                 emptyMessage="No items found."
-                dataKey="Id"
+                dataKey="Name"
                 breakpoint="960px"
               >
                 <Column field="Name" header="Item Name" />
-                <Column field="Specification" header="Specification" />
+                <Column body={specificationBodyTemplate} header="Specification" />
               </DataTable>
             </div>
           </div>
@@ -213,7 +304,7 @@ const ItemSpecificationPage = () => {
           <div className="modal-body">
             <div className="row">
               {/* 🔹 Dropdown for selecting item */}
-              <div className="col-12 mt-3 flex flex-column">
+              <div className="col-12 mt-3 flex flex-col">
                 <label htmlFor="item" className="mb-1">Select Item</label>
 
                 <Dropdown
@@ -233,6 +324,7 @@ const ItemSpecificationPage = () => {
                   }
                   placeholder="Select an Item"
                   className="w-full"
+                  style={{ width: "100%" }}
                   showClear
                   filter
                 />

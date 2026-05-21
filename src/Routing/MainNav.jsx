@@ -963,21 +963,7 @@ class MainNav extends React.Component {
                             <p>Purchase Orders</p>
                           </Link>
                         </li>
-                        <li className="nav-item">
-                          <Link to="/Account/App/Stock" className="nav-link">
-                            <i className=" fas fa-caret-right nav-icon"></i>
-                            <p>Stock</p>
-                          </Link>
-                        </li>
-                        <li className="nav-item">
-                          <Link
-                            to="/Account/App/StockItems"
-                            className="nav-link"
-                          >
-                            <i className="fas fa-caret-right nav-icon"></i>
-                            <p>Stock Items</p>
-                          </Link>
-                        </li>
+
 
                         <li className="nav-item">
                           <Link
@@ -995,6 +981,21 @@ class MainNav extends React.Component {
                           >
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Item Assigned</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link to="/Account/App/Stock" className="nav-link">
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Stock</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link
+                            to="/Account/App/StockItems"
+                            className="nav-link"
+                          >
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Stock Items</p>
                           </Link>
                         </li>
                       </ul>
