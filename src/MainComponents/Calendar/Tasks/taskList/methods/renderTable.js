@@ -76,23 +76,6 @@ const getTaskDateDisplay = (value) => {
   return parsed ? parsed.format("DD-MM-YYYY") : "-";
 };
 
-const getStatusCounts = (tasks = []) => {
-  let completed = 0;
-  let pending = 0;
-  let actionable = 0;
-  let onHold = 0;
-
-  tasks.forEach((task) => {
-    const status = String(task?.TaskStatus || "").trim().toLowerCase();
-    if (status === "completed" || status === "complete") completed += 1;
-    else if (status === "pending") pending += 1;
-    else if (status === "actionable" || status === "in-progress" || status === "in progress") actionable += 1;
-    else if (status === "on-hold" || status === "on hold") onHold += 1;
-  });
-
-  return { completed, pending, actionable, onHold };
-};
-
 const normalizeDateKey = (value) => {
   const raw = String(value || "");
   const iso = raw.match(/\d{4}-\d{2}-\d{2}/)?.[0];
@@ -189,12 +172,11 @@ export default function attachRenderTable(TaskList) {
 
           const isExpanded = activeDate === date;
           const apiRow = dateWiseMap.get(normalizeDateKey(date));
-          const localCounts = getStatusCounts(tasks);
-          const completed = apiRow ? Number(apiRow.Completed || 0) : localCounts.completed;
-          const pending = apiRow ? Number(apiRow.Pending || 0) : localCounts.pending;
-          const actionable = apiRow ? Number(apiRow.Actionable || 0) : localCounts.actionable;
-          const onHold = apiRow ? Number(apiRow.OnHold || 0) : localCounts.onHold;
-          const total = apiRow ? Number(apiRow.Total || 0) : tasks.length;
+          const completed = apiRow ? Number(apiRow.Completed || 0) : 0;
+          const pending = apiRow ? Number(apiRow.Pending || 0) : 0;
+          const actionable = apiRow ? Number(apiRow.Actionable || 0) : 0;
+          const onHold = apiRow ? Number(apiRow.OnHold || 0) : 0;
+          const total = apiRow ? Number(apiRow.Total || 0) : 0;
           const tablePageSize = Number(this.state.tablePageSize || 10);
           const tablePage = Number(this.state.tablePage || 1);
           const totalRecords = Number(this.state.totalRecords || 0);

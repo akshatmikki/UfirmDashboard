@@ -1,28 +1,18 @@
 import React from "react";
 
-const countByStatus = (rows = [], statusMatcher) =>
-  rows.filter((task) => statusMatcher(String(task.TaskStatus || "").toLowerCase())).length;
-
 const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
 
 export default function TaskListCounters({
-  tasks = [],
-  completedTasks,
-  pendingTasks,
-  actionableTasks,
-  onHoldTasks,
   dashboardCount,
   activeStatus,
   onStatusClick,
 }) {
   const hasDashboard = !!dashboardCount && typeof dashboardCount === "object";
-  const total = hasDashboard ? Number(dashboardCount.TotalTasks || 0) : Array.isArray(tasks) ? tasks.length : 0;
-  const visible = Array.isArray(tasks) ? tasks.length : 0;
-  const completed = hasDashboard ? Number(dashboardCount.Completed || 0) : Number(completedTasks || 0);
-  const pending = hasDashboard ? Number(dashboardCount.Pending || 0) : Number(pendingTasks || 0);
-  const inProgress = hasDashboard ? Number(dashboardCount.Actionable || 0) : Number(actionableTasks || 0);
-  const onHold = hasDashboard ? Number(dashboardCount.OnHold || 0) : Number(onHoldTasks || 0);
-  const overdue = countByStatus(tasks, (status) => status.includes("overdue"));
+  const total = hasDashboard ? Number(dashboardCount.TotalTasks || 0) : 0;
+  const completed = hasDashboard ? Number(dashboardCount.Completed || 0) : 0;
+  const pending = hasDashboard ? Number(dashboardCount.Pending || 0) : 0;
+  const inProgress = hasDashboard ? Number(dashboardCount.Actionable || 0) : 0;
+  const onHold = hasDashboard ? Number(dashboardCount.OnHold || 0) : 0;
   const active = normalizeStatus(activeStatus);
   const totalActive = active === "" || active === "none" || active === "0";
   const completedActive = active === "complete" || active === "completed";
@@ -46,7 +36,7 @@ export default function TaskListCounters({
         <p className="task-summary-value">{total}</p>
         <p className="task-summary-label">Total Tasks</p>
       </div>
-      
+
       <div
         className={`task-summary-card task-summary-completed ${completedActive ? "task-summary-active" : ""}`}
         style={{ cursor: "pointer" }}

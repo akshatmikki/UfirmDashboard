@@ -1672,7 +1672,7 @@ class TaskList extends Component {
                           marginRight: 20,
                         }}
                       >
-                        {this.state.completedTasks}
+                        {Number(this.state.dashboardCount?.Completed || 0)}
                       </span>
                     </div>
                     <div
@@ -1706,7 +1706,7 @@ class TaskList extends Component {
                           marginRight: 20,
                         }}
                       >
-                        {this.state.pendingTasks}
+                        {Number(this.state.dashboardCount?.Pending || 0)}
                       </span>
                     </div>
                     <div
@@ -1740,7 +1740,7 @@ class TaskList extends Component {
                           marginRight: 20,
                         }}
                       >
-                        {this.state.actionableTasks}
+                        {Number(this.state.dashboardCount?.Actionable || 0)}
                       </span>
                     </div>
                   </div>

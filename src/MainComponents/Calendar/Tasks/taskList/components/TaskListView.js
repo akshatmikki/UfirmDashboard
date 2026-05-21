@@ -113,11 +113,6 @@ export default function TaskListView({ ctx }) {
             <div className="col-12">
               <div className="card p-2 task-planner-shell">
                 <TaskListCounters
-                  tasks={ctx.state.data}
-                  completedTasks={ctx.state.completedTasks}
-                  pendingTasks={ctx.state.pendingTasks}
-                  actionableTasks={ctx.state.actionableTasks}
-                  onHoldTasks={ctx.state.onHoldTasks}
                   dashboardCount={ctx.state.dashboardCount}
                   activeStatus={ctx.state.uiTaskStatus}
                   onStatusClick={(status) => ctx.handleStatusFilter?.(status)}
