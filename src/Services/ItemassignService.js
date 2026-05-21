@@ -1,7 +1,7 @@
 import axios from 'axios';
 
+// const API_BASE_URL = 'http://localhost:62929/api';
 const API_BASE_URL = 'https://api.urest.in:8096/api';
-
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -96,6 +96,19 @@ export const deleteItemAssigned = async (id) => {
 export const ApproveItemAssigned = async (id) => {
     try {
         const response = await api.put(`/itemspecifications/approve/${id}`);
+        return response.data;
+    } catch (error) {
+        handleApiError(error);
+    }
+};
+
+export const updatePOStatus = async (ids) => {
+    try {
+        const response = await api.put(
+            `/itemspecifications/updatePOStatus`,
+            ids
+        );
+
         return response.data;
     } catch (error) {
         handleApiError(error);
