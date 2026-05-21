@@ -309,10 +309,29 @@ export default function InventoryMasterConfigPage() {
           { key: "Address", label: "Address", type: "textarea" },
           { key: "GSTNumber", label: "GST Number" },
           { key: "PANNumber", label: "PAN Number" },
-          { key: "WebsiteUrl", label: "Website" },
-          { key: "PANFile", label: "PAN File", type: "file" },
-          { key: "GSTFile", label: "GST Certificate", type: "file" },
-          { key: "BrochureFile", label: "Brochure", type: "file" },
+          { 
+            key: "WebsiteUrl", 
+            label: "Website",
+            renderView: ({ value }) => value ? <a href={value.startsWith("http") ? value : `https://${value}`} target="_blank" rel="noopener noreferrer">{value}</a> : "-"
+          },
+          { 
+            key: "PANFile", 
+            label: "PAN File", 
+            type: "file",
+            renderView: ({ row }) => row?.PANFileUrl ? <a href={row.PANFileUrl} target="_blank" rel="noopener noreferrer">View Document</a> : "-"
+          },
+          { 
+            key: "GSTFile", 
+            label: "GST Certificate", 
+            type: "file",
+            renderView: ({ row }) => row?.GSTCertificateUrl ? <a href={row.GSTCertificateUrl} target="_blank" rel="noopener noreferrer">View Document</a> : "-"
+          },
+          { 
+            key: "BrochureFile", 
+            label: "Brochure", 
+            type: "file",
+            renderView: ({ row }) => row?.BrochureUrl ? <a href={row.BrochureUrl} target="_blank" rel="noopener noreferrer">View Document</a> : "-"
+          },
         ],
         initialForm: ({ context }) => ({
           Id: 0,
