@@ -38,6 +38,8 @@ const ItemSpecificationPage = () => {
     ItemId: null,
     Name: "",
     Specification: "",
+    IsEmployeeLinked: false,
+
   });
 
   // 🔹 Group duplicate item names
@@ -170,11 +172,14 @@ const ItemSpecificationPage = () => {
 
   // 🔹 Save new item specification
   const handleSave = async () => {
-    if (!formData.ItemId || !formData.Specification.trim()) {
+    if (
+      !formData.ItemId ||
+      !formData.Specification.trim()
+    ) {
       toast.current.show({
         severity: "warn",
         summary: "Missing Data",
-        detail: "Please select an item and enter a specification.",
+        detail: "Please fill all mandatory fields.",
       });
       return;
     }
@@ -184,6 +189,7 @@ const ItemSpecificationPage = () => {
         ItemId: formData.ItemId,
         Name: formData.Name,
         Specification: formData.Specification,
+        IsEmployeeLinked: formData.IsEmployeeLinked,
       };
 
       await createItemSpecification(payload);
@@ -346,6 +352,28 @@ const ItemSpecificationPage = () => {
                     })
                   }
                 />
+              </div>
+
+              <div className="col-12 mt-3">
+                <div className="d-flex align-items-center gap-2">
+
+                  <input
+                    type="checkbox"
+                    id="employeeLinked"
+                    checked={formData.IsEmployeeLinked}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        IsEmployeeLinked: e.target.checked,
+                      })
+                    }
+                  />
+
+                  <label htmlFor="employeeLinked" className="mb-0">
+                    Employee Linked Item
+                  </label>
+
+                </div>
               </div>
             </div>
           </div>

@@ -14,7 +14,8 @@ import { updatePOStatus } from '../../Services/ItemassignService';
 const POQuantityComponent = ({
     selectedGridData = [],
     selectedIds = [],
-    refreshItemAssigned
+    refreshItemAssigned,
+    isFromItemAssigned = false
 }) => {
     const [shippingAddress, setShippingAddress] = useState('');
     const [billingAddress, setBillingAddress] = useState('');
@@ -154,9 +155,10 @@ const POQuantityComponent = ({
             min={0}
             onValueChange={(e) => updateItemQuantity(rowData.Id, e.value)}
             buttonLayout="stacked"
-            showButtons
+            showButtons={!isFromItemAssigned}
+            disabled={isFromItemAssigned}
         />
-    ), []);
+    ), [isFromItemAssigned]);
 
     const TotalAmountTemplate = useCallback((rowData) => {
         const amount = Number(rowData.TotalAmount) || 0;

@@ -45,7 +45,7 @@ const taskPageCss = `
 .task-asset-title-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
 .task-asset-title-row h4{margin:0;font-size:18px;font-weight:600;color:#25518b;}
 .task-asset-add-btn{border:0;background:transparent;color:#25518b;font-size:16px;font-weight:500;display:inline-flex;align-items:center;gap:6px;padding:0;}
-.add-task-form label{font-weight:600;margin-bottom:6px;display:block;color:#1f3d5a;font-size:14px;line-height:18px;}
+.add-task-form label{font-family:'Inter',sans-serif;font-weight:500;margin-bottom:6px;display:block;color:#1e3143;font-size:14px;line-height:100%;letter-spacing:-0.15px;}
 .task-details-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px 12px;align-items:start;}
 @media (max-width:1199.98px){.task-details-grid{grid-template-columns:repeat(3,minmax(0,1fr));}}
 @media (max-width:991.98px){.task-details-grid{grid-template-columns:repeat(2,minmax(0,1fr));}}
@@ -57,7 +57,7 @@ const taskPageCss = `
 .task-field--all-day{display:flex;flex-direction:column;justify-content:flex-end;}
 .task-all-day-checkbox{display:inline-flex;align-items:center;gap:8px;margin-top:8px;font-weight:500;color:#334155;}
 .task-all-day-checkbox input{width:20px;height:20px;accent-color:#1f4f6d;}
-.add-task-form .form-control,.add-task-form .react-datepicker__input-container input{height:38px;padding:8px 12px;font-size:14px;border-radius:8px;border:1px solid #d1d7df;box-shadow:none;color:#1f2d3d;width:100%;}
+.add-task-form .form-control,.add-task-form .react-datepicker__input-container input{font-family:'Inter',sans-serif;font-weight:400;font-size:14px;line-height:100%;letter-spacing:-0.15px;color:#131720;height:38px;padding:8px 12px;border-radius:8px;border:1px solid #d1d7df;box-shadow:none;width:100%;}
 .add-task-form .react-datepicker-wrapper,
 .add-task-form .react-datepicker__input-container{display:block;width:100%;}
 .task-picker-input{width:100%;display:block;}

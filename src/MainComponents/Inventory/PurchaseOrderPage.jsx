@@ -8,7 +8,7 @@ import { Toast } from 'primereact/toast';
 import { getCategories, fetchFilteredItems, getVendors, fetchFilteredRate } from "../../Services/InventoryService";
 import { useSelector } from "react-redux";
 import POQuantityComponent from './POQuantityComponent';
-const PurchaseOrderPage = () => {
+const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssigned = null }) => {
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -69,6 +69,49 @@ const PurchaseOrderPage = () => {
         };
         fetchData();
     }, [propertyId, selectedCategory, selectedItem, selectedVendor]);
+
+    const isFromItemAssigned = initialItems && initialItems.length > 0;
+
+    const displayData = React.useMemo(() => {
+        if (!isFromItemAssigned) return filteredGridData;
+
+        return initialItems.map((assignedItem) => {
+            const rateCard = filteredGridData.find(rc => rc.ItemId === assignedItem.ItemId) || {};
+            const specs = Array.isArray(assignedItem.Details) 
+                ? assignedItem.Details.map(d => `${d.Specification_Name}: ${d.Specification_Value}`).join(', ')
+                : "";
+
+            return {
+                ...rateCard,
+                Id: assignedItem.Id,
+                AssignedId: assignedItem.Id,
+                ItemId: assignedItem.ItemId,
+                ItemName: assignedItem.Item_Name || rateCard.ItemName || 'Unknown',
+                Description: specs || rateCard.Description || '',
+                Quantity: assignedItem.Quantity || 0,
+                VendorName: rateCard.VendorName || "N/A",
+                VendorId: rateCard.VendorId || 0,
+                Price: rateCard.Price || 0,
+                MeasurementUnit: rateCard.MeasurementUnit || 'Unit',
+                HSNCode: rateCard.HSNCode || 0,
+            };
+        });
+    }, [isFromItemAssigned, initialItems, filteredGridData]);
+
+    const [autoSelectDone, setAutoSelectDone] = useState(false);
+
+    useEffect(() => {
+        setAutoSelectDone(false);
+        setSelectedGridData([]);
+    }, [initialItems]);
+
+    useEffect(() => {
+        const isStillLoading = filteredGridData.length === 1 && filteredGridData[0].POId === "xxxxx";
+        if (isFromItemAssigned && !isStillLoading && !autoSelectDone && displayData.length > 0) {
+            setSelectedGridData(displayData);
+            setAutoSelectDone(true);
+        }
+    }, [isFromItemAssigned, filteredGridData, autoSelectDone, displayData]);
 
     const getAllCategories = async (propertyId) => {
         setLoading(true);
@@ -208,7 +251,8 @@ const PurchaseOrderPage = () => {
                     </div>
                     <div className="row mt-3">
                         <DataTable
-                            value={filteredGridData}
+                            value={displayData}
+                            dataKey={isFromItemAssigned ? "Id" : null}
                             paginator
                             rows={15}
                             loading={loading}
@@ -245,7 +289,12 @@ const PurchaseOrderPage = () => {
                 style={{ width: '90vw', height: '90vh' }}
                 header="Purchase Order"
             >
-                <POQuantityComponent selectedGridData={selectedGridData} filteredGridData={filteredGridData} />
+                <POQuantityComponent 
+   selectedGridData={selectedGridData} 
+   selectedIds={selectedGridData.map(x => x.Id)}
+   refreshItemAssigned={refreshItemAssigned}
+   isFromItemAssigned={isFromItemAssigned}
+/>
             </Dialog>
 
         </div>
