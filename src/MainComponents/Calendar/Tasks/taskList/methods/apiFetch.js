@@ -28,11 +28,34 @@ export default function attachApiFetch(TaskList) {
       taskPriorityId: Number(taskPriorityId || 0),
     });
 
-    if (key === this.state.dashboardCountKey) return;
+    // Dedupe rapid repeated calls (setState is async, so state-based key checks can race)
+    if (key === this._dashboardCountRequestKey) return this._dashboardCountRequestPromise;
+    if (key === this.state.dashboardCountKey) return this._dashboardCountRequestPromise;
 
+    this._dashboardCountRequestKey = key;
     this.setState({ dashboardCountLoading: true, dashboardCountKey: key });
-    const data = await fetchTaskDashboardCount(params);
-    this.setState({ dashboardCount: data, dashboardCountLoading: false });
+
+    const requestPromise = fetchTaskDashboardCount(params)
+      .then((data) => {
+        // Only apply if this is still the latest request
+        if (this._dashboardCountRequestKey !== key) return null;
+        this.setState({ dashboardCount: data, dashboardCountLoading: false });
+        return data;
+      })
+      .catch((error) => {
+        if (this._dashboardCountRequestKey !== key) return null;
+        console.error("Error fetching dashboard counts:", error);
+        this.setState({ dashboardCount: null, dashboardCountLoading: false });
+        return null;
+      })
+      .finally(() => {
+        if (this._dashboardCountRequestKey === key) {
+          this._dashboardCountRequestPromise = null;
+        }
+      });
+
+    this._dashboardCountRequestPromise = requestPromise;
+    return requestPromise;
   };
 
   TaskList.prototype.getCategory = async function () {
@@ -88,10 +111,6 @@ export default function attachApiFetch(TaskList) {
     const propertyId = this.props?.PropertyVal || 0;
     const taskPriority = this.state?.taskPriority || 0;
 
-    const isCard = this.state.viewMode === "card";
-    const page = isCard ? this.state.cardPage : this.state.tablePage;
-    const pageSize = isCard ? this.state.cardPageSize : this.state.tablePageSize;
-
     // Dashboard totals and date-wise counts (independent of paging/status)
     this.refreshDashboardCount?.({
       propID: propertyId,
@@ -114,9 +133,7 @@ export default function attachApiFetch(TaskList) {
       endDate,
       taskStatus,
       propertyId,
-      taskPriority,
-      page || 1,
-      pageSize || 10
+      taskPriority
     );
 
     this.manageTask(model, type);

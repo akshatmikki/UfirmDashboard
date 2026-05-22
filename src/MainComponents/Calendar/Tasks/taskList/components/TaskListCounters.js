@@ -2,17 +2,27 @@ import React from "react";
 
 const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
 
+const pickNumber = (obj, keys, fallback = 0) => {
+  if (!obj || typeof obj !== "object") return fallback;
+  for (const key of keys) {
+    if (obj[key] !== undefined && obj[key] !== null && obj[key] !== "") {
+      const num = Number(obj[key]);
+      if (!Number.isNaN(num)) return num;
+    }
+  }
+  return fallback;
+};
+
 export default function TaskListCounters({
   dashboardCount,
   activeStatus,
   onStatusClick,
 }) {
-  const hasDashboard = !!dashboardCount && typeof dashboardCount === "object";
-  const total = hasDashboard ? Number(dashboardCount.TotalTasks || 0) : 0;
-  const completed = hasDashboard ? Number(dashboardCount.Completed || 0) : 0;
-  const pending = hasDashboard ? Number(dashboardCount.Pending || 0) : 0;
-  const inProgress = hasDashboard ? Number(dashboardCount.Actionable || 0) : 0;
-  const onHold = hasDashboard ? Number(dashboardCount.OnHold || 0) : 0;
+  const total = pickNumber(dashboardCount, ["TotalTasks", "Total", "TotalTask", "TotalRecords"]);
+  const completed = pickNumber(dashboardCount, ["Completed", "Complete"]);
+  const pending = pickNumber(dashboardCount, ["Pending", "Overdue"]);
+  const inProgress = pickNumber(dashboardCount, ["Actionable", "InProgress", "In Progress", "Inprogress"]);
+  const onHold = pickNumber(dashboardCount, ["OnHold", "On Hold", "Onhold"]);
   const active = normalizeStatus(activeStatus);
   const totalActive = active === "" || active === "none" || active === "0";
   const completedActive = active === "complete" || active === "completed";

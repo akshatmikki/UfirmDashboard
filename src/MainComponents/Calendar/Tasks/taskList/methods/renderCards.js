@@ -129,11 +129,11 @@ export default function attachRenderCards(TaskList) {
       return acc;
     }, {});
 
-    const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
-      if (a === "No Date") return 1;
-      if (b === "No Date") return -1;
-      return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
-    });
+    const sortedDates = Object.keys(groupedByDate)
+      .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+      .sort((a, b) => {
+        return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
+      });
 
     const activeDate = this.state.expandedDate;
     const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];
@@ -150,15 +150,25 @@ export default function attachRenderCards(TaskList) {
           const tasks = groupedByDate[date] || [];
           const dateFilter = dateStatusFilters && dateStatusFilters[date] ? dateStatusFilters[date] : null;
           const effectiveFilter = dateFilter || uiTaskStatus;
+
+
           const displayTasks = tasks
-            .filter((task) => matchesStatusFilter(task?.TaskStatus, effectiveFilter))
-            .slice()
+            .filter(task =>
+              matchesStatusFilter(task?.TaskStatus, effectiveFilter)
+            )
             .sort((a, b) => {
-              const rankDiff = getStatusRank(a?.TaskStatus) - getStatusRank(b?.TaskStatus);
+              // sort by status
+              const rankDiff =
+                getStatusRank(a?.TaskStatus) -
+                getStatusRank(b?.TaskStatus);
+
               if (rankDiff !== 0) return rankDiff;
-              const aId = Number(a?.TaskId ?? 0);
-              const bId = Number(b?.TaskId ?? 0);
-              return aId - bId;
+
+              // then UpdatedOn latest first
+              return (
+                moment(b?.UpdatedOn).valueOf() -
+                moment(a?.UpdatedOn).valueOf()
+              );
             });
 
           const isFilterActive = hasActiveStatusFilter(effectiveFilter);
@@ -177,14 +187,16 @@ export default function attachRenderCards(TaskList) {
           const actionable = apiRow ? Number(apiRow.Actionable || 0) : 0;
           const onHold = apiRow ? Number(apiRow.OnHold || 0) : 0;
           const total = apiRow ? Number(apiRow.Total || 0) : 0;
-          const cardPageSize = Number(this.state.cardPageSize || 10);
-          const cardPage = Number(this.state.cardPage || 1);
-          const totalRecords = Number(this.state.totalRecords || 0);
-          const stateTotalPages = Number(this.state.totalPages || 0);
-          const totalPages = stateTotalPages || (totalRecords ? Math.ceil(totalRecords / (cardPageSize || 10)) : 1);
-          const currentPage = cardPage;
-          const pagedTasks = isExpanded ? displayTasks : [];
-          const showPager = totalPages > 1 || totalRecords > cardPageSize;
+          const totalRecords = displayTasks.length;
+          const pageSize = Number(this.state.pageSizeCard || 9);
+          const computedTotalPages = Math.max(1, Math.ceil(totalRecords / Math.max(1, pageSize)));
+          const desiredPage = Number(this.state.cardPage || 1);
+          const currentPage = Math.min(Math.max(1, desiredPage), computedTotalPages);
+          const totalPages = computedTotalPages;
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const pagedTasks = isExpanded ? displayTasks.slice(startIndex, endIndex) : [];
+          const showPager = isExpanded && totalRecords > pageSize;
 
           return (
             <div key={date} className="mb-3">
@@ -199,7 +211,7 @@ export default function attachRenderCards(TaskList) {
                 }}
                 onClick={() => this.toggleDateGroup(date)}
               >
-                <div className="d-flex align-items-center flex-wrap" style={{ gap: 10 }}>
+                <div className="task-date-header-row">
                   <h6 className="mb-0 font-weight-bold text-primary">
                     <i className="fa fa-calendar mr-2" />
                     {date}
@@ -385,22 +397,21 @@ export default function attachRenderCards(TaskList) {
                         </div>
                       )))}
                   </div>
-
                   {showPager ? (
                     <div className="task-pager">
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage <= 1}
-                        onClick={() => this.setState({ cardPage: currentPage - 1 }, () => this.getTasks())}
+                        onClick={() => this.setState({ cardPage: currentPage - 1 })}
                         type="button"
                       >
                         Prev
                       </button>
-                      <span className="text-muted">Page {currentPage} of {totalPages}{totalRecords ? ` • Total ${totalRecords}` : ""}</span>
+                      <span className="text-muted">Page {currentPage} of {totalPages}</span>
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage >= totalPages}
-                        onClick={() => this.setState({ cardPage: currentPage + 1 }, () => this.getTasks())}
+                        onClick={() => this.setState({ cardPage: currentPage + 1 })}
                         type="button"
                       >
                         Next

@@ -129,11 +129,11 @@ export default function attachRenderTable(TaskList) {
       return acc;
     }, {});
 
-    const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
-      if (a === "No Date") return 1;
-      if (b === "No Date") return -1;
-      return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
-    });
+    const sortedDates = Object.keys(groupedByDate)
+      .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+      .sort((a, b) => {
+        return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
+      });
 
     const activeDate = this.state.expandedDate;
     const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];
@@ -177,14 +177,16 @@ export default function attachRenderTable(TaskList) {
           const actionable = apiRow ? Number(apiRow.Actionable || 0) : 0;
           const onHold = apiRow ? Number(apiRow.OnHold || 0) : 0;
           const total = apiRow ? Number(apiRow.Total || 0) : 0;
-          const tablePageSize = Number(this.state.tablePageSize || 10);
-          const tablePage = Number(this.state.tablePage || 1);
-          const totalRecords = Number(this.state.totalRecords || 0);
-          const stateTotalPages = Number(this.state.totalPages || 0);
-          const totalPages = stateTotalPages || (totalRecords ? Math.ceil(totalRecords / (tablePageSize || 10)) : 1);
-          const currentPage = tablePage;
-          const pagedTasks = isExpanded ? displayTasks : [];
-          const showPager = totalPages > 1 || totalRecords > tablePageSize;
+          const totalRecords = displayTasks.length;
+          const pageSize = Number(this.state.pageSizeTable || 10);
+          const computedTotalPages = Math.max(1, Math.ceil(totalRecords / Math.max(1, pageSize)));
+          const desiredPage = Number(this.state.tablePage || 1);
+          const currentPage = Math.min(Math.max(1, desiredPage), computedTotalPages);
+          const totalPages = computedTotalPages;
+          const startIndex = (currentPage - 1) * pageSize;
+          const endIndex = startIndex + pageSize;
+          const pagedTasks = isExpanded ? displayTasks.slice(startIndex, endIndex) : [];
+          const showPager = isExpanded && totalRecords > pageSize;
 
           return (
             <div key={date} className="mb-3">
@@ -199,7 +201,7 @@ export default function attachRenderTable(TaskList) {
                 }}
                 onClick={() => this.toggleDateGroup(date)}
               >
-                <div className="d-flex align-items-center flex-wrap" style={{ gap: 10 }}>
+                <div className="task-date-header-row">
                   <h6 className="mb-0 font-weight-bold text-primary">
                     <i className="fa fa-calendar mr-2" />
                     {date}
@@ -364,7 +366,7 @@ export default function attachRenderTable(TaskList) {
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage <= 1}
-                        onClick={() => this.setState({ tablePage: currentPage - 1 }, () => this.getTasks())}
+                        onClick={() => this.setState({ tablePage: currentPage - 1 })}
                         type="button"
                       >
                         Prev
@@ -373,7 +375,7 @@ export default function attachRenderTable(TaskList) {
                       <button
                         className="btn btn-sm btn-outline-primary"
                         disabled={currentPage >= totalPages}
-                        onClick={() => this.setState({ tablePage: currentPage + 1 }, () => this.getTasks())}
+                        onClick={() => this.setState({ tablePage: currentPage + 1 })}
                         type="button"
                       >
                         Next

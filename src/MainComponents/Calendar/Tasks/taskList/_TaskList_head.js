@@ -1150,10 +1150,12 @@ class TaskList extends Component {
       return groups;
     }, {});
 
-    // Sort dates in ascending order
-    const sortedDates = Object.keys(groupedData).sort((a, b) => {
-      return moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf();
-    });
+    // Sort dates in ascending order (skip placeholder "No Date" group)
+    const sortedDates = Object.keys(groupedData)
+      .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+      .sort((a, b) => {
+        return moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf();
+      });
 
     const activeDate = this.state.expandedDate || (sortedDates.length > 0 ? sortedDates[0] : null);
     const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];
@@ -1416,10 +1418,12 @@ class TaskList extends Component {
       return groups;
     }, {});
 
-    // Sort dates in ascending order
-    const sortedDates = Object.keys(groupedData).sort((a, b) => {
-      return moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf();
-    });
+    // Sort dates in ascending order (skip placeholder "No Date" group)
+    const sortedDates = Object.keys(groupedData)
+      .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+      .sort((a, b) => {
+        return moment(a, "YYYY-MM-DD").valueOf() - moment(b, "YYYY-MM-DD").valueOf();
+      });
 
     const activeDate = this.state.expandedDate || (sortedDates.length > 0 ? sortedDates[0] : null);
     const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];

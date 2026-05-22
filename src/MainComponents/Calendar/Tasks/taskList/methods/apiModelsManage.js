@@ -70,7 +70,8 @@ export default function attachApiModelsManage(TaskList) {
       var model = [];
       switch (type) {
         case "R":
-          model.push({
+          {
+          const payload = {
             CmdType: type,
             CategoryId: categoryId,
             SubCategoryId: subCategoryId,
@@ -81,9 +82,11 @@ export default function attachApiModelsManage(TaskList) {
             TaskStatus: taskStatus,
             PropertyId: propertyId,
             TaskPriority: taskPriority,
-            PageNumber: pageNumber,
-            PageSize: pageSize,
-          });
+          };
+          if (pageNumber !== undefined && pageNumber !== null) payload.PageNumber = pageNumber;
+          if (pageSize !== undefined && pageSize !== null) payload.PageSize = pageSize;
+          model.push(payload);
+          }
           break;
         default:
       }
@@ -162,16 +165,8 @@ export default function attachApiModelsManage(TaskList) {
               case "R":
                 let taskData = [];
                 const responseData = Array.isArray(rData) ? rData : (rData.Data || []);
-                const requestedPage = Number(model?.[0]?.PageNumber || 1);
-                const requestedPageSize = Number(model?.[0]?.PageSize || 10);
-
-                const pageNumberFromResp = Number(rData?.PageNumber || requestedPage || 1);
-                const pageSizeFromResp = Number(rData?.PageSize || requestedPageSize || 10);
                 const totalRecords = Number(rData?.TotalRecords ?? responseData.length ?? 0);
-                const totalPages = Number(
-                  rData?.TotalPages ?? (totalRecords ? Math.ceil(totalRecords / (pageSizeFromResp || 10)) : 1) ?? 1
-                );
-                const clampedPageNumber = Math.min(Math.max(1, pageNumberFromResp || 1), totalPages || 1);
+                const totalPages = 1;
 
                 responseData.forEach((element) => {
                   taskData.push({
@@ -210,28 +205,23 @@ export default function attachApiModelsManage(TaskList) {
                     taskData
                       .map((task) => getTaskDateLabel(task?.UpdatedOn))
                   ),
-                ].sort((a, b) => {
-                  if (a === "No Date") return 1;
-                  if (b === "No Date") return -1;
-                  return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
-                });
+                ]
+                  .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+                  .sort((a, b) => {
+                    return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
+                  });
 
                 this.setState((prevState) => {
                   const hasCurrentExpandedDate =
                     prevState.expandedDate && sortedDates.includes(prevState.expandedDate);
 
                   const expandedDate = hasCurrentExpandedDate ? prevState.expandedDate : (sortedDates[0] || null);
-                  const expandedDateChanged = expandedDate !== prevState.expandedDate;
-                  const isCardView = prevState.viewMode === "card";
 
                   return {
                     data: taskData,
                     dataLoading: false,
                     ...counts,
                     expandedDate,
-                    cardPage: isCardView ? (expandedDateChanged ? 1 : clampedPageNumber) : prevState.cardPage,
-                    tablePage: !isCardView ? (expandedDateChanged ? 1 : clampedPageNumber) : prevState.tablePage,
-                    dateStatusFilters: {},
                     totalRecords: totalRecords,
                     totalPages: totalPages,
                   };

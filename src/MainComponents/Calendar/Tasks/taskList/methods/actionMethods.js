@@ -93,11 +93,11 @@ export default function attachActionMethods(TaskList) {
         return acc;
       }, {});
 
-      const sortedDates = Object.keys(groupedByDate).sort((a, b) => {
-        if (a === "No Date") return 1;
-        if (b === "No Date") return -1;
-        return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
-      });
+      const sortedDates = Object.keys(groupedByDate)
+        .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+        .sort((a, b) => {
+          return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
+        });
 
       const currentDate = prevState.expandedDate && sortedDates.includes(prevState.expandedDate) ? prevState.expandedDate : null;
 
@@ -184,33 +184,21 @@ export default function attachActionMethods(TaskList) {
     this.setState({ deleteConfirmTask: null }, () => this.manageTask(model, type));
   };
   
-    TaskList.prototype.closeModal = function () {
-      this.setState(
-        {
-          PageMode: "Home",
-          showAddModal: false,
-          showTaskModal: false,
-          showEditModal: false,
-          openAddQuestion: false,
-          viewOnlySection: null,
-          dateStatusFilters: {},
-        },
-        () => {
-          const startDate = moment().clone().startOf("month");
-          const endDate = moment().clone().endOf("month");
-          this.DateRangeConfig(startDate, endDate);
-          this.setState({
-            pendingTasks: 0,
-            actionableTasks: 0,
-            onHoldTasks: 0,
-            completedTasks: 0,
-          });
-  
-          this.getCategory();
-          this.getTasks();
-          // this.TaskStatusConfig();
-        },
-      );
+  TaskList.prototype.closeModal = function () {
+    this.setState(
+      {
+        PageMode: "Home",
+        showAddModal: false,
+        showTaskModal: false,
+        showEditModal: false,
+        openAddQuestion: false,
+        viewOnlySection: null,
+      },
+      () => {
+        this.getCategory();
+        this.getTasks();
+      }
+    );
   };
   
   TaskList.prototype.selectedCategory = function (value) { return this.setState({ selectedCategoryId: value }); };

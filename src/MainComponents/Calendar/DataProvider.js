@@ -71,8 +71,27 @@ class DataProvider {
             return srv.CallDeleteNewService(url, model[0]);
 
         case 'R':
-            url = `TaskDetails?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}&dteFr=${model[0].DteFr}&dteTo=${model[0].DteTo}&taskstatus=${model[0].TaskStatus}&propID=${model[0].PropertyId}&taskPriorityId=${model[0].TaskPriority}&pageNumber=${model[0].PageNumber || 1}&pageSize=${model[0].PageSize || 10}`;
-            return srv.getComplaint(url);
+            {
+                const params = new URLSearchParams();
+                params.set("catID", model[0].CategoryId ?? 0);
+                params.set("subCatID", model[0].SubCategoryId ?? 0);
+                params.set("assingedtoID", model[0].AssignedTo ?? 0);
+                params.set("occurrence", model[0].Occurrence ?? 0);
+                if (model[0].DteFr) params.set("dteFr", model[0].DteFr);
+                if (model[0].DteTo) params.set("dteTo", model[0].DteTo);
+                if (model[0].TaskStatus) params.set("taskstatus", model[0].TaskStatus);
+                params.set("propID", model[0].PropertyId ?? 0);
+                if (model[0].TaskPriority) params.set("taskPriorityId", model[0].TaskPriority);
+
+                // Paging is optional. If omitted, API can return full dataset.
+                const pageNumber = Number(model[0].PageNumber);
+                const pageSize = Number(model[0].PageSize);
+                if (Number.isFinite(pageNumber) && pageNumber > 0) params.set("pageNumber", pageNumber);
+                if (Number.isFinite(pageSize) && pageSize > 0) params.set("pageSize", pageSize);
+
+                url = `TaskDetails?${params.toString()}`;
+                return srv.getComplaint(url);
+            }
 
         case 'SR':
             url = `TaskDetailsWithQuestion?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}&dteFr=${model[0].DteFr}&dteTo=${model[0].DteTo}`;

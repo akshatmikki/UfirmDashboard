@@ -1200,6 +1200,13 @@
   gap: 8px;
 }
 
+.task-date-header-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .task-delete-overlay {
   position: fixed;
   inset: 0;
@@ -1392,6 +1399,17 @@
 }
 
 @media (max-width: 576px) {
+  .task-date-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .task-pager {
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+
   .task-grid {
     grid-template-columns: 1fr;
   }

@@ -131,7 +131,7 @@ export default function TaskListView({ ctx }) {
                         className="form-control"
                         placeholder="Search by name or ID"
                         value={ctx.state.searchTerm}
-                        onChange={(e) => ctx.setState({ searchTerm: e.target.value, cardPage: 1, tablePage: 1 })}
+                        onChange={(e) => ctx.setState({ searchTerm: e.target.value })}
                       />
                     </div>
 
