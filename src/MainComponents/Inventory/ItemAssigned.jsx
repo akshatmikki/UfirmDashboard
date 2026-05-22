@@ -10,6 +10,7 @@ import { Dialog } from "primereact/dialog";
 import { RadioButton } from "primereact/radiobutton";
 import { Dropdown } from "primereact/dropdown";
 import { useSelector } from "react-redux";
+import POQuantityComponent from './POQuantityComponent';
 
 import {
   getItemAssigned,
@@ -18,8 +19,9 @@ import {
   deleteItemAssigned,
   getItemSpecificationsByItemId,
   ApproveItemAssigned,
+  updatePOStatus
 } from "../../Services/ItemassignService";
-import { getAllItems } from "../../Services/InventoryService";
+import { getAllItems, getRateCard } from "../../Services/InventoryService";
 
 import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
@@ -27,12 +29,18 @@ import "primereact/resources/primereact.min.css";
 export default function ItemAssignedPage() {
   const [grouped, setGrouped] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [filterType, setFilterType] = useState("All");
 const [selectedRows, setSelectedRows] = useState([]);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [specifications, setSpecifications] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemOptions, setItemOptions] = useState([]);
+  const [poDialogVisible, setPoDialogVisible] = useState(false);
+  const [poSelectedData, setPoSelectedData] = useState({
+  items: [],
+  ids: []
+});
 
   const [formData, setFormData] = useState({
     itemId: null,
@@ -400,14 +408,53 @@ const handleApprove = async () => {
   }
 
   try {
-    // Call your API here (example function name)
-    await ApproveItemAssigned(selectedRows); 
+    // Call the approve API for each selected item individually
+    await Promise.all(selectedRows.map((id) => ApproveItemAssigned(id)));
 
     toast.current?.show({
       severity: "success",
       summary: "Approved",
       detail: "Selected items approved successfully.",
     });
+
+    let rateCards = [];
+    try {
+      rateCards = await getRateCard(propertyId) || [];
+    } catch (err) {
+      console.error("Failed to fetch rate cards", err);
+    }
+
+    // Aggregate selected items for Purchase Order
+    const selectedItems = grouped.filter((row) => selectedRows.includes(row.Id));
+    const aggregated = {};
+    
+    selectedItems.forEach((item) => {
+      const key = item.ItemId;
+      if (!aggregated[key]) {
+        const rateCard = rateCards.find((rc) => rc.ItemId === item.ItemId);
+
+        aggregated[key] = {
+          Id: item.ItemId,
+          ItemId: item.ItemId,
+          ItemName: item.Item_Name || "Unknown Item",
+          Description: "",
+          VendorName: rateCard ? rateCard.VendorName || "N/A" : "N/A", 
+          VendorId: rateCard ? rateCard.VendorId || 0 : 0,
+          BrandName: "",
+          Price: rateCard ? rateCard.Price || 0 : 0,
+          MeasurementUnit: "Unit",
+          HSNCode: "",
+          Quantity: 0
+        };
+      }
+      aggregated[key].Quantity += Number(item.Quantity) || 0;
+    });
+
+   setPoSelectedData({
+  items: Object.values(aggregated),
+  ids: selectedRows
+});
+    setPoDialogVisible(true);
 
     setSelectedRows([]);
     fetchGrouped(); // refresh table
@@ -423,6 +470,9 @@ const handleApprove = async () => {
 
   // ---------- filtering ----------
   const filtered = grouped.filter((row) => {
+    if (filterType === "Requisition" && !row.IsRequisition) return false;
+    if (filterType === "Handover" && !row.IsHandover) return false;
+
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
 
@@ -475,6 +525,39 @@ const handleApprove = async () => {
 
           <div className="ml-auto d-flex align-items-center" style={{ gap: "12px" }}>
 
+            <div className="d-flex align-items-center" style={{ gap: "10px", marginRight: "10px" }}>
+              <div className="flex align-items-center">
+                <RadioButton
+                  inputId="filterAll"
+                  name="filterType"
+                  value="All"
+                  onChange={(e) => setFilterType(e.value)}
+                  checked={filterType === "All"}
+                />
+                <label htmlFor="filterAll" className="ml-2 mb-0">All</label>
+              </div>
+              <div className="flex align-items-center">
+                <RadioButton
+                  inputId="filterRequisition"
+                  name="filterType"
+                  value="Requisition"
+                  onChange={(e) => setFilterType(e.value)}
+                  checked={filterType === "Requisition"}
+                />
+                <label htmlFor="filterRequisition" className="ml-2 mb-0">Requisition</label>
+              </div>
+              <div className="flex align-items-center">
+                <RadioButton
+                  inputId="filterHandover"
+                  name="filterType"
+                  value="Handover"
+                  onChange={(e) => setFilterType(e.value)}
+                  checked={filterType === "Handover"}
+                />
+                <label htmlFor="filterHandover" className="ml-2 mb-0">Handover</label>
+              </div>
+            </div>
+
   {/* ✅ Search bar - matches Add Item button size */}
       {/* <span className="search-icon-wrapper">
       <i className="fa fa-search" style={{ color: "#6b7280" }} />
@@ -492,7 +575,7 @@ const handleApprove = async () => {
     }}
   />
 <Button
-  label="Approve"
+  label="Approve & PO"
   icon="pi pi-check"
   className="p-button-info"
   disabled={selectedRows.length === 0}
@@ -553,7 +636,7 @@ const handleApprove = async () => {
                   <th style={{ width: "130px" }}>Date</th>
                   <th style={{ width: "130px" }}>Time</th>
                   <th style={{ width: "100px" }}>Approved</th>
-
+                  <th style={{ width: "140px" }}>Status</th>
                   <th style={{ width: "120px" }}>Actions</th>
                 </tr>
               </thead>
@@ -619,6 +702,29 @@ const handleApprove = async () => {
     <i className="pi pi-check" style={{ color: "green", fontSize: "1.2rem" }}></i>
   ) : (
     <i className="pi pi-times" style={{ color: "red", fontSize: "1.2rem" }}></i>
+  )}
+</td>
+<td className="text-center">
+  {row.IsPOCreated ? (
+    <span
+      className="badge badge-success"
+      style={{
+        padding: "6px 10px",
+        borderRadius: "6px",
+      }}
+    >
+      PO Created
+    </span>
+  ) : (
+    <span
+      className="badge badge-warning"
+      style={{
+        padding: "6px 10px",
+        borderRadius: "6px",
+      }}
+    >
+      PO Pending
+    </span>
   )}
 </td>
 
@@ -814,6 +920,21 @@ const handleApprove = async () => {
         onHide={() => setDeleteDialogVisible(false)}
       >
         <p>Are you sure you want to delete this record?</p>
+      </Dialog>
+
+      {/* Purchase Order Dialog */}
+      <Dialog
+        visible={poDialogVisible}
+        onHide={() => setPoDialogVisible(false)}
+        modal
+        style={{ width: '90vw', height: '90vh' }}
+        header="Purchase Order"
+      >
+        <POQuantityComponent
+   selectedGridData={poSelectedData.items}
+   selectedIds={poSelectedData.ids}
+   refreshItemAssigned={fetchGrouped}
+/>
       </Dialog>
     </div>
   );

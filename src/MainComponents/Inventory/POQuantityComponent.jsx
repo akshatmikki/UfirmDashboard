@@ -9,8 +9,13 @@ import PreviewPurchaseOrder from './PreviewPurchaseOrder';
 import { createPurchaseOrder } from '../../Services/InventoryService';
 import { Toast } from 'primereact/toast';
 import { useSelector } from 'react-redux';
+import { updatePOStatus } from '../../Services/ItemassignService';
 
-const POQuantityComponent = ({ selectedGridData = [] }) => {
+const POQuantityComponent = ({
+    selectedGridData = [],
+    selectedIds = [],
+    refreshItemAssigned
+}) => {
     const [shippingAddress, setShippingAddress] = useState('');
     const [billingAddress, setBillingAddress] = useState('');
     const [items, setItems] = useState([]);
@@ -25,15 +30,42 @@ const POQuantityComponent = ({ selectedGridData = [] }) => {
     };
 
     const handleCreatePO = async (grouped) => {
-        await createPurchaseOrder(grouped);
+    try {
+
+        // ✅ CREATE PURCHASE ORDER
+        const response = await createPurchaseOrder(grouped);
+
+        // ✅ UPDATE ITEM SPECIFICATION STATUS
+        if (response) {
+            await updatePOStatus(selectedIds);
+        }
+
+        // ✅ REFRESH ITEM ASSIGNED PAGE
+        if (refreshItemAssigned) {
+            await refreshItemAssigned();
+        }
+
         toast.current.show({
-                severity: 'success',
-                summary: 'Success',
-                detail: 'Purchase Order Created Successfully.',
-                life: 3000
-            });
+            severity: 'success',
+            summary: 'Success',
+            detail: 'Purchase Order Created Successfully.',
+            life: 3000
+        });
+
         onHideDialog();
-    };
+
+    } catch (error) {
+
+        console.error("PO_CREATE_ERROR", error);
+
+        toast.current.show({
+            severity: 'error',
+            summary: 'Error',
+            detail: error.message || 'Failed to create purchase order',
+            life: 3000
+        });
+    }
+};
 
     const openPlaceOrder = () => {
         setDisplayafterPlaceOrder(true);
