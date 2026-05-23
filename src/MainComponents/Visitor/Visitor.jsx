@@ -12,6 +12,7 @@ import "primereact/resources/themes/lara-light-blue/theme.css";
 import "primereact/resources/primereact.min.css";
 import ExportToCSV from '../../ReactComponents/ExportToCSV/ExportToCSV.js';
 import { Calendar } from "primereact/calendar";
+import Department from "./Department";
 
 
 
@@ -26,6 +27,7 @@ const Visitor = () => {
     const [selectedVisitor, setSelectedVisitor] = useState(null);
     const [viewDialogVisible, setViewDialogVisible] = useState(false);
     const [dateRange, setDateRange] = useState(null);
+    const [activeTab, setActiveTab] = useState("visitor");
 
 
     const dt = useRef(null);
@@ -71,71 +73,85 @@ const Visitor = () => {
     const actionTemplate = (rowData) => {
         return (
             <Button
-             className="p-button-rounded p-button-info p-button-sm-rounded"
-            onClick={() => viewVisitor(rowData)}
-              tooltip="View Details"
-              tooltipOptions={{ position: "top" }}
+                className="p-button-rounded p-button-info p-button-sm-rounded"
+                onClick={() => viewVisitor(rowData)}
+                tooltip="View Details"
+                tooltipOptions={{ position: "top" }}
             >
-             <i className="fa fa-eye" />
+                <i className="fa fa-eye" />
             </Button>
 
         );
     };
 
     const filteredData = gridData.filter((item) => {
-    if (!dateRange || !dateRange[0] || !dateRange[1]) return true;
+        if (!dateRange || !dateRange[0] || !dateRange[1]) return true;
 
-    const meetingDate = new Date(item.MeetingStartTime);
-    const from = new Date(dateRange[0]);
-    const to = new Date(dateRange[1]);
+        const meetingDate = new Date(item.MeetingStartTime);
+        const from = new Date(dateRange[0]);
+        const to = new Date(dateRange[1]);
 
-    // end date ke poore din ko include karne ke liye
-    to.setHours(23, 59, 59, 999);
+        // end date ke poore din ko include karne ke liye
+        to.setHours(23, 59, 59, 999);
 
-    return meetingDate >= from && meetingDate <= to;
-});
+        return meetingDate >= from && meetingDate <= to;
+    });
 
-     const header = (
-    <div className="d-flex justify-content-between align-items-center p-2">
-        <h5 className="m-0">Visitor</h5>
+    const header = (
+        <div className="d-flex justify-content-between align-items-center p-2">
+            <h5 className="m-0">Visitor</h5>
 
-        <div className="d-flex gap-2 align-items-center">
-            {/* Search */}
-            <span className="p-input-icon-left">
-                <i className="pi pi-search" />
-                <InputText
-                    value={globalFilterValue}
-                    onChange={onGlobalFilterChange}
-                    placeholder="Search..."
+            <div className="d-flex gap-2 align-items-center">
+                {/* Search */}
+                <span className="p-input-icon-left">
+                    <i className="pi pi-search" />
+                    <InputText
+                        value={globalFilterValue}
+                        onChange={onGlobalFilterChange}
+                        placeholder="Search..."
+                    />
+                </span>
+
+                {/* Date Range Calendar */}
+                <Calendar
+                    value={dateRange}
+                    onChange={(e) => setDateRange(e.value)}
+                    selectionMode="range"
+                    readOnlyInput
+                    showIcon
+                    hideOnRangeSelection
+                    placeholder="Select Date Range"
+                    dateFormat="dd-mm-yy"
+                    className="p-inputtext-sm"
                 />
-            </span>
 
-            {/* Date Range Calendar */}
-            <Calendar
-                value={dateRange}
-                onChange={(e) => setDateRange(e.value)}
-                selectionMode="range"
-                readOnlyInput
-                showIcon
-                hideOnRangeSelection
-                placeholder="Select Date Range"
-                dateFormat="dd-mm-yy"
-                className="p-inputtext-sm"
-            />
-
-            <ExportToCSV
-                data={filteredData}
-                className="btn btn-success btn-sm rounded"
-            />
+                <ExportToCSV
+                    data={filteredData}
+                    className="btn btn-success btn-sm rounded"
+                />
+            </div>
         </div>
-    </div>
-);
+    );
 
 
     return (
         <div className="content-wrapper">
             <section className="content">
                 <div className="container-fluid">
+                    <ul className="nav nav-tabs mb-3" style={{ cursor: "pointer" }}>
+                        <li className="nav-item">
+                            <span className={`nav-link ${activeTab === "visitor" ? "active" : ""}`} onClick={() => setActiveTab("visitor")}>
+                                Visitor
+                            </span>
+                        </li>
+                        <li className="nav-item">
+                            <span className={`nav-link ${activeTab === "department" ? "active" : ""}`} onClick={() => setActiveTab("department")}>
+                                Department
+                            </span>
+                        </li>
+                    </ul>
+
+                    {activeTab === "visitor" ? (
                     <div className="card">
                         <Toast ref={toast} />
                         <div className="p-3">
@@ -192,72 +208,75 @@ const Visitor = () => {
                                 />
                             </DataTable>
 
-                           <Dialog
-    header="Visitor Details"
-    visible={viewDialogVisible}
-    style={{ width: "800px" }}
-    modal
-    onHide={() => setViewDialogVisible(false)}
->
-    {selectedVisitor && (
-        <table width="100%" cellPadding="8">
-            <tbody>
-                <tr>
-                    <td>
-                        <strong>Name:</strong> {selectedVisitor.Fname} {selectedVisitor.Lname}
-                    </td>
-                    <td>
-                        <strong>Mobile No:</strong> {selectedVisitor.MobileNo}
-                    </td>
-                </tr>
+                            <Dialog
+                                header="Visitor Details"
+                                visible={viewDialogVisible}
+                                style={{ width: "800px" }}
+                                modal
+                                onHide={() => setViewDialogVisible(false)}
+                            >
+                                {selectedVisitor && (
+                                    <table width="100%" cellPadding="8">
+                                        <tbody>
+                                            <tr>
+                                                <td>
+                                                    <strong>Name:</strong> {selectedVisitor.Fname} {selectedVisitor.Lname}
+                                                </td>
+                                                <td>
+                                                    <strong>Mobile No:</strong> {selectedVisitor.MobileNo}
+                                                </td>
+                                            </tr>
 
-                <tr>
-                    <td>
-                        <strong>Address:</strong> {selectedVisitor.Address}
-                    </td>
-                    <td>
-                        <strong>Purpose:</strong> {selectedVisitor.MPurpose}
-                    </td>
-                </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Address:</strong> {selectedVisitor.Address}
+                                                </td>
+                                                <td>
+                                                    <strong>Purpose:</strong> {selectedVisitor.MPurpose}
+                                                </td>
+                                            </tr>
 
-                <tr>
-                    <td>
-                        <strong>Carrying:</strong> {selectedVisitor.ACarrying || "-"}
-                    </td>
-                    <td>
-                        <strong>Contact Person:</strong> {selectedVisitor.ContactPersonName}
-                    </td>
-                </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Carrying:</strong> {selectedVisitor.ACarrying || "-"}
+                                                </td>
+                                                <td>
+                                                    <strong>Contact Person:</strong> {selectedVisitor.ContactPersonName}
+                                                </td>
+                                            </tr>
 
-                <tr>
-                    <td>
-                        <strong>Status:</strong> {selectedVisitor.Status}
-                    </td>
-                    <td>
-                        <strong>Meeting Over:</strong>{" "}
-                        {selectedVisitor.IsMeetingOver ? "Yes" : "No"}
-                    </td>
-                </tr>
+                                            <tr>
+                                                <td>
+                                                    <strong>Status:</strong> {selectedVisitor.Status}
+                                                </td>
+                                                <td>
+                                                    <strong>Meeting Over:</strong>{" "}
+                                                    {selectedVisitor.IsMeetingOver ? "Yes" : "No"}
+                                                </td>
+                                            </tr>
 
-                <tr>
-                    <td>
-                        <strong>In Time:</strong>{" "}
-                        {new Date(selectedVisitor.MeetingStartTime).toLocaleString()}
-                    </td>
-                    <td>
-                        <strong>Out Time:</strong>{" "}
-                        {selectedVisitor.MeetingEndTime
-                            ? new Date(selectedVisitor.MeetingEndTime).toLocaleString()
-                            : "-"}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    )}
-</Dialog>
+                                            <tr>
+                                                <td>
+                                                    <strong>In Time:</strong>{" "}
+                                                    {new Date(selectedVisitor.MeetingStartTime).toLocaleString()}
+                                                </td>
+                                                <td>
+                                                    <strong>Out Time:</strong>{" "}
+                                                    {selectedVisitor.MeetingEndTime
+                                                        ? new Date(selectedVisitor.MeetingEndTime).toLocaleString()
+                                                        : "-"}
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                )}
+                            </Dialog>
 
                         </div>
                     </div>
+                    ) : (
+                        <Department />
+                    )}
                 </div>
             </section>
         </div>
