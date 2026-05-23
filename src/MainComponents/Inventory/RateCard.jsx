@@ -9,7 +9,7 @@ import { InputText } from "primereact/inputtext"
 import { Dropdown } from "primereact/dropdown"
 import { Button } from "primereact/button"
 import { Toast } from "primereact/toast"
-import { getCategories, getAllItems, getVendors, createRateCard, getRateCard , fetchFilteredItems } from "../../Services/InventoryService"
+import { getCategories, getAllItems, getVendors, createRateCard, getRateCard, fetchFilteredItems, deleteRateCard as deleteRateCardApi } from "../../Services/InventoryService"
 import { confirmDialog } from "primereact/confirmdialog"
 import { DELETE_CONFIRMATION_MSG } from "../../Contants/Common"
 import { Dialog } from "primereact/dialog"
@@ -17,6 +17,7 @@ import { useSelector, useDispatch } from "react-redux"
 import "primereact/resources/themes/lara-light-blue/theme.css"
 import { Calendar } from "primereact/calendar"
 import ExportToCSV from "../../ReactComponents/ExportToCSV/ExportToCSV"
+import { ConfirmDialog } from "primereact/confirmdialog"
 
 const RateCard = (props) => {
   const [gridData, setGridData] = useState([])
@@ -54,12 +55,12 @@ const RateCard = (props) => {
   const [filteredItems, setFilteredItems] = useState([]);
 
   useEffect(() => {
-    if(rateCardData.CategoryId){
-      loadfiltereditems(propertyId,rateCardData)
+    if (rateCardData.CategoryId) {
+      loadfiltereditems(propertyId, rateCardData)
     }
   }, [propertyId, rateCardData.CategoryId]);
 
-  const loadfiltereditems = async (propertyId,rateCardData) => {
+  const loadfiltereditems = async (propertyId, rateCardData) => {
     try {
       const data = await fetchFilteredItems(propertyId, rateCardData.CategoryId)
       setFilteredItems(data);
@@ -108,17 +109,17 @@ const RateCard = (props) => {
   }
 
   const toISTISOString = (date) => {
-  if (!date) return null;
+    if (!date) return null;
 
-  const istOffset = 330; // minutes
-  const localDate = new Date(date);
+    const istOffset = 330; // minutes
+    const localDate = new Date(date);
 
-  const istTime = new Date(
-    localDate.getTime() + istOffset * 60 * 1000
-  );
+    const istTime = new Date(
+      localDate.getTime() + istOffset * 60 * 1000
+    );
 
-  return istTime.toISOString();
-};
+    return istTime.toISOString();
+  };
 
   const loadCategories = async () => {
     const data = await getCategories(propertyId)
@@ -207,15 +208,18 @@ const RateCard = (props) => {
       header: "Confirmation",
       icon: "pi pi-exclamation-triangle",
       accept: () => deleteRateCard(data),
-      reject: () => {},
+      reject: () => { },
     })
   }
 
   const deleteRateCard = async (data) => {
     setLoading(true)
+
     try {
-      const updatedGridData = gridData.filter((item) => item.Id !== data.Id)
-      setGridData(updatedGridData)
+      await deleteRateCardApi(data.Id)
+
+      await loadRateCardList()
+
       toast.current.show({
         severity: "success",
         summary: "Success",
@@ -224,7 +228,13 @@ const RateCard = (props) => {
       })
     } catch (error) {
       console.error("Error deleting Rate Card:", error)
-      toast.current.show({ severity: "error", summary: "Error", detail: "Failed to delete rate card", life: 3000 })
+
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: error.message || "Failed to delete rate card",
+        life: 3000,
+      })
     } finally {
       setLoading(false)
     }
@@ -310,12 +320,12 @@ const RateCard = (props) => {
 
       <div className="d-flex align-items-center" style={{ gap: '12px' }}>
         <ExportToCSV data={gridData} />
-        <Button 
-          label="Add New Rate" 
-          icon="pi pi-plus" 
-          className="p-button-success" 
+        <Button
+          label="Add New Rate"
+          icon="pi pi-plus"
+          className="p-button-success"
           style={{ height: '40px', fontSize: '14px', borderRadius: '4px', backgroundColor: '#198754', borderColor: '#198754', fontWeight: 500 }}
-          onClick={openNew} 
+          onClick={openNew}
         />
       </div>
     </div>
@@ -381,7 +391,10 @@ const RateCard = (props) => {
 
   return (
     <div className="card">
-      <Toast ref={toast} />
+      <>
+        <Toast ref={toast} />
+        <ConfirmDialog />
+      </>
       <DataTable
         value={gridData}
         loading={loading}

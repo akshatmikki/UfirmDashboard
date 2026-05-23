@@ -44,23 +44,29 @@ const PurchaseOrderMaster = () => {
     const [preview, setpreview] = useState(false);
     const toast = useRef(null);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            if (propertyId) {
+    const fetchPOData = async () => {
+        if (propertyId) {
+            setLoading(true);
+            try {
                 const data = await getPurchaseOrder(propertyId);
                 setFilteredGridData(data);
+            } finally {
+                setLoading(false);
             }
-            else {
-                setFilteredGridData([]);
-                toast.current.show({
-                    severity: "error",
-                    summary: "Error",
-                    detail: `Please select a property`,
-                    life: 3000,
-                })
-            }
-        };
-        fetchData();
+        }
+        else {
+            setFilteredGridData([]);
+            toast.current?.show({
+                severity: "error",
+                summary: "Error",
+                detail: `Please select a property`,
+                life: 3000,
+            })
+        }
+    };
+
+    useEffect(() => {
+        fetchPOData();
     }, [propertyId]);
 
     const openDialog = () => {
@@ -288,7 +294,10 @@ const PurchaseOrderMaster = () => {
                 style={{ width: '90vw', height: '90vh' }}
                 header="Create Purchase Order"
             >
-                <PurchaseOrderPage />
+                <PurchaseOrderPage onPOCreated={() => {
+                    setDisplayDialog(false);
+                    fetchPOData();
+                }} />
             </Dialog>
 
             <Dialog

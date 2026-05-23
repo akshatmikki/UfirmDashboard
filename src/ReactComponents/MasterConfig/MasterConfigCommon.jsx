@@ -160,6 +160,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
   const [mode, setMode] = useState("view"); // view | edit
   const [showAdd, setShowAdd] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
+  const [deleteRow, setDeleteRow] = useState(null);
 
   const [form, setForm] = useState({});
   const [addForm, setAddForm] = useState({});
@@ -214,6 +215,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
     setMode("view");
     setShowAdd(false);
     setShowDelete(false);
+    setDeleteRow(null);
     setMeta({});
 
     const initial =
@@ -286,7 +288,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
       onEdit(row);
     },
     deleteRow: (row) => {
-      setSelectedRow(row);
+      setDeleteRow(row);
       setShowDelete(true);
     }
   }), [onEdit]);
@@ -340,14 +342,17 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
   );
 
   const remove = useCallback(async () => {
-    if (!tab || !selectedRow) return;
+    if (!tab || !deleteRow) return;
     setLoading(true);
     try {
-      await tab.remove({ row: selectedRow, context, meta });
+      await tab.remove({ row: deleteRow, context, meta });
       doNotify("success", `${tab.entityName || "Item"} deleted successfully!`);
       setShowDelete(false);
-      setSelectedRow(null);
-      setMode("view");
+      setDeleteRow(null);
+      if (selectedRow && getRowId(tab, selectedRow) === getRowId(tab, deleteRow)) {
+        setSelectedRow(null);
+        setMode("view");
+      }
       await refresh();
     } catch (e) {
       console.error("MasterConfigCommon delete failed:", e);
@@ -355,10 +360,11 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
     } finally {
       setLoading(false);
     }
-  }, [context, doNotify, meta, refresh, selectedRow, tab]);
+  }, [context, doNotify, meta, refresh, deleteRow, selectedRow, tab, getRowId]);
 
   const deleteTitle = `${showDelete ? "Delete " : ""}${tab?.entityName || "Item"}`;
   const selectedId = selectedRow ? getRowId(tab, selectedRow) : null;
+  const deleteId = deleteRow ? getRowId(tab, deleteRow) : null;
 
   return (
     <div className="mc-wrap">
@@ -453,7 +459,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setSelectedRow(r);
+                            setDeleteRow(r);
                             setShowDelete(true);
                           }}
                         >
@@ -668,15 +674,15 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
         </Modal>
       ) : null}
 
-      {showDelete && selectedRow ? (
+      {showDelete && deleteRow ? (
         <Modal
           title={deleteTitle}
           iconClassName="warn fas fa-exclamation-triangle"
           size="small"
-          onClose={() => setShowDelete(false)}
+          onClose={() => { setShowDelete(false); setDeleteRow(null); }}
           footer={
             <>
-              <button className="mc-btn ghost" onClick={() => setShowDelete(false)} type="button" disabled={loading}>
+              <button className="mc-btn ghost" onClick={() => { setShowDelete(false); setDeleteRow(null); }} type="button" disabled={loading}>
                 Cancel
               </button>
               <button className="mc-btn delete" onClick={remove} type="button" disabled={loading}>
@@ -690,7 +696,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
           </p>
           <div className="mc-info-box">
             <div>
-              <b>ID:</b> {valueToString(selectedId ?? "-") || "-"}
+              <b>ID:</b> {valueToString(deleteId ?? "-") || "-"}
             </div>
           </div>
         </Modal>

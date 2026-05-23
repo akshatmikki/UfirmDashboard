@@ -15,7 +15,8 @@ const POQuantityComponent = ({
     selectedGridData = [],
     selectedIds = [],
     refreshItemAssigned,
-    isFromItemAssigned = false
+    isFromItemAssigned = false,
+    onPOCreated
 }) => {
     const [shippingAddress, setShippingAddress] = useState('');
     const [billingAddress, setBillingAddress] = useState('');
@@ -37,13 +38,17 @@ const POQuantityComponent = ({
         const response = await createPurchaseOrder(grouped);
 
         // ✅ UPDATE ITEM SPECIFICATION STATUS
-        if (response) {
+        if (response && isFromItemAssigned && selectedIds.length > 0) {
             await updatePOStatus(selectedIds);
         }
 
         // ✅ REFRESH ITEM ASSIGNED PAGE
         if (refreshItemAssigned) {
             await refreshItemAssigned();
+        }
+
+        if (onPOCreated) {
+            onPOCreated();
         }
 
         toast.current.show({

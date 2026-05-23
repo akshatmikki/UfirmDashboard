@@ -8,7 +8,8 @@ import { Toast } from 'primereact/toast';
 import { getCategories, fetchFilteredItems, getVendors, fetchFilteredRate } from "../../Services/InventoryService";
 import { useSelector } from "react-redux";
 import POQuantityComponent from './POQuantityComponent';
-const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssigned = null }) => {
+const EMPTY_ARRAY = [];
+const PurchaseOrderPage = ({ initialItems = EMPTY_ARRAY, initialIds = EMPTY_ARRAY, refreshItemAssigned = null, onPOCreated }) => {
     const [loading, setLoading] = useState(false);
     const [categories, setCategories] = useState([]);
     const [selectedCategory, setSelectedCategory] = useState(null);
@@ -36,6 +37,7 @@ const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssi
     const [filteredGridData, setFilteredGridData] = useState([emptyallGridData]);
     const [selectedGridData, setSelectedGridData] = useState([]);
     const [displayDialog, setDisplayDialog] = useState(false);
+    const [isFetchingRates, setIsFetchingRates] = useState(true);
     const propertyId = useSelector((state) => state.Commonreducer.puidn);
 
     const toast = useRef(null);
@@ -62,18 +64,30 @@ const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssi
             const item = selectedItem ? selectedItem : null;
             const vendor = selectedVendor ? selectedVendor : null;
             if (propertyId) {
-                getItems(propertyId, category);
-                const data = await fetchFilteredRate(propertyId, category, item, vendor);
-                setFilteredGridData(data);
+                setIsFetchingRates(true);
+                try {
+                    getItems(propertyId, category);
+                    const data = await fetchFilteredRate(propertyId, category, item, vendor);
+                    setFilteredGridData(data || []);
+                } finally {
+                    setIsFetchingRates(false);
+                }
             }
         };
         fetchData();
     }, [propertyId, selectedCategory, selectedItem, selectedVendor]);
 
     const isFromItemAssigned = initialItems && initialItems.length > 0;
+    
+    const tableProps = isFromItemAssigned ? { dataKey: "Id" } : {};
 
     const displayData = React.useMemo(() => {
-        if (!isFromItemAssigned) return filteredGridData;
+        if (!isFromItemAssigned) {
+            return filteredGridData.map((item, index) => ({
+                ...item,
+                Id: item.Id || `normal-${item.ItemId}-${item.VendorId}-${index}`
+            }));
+        }
 
         return initialItems.map((assignedItem) => {
             const rateCard = filteredGridData.find(rc => rc.ItemId === assignedItem.ItemId) || {};
@@ -106,12 +120,11 @@ const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssi
     }, [initialItems]);
 
     useEffect(() => {
-        const isStillLoading = filteredGridData.length === 1 && filteredGridData[0].POId === "xxxxx";
-        if (isFromItemAssigned && !isStillLoading && !autoSelectDone && displayData.length > 0) {
+        if (isFromItemAssigned && !isFetchingRates && !autoSelectDone && displayData.length > 0) {
             setSelectedGridData(displayData);
             setAutoSelectDone(true);
         }
-    }, [isFromItemAssigned, filteredGridData, autoSelectDone, displayData]);
+    }, [isFromItemAssigned, isFetchingRates, autoSelectDone, displayData]);
 
     const getAllCategories = async (propertyId) => {
         setLoading(true);
@@ -252,7 +265,7 @@ const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssi
                     <div className="row mt-3">
                         <DataTable
                             value={displayData}
-                            dataKey={isFromItemAssigned ? "Id" : null}
+                            dataKey="Id"
                             paginator
                             rows={15}
                             loading={loading}
@@ -290,11 +303,15 @@ const PurchaseOrderPage = ({ initialItems = [], initialIds = [], refreshItemAssi
                 header="Purchase Order"
             >
                 <POQuantityComponent 
-   selectedGridData={selectedGridData} 
-   selectedIds={selectedGridData.map(x => x.Id)}
-   refreshItemAssigned={refreshItemAssigned}
-   isFromItemAssigned={isFromItemAssigned}
-/>
+                   selectedGridData={selectedGridData} 
+                   selectedIds={selectedGridData.map(x => x.Id)}
+                   refreshItemAssigned={refreshItemAssigned}
+                   isFromItemAssigned={isFromItemAssigned}
+                   onPOCreated={() => {
+                       setDisplayDialog(false);
+                       if (onPOCreated) onPOCreated();
+                   }}
+                />
             </Dialog>
 
         </div>

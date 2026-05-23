@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-//const API_BASE_URL = 'http://localhost:62929/api/inventory';
-const API_BASE_URL = 'https://api.urest.in:8096/api/inventory';
+const API_BASE_URL = 'http://localhost:62929/api/inventory';
+//const API_BASE_URL = 'https://api.urest.in:8096/api/inventory';
 const api = axios.create({
     baseURL: API_BASE_URL,
     headers: {
@@ -240,6 +240,15 @@ export const fetchFilteredRate = async (propertyId, CategoryId, ItemId, VendorId
         return response.data;
     } catch (error) {
         console.error('Error fetching Rate Card:', error);
+    }
+};
+
+export const deleteRateCard = async (id) => {
+    try {
+        const response = await api.delete(`/ratecard/${id}`);
+        return response.data;
+    } catch (error) {
+        handleApiError(error);
     }
 };
 

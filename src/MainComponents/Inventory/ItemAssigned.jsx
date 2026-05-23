@@ -9,6 +9,7 @@ import { Toast } from "primereact/toast";
 import { Dialog } from "primereact/dialog";
 import { RadioButton } from "primereact/radiobutton";
 import { Dropdown } from "primereact/dropdown";
+import { Paginator } from "primereact/paginator";
 import { useSelector } from "react-redux";
 import PurchaseOrderPage from './PurchaseOrderPage';
 
@@ -39,6 +40,8 @@ export default function ItemAssignedPage() {
   const [poDialogVisible, setPoDialogVisible] = useState(false);
   const [poInitialItems, setPoInitialItems] = useState([]);
   const [poInitialIds, setPoInitialIds] = useState([]);
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(10);
   const [isEmployeeLinked, setIsEmployeeLinked] = useState(false);
   const [formData, setFormData] = useState({
     itemId: null,
@@ -145,7 +148,9 @@ export default function ItemAssignedPage() {
 
     try {
       const res = await getItemAssigned(propertyId);
-      setGrouped(res || []);
+      const sorted = (res || []).sort((a, b) => b.Id - a.Id);
+      setGrouped(sorted);
+      setFirst(0);
     } catch (err) {
       console.error("[FETCH_GROUPED_ERROR]", err);
       setGrouped([]);
@@ -512,6 +517,8 @@ export default function ItemAssignedPage() {
     );
   });
 
+  const currentItems = filtered.slice(first, first + rows);
+
   return (
     <div
       className="container-fluid py-3"
@@ -672,7 +679,7 @@ export default function ItemAssignedPage() {
                   </tr>
                 )}
 
-                {filtered.map((row, index) => (
+                {currentItems.map((row, index) => (
                   <tr key={row.Id ?? index}>
                     <td>
                       <input
@@ -688,7 +695,7 @@ export default function ItemAssignedPage() {
                         }}
                       />
                     </td>
-                    <td>{index + 1}</td>
+                    <td>{first + index + 1}</td>
                     <td>{row.Item_Name}</td>
                     <td>{row.Gender}</td>
                     <td>{row.Quantity}</td>
@@ -782,6 +789,17 @@ export default function ItemAssignedPage() {
               </tbody>
             </table>
           </div>
+          {filtered.length > 0 && (
+            <Paginator
+              first={first}
+              rows={rows}
+              totalRecords={filtered.length}
+              onPageChange={(e) => {
+                setFirst(e.first);
+                setRows(e.rows);
+              }}
+            />
+          )}
         </div>
       </div>
 
