@@ -594,7 +594,7 @@ export default function ItemAssignedPage() {
               label="Approve"
               icon="pi pi-check"
               className="p-button-info"
-              disabled={selectedRows.length === 0}
+              disabled={selectedRows.length === 0 || selectedRows.some(id => grouped.find(row => row.Id === id)?.IsFMApproved)}
               onClick={handleApprove}
               style={{
                 padding: "8px 16px",
