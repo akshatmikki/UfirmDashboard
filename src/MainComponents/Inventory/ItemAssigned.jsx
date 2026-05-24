@@ -9,8 +9,9 @@ import { Toast } from "primereact/toast";
 import { Dialog } from "primereact/dialog";
 import { RadioButton } from "primereact/radiobutton";
 import { Dropdown } from "primereact/dropdown";
+import { Paginator } from "primereact/paginator";
 import { useSelector } from "react-redux";
-import POQuantityComponent from './POQuantityComponent';
+import PurchaseOrderPage from './PurchaseOrderPage';
 
 import {
   getItemAssigned,
@@ -30,18 +31,18 @@ export default function ItemAssignedPage() {
   const [grouped, setGrouped] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("All");
-const [selectedRows, setSelectedRows] = useState([]);
+  const [selectedRows, setSelectedRows] = useState([]);
   const [dialogVisible, setDialogVisible] = useState(false);
   const [deleteDialogVisible, setDeleteDialogVisible] = useState(false);
   const [specifications, setSpecifications] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [itemOptions, setItemOptions] = useState([]);
   const [poDialogVisible, setPoDialogVisible] = useState(false);
-  const [poSelectedData, setPoSelectedData] = useState({
-  items: [],
-  ids: []
-});
-
+  const [poInitialItems, setPoInitialItems] = useState([]);
+  const [poInitialIds, setPoInitialIds] = useState([]);
+  const [first, setFirst] = useState(0);
+  const [rows, setRows] = useState(10);
+  const [isEmployeeLinked, setIsEmployeeLinked] = useState(false);
   const [formData, setFormData] = useState({
     itemId: null,
     item_Name: "",
@@ -147,7 +148,9 @@ const [selectedRows, setSelectedRows] = useState([]);
 
     try {
       const res = await getItemAssigned(propertyId);
-      setGrouped(res || []);
+      const sorted = (res || []).sort((a, b) => b.Id - a.Id);
+      setGrouped(sorted);
+      setFirst(0);
     } catch (err) {
       console.error("[FETCH_GROUPED_ERROR]", err);
       setGrouped([]);
@@ -163,7 +166,11 @@ const [selectedRows, setSelectedRows] = useState([]);
       const res = await getAllItems(propertyId);
       const formatted = (res || []).map((i) => ({
         label: i.Name,
-        value: { id: i.Id, name: i.Name },
+        value: {
+          id: i.Id,
+          name: i.Name,
+          IsEmployeeLinked: i.IsEmployeeLinked
+        },
       }));
       setItemOptions(formatted);
     } catch (err) {
@@ -177,49 +184,67 @@ const [selectedRows, setSelectedRows] = useState([]);
   };
 
   // ---------- form handlers ----------
-const handleItemSelect = async (value) => {
-  setFormData((prev) => ({
-    ...prev,
-    itemId: value?.id ?? null,
-    item_Name: value?.name ?? "",
-  }));
+  const handleItemSelect = async (value) => {
 
-  if (!value || !value.id) {
-    setSpecifications([]);
-    return;
-  }
+    setFormData((prev) => ({
+      ...prev,
+      itemId: value?.id ?? null,
+      item_Name: value?.name ?? "",
+      gender: ""
+    }));
 
-  // ✅ Fetch specifications by itemId - no filtering, use API response as-is
-  try {
-    const res = await getItemSpecificationsByItemId(value.id);
-    if (!res || res.length === 0) {
-      toast.current?.show({
-        severity: "info",
-        summary: "No Specifications",
-        detail: "No specifications available for this item.",
-      });
+    if (!value || !value.id) {
       setSpecifications([]);
+      setIsEmployeeLinked(false);
       return;
     }
 
-    // ✅ Map API response directly to editable format (no filtering)
-    setSpecifications(
-      res.map((s) => ({
-        Id: s.Id || 0,
-        Specification: s.Specification,
-        Specification_Value: "", // ✅ User fills this in
-      }))
-    );
-  } catch (err) {
-    console.error("[FETCH_SPECS_ERROR]", err);
-    toast.current?.show({
-      severity: "error",
-      summary: "Error",
-      detail: "Failed to load specifications",
-    });
-    setSpecifications([]);
-  }
-};
+    try {
+
+      const res = await getItemSpecificationsByItemId(value.id);
+
+      // ✅ IMPORTANT FIX
+      if (res && res.length > 0) {
+        setIsEmployeeLinked(!!res[0].IsEmployeeLinked);
+      } else {
+        setIsEmployeeLinked(false);
+      }
+
+      if (!res || res.length === 0) {
+
+        toast.current?.show({
+          severity: "info",
+          summary: "No Specifications",
+          detail: "No specifications available for this item.",
+        });
+
+        setSpecifications([]);
+        return;
+      }
+
+      setSpecifications(
+        res.map((s) => ({
+          Id: s.Id || 0,
+          Specification: s.Specification,
+          Specification_Value: "",
+        }))
+      );
+
+    } catch (err) {
+
+      console.error("[FETCH_SPECS_ERROR]", err);
+
+      setIsEmployeeLinked(false);
+
+      toast.current?.show({
+        severity: "error",
+        summary: "Error",
+        detail: "Failed to load specifications",
+      });
+
+      setSpecifications([]);
+    }
+  };
 
   const handleSpecValueChange = (index, value) => {
     setSpecifications((prev) =>
@@ -240,7 +265,7 @@ const handleItemSelect = async (value) => {
       return false;
     }
 
-    if (!formData.gender || formData.gender === "") {
+    if (isEmployeeLinked && (!formData.gender || formData.gender === "")) {
       toast.current?.show({
         severity: "warn",
         summary: "Missing Gender",
@@ -344,7 +369,9 @@ const handleItemSelect = async (value) => {
       quantity: rowData.Quantity || 1,
       isRequisition: rowData.IsRequisition || false,
       isHandover: rowData.IsHandover || false,
+
     });
+    setIsEmployeeLinked(!!rowData.IsEmployeeLinked);
 
     // ✅ Pre-fill specifications from existing data
     setSpecifications(
@@ -397,76 +424,63 @@ const handleItemSelect = async (value) => {
       });
     }
   };
-const handleApprove = async () => {
-  if (selectedRows.length === 0) {
-    toast.current?.show({
-      severity: "warn",
-      summary: "No Selection",
-      detail: "Please select at least one item to approve.",
-    });
-    return;
-  }
-
-  try {
-    // Call the approve API for each selected item individually
-    await Promise.all(selectedRows.map((id) => ApproveItemAssigned(id)));
-
-    toast.current?.show({
-      severity: "success",
-      summary: "Approved",
-      detail: "Selected items approved successfully.",
-    });
-
-    let rateCards = [];
-    try {
-      rateCards = await getRateCard(propertyId) || [];
-    } catch (err) {
-      console.error("Failed to fetch rate cards", err);
+  const handleApprove = async () => {
+    if (selectedRows.length === 0) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "No Selection",
+        detail: "Please select at least one item to approve.",
+      });
+      return;
     }
 
-    // Aggregate selected items for Purchase Order
+    try {
+      // Call the approve API for each selected item individually
+      await Promise.all(selectedRows.map((id) => ApproveItemAssigned(id)));
+
+      toast.current?.show({
+        severity: "success",
+        summary: "Approved",
+        detail: "Selected items approved successfully.",
+      });
+
+      setSelectedRows([]);
+      fetchGrouped(); // refresh table
+    } catch (err) {
+      console.error("APPROVE_ERROR", err);
+      toast.current?.show({
+        severity: "error",
+        summary: "Error",
+        detail: err.message || "Failed to approve items.",
+      });
+    }
+  };
+
+  const handlePurchaseOrder = () => {
+    if (selectedRows.length === 0) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "No Selection",
+        detail: "Please select at least one item to create Purchase Order.",
+      });
+      return;
+    }
     const selectedItems = grouped.filter((row) => selectedRows.includes(row.Id));
-    const aggregated = {};
-    
-    selectedItems.forEach((item) => {
-      const key = item.ItemId;
-      if (!aggregated[key]) {
-        const rateCard = rateCards.find((rc) => rc.ItemId === item.ItemId);
 
-        aggregated[key] = {
-          Id: item.ItemId,
-          ItemId: item.ItemId,
-          ItemName: item.Item_Name || "Unknown Item",
-          Description: "",
-          VendorName: rateCard ? rateCard.VendorName || "N/A" : "N/A", 
-          VendorId: rateCard ? rateCard.VendorId || 0 : 0,
-          BrandName: "",
-          Price: rateCard ? rateCard.Price || 0 : 0,
-          MeasurementUnit: "Unit",
-          HSNCode: "",
-          Quantity: 0
-        };
-      }
-      aggregated[key].Quantity += Number(item.Quantity) || 0;
-    });
+    const unapprovedItems = selectedItems.filter((row) => !row.IsFMApproved);
+    if (unapprovedItems.length > 0) {
+      toast.current?.show({
+        severity: "warn",
+        summary: "Not Approved",
+        detail: "Purchase Order cannot be created for unapproved items.",
+      });
+      return;
+    }
 
-   setPoSelectedData({
-  items: Object.values(aggregated),
-  ids: selectedRows
-});
+    setPoInitialItems(selectedItems);
+    setPoInitialIds(selectedRows);
     setPoDialogVisible(true);
-
-    setSelectedRows([]);
-    fetchGrouped(); // refresh table
-  } catch (err) {
-    console.error("APPROVE_ERROR", err);
-    toast.current?.show({
-      severity: "error",
-      summary: "Error",
-      detail: err.message || "Failed to approve items.",
-    });
-  }
-};
+  };
 
   // ---------- filtering ----------
   const filtered = grouped.filter((row) => {
@@ -482,16 +496,16 @@ const handleApprove = async () => {
     const typeText = row.IsRequisition
       ? "requisition"
       : row.IsHandover
-      ? "handover"
-      : "";
+        ? "handover"
+        : "";
 
     const specsText = Array.isArray(row.Details)
       ? row.Details.map(
-          (d) =>
-            `${d.Specification_Name ?? ""}: ${d.Specification_Value ?? ""}`
-        )
-          .join(" ")
-          .toLowerCase()
+        (d) =>
+          `${d.Specification_Name ?? ""}: ${d.Specification_Value ?? ""}`
+      )
+        .join(" ")
+        .toLowerCase()
       : "";
 
     return (
@@ -502,6 +516,8 @@ const handleApprove = async () => {
       specsText.includes(term)
     );
   });
+
+  const currentItems = filtered.slice(first, first + rows);
 
   return (
     <div
@@ -558,52 +574,66 @@ const handleApprove = async () => {
               </div>
             </div>
 
-  {/* ✅ Search bar - matches Add Item button size */}
-      {/* <span className="search-icon-wrapper">
+            {/* ✅ Search bar - matches Add Item button size */}
+            {/* <span className="search-icon-wrapper">
       <i className="fa fa-search" style={{ color: "#6b7280" }} />
     </span> */}
-  <InputText
-    value={searchTerm}
-    onChange={(e) => setSearchTerm(e.target.value)}
-    placeholder="Search..."
-    style={{
-      height: "38px",
-      width: "200px",
-      borderRadius: "8px",
-      border: "1px solid #d1d5db",
-      paddingLeft: "12px",
-    }}
-  />
-<Button
-  label="Approve & PO"
-  icon="pi pi-check"
-  className="p-button-info"
-  disabled={selectedRows.length === 0}
-  onClick={handleApprove}
-  style={{
-    padding: "8px 16px",
-    fontSize: "13px",
-    height: "38px",
-    borderRadius: "8px",
-    whiteSpace: "nowrap",
-  }}
-/>
+            <InputText
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search..."
+              style={{
+                height: "38px",
+                width: "200px",
+                borderRadius: "8px",
+                border: "1px solid #d1d5db",
+                paddingLeft: "12px",
+              }}
+            />
+            <Button
+              label="Approve"
+              icon="pi pi-check"
+              className="p-button-info"
+              disabled={selectedRows.length === 0 || selectedRows.some(id => grouped.find(row => row.Id === id)?.IsFMApproved)}
+              onClick={handleApprove}
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                height: "38px",
+                borderRadius: "8px",
+                whiteSpace: "nowrap",
+              }}
+            />
+            <Button
+              label="Purchase Order"
+              icon="pi pi-shopping-cart"
+              className="p-button-primary"
+              disabled={selectedRows.length === 0}
+              onClick={handlePurchaseOrder}
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                height: "38px",
+                borderRadius: "8px",
+                whiteSpace: "nowrap",
+              }}
+            />
 
-  {/* ✅ Add button - rounded */}
-  <Button
-    label="Add Item"
-    icon="pi pi-plus"
-    className="p-button-success"
-    style={{
-      padding: "8px 16px",
-      fontSize: "13px",
-      height: "38px",
-      borderRadius: "8px",
-      whiteSpace: "nowrap",
-    }}
-    onClick={openAddDialog}
-  />
-</div>
+            {/* ✅ Add button - rounded */}
+            <Button
+              label="Add Requisition"
+              icon="pi pi-plus"
+              className="p-button-success"
+              style={{
+                padding: "8px 16px",
+                fontSize: "13px",
+                height: "38px",
+                borderRadius: "8px",
+                whiteSpace: "nowrap",
+              }}
+              onClick={openAddDialog}
+            />
+          </div>
         </div>
 
         <div className="card-body p-3">
@@ -615,18 +645,18 @@ const handleApprove = async () => {
               <thead className="thead-light">
                 <tr>
                   <th style={{ width: "40px" }}>
-  <input
-    type="checkbox"
-    checked={filtered.length > 0 && selectedRows.length === filtered.length}
-    onChange={(e) => {
-      if (e.target.checked) {
-        setSelectedRows(filtered.map((x) => x.Id));
-      } else {
-        setSelectedRows([]);
-      }
-    }}
-  />
-</th>
+                    <input
+                      type="checkbox"
+                      checked={filtered.length > 0 && filtered.filter(x => !x.IsPOCreated).length > 0 && selectedRows.length === filtered.filter(x => !x.IsPOCreated).length}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedRows(filtered.filter(x => !x.IsPOCreated).map((x) => x.Id));
+                        } else {
+                          setSelectedRows([]);
+                        }
+                      }}
+                    />
+                  </th>
                   <th style={{ width: "80px" }}>S. No</th>
                   <th>Item Name</th>
                   <th style={{ width: "120px" }}>Gender</th>
@@ -649,30 +679,31 @@ const handleApprove = async () => {
                   </tr>
                 )}
 
-                {filtered.map((row, index) => (
+                {currentItems.map((row, index) => (
                   <tr key={row.Id ?? index}>
                     <td>
-  <input
-    type="checkbox"
-    checked={selectedRows.includes(row.Id)}
-    onChange={(e) => {
-      if (e.target.checked) {
-        setSelectedRows([...selectedRows, row.Id]);
-      } else {
-        setSelectedRows(selectedRows.filter((id) => id !== row.Id));
-      }
-    }}
-  />
-</td>
-                    <td>{index + 1}</td>
+                      <input
+                        type="checkbox"
+                        disabled={row.IsPOCreated}
+                        checked={selectedRows.includes(row.Id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedRows([...selectedRows, row.Id]);
+                          } else {
+                            setSelectedRows(selectedRows.filter((id) => id !== row.Id));
+                          }
+                        }}
+                      />
+                    </td>
+                    <td>{first + index + 1}</td>
                     <td>{row.Item_Name}</td>
                     <td>{row.Gender}</td>
                     <td>{row.Quantity}</td>
                     <td>
                       {(!Array.isArray(row.Details) ||
                         row.Details.length === 0) && (
-                        <span className="text-muted">No Specifications</span>
-                      )}
+                          <span className="text-muted">No Specifications</span>
+                        )}
 
                       {Array.isArray(row.Details) &&
                         row.Details.map((d, i) => (
@@ -698,35 +729,35 @@ const handleApprove = async () => {
                     <td>{formatDate(row.Created_On)}</td>
                     <td>{formatTime12(row.Created_On)}</td>
                     <td className="text-center">
-  {row.IsFMApproved ? (
-    <i className="pi pi-check" style={{ color: "green", fontSize: "1.2rem" }}></i>
-  ) : (
-    <i className="pi pi-times" style={{ color: "red", fontSize: "1.2rem" }}></i>
-  )}
-</td>
-<td className="text-center">
-  {row.IsPOCreated ? (
-    <span
-      className="badge badge-success"
-      style={{
-        padding: "6px 10px",
-        borderRadius: "6px",
-      }}
-    >
-      PO Created
-    </span>
-  ) : (
-    <span
-      className="badge badge-warning"
-      style={{
-        padding: "6px 10px",
-        borderRadius: "6px",
-      }}
-    >
-      PO Pending
-    </span>
-  )}
-</td>
+                      {row.IsFMApproved ? (
+                        <i className="pi pi-check" style={{ color: "green", fontSize: "1.2rem" }}></i>
+                      ) : (
+                        <i className="pi pi-times" style={{ color: "red", fontSize: "1.2rem" }}></i>
+                      )}
+                    </td>
+                    <td className="text-center">
+                      {row.IsPOCreated ? (
+                        <span
+                          className="badge badge-success"
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          PO Created
+                        </span>
+                      ) : (
+                        <span
+                          className="badge badge-warning"
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          PO Pending
+                        </span>
+                      )}
+                    </td>
 
                     <td className="text-center">
                       <Button
@@ -758,6 +789,17 @@ const handleApprove = async () => {
               </tbody>
             </table>
           </div>
+          {filtered.length > 0 && (
+            <Paginator
+              first={first}
+              rows={rows}
+              totalRecords={filtered.length}
+              onPageChange={(e) => {
+                setFirst(e.first);
+                setRows(e.rows);
+              }}
+            />
+          )}
         </div>
       </div>
 
@@ -787,9 +829,9 @@ const handleApprove = async () => {
             <label>Item *</label>
             <Dropdown
               value={
-                formData.itemId
-                  ? { id: formData.itemId, name: formData.item_Name }
-                  : null
+                itemOptions.find(
+                  (opt) => opt.value.id === formData.itemId
+                )?.value || null
               }
               options={itemOptions}
               onChange={(e) => handleItemSelect(e.value)}
@@ -797,23 +839,29 @@ const handleApprove = async () => {
               showClear
               filter
               className="w-full"
-              disabled={!!selectedItem} // ✅ Disable on edit
+              disabled={!!selectedItem}
             />
           </div>
-          <div className="field">
-            <label>Gender *</label>
-            <select
-              className="p-inputtext p-component"
-              value={formData.gender}
-              onChange={(e) =>
-                setFormData({ ...formData, gender: e.target.value })
-              }
-            >
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-            </select>
-          </div>
+          {isEmployeeLinked && (
+            <div className="field">
+              <label>Gender *</label>
+
+              <select
+                className="p-inputtext p-component"
+                value={formData.gender}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    gender: e.target.value,
+                  })
+                }
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          )}
 
           <div className="field">
             <label>Quantity *</label>
@@ -852,7 +900,7 @@ const handleApprove = async () => {
                 </label>
               </div>
 
-              <div className="flex align-items-center">
+              {/* <div className="flex align-items-center">
                 <RadioButton
                   inputId="handover"
                   name="type"
@@ -869,7 +917,7 @@ const handleApprove = async () => {
                 <label htmlFor="handover" className="ml-2">
                   Handover
                 </label>
-              </div>
+              </div> */}
             </div>
           </div>
 
@@ -928,13 +976,19 @@ const handleApprove = async () => {
         onHide={() => setPoDialogVisible(false)}
         modal
         style={{ width: '90vw', height: '90vh' }}
-        header="Purchase Order"
+        header="Create Purchase Order"
       >
-        <POQuantityComponent
-   selectedGridData={poSelectedData.items}
-   selectedIds={poSelectedData.ids}
-   refreshItemAssigned={fetchGrouped}
-/>
+        {poDialogVisible && (
+          <PurchaseOrderPage
+            initialItems={poInitialItems}
+            initialIds={poInitialIds}
+            refreshItemAssigned={() => {
+              setPoDialogVisible(false);
+              setSelectedRows([]);
+              fetchGrouped();
+            }}
+          />
+        )}
       </Dialog>
     </div>
   );

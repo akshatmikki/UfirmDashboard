@@ -1925,9 +1925,9 @@
   font-family: 'Inter', sans-serif !important;
   font-size: 14px !important;
   font-weight: 500 !important;
-  color: #4A5565 !important;
-  margin-bottom: 8px !important;
-  line-height: 20px !important;
+  color: #1E3143 !important;
+  margin-bottom: 6px !important;
+  line-height: 100% !important;
   letter-spacing: -0.15px !important;
 }
 
@@ -3666,7 +3666,13 @@
   z-index: 1;
 }
 
-.asset-input-icon-wrapper .form-control {
+.asset-input-icon-wrapper .form-control,
+.asset-side-panel .asset-input-icon-wrapper .form-control,
+.asset-add-modal .asset-input-icon-wrapper .form-control,
+.spare-add-modal .asset-input-icon-wrapper .form-control,
+.asset-success-modal .asset-input-icon-wrapper .form-control,
+.asset-delete-modal .asset-input-icon-wrapper .form-control,
+.asset-side-panel-form-edit .asset-input-icon-wrapper .form-control {
   padding-left: 30px !important;
 }
 
@@ -3699,12 +3705,12 @@
 .asset-side-panel-form-edit .asset-form-group-custom label,
 .asset-side-panel-form .asset-form-group-custom label {
   font-family: 'Inter', sans-serif !important;
-  font-size: 14px !important;
-  line-height: 20px !important;
   font-weight: 500 !important;
+  font-size: 14px !important;
+  line-height: 100% !important;
   letter-spacing: -0.15px !important;
-  color: #4A5565 !important;
-  margin-bottom: 8px !important;
+  color: #1E3143 !important;
+  margin-bottom: 6px !important;
 }
 
 .asset-add-modal .asset-radio-group {
@@ -3758,16 +3764,53 @@ button.asset-doc-link-text:hover {
 .asset-delete-modal .form-control,
 .asset-side-panel-form-edit .form-control {
   background-color: #FAFAFA !important;
-  min-height: 36px !important;
+  height: 36px !important;
   border-radius: 8px !important;
-  border: 1px solid rgba(19, 23, 32, 0.15) !important;
-  color: #5A5B5D !important;
+  border: 1px solid #d1d7df !important;
+  color: #131720 !important;
   font-family: 'Inter', sans-serif !important;
   font-size: 14px !important;
-  line-height: 1.4 !important;
+  line-height: 100% !important;
   font-weight: 400 !important;
   letter-spacing: -0.15px !important;
   padding: 8px 12px !important;
+  box-shadow: none !important;
+}
+
+.asset-side-panel .form-control::placeholder,
+.asset-add-modal .form-control::placeholder,
+.spare-add-modal .form-control::placeholder,
+.asset-success-modal .form-control::placeholder,
+.asset-delete-modal .form-control::placeholder,
+.asset-side-panel-form-edit .form-control::placeholder {
+  color: #9aa0a6 !important;
+  opacity: 1 !important;
+}
+
+.spare-add-modal .custom-dropdown-input,
+.spare-add-modal .custom-datepicker-input,
+.asset-add-modal .custom-dropdown-input,
+.asset-add-modal .custom-datepicker-input,
+.asset-side-panel-form-edit .custom-dropdown-input,
+.asset-side-panel-form-edit .custom-datepicker-input {
+  background-color: #FAFAFA !important;
+  color: #131720 !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: -0.15px !important;
+  line-height: 100% !important;
+  height: 36px !important;
+  padding: 0 12px !important;
+  border-radius: 8px !important;
+  border: 1px solid #d1d7df !important;
+  box-shadow: none !important;
+}
+
+.spare-add-modal .custom-dropdown-input-placeholder,
+.asset-add-modal .custom-dropdown-input-placeholder,
+.asset-side-panel-form-edit .custom-dropdown-input-placeholder {
+  color: #9aa0a6 !important;
 }
 
 .asset-add-modal textarea.form-control,

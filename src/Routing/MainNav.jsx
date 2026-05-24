@@ -123,6 +123,7 @@ import Designation from "../MainComponents/Payroll/Designation.jsx";
 import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
 import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx";
+import StockLedger from "../MainComponents/Inventory/StockLedger.jsx";
 
 var currentpropertyid;
 var currentclientid;
@@ -987,6 +988,12 @@ class MainNav extends React.Component {
                           <Link to="/Account/App/Stock" className="nav-link">
                             <i className=" fas fa-caret-right nav-icon"></i>
                             <p>Stock</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link to="/Account/App/StockLedger" className="nav-link">
+                            <i className=" fas fa-caret-right nav-icon"></i>
+                            <p>Stock Ledger</p>
                           </Link>
                         </li>
                         <li className="nav-item">
@@ -2185,6 +2192,9 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/StockItems">
               <StockItemsPage />
+            </Route>
+            <Route path="/Account/App/StockLedger">
+              <StockLedger />
             </Route>
             {/* <Route path="/Account/App/EmployeeOnboarding">
               <EmployeeOnboarding />

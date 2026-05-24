@@ -64,11 +64,11 @@ const PreviewPurchaseOrder = ({ groupedItems, onRemoveVendor }) => {
             <div className="mb-5 border rounded p-3 shadow-sm">
                 <div className="d-flex justify-content-between align-items-center mb-3">
                     <h5 className="m-0">Vendor: {VendorName}</h5>
-                    <Button
+                    {/* <Button
                         icon={<i className="fa fa-times"></i>}
                         style={{ backgroundColor: 'white', color: 'black' }}
                         onClick={() => onRemoveVendor(VendorName)}
-                    />
+                    /> */}
                 </div>
 
                 <div className="mb-3">
