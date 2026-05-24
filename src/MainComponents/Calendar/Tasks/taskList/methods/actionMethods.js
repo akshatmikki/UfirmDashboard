@@ -5,7 +5,11 @@ export default function attachActionMethods(TaskList) {
 
   const toTaskDateMoment = (value) => {
     if (!value) return null;
-    const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
+    const parsed = moment(
+      value,
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY-MM-DDTHH:mm:ss", "YYYY-MM-DD HH:mm:ss", moment.ISO_8601],
+      true,
+    );
     return parsed.isValid() ? parsed : null;
   };
 
@@ -94,8 +98,12 @@ export default function attachActionMethods(TaskList) {
       }, {});
 
       const sortedDates = Object.keys(groupedByDate)
-        .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
         .sort((a, b) => {
+          const aIsNoDate = String(a || "").trim().toLowerCase() === "no date";
+          const bIsNoDate = String(b || "").trim().toLowerCase() === "no date";
+          if (aIsNoDate && !bIsNoDate) return 1;
+          if (bIsNoDate && !aIsNoDate) return -1;
+          if (aIsNoDate && bIsNoDate) return 0;
           return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
         });
 

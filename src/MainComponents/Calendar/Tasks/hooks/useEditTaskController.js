@@ -26,6 +26,50 @@ function isEndTimeAfterStartTime(startTime, endTime) {
   return endMinutes > startMinutes;
 }
 
+function parseTaskDate(value, fallback) {
+  if (!value) return fallback;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const parsed = moment(
+    String(value),
+    ["YYYY-MM-DD", "DD/MM/YYYY", "MM/DD/YYYY", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+    true,
+  );
+  if (parsed.isValid()) return parsed.toDate();
+  const loose = moment(String(value));
+  return loose.isValid() ? loose.toDate() : fallback;
+}
+
+function parseTaskTime(value, fallback) {
+  if (!value) return fallback;
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
+  const parsed = moment(
+    String(value),
+    ["HH:mm:ss", "HH:mm", "h:mm A", "hh:mm A", "h:mmA", "hh:mmA"],
+    true,
+  );
+  if (parsed.isValid()) return parsed.toDate();
+  const loose = moment(String(value));
+  return loose.isValid() ? loose.toDate() : fallback;
+}
+
+function coerceEndDateAfterStartDate(startDate, endDate) {
+  if (!isValidDate(startDate)) return endDate;
+  const safeEnd = isValidDate(endDate) ? endDate : startDate;
+  const startOnly = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+  const endOnly = new Date(safeEnd.getFullYear(), safeEnd.getMonth(), safeEnd.getDate());
+  if (endOnly.getTime() > startOnly.getTime()) return safeEnd;
+  return new Date(startOnly.getFullYear(), startOnly.getMonth(), startOnly.getDate() + 1);
+}
+
+function coerceEndTimeAfterStartTime(startTime, endTime) {
+  if (!isValidDate(startTime)) return endTime;
+  const safeEnd = isValidDate(endTime) ? endTime : startTime;
+  const startMinutes = startTime.getHours() * 60 + startTime.getMinutes();
+  const endMinutes = safeEnd.getHours() * 60 + safeEnd.getMinutes();
+  if (endMinutes > startMinutes) return safeEnd;
+  return moment(startTime).add(30, "m").toDate();
+}
+
 function getMissingRequiredField(form = {}) {
   if (!String(form.taskName || "").trim()) return "taskName";
   if (!String(form.selectedCategory || "").trim()) return "selectedCategory";
@@ -44,8 +88,16 @@ function getFrequencyIdFromOccurrence(frequencyData = [], occurrenceValue = "") 
 }
 
 export default function useEditTaskController({ rowData, categoryData }) {
-  const initialStartDate = rowData?.DateFrom ? new Date(rowData.DateFrom) : new Date();
-  const initialEndDate = rowData?.DateTo ? new Date(rowData.DateTo) : initialStartDate;
+  const initialStartDate = parseTaskDate(rowData?.DateFrom, new Date());
+  const initialEndDate = coerceEndDateAfterStartDate(
+    initialStartDate,
+    parseTaskDate(rowData?.DateTo, initialStartDate),
+  );
+  const initialStartTime = parseTaskTime(rowData?.TimeFrom, new Date());
+  const initialEndTime = coerceEndTimeAfterStartTime(
+    initialStartTime,
+    parseTaskTime(rowData?.TimeTo, moment(initialStartTime).add(30, "m").toDate()),
+  );
 
   const [form, setForm] = useState(() => ({
     taskName: rowData?.Name || "",
@@ -59,8 +111,8 @@ export default function useEditTaskController({ rowData, categoryData }) {
     check: rowData?.AllDay === "Y",
     startDate: initialStartDate,
     endDate: initialEndDate,
-    startTime: rowData?.TimeFrom ? moment(rowData.TimeFrom, "HH:mm:ss").toDate() : new Date(),
-    endTime: rowData?.TimeTo ? moment(rowData.TimeTo, "HH:mm:ss").toDate() : moment().add(30, "m").toDate(),
+    startTime: initialStartTime,
+    endTime: initialEndTime,
     createdOn: moment().format(),
     propertyId: rowData?.PropertyId || 0,
     assetId: rowData?.AssetId || "",

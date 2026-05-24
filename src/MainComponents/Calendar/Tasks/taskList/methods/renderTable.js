@@ -62,7 +62,11 @@ const getDisplayStatus = (status) => {
 
 const toTaskDateMoment = (value) => {
   if (!value) return null;
-  const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
+  const parsed = moment(
+    value,
+    ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY-MM-DDTHH:mm:ss", "YYYY-MM-DD HH:mm:ss", moment.ISO_8601],
+    true,
+  );
   return parsed.isValid() ? parsed : null;
 };
 
@@ -129,11 +133,14 @@ export default function attachRenderTable(TaskList) {
       return acc;
     }, {});
 
-    const sortedDates = Object.keys(groupedByDate)
-      .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+    const allDates = Object.keys(groupedByDate);
+    const noDateKey = allDates.find((d) => String(d || "").trim().toLowerCase() === "no date") || null;
+    const sortedDates = allDates
+      .filter((d) => d !== noDateKey)
       .sort((a, b) => {
         return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
       });
+    if (noDateKey) sortedDates.push(noDateKey);
 
     const activeDate = this.state.expandedDate;
     const dateWiseRows = Array.isArray(this.state.dashboardCount?.DateWise) ? this.state.dashboardCount.DateWise : [];

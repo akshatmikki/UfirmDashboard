@@ -5,6 +5,14 @@ import { fetchTaskDashboardCount } from "../../../../../Services/DashboardServic
 const $ = window.$;
 
 export default function attachApiFetch(TaskList) {
+  const formatFilterDateForApi = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const iso = moment(raw, "YYYY-MM-DD", true);
+    if (iso.isValid()) return iso.format("DD-MM-YYYY");
+    return raw;
+  };
+
   TaskList.prototype.refreshDashboardCount = async function (params) {
     const {
       propID,
@@ -102,8 +110,8 @@ export default function attachApiFetch(TaskList) {
     const subCategoryId = this.state?.selectedSubCategoryId || 0;
     const assignToId = this.state?.assignTo || 0;
     const occurance = this.state?.occurance || 0;
-    const startDate = this.state?.filterFromDate || "";
-    const endDate = this.state?.filterToDate || "";
+    const startDate = formatFilterDateForApi(this.state?.filterFromDate || "");
+    const endDate = formatFilterDateForApi(this.state?.filterToDate || "");
     let taskStatus = this.state?.taskStatus && this.state.taskStatus !== "None" ? this.state.taskStatus : "";
     if (!taskStatus && this.state.uiTaskStatus && this.state.uiTaskStatus !== "None") {
       taskStatus = this.state.uiTaskStatus;

@@ -50,6 +50,14 @@ class DataProvider {
             case 'R':
                 url = `GetCategory?categoryId=${categoryId}`;
                 return srv.getComplaint(url);
+            case 'D':
+                {
+                    const raw = model?.[0] || {};
+                    const subCategoryId =
+                        raw.subCategoryId ?? raw.SubCategoryId ?? raw.subCatID ?? raw.subCatId ?? raw.id ?? 0;
+                    url = `DeleteSubCategory?subCategoryId=${subCategoryId}`;
+                    return srv.CallPostNewService(url);
+                }
             default:
         }
     }

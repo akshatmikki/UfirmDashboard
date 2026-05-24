@@ -3,7 +3,11 @@ import * as appCommon from '../../../../../Common/AppCommon.js';
 
 const toTaskDateMoment = (value) => {
   if (!value) return null;
-  const parsed = moment(value, ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601], true);
+  const parsed = moment(
+    value,
+    ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY-MM-DDTHH:mm:ss", "YYYY-MM-DD HH:mm:ss", moment.ISO_8601],
+    true,
+  );
   return parsed.isValid() ? parsed : null;
 };
 
@@ -200,16 +204,14 @@ export default function attachApiModelsManage(TaskList) {
                   });
                 });
                 const counts = this.computeTaskCounts(taskData);
-                const sortedDates = [
-                  ...new Set(
-                    taskData
-                      .map((task) => getTaskDateLabel(task?.UpdatedOn))
-                  ),
-                ]
-                  .filter((d) => String(d || "").trim().toLowerCase() !== "no date")
+                const dateKeys = [...new Set(taskData.map((task) => getTaskDateLabel(task?.UpdatedOn)))];
+                const noDateKey = dateKeys.find((d) => String(d || "").trim().toLowerCase() === "no date") || null;
+                const sortedDates = dateKeys
+                  .filter((d) => d !== noDateKey)
                   .sort((a, b) => {
                     return moment(b, "DD-MM-YYYY").valueOf() - moment(a, "DD-MM-YYYY").valueOf();
                   });
+                if (noDateKey) sortedDates.push(noDateKey);
 
                 this.setState((prevState) => {
                   const hasCurrentExpandedDate =

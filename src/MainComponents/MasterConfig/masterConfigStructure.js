@@ -35,7 +35,6 @@ export function createMasterConfigTabs() {
       entityName: "Category",
       searchKeys: ["catId", "name"],
       columns: [
-        { header: "ID", render: (r) => `#${r.catId}` },
         { header: "Name", valueKey: "name" },
         {
           header: "Sub-category",
@@ -43,7 +42,6 @@ export function createMasterConfigTabs() {
         },
       ],
       fields: [
-        { key: "id", label: "ID", readOnly: true, hideInAdd: true },
         { key: "name", label: "Name", required: true, placeholder: "Category name" },
         { key: "description", label: "Description", type: "textarea", placeholder: "Category description" },
         {
@@ -145,6 +143,19 @@ export function createMasterConfigTabs() {
           categoryId = Number(byName.sort((a, b) => Number(b.catId) - Number(a.catId))[0]?.catId || 0);
         }
 
+        // Delete removed sub-categories (uses DeleteSubCategory API)
+        if (categoryId > 0) {
+          const existingSubs = (await loadSubCategories(api)).filter((s) => Number(s.CategoryId) === Number(categoryId));
+          const keepIds = new Set((form.subs || []).map((s) => Number(s.id || 0)).filter((id) => id > 0));
+          const removed = existingSubs
+            .map((s) => Number(s.SubCategoryId))
+            .filter((id) => id > 0 && !keepIds.has(id));
+
+          await Promise.all(
+            removed.map((subCategoryId) => api.manageSubCategory([{ subCategoryId }], "D", categoryId).catch(() => null))
+          );
+        }
+
         const newSubs = (form.subs || []).filter((s) => !s.id && String(s.name || "").trim());
         await Promise.all(
           newSubs.map((s) =>
@@ -163,13 +174,11 @@ export function createMasterConfigTabs() {
       entityName: "Frequency",
       searchKeys: ["Id", "Name", "Fvalue", "Funit"],
       columns: [
-        { header: "ID", render: (r) => `#${r.Id}` },
         { header: "Name", valueKey: "Name" },
         { header: "Value", valueKey: "Fvalue" },
         { header: "Unit", valueKey: "Funit" },
       ],
       fields: [
-        { key: "id", label: "ID", readOnly: true, hideInAdd: true },
         { key: "name", label: "Name", required: true, placeholder: "Once a day" },
         { key: "value", label: "Value", type: "number", required: true, placeholder: "1" },
         {
@@ -214,13 +223,11 @@ export function createMasterConfigTabs() {
       entityName: "Shift",
       searchKeys: ["ShiftId", "ShiftName"],
       columns: [
-        { header: "ID", render: (r) => `#${r.ShiftId}` },
         { header: "Shift Name", valueKey: "ShiftName" },
         { header: "Time From", valueKey: "TimeFrom" },
         { header: "Time To", valueKey: "TimeTo" },
       ],
       fields: [
-        { key: "ShiftId", label: "ID", readOnly: true, hideInAdd: true },
         { key: "ShiftName", label: "Shift Name", required: true, placeholder: "e.g. Morning Shift" },
         { key: "TimeFrom", label: "Time From", type: "time", required: true },
         { key: "TimeTo", label: "Time To", type: "time", required: true },

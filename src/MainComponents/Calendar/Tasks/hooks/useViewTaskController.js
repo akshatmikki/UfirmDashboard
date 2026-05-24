@@ -31,7 +31,8 @@ export default function useViewTaskController({ rowData }) {
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [showViewQuestionImgModal, setShowViewQuestionImgModal] = useState(false);
 
-  const propertyId = rowData?.PropertyId || 0;
+  const taskId = rowData?.TaskId ?? rowData?.taskId ?? rowData?.Id ?? rowData?.id ?? 0;
+  const propertyId = rowData?.PropertyId ?? rowData?.propertyId ?? rowData?.PropertyID ?? 0;
 
   const startDate = useMemo(() => {
     return rowData?.DateFrom ? moment(rowData.DateFrom).format("DD/MM/YYYY") : "";
@@ -151,7 +152,6 @@ export default function useViewTaskController({ rowData }) {
 
   const loadQuestions = useCallback(() => {
     const type = "R";
-    const taskId = rowData?.TaskId;
     if (!taskId) return;
     const parseTaskDate = (value) => {
       if (!value) return null;
@@ -170,18 +170,33 @@ export default function useViewTaskController({ rowData }) {
     const model = [{ CmdType: type, Id: taskId, date: updatedOn }];
 
     Api.manageQues(model, type).then((resp) => {
-      if (!resp.ok || resp.status !== 200) return;
-      resp.json().then((rData) => {
-        const list = (rData || []).map((e) => ({
-          QuesId: e.QuestID ?? e.QuestId ?? e.QuestionId ?? e.QuesId ?? e.QuesID ?? e.id,
-          QuesName: e.QuestionName ?? e.QuesName ?? e.Question ?? e.name,
-          Action: e.Action,
-          Remark: e.Remarks,
-        }));
-        setQuestions(list);
-      });
+      if (!resp?.ok) return;
+      resp
+        .text()
+        .then((text) => {
+          if (!text) return [];
+          try {
+            return JSON.parse(text);
+          } catch {
+            return [];
+          }
+        })
+        .then((rData) => {
+          const list = Array.isArray(rData)
+            ? rData.map((e) => ({
+                QuesId: e.QuestID ?? e.QuestId ?? e.QuestionId ?? e.QuesId ?? e.QuesID ?? e.id,
+                QuesName: e.QuestionName ?? e.QuesName ?? e.Question ?? e.name,
+                Action: e.Action,
+                Remark: e.Remarks,
+              }))
+            : [];
+          setQuestions(list);
+        })
+        .catch(() => {
+          setQuestions([]);
+        });
     });
-  }, [Api, rowData?.TaskId, rowData?.UpdatedOn]);
+  }, [Api, rowData?.DateFrom, rowData?.UpdatedOn, taskId]);
 
   useEffect(() => {
     getAllProperties();

@@ -1,7 +1,7 @@
 import React, { useCallback, useMemo, useState } from "react";
 import moment from "moment";
 import { useEditTaskController, useTaskFmRemarks } from "../../taskHooks";
-import { TaskShell, TaskSection, TaskInlineSection, useSingleOpenSection, useMultiOpenSections } from "../TaskPageLayout";
+import { TaskShell, TaskSection, useMultiOpenSections } from "../TaskPageLayout";
 import TaskDetailsForm from "../TaskDetailsForm";
 import TaskAssetSection from "../TaskAssetSection";
 import TaskFmRemarksSection from "../TaskFmRemarksSection";
@@ -194,6 +194,12 @@ export default function EditTaskPage(props) {
           isOpen={isOpen("checklist")}
           onToggle={() => toggleSection("checklist")}
         >
+          <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 0 10px" }}>
+            <button type="button" className="task-inline-section-action" onClick={q.openAddQuestion}>
+              <i className="fa fa-plus" />
+              <span>Add procedure</span>
+            </button>
+          </div>
           <TaskQuestionsEditSection
             questions={questions}
             onEditQuestion={q.openEditQuestion}

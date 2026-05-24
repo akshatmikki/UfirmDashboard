@@ -258,6 +258,14 @@ class TaskList extends Component {
     this.comdbprovider = new LayoutDataProvider();
   }
 
+  formatFilterDateForApi(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const parsed = moment(raw, "YYYY-MM-DD", true);
+    if (parsed.isValid()) return parsed.format("DD-MM-YYYY");
+    return raw;
+  }
+
   toggleDateGroup = (date) => {
     this.setState((prevState) => ({
       expandedDate: prevState.expandedDate === date ? null : date,
@@ -805,8 +813,8 @@ class TaskList extends Component {
     const assignToId = this.state?.assignTo || 0;
     const occurance = this.state?.occurance || 0;
 
-    const startDate = this.state?.filterFromDate || "";
-    const endDate = this.state?.filterToDate || "";
+    const startDate = this.formatFilterDateForApi(this.state?.filterFromDate || "");
+    const endDate = this.formatFilterDateForApi(this.state?.filterToDate || "");
 
     const taskStatus =
       this.state?.taskStatus && this.state.taskStatus !== "None"

@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, forwardRef, useImperativeHandle } from "react";
 import { masterConfigCss } from "./masterConfigTheme";
 
 function getByPath(obj, path) {
@@ -156,6 +156,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [meta, setMeta] = useState({});
+  const refreshSeqRef = useRef(0);
   const [selectedRow, setSelectedRow] = useState(null);
   const [mode, setMode] = useState("view"); // view | edit
   const [showAdd, setShowAdd] = useState(false);
@@ -178,9 +179,11 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
 
   const refresh = useCallback(async () => {
     if (!tab) return;
+    const seq = ++refreshSeqRef.current;
     setLoading(true);
     try {
       const data = await tab.load({ context });
+      if (seq !== refreshSeqRef.current) return;
       if (Array.isArray(data)) {
         setRows(data);
         setMeta({});
@@ -189,12 +192,13 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
         setMeta(data?.meta && typeof data.meta === "object" ? data.meta : {});
       }
     } catch (e) {
+      if (seq !== refreshSeqRef.current) return;
       console.error("MasterConfigCommon load failed:", e);
       setRows([]);
       setMeta({});
       doNotify("error", "Unable to load data.");
     } finally {
-      setLoading(false);
+      if (seq === refreshSeqRef.current) setLoading(false);
     }
   }, [context, doNotify, tab]);
 
@@ -360,6 +364,26 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
   const deleteTitle = `${showDelete ? "Delete " : ""}${tab?.entityName || "Item"}`;
   const selectedId = selectedRow ? getRowId(tab, selectedRow) : null;
 
+  const switchTab = useCallback(
+    (nextTabId) => {
+      if (!nextTabId || nextTabId === tabId) return;
+      // Clear previous tab data immediately so the user sees a refresh/loading state
+      // instead of stale rows from the last tab.
+      setRows([]);
+      setMeta({});
+      setQuery("");
+      setPage(1);
+      setSelectedRow(null);
+      setMode("view");
+      setShowAdd(false);
+      setShowDelete(false);
+      setLoading(true);
+      setTabId(nextTabId);
+      if (onTabChange) onTabChange(nextTabId);
+    },
+    [onTabChange, tabId]
+  );
+
   return (
     <div className="mc-wrap">
       <style>{masterConfigCss}</style>
@@ -376,8 +400,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
                 className={`mc-tab ${tabId === t.id ? "active" : ""}`}
                 type="button"
                 onClick={() => {
-                  setTabId(t.id);
-                  if (onTabChange) onTabChange(t.id);
+                  switchTab(t.id);
                 }}
               >
                 {t.label}
@@ -412,7 +435,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
                 </tr>
               </thead>
               <tbody>
-                {loading && totalRows === 0 ? (
+                {loading ? (
                   <tr>
                     <td className="mc-empty" colSpan={(tab?.columns?.length || 0) + 1}>
                       Loading...
@@ -426,7 +449,8 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
                   </tr>
                 ) : null}
 
-                {pagedRows.map((r) => (
+                {!loading &&
+                  pagedRows.map((r) => (
                   <tr
                     key={String(getRowId(tab, r))}
                     className={selectedId != null && String(selectedId) === String(getRowId(tab, r)) ? "mc-row-active" : ""}
@@ -466,7 +490,7 @@ const MasterConfigCommon = forwardRef(({ title = "Master Configuration", context
               </tbody>
             </table>
 
-            {totalRows > 0 ? (
+            {totalRows > 0 && !loading ? (
               <div className="mc-pager">
                 <div className="mc-pager-left">
                   <span className="mc-pager-label">Rows per page</span>
