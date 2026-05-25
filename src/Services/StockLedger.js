@@ -1,7 +1,7 @@
 import axios from "axios";
 
 //const API_BASE_URL = "http://localhost:62929/api/inventory";
-API_BASE_URL = "https://api.urest.in:8096/api/inventory";
+const API_BASE_URL = "https://api.urest.in:8096/api/inventory";
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
