@@ -122,7 +122,7 @@ const ChatBox = ({
       }
     } else {
       const statusToSend = currentStatus || status;
-      onSend(inputValue, statusToSend);
+      await Promise.resolve(onSend?.(inputValue, statusToSend));
       setInputValue("");
     }
   };

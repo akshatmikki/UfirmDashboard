@@ -47,6 +47,31 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
       .catch(() => setComplaintRemarks([]));
   }, [notification?.TicketId]);
 
+  const refreshRemarks = async () => {
+    try {
+      if (isTaskNotification) {
+        const data = await getTaskRemarks(
+          notification.TaskId,
+          notification.QuestionId,
+          notification.TaskDate,
+        );
+        setTaskRemarks(Array.isArray(data) ? data : []);
+      } else if (isTicketNotification) {
+        const data = await getComplaintRemarks(notification.TicketId);
+        setComplaintRemarks(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      if (isTaskNotification) setTaskRemarks([]);
+      if (isTicketNotification) setComplaintRemarks([]);
+    }
+  };
+
+  const handleSendAndRefresh = async (message, currentStatus, updatedNextServiceDate) => {
+    await Promise.resolve(onReply?.(message, currentStatus, updatedNextServiceDate));
+    await refreshRemarks();
+    if (typeof apiCall === "function") await apiCall();
+  };
+
 
   return (
     <Modal
@@ -106,7 +131,7 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
                   remarks={taskRemarks}
                   status={notification.CurrentStatus}
                   context="task"
-                  onSend={onReply}
+                  onSend={handleSendAndRefresh}
                 />
 
               </>
@@ -236,7 +261,7 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
                       remarks={complaintRemarks}
                       status={notification.Status}
                       context="ticket"
-                      onSend={onReply}
+                      onSend={handleSendAndRefresh}
                     />
                   </>
                 ) : (

@@ -3,7 +3,7 @@ import FMResponseModal from "./FMResponseModal";
 import "./Notification.css";
 import { emitTaskNotificationRefresh } from "../../Services/notificationService";
 
-const NotificationList = ({ type, nList = [], apiCall }) => {
+const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
   const [selectedNotification, setSelectedNotification] = useState(null);
 
   const title = useMemo(() => {
@@ -40,13 +40,15 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
       }
     }
     setSelectedNotification(latestNotification);
+    if (typeof onModalOpenChange === "function") onModalOpenChange(true);
   };
 
   const handleCloseModal = () => {
     setSelectedNotification(null);
+    if (typeof onModalOpenChange === "function") onModalOpenChange(false);
   };
 
-  const handleReply = (message, currentStatus, updatedNextServiceDate) => {
+  const handleReply = async (message, currentStatus, updatedNextServiceDate) => {
     if (message.trim() === "") {
       alert("Message cannot be empty!");
       return;
@@ -87,8 +89,7 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
       };
     }
 
-    handleSendReply(newResponse);
-    handleCloseModal();
+    return await handleSendReply(newResponse);
   };
 
   const handleSendReply = async (newResponse) => {
@@ -98,7 +99,7 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
     else if (newResponse.TicketId) apiUrl = "https://api.urest.in:8096/FMComplaintResponse";
     else if (newResponse.AssetId) apiUrl = "https://api.urest.in:8096/api/Asset/SaveFMServiceResponse"; // ✅ new
 
-    if (!apiUrl) return;
+    if (!apiUrl) return false;
 
     try {
       const res = await fetch(apiUrl, {
@@ -111,8 +112,10 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
         if (typeof apiCall === "function") await apiCall();
       } else throw new Error("Failed to send reply");
       emitTaskNotificationRefresh();
+      return true;
     } catch (error) {
       console.error("Error sending reply:", error);
+      return false;
     }
   };
 
@@ -273,9 +276,6 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
               {nList.length}
             </span>
           </div>
-          <a href="#" className="notification-header-action" onClick={(e) => e.preventDefault()}>
-            Mark all read
-          </a>
         </div>
       )}
       {/* ✅ ASSET NOTIFICATIONS */}
@@ -290,9 +290,6 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
               {nList.length}
             </span>
           </div>
-          <a href="#" className="notification-header-action" onClick={(e) => e.preventDefault()}>
-            View all
-          </a>
         </div>
       )}
 
@@ -307,9 +304,6 @@ const NotificationList = ({ type, nList = [], apiCall }) => {
               {nList.length}
             </span>
           </div>
-          <a href="#" className="notification-header-action" onClick={(e) => e.preventDefault()}>
-            View all
-          </a>
         </div>
       )}
       {isAssetNotification &&

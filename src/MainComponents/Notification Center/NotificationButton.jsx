@@ -17,7 +17,11 @@ const NotificationButton = ({ count = 0, type, onClick = () => {} }) => {
             <a
                 href="#"
                 className="nav-link dropdown-notification-link ufirm-topbar-icon-link"
-                onClick={onClick}
+                onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onClick(e);
+                }}
                 role="button"
                 aria-label={`You have ${count} new notifications`}
             >

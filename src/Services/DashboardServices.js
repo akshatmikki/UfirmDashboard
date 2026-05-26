@@ -27,11 +27,27 @@ export const fetchTaskDashboardCount = async ({
     assingedtoID,
     taskPriorityId,
 } = {}) => {
+    const normalizeToISODate = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        // Already ISO
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        // Common UI format: DD-MM-YYYY
+        const m1 = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+        if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+        // Common UI format: DD/MM/YYYY
+        const m2 = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+        return raw;
+    };
+
     const params = new URLSearchParams();
 
     if (propID !== null && propID !== undefined && Number(propID) > 0) params.append("propID", String(propID));
-    if (dteFr) params.append("dteFr", String(dteFr));
-    if (dteTo) params.append("dteTo", String(dteTo));
+    const dteFrISO = normalizeToISODate(dteFr);
+    const dteToISO = normalizeToISODate(dteTo);
+    if (dteFrISO) params.append("dteFr", dteFrISO);
+    if (dteToISO) params.append("dteTo", dteToISO);
 
     if (catID !== null && catID !== undefined && Number(catID) > 0) params.append("catID", String(catID));
     if (subCatID !== null && subCatID !== undefined && Number(subCatID) > 0) params.append("subCatID", String(subCatID));

@@ -13,6 +13,13 @@ export default function attachApiFetch(TaskList) {
     return raw;
   };
 
+  const formatFilterDateISO = (value) => {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    const m = moment(raw, ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", moment.ISO_8601], true);
+    return m.isValid() ? m.format("YYYY-MM-DD") : raw;
+  };
+
   TaskList.prototype.refreshDashboardCount = async function (params) {
     const {
       propID,
@@ -112,6 +119,8 @@ export default function attachApiFetch(TaskList) {
     const occurance = this.state?.occurance || 0;
     const startDate = formatFilterDateForApi(this.state?.filterFromDate || "");
     const endDate = formatFilterDateForApi(this.state?.filterToDate || "");
+    const dashboardStartDate = formatFilterDateISO(this.state?.filterFromDate || "");
+    const dashboardEndDate = formatFilterDateISO(this.state?.filterToDate || "");
     let taskStatus = this.state?.taskStatus && this.state.taskStatus !== "None" ? this.state.taskStatus : "";
     if (!taskStatus && this.state.uiTaskStatus && this.state.uiTaskStatus !== "None") {
       taskStatus = this.state.uiTaskStatus;
@@ -122,8 +131,8 @@ export default function attachApiFetch(TaskList) {
     // Dashboard totals and date-wise counts (independent of paging/status)
     this.refreshDashboardCount?.({
       propID: propertyId,
-      dteFr: startDate,
-      dteTo: endDate,
+      dteFr: dashboardStartDate,
+      dteTo: dashboardEndDate,
       catID: categoryId,
       subCatID: subCategoryId,
       occurrence: occurance,

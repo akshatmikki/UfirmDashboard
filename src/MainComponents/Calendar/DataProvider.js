@@ -64,6 +64,16 @@ class DataProvider {
 
     manageTask(model, type) {
     let url = ''; // declare only once at the top
+    const normalizeToISODate = (value) => {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+        const m1 = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+        if (m1) return `${m1[3]}-${m1[2]}-${m1[1]}`;
+        const m2 = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+        if (m2) return `${m2[3]}-${m2[2]}-${m2[1]}`;
+        return raw;
+    };
 
     switch (type) {
         case 'C':
@@ -85,8 +95,10 @@ class DataProvider {
                 params.set("subCatID", model[0].SubCategoryId ?? 0);
                 params.set("assingedtoID", model[0].AssignedTo ?? 0);
                 params.set("occurrence", model[0].Occurrence ?? 0);
-                if (model[0].DteFr) params.set("dteFr", model[0].DteFr);
-                if (model[0].DteTo) params.set("dteTo", model[0].DteTo);
+                const dteFrISO = normalizeToISODate(model[0].DteFr);
+                const dteToISO = normalizeToISODate(model[0].DteTo);
+                if (dteFrISO) params.set("dteFr", dteFrISO);
+                if (dteToISO) params.set("dteTo", dteToISO);
                 if (model[0].TaskStatus) params.set("taskstatus", model[0].TaskStatus);
                 params.set("propID", model[0].PropertyId ?? 0);
                 if (model[0].TaskPriority) params.set("taskPriorityId", model[0].TaskPriority);
@@ -102,8 +114,12 @@ class DataProvider {
             }
 
         case 'SR':
-            url = `TaskDetailsWithQuestion?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}&dteFr=${model[0].DteFr}&dteTo=${model[0].DteTo}`;
-            return srv.getComplaint(url);
+            {
+                const dteFrISO = normalizeToISODate(model[0].DteFr);
+                const dteToISO = normalizeToISODate(model[0].DteTo);
+                url = `TaskDetailsWithQuestion?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}&dteFr=${dteFrISO}&dteTo=${dteToISO}`;
+                return srv.getComplaint(url);
+            }
 
         case 'T':
             url = `TaskDetails?catID=${model[0].CategoryId}&subCatID=${model[0].SubCategoryId}&assingedtoID=${model[0].AssignedTo}&occurrence=${model[0].Occurrence}`;

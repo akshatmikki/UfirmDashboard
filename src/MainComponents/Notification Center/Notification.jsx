@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import NotificationButton from "./NotificationButton";
 import NotificationList from "./NotificationList";
 import { connect } from "react-redux";
@@ -17,6 +17,8 @@ const Notification = ({ propId }) => {
     complaint: [],
   });
   const [showType, setShowType] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const notificationRootRef = useRef(null);
 
   const loadNotification = async (type) => {
     if (!propId || propId === 0) {
@@ -63,13 +65,27 @@ const Notification = ({ propId }) => {
     return () => window.removeEventListener(TASK_NOTIFICATION_REFRESH_EVENT, onTaskRefresh);
   }, [propId]);
 
+  useEffect(() => {
+    const onDocPointerDown = (e) => {
+      if (isModalOpen) return;
+      const root = notificationRootRef.current;
+      if (!root) return;
+      if (!root.contains(e.target)) setShowType(null);
+    };
+
+    // Use capture so we can close on outside clicks without interfering with
+    // internal click handlers (which run after this).
+    document.addEventListener("pointerdown", onDocPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true);
+  }, [isModalOpen]);
+
   const handleShowList = async (type) => {
     setShowType((prev) => (prev === type ? null : type));
     await loadNotification(type);
   };
 
   return (
-    <>
+    <div ref={notificationRootRef} className="ufirm-notification-root" style={{ display: "contents" }}>
       {NOTIFICATION_TYPES.map((type) => {
         // ✅ For asset, calculate special counts
         let count = dataMap[type].length;
@@ -100,12 +116,14 @@ const Notification = ({ propId }) => {
 
       {showType && (
         <NotificationList
+          key={showType}
           type={showType}
           nList={dataMap[showType]}
           apiCall={() => loadNotification(showType)}
+          onModalOpenChange={setIsModalOpen}
         />
       )}
-    </>
+    </div>
   );
 };
 
