@@ -33,7 +33,7 @@ import {
   uploadEmployeeDocuments,
   deleteEmployeeDocument
 } from "../../Services/FacilityService";
-import { getEmployeesByOffices, getSalaryGroupsByDesignation, importEmployees } from "../../Services/PayrollService";
+import { getEmployeesByOffices, getSalaryGroupsByDesignation, importEmployees, importFinancialInfo } from "../../Services/PayrollService";
 
 import {
   getAllClients,
@@ -52,6 +52,7 @@ import LoanAdvanceDialog from "../../ReactComponents/DataGrid/LoanAdvances.jsx";
 const StaffPage = () => {
   const toast = useRef(null);
   const fileInputRef = useRef(null);
+  const financialFileInputRef = useRef(null);
   const reduxClientId = useSelector((state) => state.Commonreducer.companyid);
   const reduxPropertyId = useSelector((state) => state.Commonreducer.puidn);
   const reduxPropertyIds = useSelector((state) => state.Commonreducer.puidnlist);
@@ -896,6 +897,102 @@ const StaffPage = () => {
     .replace(/[^A-Z0-9]/g, "")
     .slice(0, 11);
 
+  const downloadFinancialTemplate = () => {
+    const headers = [
+      "EMPLOYEE CODE *",
+      "BANK NAME",
+      "ACCOUNT NUMBER",
+      "IFSC CODE",
+      "UAN NUMBER",
+      "ESI NUMBER",
+      "PF NUMBER"
+    ];
+
+    const worksheet = XLSX.utils.aoa_to_sheet([headers]);
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "FinancialTemplate");
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+
+    const blob = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=UTF-8",
+    });
+
+    saveAs(blob, "Financial_Import_Template.xlsx");
+  };
+
+  const handleFinancialImport = async (event) => {
+    const file = event.target.files[0];
+
+    if (!file) return;
+
+    if (!activePropertyId) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Select Property",
+        detail: "Select property before import"
+      });
+      return;
+    }
+
+    if (!file.name.endsWith(".xlsx") && !file.name.endsWith(".xls")) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Invalid File",
+        detail: "Please upload Excel file (.xlsx)"
+      });
+      event.target.value = null;
+      return;
+    }
+
+    setImportDialogVisible(false);
+
+    try {
+      setIsProcessing(true);
+
+      const result = await importFinancialInfo(activePropertyId, file);
+
+      // DOWNLOAD FAILED RECORDS
+      if (result.FailedCount > 0 && result.FailedRecords?.length > 0) {
+        downloadFailedExcel(result.FailedRecords);
+      }
+
+      // SHOW WARNING IF SOME FAILED
+      if (result.FailedCount > 0) {
+        toast.current.show({
+          severity: "warn",
+          summary: "Partial Success",
+          detail: `${result.FailedCount} records failed. Excel downloaded.`
+        });
+      }
+
+      // SUCCESS MESSAGE
+      toast.current.show({
+        severity: "success",
+        summary: "Import Complete",
+        detail: `Total: ${result.TotalRows} | Success: ${result.SuccessCount} | Failed: ${result.FailedCount}`
+      });
+
+      // Reload Staff
+      const data = await getEmployeesByOffices([activePropertyId]);
+      setStaff(data || []);
+
+    } catch (err) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: err.message || "Financial import failed"
+      });
+    } finally {
+      setIsProcessing(false);
+      event.target.value = null;
+    }
+  };
+
   const downloadSampleTemplate = () => {
     const note = [
       "Fields marked with * are mandatory",
@@ -1611,6 +1708,10 @@ const StaffPage = () => {
     fileInputRef.current.value = null;
     fileInputRef.current.click();
   };
+  const handleFinancialImportClick = () => {
+    financialFileInputRef.current.value = null;
+    financialFileInputRef.current.click();
+  };
 
   const handleFileSelect = async (event) => {
     const file = event.target.files[0];
@@ -1788,6 +1889,13 @@ const StaffPage = () => {
           ref={fileInputRef}
           style={{ display: "none" }}
           onChange={handleFileSelect}
+        />
+        <input
+          type="file"
+          accept=".xlsx,.xls"
+          ref={financialFileInputRef}
+          style={{ display: "none" }}
+          onChange={handleFinancialImport}
         />
 
         <div className="p-input-left">
@@ -2169,7 +2277,8 @@ const StaffPage = () => {
                   <Column header="Designation" body={(row) => row.Profile?.Designation || "-"} />
                   <Column header="Gender" body={(row) => row.Profile?.Gender || "-"} />
                   <Column header="Contact" body={(row) => row.Profile?.PhoneNumber || "-"} />
-                  <Column header="Approved" body={(row) => row.FacilityMember?.IsApproved ? "Yes" : "No"} />
+                  <Column header="Father's Name" body={(row) => row.Profile?.FatherName || "-"} />
+                  <Column header="Spouse Name" body={(row) => row.Profile?.SpouseName || "-"} />
                 </DataTable>
               </div>
 
@@ -3162,38 +3271,80 @@ const StaffPage = () => {
         </Dialog>
         {/* Import Dialog */}
         <Dialog
-          header="Import Facility Members"
+          header="Import Data"
           visible={importDialogVisible}
-          style={{ width: "450px" }}
+          style={{ width: "500px" }}
           modal
           onHide={() => setImportDialogVisible(false)}
         >
           <div className="p-fluid">
-            <div className="mb-4">
-              <p className="text-muted mb-2">Step 1: Download the template if you don't have it.</p>
+
+            {/* 🔹 EMPLOYEE IMPORT */}
+            <div className="mb-4 p-3 border rounded">
+              <h6 className="mb-2">Employee Import</h6>
+
+              <p className="text-muted mb-2">
+                Step 1: Download employee template.
+              </p>
+
               <Button
-                label="Download Sample Template"
+                label="Download Employee Template"
                 icon="pi pi-file-excel"
-                className="p-button-warning w-full"
+                className="p-button-warning w-full mb-2"
                 onClick={downloadSampleTemplate}
               />
-            </div>
 
-            <div className="mb-2">
-              <p className="text-muted mb-2">Step 2: Choose your filled Excel file to import.</p>
+              <p className="text-muted mb-2">
+                Step 2: Upload employee file.
+              </p>
+
               <Button
-                label="Choose File and Import"
+                label="Upload Employee File"
                 icon="pi pi-upload"
                 className="p-button-primary w-full"
                 onClick={handleImportClick}
               />
+
+              <small className="text-muted d-block mt-2">
+                Employee Code is auto-generated. Do NOT include EMPCODE.
+              </small>
             </div>
-            <small className="text-muted mt-2 d-block">
-              Employee Code is auto-generated. Don't include an <strong>EMPCODE</strong> column in the import file.
+
+            {/* 🔹 FINANCIAL IMPORT */}
+            <div className="mb-2 p-3 border rounded">
+              <h6 className="mb-2">Financial Information Update</h6>
+
+              <p className="text-muted mb-2">
+                Step 1: Download financial template.
+              </p>
+
+              <Button
+                label="Download Financial Template"
+                icon="pi pi-file-excel"
+                className="p-button-help w-full mb-2"
+                onClick={downloadFinancialTemplate}
+              />
+
+              <p className="text-muted mb-2">
+                Step 2: Upload financial file.
+              </p>
+
+              <Button
+                label="Upload Financial File"
+                icon="pi pi-upload"
+                className="p-button-success w-full"
+                onClick={handleFinancialImportClick}
+              />
+
+              <small className="text-muted d-block mt-2">
+                Employee Code is required to update financial records.
+              </small>
+            </div>
+
+            <small className="text-danger mt-3 d-block text-center">
+              * Please select a property before importing.
             </small>
-            <small className="text-danger mt-2 d-block">
-              * Please ensure you have selected a property before importing.
-            </small>
+
           </div>
         </Dialog>
       </div>

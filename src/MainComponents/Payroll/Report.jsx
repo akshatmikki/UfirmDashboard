@@ -6,6 +6,7 @@ import OTReport from "../../ReactComponents/Reports/OTReport.jsx";
 import PFReport from "../../ReactComponents/Reports/PFReport.jsx";
 import ESIReport from "../../ReactComponents/Reports/ESIReport.jsx";
 import CompanySalarySummary from "../../ReactComponents/Reports/CompanySalarySummary.jsx";
+import GenerateFreezeReport from "../../ReactComponents/Reports/GenerateFreezeReport.jsx";
 
 export default function Report() {
   const [selectedReport, setSelectedReport] = useState("");
@@ -13,13 +14,15 @@ export default function Report() {
   const renderReportComponent = () => {
     switch (selectedReport) {
       case "SALARY":
-        return <SalaryReport />;      
+        return <SalaryReport />;
       case "PF":
         return <PFReport />;
       case "ESI":
         return <ESIReport />;
+      case "GENERATEFREEZE":
+        return <GenerateFreezeReport />;        
       case "SUMMARY":
-        return <CompanySalarySummary />;  
+        return <CompanySalarySummary />;
       case "OT":
         return <OTReport />;
       default:
@@ -52,6 +55,7 @@ export default function Report() {
             <option value="SALARY">Salary Report</option>
             <option value="PF">PF Report</option>
             <option value="ESI">ESI Report</option>
+            <option value="GENERATEFREEZE">Generate & Freeze Report</option>
             <option value="SUMMARY">Company Salary Summary</option>
             <option value="OT">OT Report</option>
 
