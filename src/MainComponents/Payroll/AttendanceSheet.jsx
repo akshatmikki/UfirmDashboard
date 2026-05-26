@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
 import { useSelector } from "react-redux";
 import { saveAs } from "file-saver";
 import * as XLSX from "xlsx";
@@ -13,6 +13,10 @@ import {
   getFacilitySalaryConfig,
   getSalaryAllowancesByProperty,
 } from "../../Services/PayrollService";
+
+import {
+  getAllDesignations
+} from "../../Services/Designation";
 
 import {
   getAllClients,
@@ -166,6 +170,7 @@ export default function AttendanceSheet() {
 
   const [departmentList, setDepartmentList] = useState([]);
   const [selectedDepartment, setSelectedDepartment] = useState("");
+  const [designations, setDesignations] = useState([]);
 
   // employeeSGMap: { [empId]: { divideByDays, ...config } }
   const [employeeSGMap, setEmployeeSGMap] = useState({});
@@ -335,6 +340,37 @@ export default function AttendanceSheet() {
     };
     load();
   }, [selectedUnitId, reduxPropertyId]);
+
+  useEffect(() => {
+    const loadDesignations = async () => {
+      try {
+        const data = await getAllDesignations();
+        setDesignations(data || []);
+      } catch (err) {
+        console.error("Failed to load designations", err);
+      }
+    };
+
+    loadDesignations();
+  }, []);
+
+  const designationMap = useMemo(() => {
+    const map = {};
+
+    designations.forEach(d => {
+      if (d.DesignationName) {
+        map[d.DesignationName.trim().toLowerCase()] = d.Designation_ID;
+      }
+    });
+
+    return map;
+  }, [designations]);
+
+  const getDesignationId = (name) => {
+    if (!name) return null;
+
+    return designationMap[name.trim().toLowerCase()] || null;
+  };
 
   // ── Core: load attendance — this is the ONLY source of employee data ──
   useEffect(() => {
@@ -710,12 +746,15 @@ export default function AttendanceSheet() {
 
     const inputDivideByDays = n(inp.divideByDays);
     const divideByDaysToSave = inputDivideByDays > 0 ? inputDivideByDays : fallbackDivideByDays;
+    const designationId = getDesignationId(emp.Designation);
 
     return {
       EmpID: empId,
       EmployeeName: emp.EmployeeName,
       PropertyID: emp.PropertyID,
       monthyear: currMonthYear,
+      Designation: emp.Designation,
+      DesignationId: designationId,
       IsActive: true,
       CreatedOn: new Date().toISOString(),
       WorkingDays: n(inp.workingDays),
@@ -799,7 +838,7 @@ export default function AttendanceSheet() {
           );
           const normalized = {
             ...(idx >= 0 ? merged[idx] : {}),
-            EmpID: m.EmpID, monthyear: m.monthyear,
+            EmpID: m.EmpID, monthyear: m.monthyear, Designation: m.Designation, DesignationId: m.DesignationId,
             WorkingDays: m.WorkingDays, EL: m.EL, CL: m.CL, SL: m.SL,
             WeekDaysOff: m.WeekDaysOff, OtDays: m.OtDays, OtHours: m.OtHours,
             PayableDays: m.PayableDays, NHDays: m.NHDays, FHDays: m.FHDays,

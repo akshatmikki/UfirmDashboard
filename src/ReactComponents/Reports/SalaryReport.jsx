@@ -224,6 +224,7 @@ export default function SalaryReport() {
                         Basic: emp.Basic || 0,
                         HRA: emp.HRA || 0,
                         CONV: emp.Conv || 0,
+                        DA: emp.DA || 0,
                         OTAmount: emp.OTAmount || 0,
                         Washing: emp.WashingAllowance || 0,
                         SpecialAllowance: emp.SpecialAllowance || 0,
@@ -240,6 +241,14 @@ export default function SalaryReport() {
                         Food: emp.Food || 0,
                         Maintenance: emp.Maintenance || 0,
                         Uniform: emp.Uniform || 0,
+                        Room: emp.Room || 0,
+                        BGV: emp.BGV || 0,
+                        JoiningKits: emp.JoiningKits || 0,
+                        OtherDeduction: emp.OthDed || 0,
+                        DocumentDeduction: emp.DocDed || 0,
+                        Fine: emp.Fine || 0,
+                        Accommodation: emp.AcmdDed || 0,
+                        LoanEMI: emp.LoanEMI || 0,
                         IncomeTax: emp.IncomeTax || 0,
 
                         TotalDeduction: emp.TotalDeduction || 0,
@@ -289,11 +298,29 @@ export default function SalaryReport() {
             acc.basic += emp.Basic || 0;
             acc.hra += emp.HRA || 0;
             acc.conv += emp.CONV || 0;
+            acc.da += emp.DA || 0;
             acc.ot += emp.OTAmount || 0;
-            acc.allowance += emp.TotalAllowance || 0;
+            acc.washing += emp.Washing || 0;
+            acc.specialAllowance += emp.SpecialAllowance || 0;
+            acc.otherAllowance += emp.OtherAllowance || 0;
+            acc.bonus += emp.Bonus || 0;
+            acc.gross += emp.Gross || 0;
             acc.pf += emp.PF || 0;
             acc.esi += emp.ESI || 0;
             acc.lwf += emp.LwfEmployeeAmount || 0;
+            acc.pft += emp.PftAmount || 0;
+            acc.advanceDed += emp.AdvanceDed || 0;
+            acc.food += emp.Food || 0;
+            acc.maintenance += emp.Maintenance || 0;
+            acc.uniform += emp.Uniform || 0;
+            acc.room += emp.Room || 0;
+            acc.joiningKits += emp.JoiningKits || 0;
+            acc.bgv += emp.BGV || 0;
+            acc.otherDed += emp.OtherDeduction || 0;
+            acc.docDed += emp.DocumentDeduction || 0;
+            acc.fine += emp.Fine || 0;
+            acc.accommodation += emp.Accommodation || 0;
+            acc.loan += emp.LoanEMI || 0;
             acc.deduction += emp.TotalDeduction || 0;
             acc.net += emp.NetSalary || 0;
             return acc;
@@ -302,11 +329,29 @@ export default function SalaryReport() {
             basic: 0,
             hra: 0,
             conv: 0,
+            da: 0,
             ot: 0,
-            allowance: 0,
+            washing: 0,
+            specialAllowance: 0,
+            otherAllowance: 0,
+            bonus: 0,
+            gross: 0,
             pf: 0,
             esi: 0,
             lwf: 0,
+            pft: 0,
+            advanceDed: 0,
+            food: 0,
+            maintenance: 0,
+            uniform: 0,
+            room: 0,
+            joiningKits: 0,
+            bgv: 0,
+            otherDed: 0,
+            docDed: 0,
+            fine: 0,
+            accommodation: 0,
+            loan: 0,
             deduction: 0,
             net: 0,
         }
@@ -596,13 +641,31 @@ export default function SalaryReport() {
                             <th>Basic</th>
                             <th>HRA</th>
                             <th>Conveyance</th>
+                            <th>DA</th>
                             <th>OT</th>
+                            <th>Washing</th>
+                            <th>Special Allowance</th>
+                            <th>Other Allowance</th>
+                            <th>Bonus</th>
 
-                            <th>Total Allowance</th>
+                            <th>Total Earning</th>
 
                             <th>PF</th>
                             <th>ESI</th>
                             <th>LWF</th>
+                            <th>PFT</th>
+                            <th>Advance Ded</th>
+                            <th>Food</th>
+                            <th>Maintenance</th>
+                            <th>Uniform</th>
+                            <th>Room</th>
+                            <th>Joining Kits</th>
+                            <th>BGV</th>
+                            <th>Other Ded</th>
+                            <th>Doc Ded</th>
+                            <th>Fine</th>
+                            <th>Acmd</th>
+                            <th>Loan</th>
 
                             <th>Total Deduction</th>
                             <th>Net Salary</th>
@@ -634,15 +697,51 @@ export default function SalaryReport() {
 
                                         <td>{formatCurrency(emp.CONV)}</td>
 
+                                        <td>{formatCurrency(emp.DA)}</td>
+
                                         <td>{formatCurrency(emp.OTAmount)}</td>
 
-                                        <td>{formatCurrency(emp.TotalAllowance)}</td>
+                                        <td>{formatCurrency(emp.Washing)}</td>
+
+                                        <td>{formatCurrency(emp.SpecialAllowance)}</td>
+
+                                        <td>{formatCurrency(emp.OtherAllowance)}</td>
+
+                                        <td>{formatCurrency(emp.Bonus)}</td>
+
+                                        <td>{formatCurrency(emp.Gross)}</td>
 
                                         <td>{formatCurrency(emp.PF)}</td>
 
                                         <td>{formatCurrency(emp.ESI)}</td>
 
                                         <td>{formatCurrency(emp.LwfEmployeeAmount)}</td>
+
+                                        <td>{formatCurrency(emp.PftAmount)}</td>
+
+                                        <td>{formatCurrency(emp.AdvanceDed)}</td>
+
+                                        <td>{formatCurrency(emp.Food)}</td>
+
+                                        <td>{formatCurrency(emp.Maintenance)}</td>
+
+                                        <td>{formatCurrency(emp.Uniform)}</td>
+
+                                        <td>{formatCurrency(emp.Room)}</td>
+
+                                        <td>{formatCurrency(emp.JoiningKits)}</td>
+
+                                        <td>{formatCurrency(emp.BGV)}</td>
+
+                                        <td>{formatCurrency(emp.OtherDed)}</td>
+
+                                        <td>{formatCurrency(emp.DocDed)}</td>
+
+                                        <td>{formatCurrency(emp.Fine)}</td>
+
+                                        <td>{formatCurrency(emp.Acmd)}</td>
+
+                                        <td>{formatCurrency(emp.Loan)}</td>
 
                                         <td>{formatCurrency(emp.TotalDeduction)}</td>
 
@@ -667,13 +766,49 @@ export default function SalaryReport() {
 
                                     <td>{formatCurrency(totals.ot)}</td>
 
-                                    <td>{formatCurrency(totals.allowance)}</td>
+                                    <td>{formatCurrency(totals.da)}</td>
+
+                                    <td>{formatCurrency(totals.washing)}</td>
+
+                                    <td>{formatCurrency(totals.specialAllowance)}</td>
+
+                                    <td>{formatCurrency(totals.otherAllowance)}</td>
+
+                                    <td>{formatCurrency(totals.bonus)}</td>
+
+                                    <td>{formatCurrency(totals.gross)}</td>
 
                                     <td>{formatCurrency(totals.pf)}</td>
 
                                     <td>{formatCurrency(totals.esi)}</td>
 
                                     <td>{formatCurrency(totals.lwf)}</td>
+
+                                    <td>{formatCurrency(totals.pft)}</td>
+
+                                    <td>{formatCurrency(totals.advanceDed)}</td>
+
+                                    <td>{formatCurrency(totals.food)}</td>
+
+                                    <td>{formatCurrency(totals.maintenance)}</td>
+
+                                    <td>{formatCurrency(totals.uniform)}</td>
+
+                                    <td>{formatCurrency(totals.room)}</td>
+
+                                    <td>{formatCurrency(totals.joiningKits)}</td>
+
+                                    <td>{formatCurrency(totals.bgv)}</td>
+
+                                    <td>{formatCurrency(totals.otherDed)}</td>
+
+                                    <td>{formatCurrency(totals.docDed)}</td>
+
+                                    <td>{formatCurrency(totals.fine)}</td>
+
+                                    <td>{formatCurrency(totals.accommodation)}</td>
+
+                                    <td>{formatCurrency(totals.loan)}</td>
 
                                     <td>{formatCurrency(totals.deduction)}</td>
 

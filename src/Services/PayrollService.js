@@ -1640,6 +1640,26 @@ export const importEmployees = async (propertyId, file) => {
   }
 };
 
+export const importFinancialInfo = async (propertyId, file) => {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const response = await fetch(
+    `https://api.urest.in:8096/api/employee/import-financial-info?propertyId=${propertyId}`,
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(text || "Financial import failed");
+  }
+
+  return await response.json();
+};
+
 // --------------------------------------------------
 // NEW: Get Freezed Salary Details (Funds Approval)
 // --------------------------------------------------
@@ -1733,6 +1753,35 @@ export const getCompanySalarySummary = async (month, year) => {
     return res.data || [];
   } catch (err) {
     console.error("Salary summary fetch failed", err);
+    return [];
+  }
+};
+
+export const getEmployeeStatus = async (
+  propertyId,
+  month,
+  year,
+  generationType,
+  freezeType
+) => {
+  try {
+    const res = await axios.get(
+      `https://api.urest.in:8096/api/employee/status`,
+      {
+        params: {
+          propertyId,
+          month,
+          year,
+          generationType,
+          freezeType,
+        },
+        withCredentials: false,
+      }
+    );
+
+    return res.data || [];
+  } catch (err) {
+    console.error("Employee status fetch failed", err);
     return [];
   }
 };

@@ -340,7 +340,11 @@ export default function GenerateSalary() {
 
         // designations
         const uniqueDesignations = [
-          ...new Set(employees.map(e => e.Designation).filter(Boolean))
+          ...new Set(
+            employees.flatMap(emp =>
+              (emp.Designations || []).map(d => d.Designation)
+            ).filter(Boolean)
+          )
         ].sort();
         setDesignations(uniqueDesignations);
 
@@ -411,7 +415,7 @@ export default function GenerateSalary() {
     const uniqueDesignations = [
       ...new Set(
         filtered
-          .map((emp) => emp.Designation)
+          .flatMap((emp) => (emp.Designations || []).map((d) => d.Designation))
           .filter(Boolean)
       ),
     ].sort();
@@ -454,7 +458,9 @@ export default function GenerateSalary() {
     // Filter by Designation (if selected)
     if (selectedDesignation) {
       filtered = filtered.filter(
-        (emp) => emp.Designation === selectedDesignation
+        (emp) => emp.Designations?.some(
+          (d) => d.Designation === selectedDesignation
+        )
       );
     }
 
@@ -889,7 +895,7 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>Edu. All.</td><td class="v-bold">${row.EduAll || row.EducationAllowance || 0}</td>
-          <td>Room</td><td class="v-light">${row.Room || 0}</td>
+          <td>Room</td><td class="v-light">${row.RoomDed || 0}</td>
         </tr>
         <tr class="no-horiz-border">
           <td>Perf. All.</td><td class="v-bold">${row.PerfAll || row.PerformanceAllowance || 0}</td>
@@ -1121,7 +1127,7 @@ export default function GenerateSalary() {
       IncomeTax: Number(row.INCOMETAX || row.IncomeTax) || 0,
       Uniform: Number(row.UNIFORM || row.Uniform) || 0,
       BGV: Number(row.BGVDed) || 0,
-      Room: Number(row.Room) || 0,
+      Room: Number(row.RoomDed) || 0,
       JoiningKits: Number(row.JoiningKits) || 0,
       LoanEMI: Number(row.LoanEMI) || 0,
       TotalDeduction: Number(row.TotalDeduction) || 0,
@@ -1196,32 +1202,39 @@ export default function GenerateSalary() {
 
           if (!row) continue;
 
-          // ✅ generate single PDF
-          const pdfBlob = await generatePdfBlobForEmployee(row);
+          const designations = emp.Designations || [{ DesignationId: emp.DesignationId }];
+          for (const d of designations) {
 
-          if (!pdfBlob) continue;
+            // ✅ generate single PDF
+            const pdfBlob = await generatePdfBlobForEmployee(row);
 
-          // ✅ build single payload
-          const singlePayload = buildPayload(
-            emp,
-            netMap,
-            rowDataMap,
-            monthValue,
-            yearValue,
-            effectivePropertyId
-          );
+            if (!pdfBlob) continue;
 
-          const formData = new FormData();
+            // ✅ build payload
+            const payload = {
+              ...buildPayload(
+                emp,
+                netMap,
+                rowDataMap,
+                monthValue,
+                yearValue,
+                effectivePropertyId
+              ),
+              DesignationId: d.DesignationId
+            };
 
-          formData.append("employees", JSON.stringify([singlePayload])); // array of 1
-          formData.append(
-            "file",
-            pdfBlob,
-            `Salary_${emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-          );
+            const formData = new FormData();
 
-          // 🚀 ONE API CALL PER EMPLOYEE
-          await createGeneratedSalary(formData);
+            formData.append("employees", JSON.stringify([payload])); // array of 1
+            formData.append(
+              "file",
+              pdfBlob,
+              `Salary_${emp.EmployeeId}_${d.DesignationId}_${monthValue}-${yearValue}.pdf`
+            );
+
+            // 🚀 ONE API CALL PER EMPLOYEE
+            await createGeneratedSalary(formData);
+          }
         }
 
         console.log("Generated for:", chunk);
@@ -1304,30 +1317,37 @@ export default function GenerateSalary() {
 
           if (!row) continue;
 
-          // ✅ SINGLE PDF
-          const pdfBlob = await generatePdfBlobForEmployee(row);
+          const designations = emp.Designations || [{ DesignationId: emp.DesignationId }];
+          for (const d of designations) {
 
-          if (!pdfBlob) continue;
+            // ✅ SINGLE PDF
+            const pdfBlob = await generatePdfBlobForEmployee(row);
 
-          const singlePayload = buildPayload(
-            emp,
-            netMap,
-            rowDataMap,
-            monthValue,
-            yearValue,
-            effectivePropertyId
-          );
+            if (!pdfBlob) continue;
 
-          const formData = new FormData();
+            const payload = {
+              ...buildPayload(
+                emp,
+                netMap,
+                rowDataMap,
+                monthValue,
+                yearValue,
+                effectivePropertyId
+              ),
+              DesignationId: d.DesignationId
+            };
 
-          formData.append("employees", JSON.stringify([singlePayload]));
-          formData.append(
-            "file",
-            pdfBlob,
-            `Salary_${emp.EmployeeId}_${monthValue}-${yearValue}.pdf`
-          );
+            const formData = new FormData();
 
-          await regenerateEmployeeSalary(formData);
+            formData.append("employees", JSON.stringify([payload]));
+            formData.append(
+              "file",
+              pdfBlob,
+              `Salary_${emp.EmployeeId}_${d.DesignationId}_${monthValue}-${yearValue}.pdf`
+            );
+
+            await regenerateEmployeeSalary(formData);
+          }
         }
       }
 
