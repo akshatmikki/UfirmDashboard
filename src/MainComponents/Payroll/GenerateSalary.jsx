@@ -181,6 +181,9 @@ export default function GenerateSalary() {
     return Number(entity?.FacilityMemberId ?? entity?.EmployeeId ?? 0);
   }
 
+  const getEmpKey = (emp) =>
+    `${emp.EmployeeId}_${emp.DesignationId || 'single'}`;
+
   function isEmployeeFrozen(entity) {
     const employeeId = getEmployeeKey(entity);
     return generatedEmployees.some(
@@ -598,8 +601,9 @@ export default function GenerateSalary() {
         row.TotalDeduction = totalDeduction;
         row.NetSalary = net;
 
-        netMap.set(id, Number(net) || 0);
-        rowDataMap.set(id, row);
+        const key = `${id}_${row.DesignationId}`;
+        netMap.set(key, Number(net) || 0);
+        rowDataMap.set(key, row);
       }
       return { netMap, rowDataMap };
     } catch (error) {
@@ -662,6 +666,16 @@ export default function GenerateSalary() {
       if (found.includes(k)) continue;
 
       const norm = normalizeKeyName(k);
+
+      // ❌ EXCLUDE NON-DEDUCTION FIELDS
+      if (
+        norm === "DESIGNATIONID" ||
+        norm === "EMPLOYEEID" ||
+        norm === "FACILITYMEMBERID" ||
+        norm === "LOANID"
+      ) {
+        continue;
+      }
 
       // 🚫 Do not include system/limit fields
       if (
@@ -932,11 +946,21 @@ export default function GenerateSalary() {
   // Actions / buttons
   // ----------------------------
   const handleEmployeeClick = (employee) => {
-    const isSelected = selectedEmployees.some((emp) => emp.EmployeeId === employee.EmployeeId);
+    const isSelected = selectedEmployees.some(
+      (emp) => getEmpKey(emp) === getEmpKey(employee)
+    );
+
     if (isSelected) {
-      setSelectedEmployees(selectedEmployees.filter((emp) => emp.EmployeeId !== employee.EmployeeId));
+      setSelectedEmployees(
+        selectedEmployees.filter(
+          (emp) => getEmpKey(emp) !== getEmpKey(employee)
+        )
+      );
     } else {
-      setSelectedEmployees([...selectedEmployees, employee]);
+      setSelectedEmployees([
+        ...selectedEmployees,
+        employee
+      ]);
     }
   };
 
@@ -1072,12 +1096,11 @@ export default function GenerateSalary() {
   const handleMoveAllToSelected = () => {
     setSelectedEmployees((prev) => [
       ...prev,
-      ...filteredEmployees.filter((emp) => !prev.some((sel) => sel.EmployeeId === emp.EmployeeId)),
+      ...filteredEmployees.filter((emp) => !prev.some((sel) => getEmpKey(sel) === getEmpKey(emp))),
     ]);
   };
 
-  const buildPayload = (emp, netMap, rowDataMap, monthValue, yearValue, effectivePropertyId) => {
-    const row = rowDataMap.get(emp.EmployeeId) || {};
+  const buildPayload = (emp, row, netMap, key, monthValue, yearValue, effectivePropertyId) => {
     return {
       EmployeeId: emp.EmployeeId,
       EmployeeName: emp.EmployeeName,
@@ -1087,7 +1110,7 @@ export default function GenerateSalary() {
       Year: yearValue,
       is_active: true,
       IsFreezed: false,
-      GeneratedAmount: Number(netMap.get(emp.EmployeeId)) || 0,
+      GeneratedAmount: Number(netMap.get(key)) || 0,
 
       // Earnings
       Basic: Number(row.Basic || row.MonthlyBaseSalary || row.MonthlyBase || row.ProRatedSalary) || 0,
@@ -1198,12 +1221,14 @@ export default function GenerateSalary() {
         );
 
         for (const emp of chunk) {
-          const row = rowDataMap.get(emp.EmployeeId);
-
-          if (!row) continue;
-
           const designations = emp.Designations || [{ DesignationId: emp.DesignationId }];
+
           for (const d of designations) {
+
+            const key = `${emp.EmployeeId}_${d.DesignationId}`;
+            const row = rowDataMap.get(key);
+
+            if (!row) continue;
 
             // ✅ generate single PDF
             const pdfBlob = await generatePdfBlobForEmployee(row);
@@ -1214,8 +1239,9 @@ export default function GenerateSalary() {
             const payload = {
               ...buildPayload(
                 emp,
+                row,
                 netMap,
-                rowDataMap,
+                key,
                 monthValue,
                 yearValue,
                 effectivePropertyId
@@ -1298,8 +1324,12 @@ export default function GenerateSalary() {
       const monthValue = monthNames[selectedMonth - 1];
       const yearValue = selectedYear;
 
-      const idsForNet = employeesToRegenerate.map((e) => e.EmployeeId).filter(Boolean);
+      const idsForNet = employeesToRegenerate
+        .map((e) => e.EmployeeId)
+        .filter(Boolean);
+
       setGeneratingBatchStatus("Fetching details...");
+
       const { netMap, rowDataMap } = await buildNetSalaryMap(idsForNet);
 
       const CHUNK_SIZE = 5;
@@ -1310,57 +1340,80 @@ export default function GenerateSalary() {
         const currentBatch = Math.floor(i / CHUNK_SIZE) + 1;
         const totalBatches = Math.ceil(totalToRegen / CHUNK_SIZE);
 
-        setGeneratingBatchStatus(`Batch ${currentBatch}/${totalBatches}: Generating PDFs...`);
+        setGeneratingBatchStatus(
+          `Batch ${currentBatch}/${totalBatches}: Generating PDFs...`
+        );
 
         for (const emp of chunk) {
-          const row = rowDataMap.get(emp.EmployeeId);
 
-          if (!row) continue;
+          const designations =
+            emp.Designations || [{ DesignationId: emp.DesignationId }];
 
-          const designations = emp.Designations || [{ DesignationId: emp.DesignationId }];
+          const payloads = [];
+          const formData = new FormData();
+
+          let isFirst = true;
+
           for (const d of designations) {
 
-            // ✅ SINGLE PDF
-            const pdfBlob = await generatePdfBlobForEmployee(row);
+            const key = `${emp.EmployeeId}_${d.DesignationId}`;
+            const row = rowDataMap.get(key);
 
+            if (!row) {
+              console.log("❌ Missing row:", key);
+              continue;
+            }
+
+            const pdfBlob = await generatePdfBlobForEmployee(row);
             if (!pdfBlob) continue;
 
             const payload = {
               ...buildPayload(
                 emp,
+                row,
                 netMap,
-                rowDataMap,
+                key,
                 monthValue,
                 yearValue,
                 effectivePropertyId
               ),
-              DesignationId: d.DesignationId
+              DesignationId: d.DesignationId,
+              IsFirst: isFirst
             };
 
-            const formData = new FormData();
+            payloads.push(payload);
 
-            formData.append("employees", JSON.stringify([payload]));
             formData.append(
               "file",
               pdfBlob,
               `Salary_${emp.EmployeeId}_${d.DesignationId}_${monthValue}-${yearValue}.pdf`
             );
 
+            isFirst = false;
+          }
+
+          // 🚀 ONE CALL PER EMPLOYEE (THIS WAS YOUR BIGGEST BUG)
+          if (payloads.length > 0) {
+            formData.append("employees", JSON.stringify(payloads));
             await regenerateEmployeeSalary(formData);
           }
         }
       }
 
       const ids = employeesToRegenerate.map((e) => e.EmployeeId);
+
       await fetchGeneratedEmployees();
       await fetchSalaryDetails(ids);
+
       setShowGrid(true);
       setSelectedRegenEmployees(frozenEmployees);
+
       alert(
         frozenEmployees.length > 0
           ? `Regeneration done for ${employeesToRegenerate.length} employee(s). ${frozenEmployees.length} freeze employee(s) skipped.`
           : "Regeneration done!"
       );
+
     } catch (err) {
       console.error("Failed to regenerate salary:", err);
       alert("Failed to regenerate salary.");
@@ -1546,7 +1599,11 @@ export default function GenerateSalary() {
         await fetchGeneratedEmployees();
         setSelectedSalaryRows([]);
         setSelectedRegenEmployees((prev) =>
-          prev.filter((emp) => !recordsToFreeze.some((row) => row.EmployeeId === emp.EmployeeId))
+          prev.filter((emp) =>
+            !recordsToFreeze.some(
+              (row) => getEmpKey(row) === getEmpKey(emp)
+            )
+          )
         );
 
         if (alreadyFrozenRecords.length > 0) {
@@ -1594,6 +1651,23 @@ export default function GenerateSalary() {
 
     return nameMatch || codeMatch;
   });
+
+  const groupedGeneratedEmployees = Object.values(
+    filteredGeneratedEmployees.reduce((acc, emp) => {
+      const key = emp.EmployeeId;
+
+      if (!acc[key]) {
+        acc[key] = {
+          ...emp,
+          allRows: [emp]
+        };
+      } else {
+        acc[key].allRows.push(emp);
+      }
+
+      return acc;
+    }, {})
+  );
 
   const getUnitSummaryText = () => {
     if (selectedPropertyId.length === 0) return "-- Select Unit --";
@@ -1825,21 +1899,17 @@ export default function GenerateSalary() {
               ) : (
                 filteredEmployees.map((emp) => (
                   <div
-                    key={emp.EmployeeId}
+                    key={`${emp.EmployeeId}_${emp.DesignationId || 'single'}`}
                     onClick={() => handleEmployeeClick(emp)}
                     style={{
                       padding: "8px 10px",
                       margin: "5px 0",
                       cursor: "pointer",
                       borderRadius: 4,
-                      background: selectedEmployees.some(
-                        (s) => s.EmployeeId === emp.EmployeeId
-                      )
+                      background: selectedEmployees.some((s) => getEmpKey(s) === getEmpKey(emp))
                         ? "#e0f2fe"
                         : "transparent",
-                      border: selectedEmployees.some(
-                        (s) => s.EmployeeId === emp.EmployeeId
-                      )
+                      border: selectedEmployees.some((s) => getEmpKey(s) === getEmpKey(emp))
                         ? "1px solid #0ea5e9"
                         : "none",
                       transition: "all 0.2s",
@@ -1867,7 +1937,7 @@ export default function GenerateSalary() {
             <div style={{ flex: 1, overflowY: "auto", padding: "10px", maxHeight: "170px" }}>
               {selectedEmployees.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>No employees selected</div> :
                 selectedEmployees.map((emp) => (
-                  <div key={emp.EmployeeId} style={{ padding: "8px 10px", margin: "5px 0", borderRadius: 4, background: "#e0f2fe", border: "1px solid #0ea5e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <div key={`${emp.EmployeeId}_${emp.DesignationId || 'single'}`} style={{ padding: "8px 10px", margin: "5px 0", borderRadius: 4, background: "#e0f2fe", border: "1px solid #0ea5e9", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div style={{ fontWeight: 500, fontSize: "0.9rem" }}>{emp.EmployeeName}</div>
                     <button onClick={() => handleEmployeeClick(emp)} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.2rem", padding: 0 }} title="Remove">×</button>
                   </div>
@@ -1898,27 +1968,37 @@ export default function GenerateSalary() {
                   {selectedYear}
                 </div>
               ) : (
-                filteredGeneratedEmployees.map((emp) => {
+                groupedGeneratedEmployees.map((emp) => {
                   const isFrozen = isEmployeeFrozen(emp);
 
                   return (
                     <div
-                      key={emp.EmployeeId}
+                      key={`${emp.EmployeeId}_${emp.DesignationId || 'single'}`}
                       onClick={() => {
-                        if (
+                        const empRows = emp.allRows;
+
+                        const isSelected = empRows.every(row =>
                           selectedRegenEmployees.some(
-                            (e) => e.EmployeeId === emp.EmployeeId
+                            e => getEmpKey(e) === getEmpKey(row)
                           )
-                        ) {
-                          setSelectedRegenEmployees(
-                            selectedRegenEmployees.filter(
-                              (e) => e.EmployeeId !== emp.EmployeeId
+                        );
+
+                        if (isSelected) {
+                          setSelectedRegenEmployees(prev =>
+                            prev.filter(
+                              e => !empRows.some(
+                                row => getEmpKey(row) === getEmpKey(e)
+                              )
                             )
                           );
                         } else {
-                          setSelectedRegenEmployees([
-                            ...selectedRegenEmployees,
-                            emp,
+                          setSelectedRegenEmployees(prev => [
+                            ...prev,
+                            ...empRows.filter(
+                              row => !prev.some(
+                                e => getEmpKey(e) === getEmpKey(row)
+                              )
+                            )
                           ]);
                         }
                       }}
@@ -1930,14 +2010,14 @@ export default function GenerateSalary() {
                         fontSize: "0.92rem",
                         cursor: "pointer",
                         background: selectedRegenEmployees.some(
-                          (e) => e.EmployeeId === emp.EmployeeId
+                          (e) => getEmpKey(e) === getEmpKey(emp)
                         )
                           ? "#e0f2fe"
                           : isFrozen
                             ? "#f8fafc"
                             : "transparent",
                         border: selectedRegenEmployees.some(
-                          (e) => e.EmployeeId === emp.EmployeeId
+                          (e) => getEmpKey(e) === getEmpKey(emp)
                         )
                           ? "1px solid #1e90ff"
                           : isFrozen
@@ -1968,7 +2048,7 @@ export default function GenerateSalary() {
             </div>
           </div>
 
-          <div style={{ fontSize: "2.1rem", fontWeight: "bold", color: "#4b6cb7", alignSelf: "center", cursor: "pointer", userSelect: "none" }} title="Move all to Selected" onClick={() => setSelectedRegenEmployees(filteredGeneratedEmployees)}>→</div>
+          <div style={{ fontSize: "2.1rem", fontWeight: "bold", color: "#4b6cb7", alignSelf: "center", cursor: "pointer", userSelect: "none" }} title="Move all to Selected" onClick={() => setSelectedRegenEmployees(groupedGeneratedEmployees.flatMap(emp => emp.allRows))}>→</div>
 
           <div style={boxStyle}>
             <div style={{ height: 36, background: "#f0f3fa", display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 10px", fontWeight: 600, borderBottom: "1px solid #b0b8cc" }}>
@@ -1978,9 +2058,9 @@ export default function GenerateSalary() {
             <div style={{ flex: 1, padding: "10px", maxHeight: "170px", overflowY: "auto" }}>
               {selectedRegenEmployees.length === 0 ? <div style={{ padding: 20, textAlign: "center", color: "#718096" }}>No employees selected for regeneration</div> :
                 selectedRegenEmployees.map((emp) => (
-                  <div key={emp.EmployeeId} style={{ padding: "8px 10px", margin: "5px 0", borderRadius: 4, background: "#e0f2fe", border: "1px solid #0ea5e9", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }}>
-                    <div onClick={() => setSelectedRegenEmployees(selectedRegenEmployees.filter(e => e.EmployeeId !== emp.EmployeeId))} style={{ fontWeight: 500, fontSize: "0.9rem", flex: 1 }} title="Click to mark regenerated (remove from list)">{emp.EmployeeName}</div>
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedRegenEmployees(selectedRegenEmployees.filter(e => e.EmployeeId !== emp.EmployeeId)); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.2rem", padding: 0 }} title="Remove manually">×</button>
+                  <div key={`${emp.EmployeeId}_${emp.DesignationId || 'single'}`} style={{ padding: "8px 10px", margin: "5px 0", borderRadius: 4, background: "#e0f2fe", border: "1px solid #0ea5e9", display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", transition: "all 0.2s" }}>
+                    <div onClick={() => setSelectedRegenEmployees(selectedRegenEmployees.filter(e => getEmpKey(e) !== getEmpKey(emp)))} style={{ fontWeight: 500, fontSize: "0.9rem", flex: 1 }} title="Click to mark regenerated (remove from list)">{emp.EmployeeName}</div>
+                    <button onClick={(e) => { e.stopPropagation(); setSelectedRegenEmployees(selectedRegenEmployees.filter(e => getEmpKey(e) !== getEmpKey(emp))); }} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: "1.2rem", padding: 0 }} title="Remove manually">×</button>
                   </div>
                 ))
               }
@@ -2176,7 +2256,7 @@ export default function GenerateSalary() {
                         const net = row.NetSalary ?? (totalAllowance - totalDeduction);
 
                         return (
-                          <tr key={row.FacilityMemberId} style={rowStyle}>
+                          <tr key={`${row.FacilityMemberId}_${row.DesignationId || 'single'}`} style={rowStyle}>
                             <td style={cellCenter}>
                               <input
                                 type="checkbox"
