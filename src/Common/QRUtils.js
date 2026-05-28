@@ -18,6 +18,18 @@ export const downloadQRCode = async ({ qrValue, name, templatePath, fileName }) 
     return;
   }
 
+  const resolveTemplateUrl = (path) => {
+    const raw = String(path || "").trim();
+    if (!raw) return "";
+    if (/^https?:\/\//i.test(raw)) return raw;
+    if (raw.startsWith("data:")) return raw;
+
+    // Prefer the app's base URL (PUBLIC_URL) when hosted under a sub-path.
+    const publicUrl = String(process.env.PUBLIC_URL || "").replace(/\/$/, "");
+    if (publicUrl && raw.startsWith("/")) return `${publicUrl}${raw}`;
+    return raw;
+  };
+
   const pdf = new jsPDF("p", "mm", "a4");
 
   const container = document.createElement("div");
@@ -29,15 +41,21 @@ export const downloadQRCode = async ({ qrValue, name, templatePath, fileName }) 
   container.style.background = "#fff";
 
   const img = new Image();
-  img.src = templatePath;
+  img.src = resolveTemplateUrl(templatePath);
   img.style.width = "100%";
   img.style.height = "100%";
   img.style.position = "absolute";
 
-  await new Promise((resolve, reject) => {
-    img.onload = resolve;
-    img.onerror = () => reject(new Error(`Failed to load template image: ${templatePath}`));
-  });
+  try {
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error(`Failed to load template image: ${img.src || templatePath}`));
+    });
+  } catch (e) {
+    console.error(e);
+    alert("Unable to download QR right now (template image failed to load).");
+    return;
+  }
 
   container.appendChild(img);
 
@@ -91,10 +109,18 @@ export const downloadQRCode = async ({ qrValue, name, templatePath, fileName }) 
 
   await new Promise((resolve) => setTimeout(resolve, 300));
 
-  const canvas = await html2canvas(container, {
-    scale: 2,
-    useCORS: true,
-  });
+  let canvas;
+  try {
+    canvas = await html2canvas(container, {
+      scale: 2,
+      useCORS: true,
+    });
+  } catch (e) {
+    console.error(e);
+    document.body.removeChild(container);
+    alert("Unable to download QR right now (render failed).");
+    return;
+  }
 
   const imgData = canvas.toDataURL("image/jpeg", 0.7);
   pdf.addImage(imgData, "JPEG", 0, 0, 210, 297);

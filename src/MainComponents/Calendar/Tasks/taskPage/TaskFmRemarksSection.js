@@ -207,7 +207,7 @@ export default function TaskFmRemarksSection({
           </div>
         </div>
 
-        <div className="fm-chat" aria-label="FM remarks thread" style={{ display: "flex", flexDirection: "column", flex: 1 }}>
+        <div className="fm-chat" aria-label="FM remarks thread" style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
           {openQuestionId ? (
             <>
               <div className="fm-chat-head">

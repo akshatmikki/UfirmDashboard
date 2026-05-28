@@ -85,8 +85,23 @@ export default function attachLifecycleMethods(TaskList) {
     if (prevProps.PropertyVal !== this.props.PropertyVal) {
       const { PropertyVal: nextPropertyVal } = this.props;
       if (nextPropertyVal !== null && nextPropertyVal !== undefined) {
-        this.setState({ localPropertyValue: nextPropertyVal });
-        this.componentDidMount();
+        // Avoid calling componentDidMount() manually (can double-bind events and cause duplicate loads).
+        this.setState(
+          {
+            localPropertyValue: nextPropertyVal,
+            propertyId: nextPropertyVal,
+            data: [],
+            cardPage: 1,
+            tablePage: 1,
+          },
+          () => {
+            const dateTo = moment(this.state.filterToDate, "YYYY-MM-DD");
+            const dateFrom = moment(this.state.filterFromDate, "YYYY-MM-DD");
+            this.DateRangeConfig(dateFrom, dateTo);
+            this.getTasks();
+            this.getAllFrequency();
+          },
+        );
       }
     }
   };

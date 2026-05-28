@@ -172,7 +172,13 @@ export default function attachApiModelsManage(TaskList) {
                 const totalRecords = Number(rData?.TotalRecords ?? responseData.length ?? 0);
                 const totalPages = 1;
 
+                // Deduplicate tasks defensively (API can occasionally return duplicates)
+                const seenKeys = new Set();
                 responseData.forEach((element) => {
+                  const dateLabel = getTaskDateLabel(element?.UpdatedOn);
+                  const key = `${element?.TaskId ?? element?.Id ?? ""}_${dateLabel}`;
+                  if (key && seenKeys.has(key)) return;
+                  if (key) seenKeys.add(key);
                   taskData.push({
                     Id: element.Id,
                     TaskId: element.TaskId,

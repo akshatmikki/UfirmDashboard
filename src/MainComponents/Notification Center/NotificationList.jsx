@@ -1,10 +1,12 @@
 import React, { useMemo, useState } from "react";
 import FMResponseModal from "./FMResponseModal";
 import "./Notification.css";
-import { emitTaskNotificationRefresh } from "../../Services/notificationService";
+import { emitTaskNotificationRefresh, markTaskComplete } from "../../Services/notificationService";
 
 const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
   const [selectedNotification, setSelectedNotification] = useState(null);
+  const [completingTaskIds, setCompletingTaskIds] = useState(() => new Set());
+  const [hiddenTaskIds, setHiddenTaskIds] = useState(() => new Set());
 
   const title = useMemo(() => {
     if (type === "asset") return "Asset Service";
@@ -46,6 +48,38 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
   const handleCloseModal = () => {
     setSelectedNotification(null);
     if (typeof onModalOpenChange === "function") onModalOpenChange(false);
+  };
+
+  const handleMarkTaskComplete = async (notification) => {
+    const taskId = Number(notification?.TaskId);
+    const propertyId = Number(notification?.PropertyId);
+    const taskDate = notification?.TaskDate;
+    const questId = 0; // mark entire task
+
+    if (!taskId || !propertyId || !taskDate) {
+      alert("Missing TaskId / PropertyId / TaskDate for this task.");
+      return;
+    }
+
+    const ok = window.confirm("Mark this task as Completed?");
+    if (!ok) return;
+
+    setCompletingTaskIds((prev) => new Set(prev).add(taskId));
+    try {
+      await markTaskComplete({ taskId, taskDate, propertyId, questId });
+      setHiddenTaskIds((prev) => new Set(prev).add(taskId));
+      if (typeof apiCall === "function") await apiCall();
+      emitTaskNotificationRefresh();
+    } catch (error) {
+      console.error("Error marking task complete:", error);
+      alert("Failed to mark task as completed.");
+    } finally {
+      setCompletingTaskIds((prev) => {
+        const next = new Set(prev);
+        next.delete(taskId);
+        return next;
+      });
+    }
   };
 
   const handleReply = async (message, currentStatus, updatedNextServiceDate) => {
@@ -120,10 +154,16 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
   };
 
   // 🧩 Detect whether list is for assets (based on structure)
+  const displayList = useMemo(() => {
+    if (!Array.isArray(nList)) return [];
+    if (type !== "task") return nList;
+    return nList.filter((item) => !hiddenTaskIds.has(Number(item?.TaskId)));
+  }, [nList, type, hiddenTaskIds]);
+
   const isAssetNotification =
-    Array.isArray(nList) &&
-    nList.length > 0 &&
-    nList[0].AssetId !== undefined;
+    Array.isArray(displayList) &&
+    displayList.length > 0 &&
+    displayList[0].AssetId !== undefined;
 
   const assetHeaderTitle = useMemo(() => {
     if (type !== "asset") return "";
@@ -210,10 +250,13 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
       <div className="notification-task-body">
         <div className="notification-task-title-row">
           <div className="notification-task-title">{notification.TaskName || "Task"}</div>
-          <div className="notification-task-id">
-            {notification.TaskNumber || notification.TaskId
-              ? `(${notification.TaskNumber || notification.TaskId})`
-              : ""}
+          <div className="notification-task-title-actions">
+            <div className="notification-task-id">
+              {notification.TaskNumber || notification.TaskId
+                ? `(${notification.TaskNumber || notification.TaskId})`
+                : ""}
+            </div>
+
           </div>
         </div>
         {notification.TaskDesc && (
@@ -259,7 +302,7 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
     </div>
   );
 
-  if (!Array.isArray(nList) || nList.length === 0) {
+  if (!Array.isArray(displayList) || displayList.length === 0) {
     return <div className="no-data-text">No notifications available.</div>;
   }
 
@@ -272,8 +315,8 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
               <i className="far fa-check-square"></i>
             </span>
             <span className="notification-header-title">{title}</span>
-            <span className="notification-header-count" aria-label={`${nList.length} notifications`}>
-              {nList.length}
+            <span className="notification-header-count" aria-label={`${displayList.length} notifications`}>
+              {displayList.length}
             </span>
           </div>
         </div>
@@ -286,8 +329,8 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
               <i className="fas fa-tools"></i>
             </span>
             <span className="notification-header-title">{assetHeaderTitle}</span>
-            <span className="notification-header-count" aria-label={`${nList.length} notifications`}>
-              {nList.length}
+            <span className="notification-header-count" aria-label={`${displayList.length} notifications`}>
+              {displayList.length}
             </span>
           </div>
         </div>
@@ -300,14 +343,14 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
               <i className="far fa-bell"></i>
             </span>
             <span className="notification-header-title">{title}</span>
-            <span className="notification-header-count" aria-label={`${nList.length} notifications`}>
-              {nList.length}
+            <span className="notification-header-count" aria-label={`${displayList.length} notifications`}>
+              {displayList.length}
             </span>
           </div>
         </div>
       )}
       {isAssetNotification &&
-        nList.map((asset) => {
+        displayList.map((asset) => {
           const tone = getAssetTone(asset);
           const dueText = formatAssetDueText(asset);
           const assetCode = asset.AssetCode || asset.AssetTag || asset.AssetNo || asset.AssetId;
@@ -353,7 +396,7 @@ const NotificationList = ({ type, nList = [], apiCall, onModalOpenChange }) => {
 
       {/* ✅ TASK / COMPLAINT NOTIFICATIONS */}
       {!isAssetNotification &&
-        nList.map((notification) => (
+        displayList.map((notification) => (
           <div
             key={
               notification.TicketId ||

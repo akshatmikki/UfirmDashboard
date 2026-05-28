@@ -694,6 +694,13 @@
   gap: 12px;
 }
 
+.notification-task-title-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex: 0 0 auto;
+}
+
 .notification-task-title {
   font-weight: 700;
   color: #0f172a;
@@ -707,6 +714,28 @@
   color: rgba(15, 23, 42, 0.65);
   font-weight: 600;
   flex: 0 0 auto;
+}
+
+.notification-task-complete-btn {
+  appearance: none;
+  border: 1px solid rgba(22, 163, 74, 0.35);
+  background: rgba(34, 197, 94, 0.12);
+  color: #15803d;
+  font-weight: 800;
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.notification-task-complete-btn:hover {
+  background: rgba(34, 197, 94, 0.18);
+}
+
+.notification-task-complete-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .notification-task-subtitle {

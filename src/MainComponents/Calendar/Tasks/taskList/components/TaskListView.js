@@ -34,6 +34,9 @@ const getYearOptions = () => {
 };
 
 export default function TaskListView({ ctx }) {
+  const filterPanelRef = React.useRef(null);
+  const filterButtonRef = React.useRef(null);
+
   const showResetButton = !!ctx.state.filtered;
   const selectedCategory = (ctx.state.CategoryData || []).find(
     (item) => String(item.Id) === String(ctx.state.selectedCategoryId)
@@ -105,6 +108,21 @@ export default function TaskListView({ ctx }) {
     </div>
   );
 
+  React.useEffect(() => {
+    if (!ctx.state.showFilterPanel) return;
+
+    const onDocPointerDown = (e) => {
+      const panel = filterPanelRef.current;
+      const btn = filterButtonRef.current;
+      if (panel && panel.contains(e.target)) return;
+      if (btn && btn.contains(e.target)) return;
+      ctx.setState({ showFilterPanel: false });
+    };
+
+    document.addEventListener("pointerdown", onDocPointerDown, true);
+    return () => document.removeEventListener("pointerdown", onDocPointerDown, true);
+  }, [ctx, ctx.state.showFilterPanel]);
+
   return (
     <div>
       {ctx.state.PageMode === "Home" && (
@@ -158,6 +176,7 @@ export default function TaskListView({ ctx }) {
                       <button
                         className="btn btn-outline-secondary d-flex align-items-center task-toolbar-btn"
                         type="button"
+                        ref={filterButtonRef}
                         onClick={() => ctx.setState({ showFilterPanel: !ctx.state.showFilterPanel })}
                       >
                         <i className="fa fa-sliders mr-1" />
@@ -200,7 +219,7 @@ export default function TaskListView({ ctx }) {
                   </div>
 
                   {ctx.state.showFilterPanel ? (
-                    <div className="p-2 mb-2 mt-2 task-filter-panel task-filter-panel-advanced">
+                    <div ref={filterPanelRef} className="p-2 mb-2 mt-2 task-filter-panel task-filter-panel-advanced">
                       <div className="task-filter-head">
                         <h6>Filters</h6>
                         <button className="btn btn-link p-0" type="button" onClick={ctx.Reset}>

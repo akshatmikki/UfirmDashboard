@@ -2,7 +2,7 @@ import React from 'react';
 import Modal from 'react-bootstrap/Modal';
 import ChatBox from './ChatBox'; // Import the renamed component
 import { useEffect, useState } from "react";
-import { getTaskRemarks, getComplaintRemarks } from "../../Services/notificationService";
+import { getTaskRemarks, getComplaintRemarks, markTaskComplete, emitTaskNotificationRefresh } from "../../Services/notificationService";
 
 const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
   const isTaskNotification = notification && notification.TaskId;
@@ -10,6 +10,7 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
   const isTicketNotification = notification && notification.TicketId;
   const [taskRemarks, setTaskRemarks] = useState([]);
   const [complaintRemarks, setComplaintRemarks] = useState([]);
+  const [isCompleting, setIsCompleting] = useState(false);
 
   const modalKind = isTaskNotification
     ? "task"
@@ -72,6 +73,43 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
     if (typeof apiCall === "function") await apiCall();
   };
 
+  const handleMarkCompleteClick = async () => {
+    const taskId = Number(notification?.TaskId);
+    const propertyId = Number(notification?.PropertyId);
+    const taskDate = notification?.TaskDate;
+    const questionId = Number(notification?.QuestionId);
+
+    if (!taskId || !propertyId || !taskDate) {
+      alert("Missing TaskId / PropertyId / TaskDate for this task.");
+      return;
+    }
+
+    const ok = window.confirm("Mark this task as Completed?");
+    if (!ok) return;
+
+    setIsCompleting(true);
+    try {
+      await markTaskComplete({
+        taskId,
+        questionId,
+        taskDate,
+        propertyId,
+        taskStatus: "Completed"
+      });
+      alert("Task marked as completed successfully!");
+      if (typeof apiCall === "function") {
+        await apiCall();
+      }
+      emitTaskNotificationRefresh();
+      onClose();
+    } catch (error) {
+      console.error("Error marking task complete:", error);
+      alert("Failed to mark task as completed.");
+    } finally {
+      setIsCompleting(false);
+    }
+  };
+
 
   return (
     <Modal
@@ -125,6 +163,27 @@ const FMResponseModal = ({ notification, onClose, onReply, apiCall }) => {
                     <span className="ufirm-kv-label">Property</span>
                     <span className="ufirm-kv-value">{notification.PropertyName}</span>
                   </div>
+                  {(() => {
+                    const rawStatus = (notification?.CurrentStatus || "").toString().toLowerCase();
+                    const isAlreadyCompleted = rawStatus.includes("complete") || rawStatus.includes("resolve");
+                    return (
+                      <div className="ufirm-kv-item ufirm-kv-item-full" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div>
+                          <span className="ufirm-kv-label">Task Status</span>
+                          <span className="ufirm-kv-value">{notification.CurrentStatus || "Pending"}</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="notification-task-complete-btn"
+                          onClick={handleMarkCompleteClick}
+                          disabled={isCompleting || isAlreadyCompleted}
+                          title={isAlreadyCompleted ? "Already Completed" : "Mark as Completed"}
+                        >
+                          {isCompleting ? "Saving..." : isAlreadyCompleted ? "Completed" : "Mark Complete"}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <ChatBox

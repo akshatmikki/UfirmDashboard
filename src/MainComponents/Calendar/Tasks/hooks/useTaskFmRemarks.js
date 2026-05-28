@@ -5,6 +5,7 @@ import {
   emitTaskNotificationRefresh,
   fetchNotifications,
   getTaskRemarks,
+  markTaskComplete,
 } from "../../../../Services/notificationService";
 
 export default function useTaskFmRemarks({
@@ -190,6 +191,10 @@ export default function useTaskFmRemarks({
       const targetQuestionId = questionIdOverride || selectedQuestionId;
       if (!targetQuestionId || !resolvedTaskDate) return;
 
+      const formattedTaskDate = moment(resolvedTaskDate, "YYYY-MM-DD", true).isValid()
+        ? moment(resolvedTaskDate, "YYYY-MM-DD").format("DD-MM-YYYY")
+        : resolvedTaskDate;
+
       const payload = {
         TaskId: taskId,
         QuestionId: targetQuestionId,
@@ -198,11 +203,21 @@ export default function useTaskFmRemarks({
         FmRemark: message,
         FmDateTime: new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
         CurrentStatus: status,
-        SUPdateTime: lastSupRemarkDate || resolvedTaskDate,
-        TaskDate: resolvedTaskDate,
+        SUPdateTime: lastSupRemarkDate || formattedTaskDate,
+        TaskDate: formattedTaskDate,
       };
 
       try {
+        if (status === "Completed") {
+          await markTaskComplete({
+            taskId,
+            questionId: targetQuestionId,
+            taskDate: formattedTaskDate,
+            propertyId,
+            taskStatus: "Completed",
+          });
+        }
+
         const res = await fetch("https://api.urest.in:8096/FMResponse", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -215,8 +230,9 @@ export default function useTaskFmRemarks({
         await loadQuestionStatuses(resolvedTaskDate);
         emitTaskNotificationRefresh();
         if (typeof onTaskUpdated === "function") onTaskUpdated();
-      } catch {
-        swal({ icon: "error", title: "Error", text: "Unable to send remark" });
+      } catch (err) {
+        console.error("Error sending FM remark or marking task complete:", err);
+        swal({ icon: "error", title: "Error", text: "Unable to send remark or mark task complete" });
       }
     },
     [
@@ -228,6 +244,7 @@ export default function useTaskFmRemarks({
       selectedQuestionId,
       taskId,
       taskName,
+      propertyId,
     ],
   );
 

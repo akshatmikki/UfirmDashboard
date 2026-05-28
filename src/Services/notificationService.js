@@ -102,6 +102,65 @@ export const getTaskRemarks = async (taskId, questionId, taskDate) => {
   }
 };
 
+export const markTaskComplete = async ({ taskId, questionId, questId, taskDate, propertyId, taskStatus = "Completed" }) => {
+  if (!taskId) throw new Error("taskId is required");
+  if (!taskDate) throw new Error("taskDate is required");
+  if (!propertyId) throw new Error("propertyId is required");
+
+  const normalizeToIsoDateOnly = (value) => {
+    if (!value) return "";
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      const yyyy = value.getFullYear();
+      const mm = String(value.getMonth() + 1).padStart(2, "0");
+      const dd = String(value.getDate()).padStart(2, "0");
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    const raw = String(value).trim();
+    if (!raw) return "";
+
+    // ISO date or ISO datetime -> keep date-only part
+    const iso = raw.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (iso) return iso[1];
+
+    // DD-MM-YYYY -> convert to YYYY-MM-DD
+    const dmy = raw.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+    if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+
+    // DD/MM/YYYY -> convert to YYYY-MM-DD
+    const dmySlash = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (dmySlash) return `${dmySlash[3]}-${dmySlash[2]}-${dmySlash[1]}`;
+
+    return raw;
+  };
+
+  const finalQuestId = questId !== undefined ? questId : (questionId !== undefined ? questionId : 0);
+  const finalQuestionId = questionId !== undefined ? questionId : (questId !== undefined ? questId : 0);
+  const normalizedTaskDate = normalizeToIsoDateOnly(taskDate);
+  if (!normalizedTaskDate) throw new Error("taskDate is invalid");
+
+  const res = await axios.post(
+    `${API_BASE}/notification/task/complete`,
+    {
+      taskId,
+      questId: finalQuestId,
+      questionId: finalQuestionId,
+      taskDate: normalizedTaskDate,
+      propertyId,
+      taskStatus,
+      taskstatus: taskStatus,
+    },
+    {
+      headers: {
+        "Content-Type": "application/json",
+      },
+      withCredentials: false,
+    },
+  );
+
+  return res.data;
+};
+
 export const getComplaintRemarks = async (ticketId) => {
   try {
     const res = await axios.get(

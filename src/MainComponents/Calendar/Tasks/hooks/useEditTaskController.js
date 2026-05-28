@@ -138,15 +138,17 @@ export default function useEditTaskController({ rowData, categoryData }) {
   const [schedule, setSchedule] = useState({ dirty: false, mappings: [] });
 
   const initialTaskDate = useMemo(() => {
-    const raw = rowData?.UpdatedOn || rowData?.DateFrom || "";
+    // Prefer the actionable/occurrence date (TaskDate) when present.
+    // `UpdatedOn` can be "today" due to status updates, which breaks mark-complete payloads.
+    const raw = rowData?.TaskDate || rowData?.UpdatedOn || rowData?.DateFrom || "";
     if (!raw) return "";
     const parsed = moment(
       raw,
-      ["YYYY-MM-DD", "DD-MM-YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
+      ["YYYY-MM-DD", "DD-MM-YYYY", "DD/MM/YYYY", "YYYY-MM-DDTHH:mm:ss", moment.ISO_8601],
       true,
     );
     return parsed.isValid() ? parsed.format("YYYY-MM-DD") : "";
-  }, [rowData?.DateFrom, rowData?.UpdatedOn]);
+  }, [rowData?.DateFrom, rowData?.TaskDate, rowData?.UpdatedOn]);
 
   const isEditTaskValid = useMemo(() => {
     return (

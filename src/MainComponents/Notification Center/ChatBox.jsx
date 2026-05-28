@@ -216,7 +216,10 @@ const ChatBox = ({
   };
 
   return (
-    <div className={`ufirm-chatbox ${fillHeight ? "is-fill" : ""}`}>
+    <div 
+      className={`ufirm-chatbox ${fillHeight ? "is-fill" : ""}`}
+      style={fillHeight ? { flex: 1, minHeight: 0, display: "flex", flexDirection: "column" } : undefined}
+    >
       <div
         className={`ufirm-chat-surface ufirm-chat-surface-${context || "task"} ${context === "asset" ? "mb-3" : "mb-0"}`}
         style={
@@ -224,9 +227,10 @@ const ChatBox = ({
             ? {}
             : {
                 maxHeight: fillHeight ? "none" : containerMaxHeight || "320px",
-                height: fillHeight ? "100%" : undefined,
+                flex: fillHeight ? 1 : undefined,
                 display: "flex",
                 flexDirection: "column",
+                minHeight: 0,
               }
         }
       >
@@ -237,6 +241,7 @@ const ChatBox = ({
               maxHeight: fillHeight ? "none" : chatScrollMaxHeight || "240px",
               flex: 1,
               minHeight: 0,
+              overflowY: "auto",
             }}
             ref={chatScrollRef}
           >
