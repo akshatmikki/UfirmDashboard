@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const API_URL = "https://api.urest.in:8096/";
-// const API_URL = "http://localhost:62929/";
+//const API_URL = "http://localhost:62929/";
 
 // =====================================
 // SAVE ONBOARDING TEMP DATA
@@ -14,8 +14,12 @@ export const saveOnboardingTemp = async (model, documents = []) => {
         formData.append("data", JSON.stringify(model));
 
         documents.forEach(doc => {
-            formData.append("file", doc.file);
-            formData.append("DocumentType", doc.type || "Others");
+            if (doc.file) {
+                formData.append("file", doc.file);
+                formData.append("DocumentType", doc.type || "Others");
+            } else if (doc.url) {
+                formData.append("KeptUrl", doc.url);
+            }
         });
 
         const response = await fetch(`${API_URL}api/onboarding/temp`, {
@@ -144,8 +148,12 @@ export const updateOnboardingTemp = async (tempId, model, documents = []) => {
         formData.append("data", JSON.stringify(model));
 
         documents.forEach(doc => {
-            formData.append("file", doc.file);
-            formData.append("DocumentType", doc.type || "Others");
+            if (doc.file) {
+                formData.append("file", doc.file);
+                formData.append("DocumentType", doc.type || "Others");
+            } else if (doc.url) {
+                formData.append("KeptUrl", doc.url);
+            }
         });
 
         const response = await fetch(

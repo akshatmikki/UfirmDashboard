@@ -113,7 +113,13 @@ function Field({ field, value, onChange, context }) {
       placeholder={placeholder}
       disabled={disabled}
       readOnly={readOnly}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => {
+        let val = e.target.value;
+        if (field.key === "GSTNumber" || field.key === "PANNumber") {
+          val = val.replace(/[^a-zA-Z0-9]/g, "");
+        }
+        onChange(val);
+      }}
     />
   );
 }

@@ -286,7 +286,10 @@ const Vendor = (props) => {
   }
 
   const handleInputChange = (e) => {
-    const { id, value } = e.target
+    let { id, value } = e.target
+    if (id === "GSTNumber" || id === "PANNumber") {
+      value = value.replace(/[^a-zA-Z0-9]/g, "")
+    }
     setVendorData((prevState) => ({
       ...prevState,
       [id]: value,
