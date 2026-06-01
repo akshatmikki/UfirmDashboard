@@ -78,7 +78,7 @@ const PurchaseOrderPage = ({ initialItems = EMPTY_ARRAY, initialIds = EMPTY_ARRA
     }, [propertyId, selectedCategory, selectedItem, selectedVendor]);
 
     const isFromItemAssigned = initialItems && initialItems.length > 0;
-    
+
     const tableProps = isFromItemAssigned ? { dataKey: "Id" } : {};
 
     const displayData = React.useMemo(() => {
@@ -91,7 +91,7 @@ const PurchaseOrderPage = ({ initialItems = EMPTY_ARRAY, initialIds = EMPTY_ARRA
 
         return initialItems.map((assignedItem) => {
             const rateCard = filteredGridData.find(rc => rc.ItemId === assignedItem.ItemId) || {};
-            const specs = Array.isArray(assignedItem.Details) 
+            const specs = Array.isArray(assignedItem.Details)
                 ? assignedItem.Details.map(d => `${d.Specification_Name}: ${d.Specification_Value}`).join(', ')
                 : "";
 
@@ -201,6 +201,22 @@ const PurchaseOrderPage = ({ initialItems = EMPTY_ARRAY, initialIds = EMPTY_ARRA
 
     const openDialog = () => {
         if (selectedGridData.length > 0) {
+            const itemsWithoutRate = selectedGridData.filter(item => {
+                const price = Number(item.Price);
+                const vendorId = Number(item.VendorId);
+                return !price || price === 0 || isNaN(price) || !vendorId || vendorId === 0 || isNaN(vendorId);
+            });
+
+            if (itemsWithoutRate.length > 0) {
+                const itemNames = itemsWithoutRate.map(item => item.ItemName).join(', ');
+                toast.current.show({
+                    severity: 'warn',
+                    summary: 'Rate Card Not Created',
+                    detail: `Rate card not created for this item: ${itemNames}`,
+                    life: 4000
+                });
+                return;
+            }
             setDisplayDialog(true);
         }
     };
@@ -302,15 +318,15 @@ const PurchaseOrderPage = ({ initialItems = EMPTY_ARRAY, initialIds = EMPTY_ARRA
                 style={{ width: '90vw', height: '90vh' }}
                 header="Purchase Order"
             >
-                <POQuantityComponent 
-                   selectedGridData={selectedGridData} 
-                   selectedIds={selectedGridData.map(x => x.Id)}
-                   refreshItemAssigned={refreshItemAssigned}
-                   isFromItemAssigned={isFromItemAssigned}
-                   onPOCreated={() => {
-                       setDisplayDialog(false);
-                       if (onPOCreated) onPOCreated();
-                   }}
+                <POQuantityComponent
+                    selectedGridData={selectedGridData}
+                    selectedIds={selectedGridData.map(x => x.Id)}
+                    refreshItemAssigned={refreshItemAssigned}
+                    isFromItemAssigned={isFromItemAssigned}
+                    onPOCreated={() => {
+                        setDisplayDialog(false);
+                        if (onPOCreated) onPOCreated();
+                    }}
                 />
             </Dialog>
 
