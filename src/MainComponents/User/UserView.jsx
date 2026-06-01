@@ -1,219 +1,136 @@
 import React from 'react';
 import Button from '../../ReactComponents/Button/Button.jsx';
-import DataGrid from '../../ReactComponents/DataGrid/DataGrid.jsx';
 import './User.css';
 
-class UserView extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            userType: [],
-            gridHeader: [
-                // { sTitle: 'Id', titleValue: 'documentTypeId', "orderable": false,  },
-                { sTitle: 'Document Type', titleValue: 'documentTypeName', "orderable": false },
-                { sTitle: 'Document Number', titleValue: 'documentNumber', "orderable": false },
-                { sTitle: 'Document Name', titleValue: 'documentName', "orderable": false, "visible": true },
-                { sTitle: 'Document Url', titleValue: 'documentURL', "orderable": false, "visible": true },
-                { sTitle: 'Action', titleValue: 'Action', Action: "Download", Index: '0', urlIndex: '3', "orderable": false }
-            ],
-            gridData: [],
-        };
-    }
-    componentDidMount() {
-        console.log(this.props.Data.userType);
-        this.setState({ userType: this.props.Data.userType });
-        this.setState({ gridData: this.props.Data.userDocumentList });
-    }
-    handleCancel = () => {
-        this.props.Action("Home");
-    };
+const viewCss = `
+.uv-avatar{width:96px;height:96px;border-radius:50%;border:3px solid #d8dee6;overflow:hidden;background:#edf1f5;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.uv-avatar img{width:100%;height:100%;object-fit:cover;display:block;}
+.uv-hero{display:flex;flex-direction:column;align-items:center;gap:6px;padding:20px 0 16px;border-bottom:1px solid #f0f3f6;margin-bottom:20px;}
+.uv-name{font-size:18px;font-weight:700;color:#30363d;}
+.uv-email{font-size:13px;color:#8e98a2;}
+.uv-badge{display:inline-block;background:#d9e8f7;color:#365676;border-radius:999px;font-size:12px;font-weight:700;padding:3px 14px;margin-top:2px;}
+.uv-field{margin-bottom:14px;}
+.uv-label{font-size:11px;font-weight:700;color:#55606c;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px;}
+.uv-val{font-size:13px;color:#3a4148;background:#f5f8fb;border:1px solid #e8edf2;border-radius:5px;padding:7px 10px;min-height:34px;word-break:break-word;}
+.uv-val.empty{color:#b0b8c1;}
+`;
 
+class UserView extends React.Component {
+    handleCancel = () => this.props.Action('Home');
 
     render() {
-        const normalizeDisplay = (value) => {
-            if (value == null) return "";
-            const s = String(value).trim();
-            if (!s || s.toLowerCase() === "n/a") return "";
-            return s;
+        const d = this.props.Data || {};
+        const V = this.props.Value || {};
+
+        const norm = (v) => {
+            if (v == null) return '';
+            const s = String(v).trim();
+            return !s || s.toLowerCase() === 'n/a' ? '' : s;
         };
 
-        const getNameById = (list, id, fallback = "") => {
-            if (!Array.isArray(list)) return fallback;
+        const nameById = (list, id) => {
+            if (!Array.isArray(list)) return '';
             const found = list.find((x) => String(x?.Id) === String(id));
-            return normalizeDisplay(found?.Name ?? fallback);
+            return norm(found?.Name);
         };
 
-        const companyName =
-            normalizeDisplay(this.props.Data.CompanyName) ||
-            getNameById(this.props.Value?.Company, this.props.Data.CompanyId, "");
-        const branchName =
-            normalizeDisplay(this.props.Data.BranchName) ||
-            getNameById(this.props.Value?.Branch, this.props.Data.BranchId, "");
-        const departmentName =
-            normalizeDisplay(this.props.Data.DepartmentName) ||
-            getNameById(this.props.Value?.Departments, this.props.Data.DepartmentId, "");
-        const cityName =
-            normalizeDisplay(this.props.Data.CityName) ||
-            getNameById(this.props.Value?.City, this.props.Data.CityId, "");
-
-        const roleName =
-            normalizeDisplay(this.props.Data.RoleName) ||
-            getNameById(this.props.Value?.Role, this.props.Data.RoleId, "");
-
-        const userTypeName =
-            normalizeDisplay(this.props.Data.UserTypeName) ||
-            getNameById(this.props.Value?.UserType, this.props.Data.UserTypeId, "");
+        const cityName     = norm(d.CityName)     || nameById(V.City,     d.CityId);
+        const branchName   = norm(d.BranchName)   || nameById(V.Branch,   d.BranchId);
+        const roleName     = norm(d.RoleName)     || nameById(V.Role,     d.RoleId);
+        const userTypeName = norm(d.UserTypeName) || nameById(V.UserType, d.UserTypeId);
 
         const propertyIdsRaw =
-            (Array.isArray(this.props.Data.PropertyIds) && this.props.Data.PropertyIds) ||
-            (Array.isArray(this.props.Data.PropertyIDList) && this.props.Data.PropertyIDList) ||
-            (this.props.Data.PropertyId != null ? [this.props.Data.PropertyId] : null) ||
-            (this.props.Data.PropertyID != null ? [this.props.Data.PropertyID] : null) ||
-            [];
+            (Array.isArray(d.PropertyIds)    && d.PropertyIds)    ||
+            (Array.isArray(d.PropertyIDList) && d.PropertyIDList) ||
+            (d.PropertyId != null ? [d.PropertyId] : []);
 
-        const propertyIds = Array.from(new Set(propertyIdsRaw.map((x) => Number(x) || 0).filter((x) => x > 0)));
-        const properties = (propertyIds.length ? propertyIds : []).map((pid) => {
-            const prop = (this.props.Value?.Property || []).find((p) => String(p?.Id) === String(pid));
-            return { pid, name: normalizeDisplay(prop?.Name) };
-        }).filter((p) => !!p.name);
+        const propertyNames = Array.from(
+            new Set(propertyIdsRaw.map((x) => Number(x)).filter((x) => x > 0))
+        )
+            .map((pid) => nameById(V.Property, pid))
+            .filter(Boolean);
+
+        const initials =
+            (norm(d.FirstName)?.[0] || '').toUpperCase() +
+            (norm(d.LastName)?.[0]  || '').toUpperCase();
+
+        // Helper: labelled read-only field
+        const Field = ({ label, value }) => (
+            <div className="uv-field">
+                <div className="uv-label">{label}</div>
+                <div className={`uv-val${!value ? ' empty' : ''}`}>
+                    {value || '—'}
+                </div>
+            </div>
+        );
 
         return (
             <div className="card shadow-sm">
-                <div className="card-header d-flex align-items-center justify-content-between">
+                <style>{viewCss}</style>
+
+                <div className="card-header">
                     <h3 className="card-title mb-0">User Details</h3>
                 </div>
+
                 <div className="card-body">
 
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketTitle">First Name</label>
-                                        <div className="dummyBox">{normalizeDisplay(this.props.Data.FirstName)}</div>
-                                    </div>
-                                </div>
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketTitle">Last Name</label>
-                                        <div className="dummyBox">
-                                            {normalizeDisplay(this.props.Data.LastName)}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">Email Address</label>
-                                        <div className="dummyBox">
-                                            {normalizeDisplay(this.props.Data.EmailAddress)}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketTitle">Contact Number</label>
-                                        <div className="dummyBox">
-                                            {normalizeDisplay(this.props.Data.ContactNumber)}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">Company</label>
-                                        <div className="dummyBox">
-                                            {companyName}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">Branch</label>
-                                        <div className="dummyBox">
-                                            {branchName}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketTitle">Department</label>
-                                        <div className="dummyBox">
-                                            {departmentName}
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* ── Avatar hero ── */}
+                    <div className="uv-hero">
+                        <div className="uv-avatar">
+                            {norm(d.ProfileImageUrl)
+                                ? <img src={d.ProfileImageUrl} alt="profile" />
+                                : <span style={{ fontSize: 32, fontWeight: 700, color: '#9ba5ae' }}>
+                                    {initials || <i className="far fa-user" style={{ fontSize: 32, color: '#9ba5ae' }} />}
+                                  </span>
+                            }
+                        </div>
+                        <div className="uv-name">{norm(d.FirstName)} {norm(d.LastName)}</div>
+                        <div className="uv-email">{norm(d.EmailAddress)}</div>
+                        {roleName && <span className="uv-badge">{roleName}</span>}
+                    </div>
 
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">City</label>
-                                        <div className="dummyBox">
-                                            {cityName}
-                                        </div>
-                                    </div>
-                                </div>
+                    {/* ── 2-column grid ── */}
+                    <div className="row">
+                        <div className="col-sm-6">
+                            <Field label="Employee ID"  value={norm(d.EmpCode)} />
+                        </div>
+                        <div className="col-sm-6">
+                            <Field label="Phone Number" value={norm(d.ContactNumber)} />
+                        </div>
+                    </div>
 
-                            </div>
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">Role</label>
-                                        <div className="dummyBox">
-                                            {roleName}
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">Property</label>
-                                        <div className="dummyBox">
-                                            {properties.length > 0 ? properties.map((p) => (
-                                                <div key={p.pid}>{p.name}</div>
-                                            )) : ""}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="ticketType">User Type</label>
-                                        <div className="dummyBox">
-                                            {userTypeName}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
+                    <div className="row">
+                        <div className="col-sm-6">
+                            <Field label="City"        value={cityName} />
+                        </div>
+                        <div className="col-sm-6">
+                            <Field label="Branch"      value={branchName} />
+                        </div>
+                    </div>
 
-                            <div className="row">
-                                <div className="col-sm-6">
-                                    <div className="form-group">
-                                        <label for="lbProfilePic">Profile Picture</label>
-                                        <div>
-                                            {normalizeDisplay(this.props.Data.ProfileImageUrl) ? (
-                                                <img
-                                                    className="ImageView"
-                                                    alt="profilepic"
-                                                    src={this.props.Data.ProfileImageUrl}
-                                                    style={{ height: "90px" }}
-                                                />
-                                            ) : null}
-                                        </div>
-                                    </div>
+                    <div className="row">
+                        <div className="col-sm-6">
+                            <Field label="User Type"   value={userTypeName} />
+                        </div>
+                        <div className="col-sm-6">
+                            <div className="uv-field">
+                                <div className="uv-label">Property</div>
+                                <div className={`uv-val${propertyNames.length === 0 ? ' empty' : ''}`}>
+                                    {propertyNames.length > 0
+                                        ? propertyNames.map((n, i) => (
+                                            <div key={i} style={{ lineHeight: 1.8 }}>{n}</div>
+                                        ))
+                                        : '—'
+                                    }
                                 </div>
                             </div>
-
+                        </div>
+                    </div>
 
                 </div>
+
                 <div className="card-footer d-flex justify-content-end">
-                    <Button
-                        Id="btnCancel"
-                        Text="Back"
-                        Action={this.handleCancel}
-                        ClassName="btn btn-secondary"
-                    />
+                    <Button Id="btnBack" Text="Back" Action={this.handleCancel} ClassName="btn btn-secondary" />
                 </div>
             </div>
         );

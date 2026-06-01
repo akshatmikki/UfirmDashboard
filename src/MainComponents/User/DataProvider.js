@@ -42,6 +42,18 @@ class DataProvider {
         });
     }
 
+    async uploadProfileImage(file) {
+        const fd = new FormData();
+        fd.append('imageFile', file);
+        const res = await fetch(BASE_URL + 'UploadProfileImage', {
+            method: 'POST',
+            headers: { Authorization: 'Bearer ' + appCommonJs.getapitoken() },
+            body: fd,
+        });
+        if (!res.ok) throw new Error('Image upload failed');
+        return res.json();
+    }
+
     saveUser(formdata) {
         let url = 'Master/User/Save';
         // If we are local, we might need to use the local BASE_URL for this too

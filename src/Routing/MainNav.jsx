@@ -662,7 +662,20 @@ class MainNav extends React.Component {
                   className="dropdown-toggle nav-link dropdown-user-link ufirm-user-toggle"
                 >
                   <span className="avatar avatar-online">
-                    <span className="ufirm-user-initials" aria-hidden="true">
+                    {this.state.UserProfileImg &&
+                    this.state.UserProfileImg !== 'https://account.ufirm.in/assets/cdn/public/profileimg/default.jpg' ? (
+                      <img
+                        src={this.state.UserProfileImg}
+                        alt={this.state.UserName}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
+                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                      />
+                    ) : null}
+                    <span
+                      className="ufirm-user-initials"
+                      aria-hidden="true"
+                      style={this.state.UserProfileImg && this.state.UserProfileImg !== 'https://account.ufirm.in/assets/cdn/public/profileimg/default.jpg' ? { display: 'none' } : {}}
+                    >
                       {getUserBadgeLetter(this.state.UserName)}
                     </span>
                   </span>

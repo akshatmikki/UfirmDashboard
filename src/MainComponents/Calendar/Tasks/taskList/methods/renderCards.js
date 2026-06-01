@@ -10,7 +10,22 @@ const hasActiveStatusFilter = (filter) => {
 };
 const isActionableStatus = (status) => {
   const normalized = normalizeStatus(status);
-  return normalized === "actionable" || normalized === "in-progress" || normalized === "in progress" || normalized === "on-hold" || normalized === "on hold";
+  return (
+    normalized === "actionable" ||
+    normalized === "in-progress" ||
+    normalized === "in progress" ||
+    normalized === "on-hold" ||
+    normalized === "on hold" ||
+    normalized === "completed" ||
+    normalized === "complete"
+  );
+};
+const shouldShowChatIcon = (task) => {
+  if (isActionableStatus(task?.TaskStatus)) return true;
+  if (Number(task?.PriorityId) === 5) return true;
+  if (Number(task?.TaskPriorityId) === 5) return true;
+  if (String(task?.TaskPriority) === "5") return true;
+  return false;
 };
 const getStatusRank = (status) => {
   const normalized = normalizeStatus(status);
@@ -157,7 +172,6 @@ export default function attachRenderCards(TaskList) {
           const tasks = groupedByDate[date] || [];
           const dateFilter = dateStatusFilters && dateStatusFilters[date] ? dateStatusFilters[date] : null;
           const effectiveFilter = dateFilter || uiTaskStatus;
-
 
           const displayTasks = tasks
             .filter(task =>
@@ -332,7 +346,7 @@ export default function attachRenderCards(TaskList) {
 
                             <div className="task-card-actions">
                               <div className="task-card-action-group">
-                                {isActionableStatus(task.TaskStatus) ? (
+                                {shouldShowChatIcon(task) ? (
                                   <button
                                     className="btn btn-link task-action-remarks"
                                     onClick={(e) => {

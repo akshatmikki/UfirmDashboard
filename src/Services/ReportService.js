@@ -120,6 +120,54 @@ export const fetchDeviceLogsinBetween = async (deviceId, fromDate, toDate) => {
   return await response.json();
 };
 
+// ================= DMR LAYOUT CONFIG =================
+export const fetchLayoutConfig = async (propertyId) => {
+  const query = new URLSearchParams({ propertyId }).toString();
+  const response = await fetch(
+    `https://api.urest.in:8096/api/dmrreport/layout-config?${query}`,
+    { method: "GET", headers: { "Content-Type": "application/json" } }
+  );
+  if (!response.ok) return null;
+  return await response.json();
+};
+
+export const saveLayoutConfig = async (propertyId, layoutJson) => {
+  const response = await fetch(
+    "https://api.urest.in:8096/api/dmrreport/layout-config",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId, layoutJson }),
+    }
+  );
+  if (!response.ok) throw new Error("Failed to save layout config");
+  return await response.json();
+};
+
+// ================= DMR EMAIL CONFIG =================
+export const fetchEmailConfig = async (propertyId) => {
+  const query = new URLSearchParams({ propertyId }).toString();
+  const response = await fetch(
+    `https://api.urest.in:8096/api/dmrreport/email-config?${query}`,
+    { method: "GET", headers: { "Content-Type": "application/json" } }
+  );
+  if (!response.ok) return null;
+  return await response.json();
+};
+
+export const saveEmailConfig = async (propertyId, config) => {
+  const response = await fetch(
+    "https://api.urest.in:8096/api/dmrreport/email-config",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId, ...config }),
+    }
+  );
+  if (!response.ok) throw new Error("Failed to save email config");
+  return await response.json();
+};
+
 export const fetchDeviceLogsByMonth = async (deviceId, monthYear) => {
   const query = new URLSearchParams({
     deviceId,
