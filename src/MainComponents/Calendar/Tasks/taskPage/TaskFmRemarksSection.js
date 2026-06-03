@@ -42,6 +42,11 @@ export default function TaskFmRemarksSection({
     return s === "actionable";
   };
 
+  const isCompletedStatus = (value) => {
+    const s = String(value || "").trim().toLowerCase();
+    return s === "completed" || s === "complete";
+  };
+
   const visibleQuestions = useMemo(() => {
     const list = questions || [];
     return list.filter((q) => {
@@ -49,7 +54,7 @@ export default function TaskFmRemarksSection({
       // Only show questions that have an explicit status set in the notification map.
       // If a question has no status entry, it means it hasn't been 'actioned' yet.
       if (rawStatus == null || String(rawStatus).trim() === "") return false;
-      return isActionableStatus(rawStatus);
+      return isActionableStatus(rawStatus) || isCompletedStatus(rawStatus);
     });
   }, [effectiveStatusMap, isActionableStatus, normalizedStatus, questions]);
 
@@ -76,7 +81,7 @@ export default function TaskFmRemarksSection({
       return String(status || "").toLowerCase() === "actionable";
     });
 
-    const defaultQuestionId = actionableQuestion?.id || visibleQuestions[0].id;
+    const defaultQuestionId = actionableQuestion?.id ?? visibleQuestions[0].id;
     setOpenQuestionId((prev) => {
       if (!prev) return defaultQuestionId;
       const stillVisible = visibleQuestions.some((q) => Number(q.id) === Number(prev));
@@ -202,7 +207,7 @@ export default function TaskFmRemarksSection({
             })}
 
             {!visibleQuestions?.length ? (
-              <div className="fm-q-empty">No actionable questions found for this task/date.</div>
+              <div className="fm-q-empty">No questions with remarks found for this task/date.</div>
             ) : null}
           </div>
         </div>

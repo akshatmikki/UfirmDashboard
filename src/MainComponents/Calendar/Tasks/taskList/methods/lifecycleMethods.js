@@ -71,8 +71,13 @@ export default function attachLifecycleMethods(TaskList) {
       this.getSubCategory();
     }
     if (
-      prevState.selectedCategoryId !== this.state.selectedCategoryId ||
-      prevState.selectedSubCategoryId !== this.state.selectedSubCategoryId
+      !this._suppressCduTaskFetch &&
+      this.state.filterFromDate &&
+      this.state.filterToDate &&
+      (
+        prevState.selectedCategoryId !== this.state.selectedCategoryId ||
+        prevState.selectedSubCategoryId !== this.state.selectedSubCategoryId
+      )
     ) {
       this.getTasks();
     }

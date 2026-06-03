@@ -252,10 +252,16 @@ export default function attachApiModelsManage(TaskList) {
             }
           });
         } else {
+          resp.text().then((body) => {
+            console.error("TaskDetails API error", resp.status, body);
+          }).catch(() => {});
           this.setState({ dataLoading: false });
+          appCommon.showtextalert("Failed to load tasks. Please try again.", "", "error");
         }
-      }).catch(() => {
+      }).catch((err) => {
+        console.error("TaskDetails network error", err);
         this.setState({ dataLoading: false });
+        appCommon.showtextalert("Network error loading tasks. Please try again.", "", "error");
       });
     };
   

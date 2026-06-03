@@ -265,6 +265,28 @@
   color: #334155;
 }
 
+.ufirm-user-toggle .avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  overflow: hidden !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0;
+  background: #0f6b80;
+  border: 2px solid #d1dde8;
+  box-sizing: border-box;
+}
+
+.ufirm-user-toggle .avatar img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+  border-radius: 0 !important;
+}
+
 .ufirm-user-initials {
   width: 32px;
   height: 32px;
@@ -275,7 +297,9 @@
   background: #0f6b80;
   color: #ffffff;
   font-weight: 700;
-  font-size: 14px;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 .ufirm-user-caret {

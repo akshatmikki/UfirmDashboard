@@ -132,8 +132,8 @@ class MainNav extends React.Component {
     super(props);
     this.state = {
       UserName: "Test User",
-      UserProfileImg:
-        "https://account.ufirm.in/assets/cdn/public/profileimg/default.jpg",
+      UserProfileImg: null,
+      imgError: false,
       PropertyData: [],
       PropertyMultiData: [],
       selectedPropertyOptions: [],
@@ -171,6 +171,12 @@ class MainNav extends React.Component {
     });
   }
 
+  normalizeImageUrl = (url) => {
+    if (!url) return url;
+    const badPrefix = "https://admin-api.urest.in/Images/";
+    return url.startsWith(badPrefix) ? url.slice(badPrefix.length) : url;
+  };
+
   loadCurrentUserInfo = async () => {
     try {
       const config = getConfig("common.fetchUserById");
@@ -182,18 +188,19 @@ class MainNav extends React.Component {
       if (!data) return;
 
       const fullName = `${data.firstName || ""} ${data.lastName || ""}`.trim();
+      const cleanImg = this.normalizeImageUrl(data.profileImageUrl);
       const appElement = document.getElementById("app");
       if (appElement) {
         if (fullName) appElement.setAttribute("username", fullName);
         if (data.userId != null) appElement.setAttribute("userid", String(data.userId));
-        if (data.profileImageUrl) appElement.setAttribute("profileimg", data.profileImageUrl);
+        if (cleanImg) appElement.setAttribute("profileimg", cleanImg);
       }
 
       if (fullName) {
         this.setState({ UserName: fullName });
       }
-      if (data.profileImageUrl) {
-        this.setState({ UserProfileImg: data.profileImageUrl });
+      if (cleanImg) {
+        this.setState({ UserProfileImg: cleanImg, imgError: false });
       }
 
       this.tryLoadManagedEmployees();
@@ -352,8 +359,8 @@ class MainNav extends React.Component {
   componentDidMount() {
 
 
-    var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc5MDgwODI0LCJleHAiOjE4MTA2MTY4MjQsImlhdCI6MTc3OTA4MDgyNH0.8h7xdBvZGUBvm39gIbORNpnhk8hdz0qyrNn7UKMkGn0";
-    //var token = window.sessionStorage.getItem("userinfo_key")
+    //var token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmaXJzdG5hbWUiOiJBZG1pbiIsImxhc3RuYW1lIjoiQWRtaW4iLCJpbmZvX3QiOiJoZ0NycCtRcUF1cVlzRmxqaGVkMk1IKzhRekN2REZxRmRHVUVsbUw0NCtVcTNTVFJEYWxyNDJBNE0xL3dWRGhJcXNsMlBDTlp6QTZvTFVqUlFua1BXMkEzcEhSclJ5L2EvWWtIM0l1YzZ6alRPdXNFemFSUVpKTWRleTRHRG9OOUJIUCthM3U4dXFZTnZ3bFRDeUdVUDZXWlh6Zkc0VjhlM2pRMTdCdC9jTDA5OVZtUktsN3NKK3ZGdFB2blE0Nk40SFFjNGd2OEJuQ2VlNlVEdW15ejZ5S3p1K0F1bE9DSzhzZ3VPOWdLU3lEeVllZVZFMGZ2ZUVoQ1ZWQ2w3dUVuIiwibmJmIjoxNzc5MDgwODI0LCJleHAiOjE4MTA2MTY4MjQsImlhdCI6MTc3OTA4MDgyNH0.8h7xdBvZGUBvm39gIbORNpnhk8hdz0qyrNn7UKMkGn0";
+    var token = window.sessionStorage.getItem("userinfo_key")
 
 
     if (token === null) {
@@ -365,11 +372,8 @@ class MainNav extends React.Component {
       this.loaduserRole();
 
       if (document.getElementById("app").getAttribute("profileimg") != null) {
-        this.setState({
-          UserProfileImg: document
-            .getElementById("app")
-            .getAttribute("profileimg"),
-        });
+        const rawImg = document.getElementById("app").getAttribute("profileimg");
+        this.setState({ UserProfileImg: this.normalizeImageUrl(rawImg), imgError: false });
       }
 
       if (document.getElementById("app").getAttribute("username") != null) {
@@ -559,9 +563,10 @@ class MainNav extends React.Component {
     };
 
     const getUserBadgeLetter = (name) => {
-      const raw = (name || "").trim();
-      if (!raw) return "U";
-      return raw[0].toUpperCase();
+      const parts = (name || "").trim().split(/\s+/).filter(Boolean);
+      if (!parts.length) return "U";
+      if (parts.length === 1) return parts[0][0].toUpperCase();
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
     };
 
     return (
@@ -662,22 +667,18 @@ class MainNav extends React.Component {
                   className="dropdown-toggle nav-link dropdown-user-link ufirm-user-toggle"
                 >
                   <span className="avatar avatar-online">
-                    {this.state.UserProfileImg &&
-                    this.state.UserProfileImg !== 'https://account.ufirm.in/assets/cdn/public/profileimg/default.jpg' ? (
+                    {this.state.UserProfileImg && !this.state.imgError ? (
                       <img
                         src={this.state.UserProfileImg}
                         alt={this.state.UserName}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }}
-                        onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'flex'; }}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        onError={() => this.setState({ imgError: true })}
                       />
-                    ) : null}
-                    <span
-                      className="ufirm-user-initials"
-                      aria-hidden="true"
-                      style={this.state.UserProfileImg && this.state.UserProfileImg !== 'https://account.ufirm.in/assets/cdn/public/profileimg/default.jpg' ? { display: 'none' } : {}}
-                    >
-                      {getUserBadgeLetter(this.state.UserName)}
-                    </span>
+                    ) : (
+                      <span className="ufirm-user-initials">
+                        {getUserBadgeLetter(this.state.UserName)}
+                      </span>
+                    )}
                   </span>
                   <span id="lblusername" className="user-name">
                     {this.state.UserName}

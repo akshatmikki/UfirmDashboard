@@ -55,6 +55,8 @@ export default function attachActionMethods(TaskList) {
   
     TaskList.prototype.Reset = function () {
       const today = moment();
+      // Prevent componentDidUpdate from firing a duplicate getTasks when category/subcat resets
+      this._suppressCduTaskFetch = true;
       this.setState({
         filtered: false,
         selectedCategoryId: 0,
@@ -76,6 +78,7 @@ export default function attachActionMethods(TaskList) {
         filterFromDate: today.format("YYYY-MM-DD"),
         filterToDate: today.format("YYYY-MM-DD"),
       }, () => {
+        this._suppressCduTaskFetch = false;
         this.DateRangeConfig(today, today);
         this.getTasks();
       });
