@@ -601,12 +601,15 @@ class MainNav extends React.Component {
                       disabled={false}
                       value={this.state.selectedClientId}
                       onChange={(v) => this.onClientChanged(v)}
-                      options={(this.state.clientData || [])
-                        .map((item) => ({
-                          Value: item.ClientID || item.Value || item.id || 0,
-                          Name: item.ClientName || item.Name || item.text || "",
-                        }))
-                        .sort((a, b) => a.Name.localeCompare(b.Name))}
+                      options={[
+                        { Value: 0, Name: "-- Select Client --" },
+                        ...(this.state.clientData || [])
+                          .map((item) => ({
+                            Value: item.ClientID || item.Value || item.id || 0,
+                            Name: item.ClientName || item.Name || item.text || "",
+                          }))
+                          .sort((a, b) => a.Name.localeCompare(b.Name)),
+                      ]}
                       placeholder="Select Client"
                     />
                   </div>
@@ -621,7 +624,10 @@ class MainNav extends React.Component {
                       disabled={disablePropertyDropdownForPayroll || this.state.selectedClientId <= 0}
                       value={this.state.selectedPropertyId}
                       onChange={(v) => this.onPropertyChanged(v)}
-                      options={this.state.PropertyData}
+                      options={[
+                        { Value: 0, Name: "-- Select Location --" },
+                        ...(this.state.PropertyData || []),
+                      ]}
                       placeholder="Select Location"
                     />
                   </div>

@@ -22,7 +22,7 @@ const LocationDropdown = ({
           value: Number(o?.Value ?? o?.value ?? 0) || 0,
           label: (o?.Name ?? o?.label ?? "").toString(),
         }))
-        .filter((o) => o.value !== 0 && o.label),
+        .filter((o) => o.label),
     [options],
   );
 

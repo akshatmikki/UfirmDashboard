@@ -1614,6 +1614,40 @@ export const getGeneratedSalaryByPropertiesWithMonthYear = async (
   return response.json();
 };
 
+export const getEmployeeOverallSalary = async ({
+  propertyIds = [],
+  employeeCode = "",
+  month,
+  year,
+}) => {
+  // ❌ validation (same logic as backend)
+  if ((!propertyIds.length && !employeeCode) ) return [];
+
+  // convert propertyIds array → comma string
+  const ids = propertyIds.length ? propertyIds.join(",") : "";
+
+  // build query params dynamically (don’t hardcode like a rookie)
+  const params = new URLSearchParams();
+
+  if (ids) params.append("propertyIds", ids);
+  if (employeeCode) params.append("employeeCode", employeeCode);
+  if (month) params.append("month", month);
+  if (year) params.append("year", year);
+
+  const url = `https://api.urest.in:8096/api/employee/overall-salary?${params.toString()}`;
+
+  const response = await fetch(url, {
+    method: "GET",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch employee overall salary");
+  }
+
+  return response.json();
+};
+
 // ================= IMPORT EMPLOYEES =================
 
 export const importEmployees = async (propertyId, file) => {

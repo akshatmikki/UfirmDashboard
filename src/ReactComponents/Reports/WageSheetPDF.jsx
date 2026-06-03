@@ -10,6 +10,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     acc.Basic += emp.Basic || 0;
     acc.HRA += emp.HRA || 0;
     acc.Conv += emp.CONV ?? emp.Conveyance ?? 0;
+    acc.DA += emp.DA || 0;
     acc.Wash += emp.Washing || 0;
     acc.Spl += emp.SpecialAllowance || 0;
     acc.Other += emp.OtherAllowance || 0;
@@ -25,15 +26,21 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     acc.Food += emp.Food || 0;
     acc.Maintenance += emp.Maintenance || 0;
     acc.Uniform += emp.Uniform || 0;
-    acc.Tax += emp.IncomeTax || 0;
+    acc.Room += emp.Room || 0;
+    acc.JoiningKits += emp.JoiningKits || 0;
+    acc.OtherDed += emp.OtherDeduction || 0;
+    acc.DocDed += emp.DocumentDeduction || 0;
+    acc.Accommodation += emp.Accommodation || 0;
+    acc.Fine += emp.Fine || 0;
+    acc.BGV += emp.BGV || 0;
 
     acc.TotalDeduction += emp.TotalDeduction || 0;
     acc.NetSalary += emp.NetSalary || 0;
 
     return acc;
   }, {
-    Basic: 0, HRA: 0, Conv: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0, OTAmt: 0, Gross: 0,
-    PF: 0, ESI: 0, LWF: 0, PT: 0, Advance: 0, Food: 0, Maintenance: 0, Uniform: 0, Tax: 0,
+    Basic: 0, HRA: 0, Conv: 0, DA: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0, OTAmt: 0, Gross: 0,
+    PF: 0, ESI: 0, LWF: 0, PT: 0, Advance: 0, Food: 0, Maintenance: 0, Uniform: 0, Room: 0, JoiningKits: 0, OtherDed: 0, DocDed: 0, Accommodation: 0, Fine: 0, BGV: 0,
     TotalDeduction: 0, NetSalary: 0
   });
 
@@ -74,12 +81,12 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   doc.setFontSize(5);
 
   doc.text("SNO", 10, startY);
-  doc.text("EMP NO", 18, startY);
+  doc.text("EMP CODE", 18, startY);
   doc.text("EMPLOYEE DETAILS", 35, startY);
 
   doc.text("ATTEND.", 85, startY);
-  doc.text("EARNINGS", 150, startY);   // shifted right
-  doc.text("DEDUCTIONS", 230, startY); // shifted right
+  doc.text("EARNINGS", 139, startY);   // shifted right
+  doc.text("DEDUCTIONS", 215, startY); // shifted right
 
   startY += 6;
 
@@ -95,32 +102,39 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   doc.text("ESI", 60, startY + 8);
 
   // ================= ATTENDANCE =================
-  doc.text("Days", 85, startY);
-  doc.text("Div", 93, startY);   // 👈 Divide by Days
-  doc.text("OTD", 101, startY);
-  doc.text("OTH", 109, startY);
+  doc.text("Days", 78, startY);
+  doc.text("Div", 84, startY);   // 👈 Divide by Days
+  doc.text("OTD", 89, startY);
+  doc.text("OTH", 95, startY);
 
   // ================= EARNINGS =================
-  doc.text("Basic", 120, startY);
-  doc.text("HRA", 128, startY);
-  doc.text("Conv", 136, startY);
-  doc.text("Wash", 144, startY);
-  doc.text("Spl", 152, startY);
-  doc.text("Oth", 160, startY);
-  doc.text("Bonus", 168, startY);
-  doc.text("OT Amt", 178, startY);
-  doc.text("Gross", 188, startY);
+  doc.text("Basic", 109, startY);
+  doc.text("HRA", 115, startY);
+  doc.text("Conv", 121, startY);
+  doc.text("DA", 127, startY);
+  doc.text("Wash", 132, startY);
+  doc.text("Spl", 139, startY);
+  doc.text("Oth", 144, startY);
+  doc.text("Bonus", 149, startY);
+  doc.text("OT Amt", 156, startY);
+  doc.text("Gross", 167, startY);
 
   // ================= DEDUCTIONS =================
-  doc.text("PF", 200, startY);
-  doc.text("ESI", 208, startY);
-  doc.text("LWF", 216, startY);
-  doc.text("PT", 224, startY);
-  doc.text("Adv", 232, startY);
-  doc.text("Food", 240, startY);
-  doc.text("Maint", 248, startY);
-  doc.text("Uniform", 256, startY);
-  doc.text("Tax", 264, startY);
+  doc.text("PF", 180, startY);
+  doc.text("ESI", 185, startY);
+  doc.text("LWF", 191, startY);
+  doc.text("PT", 197, startY);
+  doc.text("Adv", 202, startY);
+  doc.text("Food", 208, startY);
+  doc.text("Maint", 214, startY);
+  doc.text("Uniform", 220, startY);
+  doc.text("Room", 228, startY);
+  doc.text("Join", 235, startY);
+  doc.text("OthD", 240, startY);
+  doc.text("DocD", 246, startY);
+  doc.text("Acmd", 252, startY);
+  doc.text("Fine", 258, startY);
+  doc.text("BGV", 263, startY);
 
   // Final
   doc.text("Tot Ded", 274, startY);
@@ -153,32 +167,39 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     doc.text(emp.ESINumber || "-", 60, y + 8);
 
     // ================= ATTENDANCE =================
-    doc.text(String(emp.WorkingDays || 0), 85, y);
-    doc.text(String(emp.DivideByDays || 0), 93, y);
-    doc.text(String(emp.OTDays || 0), 101, y);
-    doc.text(String(emp.OTHours || 0), 109, y);
+    doc.text(String(emp.WorkingDays || 0), 78, y);
+    doc.text(String(emp.DivideByDays || 0), 84, y);
+    doc.text(String(emp.OTDays || 0), 89, y);
+    doc.text(String(emp.OTHours || 0), 95, y);
 
     // ================= EARNINGS =================
-    doc.text(String(emp.Basic || 0), 120, y);
-    doc.text(String(emp.HRA || 0), 128, y);
-    doc.text(String(emp.CONV ?? emp.Conveyance ?? 0), 136, y);
-    doc.text(String(emp.Washing || 0), 144, y);
-    doc.text(String(emp.SpecialAllowance || 0), 152, y);
-    doc.text(String(emp.OtherAllowance || 0), 160, y);
-    doc.text(String(emp.Bonus || 0), 168, y);
-    doc.text(String(emp.OTAmount || 0), 178, y);
-    doc.text(String(emp.Gross || 0), 188, y);
+    doc.text(String(emp.Basic || 0), 109, y);
+    doc.text(String(emp.HRA || 0), 115, y);
+    doc.text(String(emp.CONV ?? emp.Conveyance ?? 0), 121, y);
+    doc.text(String(emp.DA || 0), 127, y);
+    doc.text(String(emp.Washing || 0), 132, y);
+    doc.text(String(emp.SpecialAllowance || 0), 139, y);
+    doc.text(String(emp.OtherAllowance || 0), 144, y);
+    doc.text(String(emp.Bonus || 0), 149, y);
+    doc.text(String(emp.OTAmount || 0), 156, y);
+    doc.text(String(emp.Gross || 0), 167, y);
 
     // ================= DEDUCTIONS =================
-    doc.text(String(emp.PF || 0), 200, y);
-    doc.text(String(emp.ESI || 0), 208, y);
-    doc.text(String(emp.LwfEmployeeAmount || 0), 216, y);
-    doc.text(String(emp.PftAmount || 0), 224, y);
-    doc.text(String(emp.AdvanceDed || 0), 232, y);
-    doc.text(String(emp.Food || 0), 240, y);
-    doc.text(String(emp.Maintenance || 0), 248, y);
-    doc.text(String(emp.Uniform || 0), 256, y);
-    doc.text(String(emp.IncomeTax || 0), 264, y);
+    doc.text(String(emp.PF || 0), 180, y);
+    doc.text(String(emp.ESI || 0), 185, y);
+    doc.text(String(emp.LwfEmployeeAmount || 0), 191, y);
+    doc.text(String(emp.PftAmount || 0), 197, y);
+    doc.text(String(emp.AdvanceDed || 0), 202, y);
+    doc.text(String(emp.Food || 0), 208, y);
+    doc.text(String(emp.Maintenance || 0), 214, y);
+    doc.text(String(emp.Uniform || 0), 220, y);
+    doc.text(String(emp.Room || 0), 228, y);
+    doc.text(String(emp.JoiningKits || 0), 235, y);
+    doc.text(String(emp.OtherDeduction || 0), 240, y);
+    doc.text(String(emp.DocumentDeduction || 0), 246, y);
+    doc.text(String(emp.Accommodation || 0), 252, y);
+    doc.text(String(emp.Fine || 0), 258, y);
+    doc.text(String(emp.BGV || 0), 263, y);
 
     // Final
     doc.text(String(emp.TotalDeduction || 0), 274, y);
@@ -218,26 +239,33 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   doc.text("TOTAL", 35, y);
 
   // Earnings
-  doc.text(String(totals.Basic), 120, y);
-  doc.text(String(totals.HRA), 128, y);
-  doc.text(String(totals.Conv), 136, y);
-  doc.text(String(totals.Wash), 144, y);
-  doc.text(String(totals.Spl), 152, y);
-  doc.text(String(totals.Other), 160, y);
-  doc.text(String(totals.Bonus), 168, y);
-  doc.text(String(totals.OTAmt), 178, y);
-  doc.text(String(totals.Gross), 188, y);
+  doc.text(String(totals.Basic), 109, y);
+  doc.text(String(totals.HRA), 115, y);
+  doc.text(String(totals.Conv), 121, y);
+  doc.text(String(totals.DA), 127, y);
+  doc.text(String(totals.Wash), 132, y);
+  doc.text(String(totals.Spl), 139, y);
+  doc.text(String(totals.Other), 144, y);
+  doc.text(String(totals.Bonus), 149, y);
+  doc.text(String(totals.OTAmt), 156, y);
+  doc.text(String(totals.Gross), 167, y);
 
   // Deductions
-  doc.text(String(totals.PF), 200, y);
-  doc.text(String(totals.ESI), 208, y);
-  doc.text(String(totals.LWF), 216, y);
-  doc.text(String(totals.PT), 224, y);
-  doc.text(String(totals.Advance), 232, y);
-  doc.text(String(totals.Food), 240, y);
-  doc.text(String(totals.Maintenance), 248, y);
-  doc.text(String(totals.Uniform), 256, y);
-  doc.text(String(totals.Tax), 264, y);
+  doc.text(String(totals.PF), 180, y);
+  doc.text(String(totals.ESI), 185, y);
+  doc.text(String(totals.LWF), 191, y);
+  doc.text(String(totals.PT), 197, y);
+  doc.text(String(totals.Advance), 202, y);
+  doc.text(String(totals.Food), 208, y);
+  doc.text(String(totals.Maintenance), 214, y);
+  doc.text(String(totals.Uniform), 220, y);
+  doc.text(String(totals.Room), 228, y);
+  doc.text(String(totals.JoiningKits), 235, y);
+  doc.text(String(totals.OtherDed), 240, y);
+  doc.text(String(totals.DocDed), 246, y);
+  doc.text(String(totals.Accommodation), 252, y);
+  doc.text(String(totals.Fine), 258, y);
+  doc.text(String(totals.BGV), 263, y);
 
   // Final
   doc.text(String(totals.TotalDeduction), 274, y);

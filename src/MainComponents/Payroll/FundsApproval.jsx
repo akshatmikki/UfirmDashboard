@@ -739,7 +739,7 @@ export default function FundsApproval() {
                 ) : (
                   history.map((h, idx) => (
                     <tr key={idx}>
-                      <td className="fw-bold">{sites.find(s => s.SiteId === Number(h.PropertyId))?.SiteName || `Site ${h.PropertyId}`}</td>
+                      <td className="fw-bold">{h.Name || `Site ${h.PropertyId}`}</td>
                       <td className="text-end">{formatINR(h.AmountToTransfer)}</td>
                       <td className="text-center">
                         <Badge bg={h.IsApproved === true ? "success" : h.IsApproved === false ? "danger" : "warning"}>

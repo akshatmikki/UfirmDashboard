@@ -9,6 +9,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     acc.Basic += emp.Basic || 0;
     acc.HRA += emp.HRA || 0;
     acc.Conv += emp.CONV ?? emp.Conveyance ?? 0;
+    acc.DA += emp.DA || 0;
     acc.Wash += emp.Washing || 0;
     acc.Spl += emp.SpecialAllowance || 0;
     acc.Other += emp.OtherAllowance || 0;
@@ -25,14 +26,22 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     acc.Maintenance += emp.Maintenance || 0;
     acc.Uniform += emp.Uniform || 0;
     acc.Tax += emp.IncomeTax || 0;
+    acc.Room += emp.Room || 0;
+    acc.JoiningKits += emp.JoiningKits || 0;
+    acc.BGV += emp.BGV || 0;
+    acc.OtherDed += emp.OtherDeduction || 0;
+    acc.DocDed += emp.DocumentDeduction || 0;
+    acc.Fine += emp.Fine || 0;
+    acc.Accommodation += emp.Accommodation || 0;
+    acc.Loan += emp.LoanEMI || 0;
     acc.TotalDeduction += emp.TotalDeduction || 0;
     acc.NetSalary += emp.NetSalary || 0;
     return acc;
   }, {
-    Basic: 0, HRA: 0, Conv: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0,
+    Basic: 0, HRA: 0, Conv: 0, DA: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0,
     TotalSalary: 0, OTAmt: 0, Gross: 0,
     PF: 0, ESI: 0, LWF: 0, PT: 0, Advance: 0, Food: 0,
-    Maintenance: 0, Uniform: 0, Tax: 0,
+    Maintenance: 0, Uniform: 0, Tax: 0, Room: 0, JoiningKits: 0, BGV: 0, OtherDed: 0, DocDed: 0, Fine: 0, Accommodation: 0, Loan: 0,
     TotalDeduction: 0, NetSalary: 0
   });
 
@@ -59,6 +68,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "Basic": emp.Basic || 0,
     "HRA": emp.HRA || 0,
     "Conv": emp.CONV ?? emp.Conveyance ?? 0,
+    "DA": emp.DA || 0,
     "Wash": emp.Washing || 0,
     "Spl": emp.SpecialAllowance || 0,
     "Other": emp.OtherAllowance || 0,
@@ -76,6 +86,15 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "Maintenance": emp.Maintenance || 0,
     "Uniform": emp.Uniform || 0,
     "Tax": emp.IncomeTax || 0,
+
+    "Room": emp.Room || 0,
+    "Joining Kits": emp.JoiningKits || 0,
+    "BGV": emp.BGV || 0,
+    "Other Ded": emp.OtherDeduction || 0,
+    "Doc Ded": emp.DocumentDeduction || 0,
+    "Fine": emp.Fine || 0,
+    "Acmd": emp.Accommodation || 0,
+    "Loan": emp.LoanEMI || 0,
 
     "Total Deduction": emp.TotalDeduction || 0,
     "Net Salary": emp.NetSalary || 0,
@@ -101,6 +120,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
       case "Basic": return totals.Basic;
       case "HRA": return totals.HRA;
       case "Conv": return totals.Conv;
+      case "DA": return totals.DA;
       case "Wash": return totals.Wash;
       case "Spl": return totals.Spl;
       case "Other": return totals.Other;
@@ -117,6 +137,14 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
       case "Maintenance": return totals.Maintenance;
       case "Uniform": return totals.Uniform;
       case "Tax": return totals.Tax;
+      case "Room": return totals.Room;
+      case "Joining Kits": return totals.JoiningKits;
+      case "BGV": return totals.BGV;
+      case "Other Ded": return totals.OtherDed;
+      case "Doc Ded": return totals.DocDed;
+      case "Fine": return totals.Fine;
+      case "Acmd": return totals.Accommodation;
+      case "Loan": return totals.Loan;
       case "Total Deduction": return totals.TotalDeduction;
       case "Net Salary": return totals.NetSalary;
       default: return "";

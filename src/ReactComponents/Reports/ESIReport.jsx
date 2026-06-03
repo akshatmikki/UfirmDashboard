@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
+import * as XLSX from "xlsx";
 import {
   getGeneratedSalaryByPropertiesWithMonthYear,
   getEmployeesByOffices,
@@ -292,6 +293,106 @@ export default function ESIReport() {
     document.body.removeChild(link);
   };
 
+  const handleExportUploadFormat = () => {
+    if (!selectedMonth || !employees.length) return;
+
+    // 🧾 Header row
+    const data = [
+      [
+        "IP Number\n(10 Digits)",
+        "IP Name\n( Only alphabets and space )",
+        "No of Days for which wages paid/payable during the month",
+        "Total Monthly Wages",
+        "Reason Code for Zero workings days\n(numeric only; provide 0 for all other reasons. Click on the link for reference)",
+        "Last Working Day\n( Format DD/MM/YYYY or DD-MM-YYYY )"
+      ]
+    ];
+
+    // 📊 Data rows
+    employees
+      .filter(emp => emp.ESIWage > 0)
+      .forEach(emp => {
+        data.push([
+          emp.ESINumber || "",
+          emp.FacilityMemberName || "",
+          emp.WorkingDays || 0,
+          emp.ESIWage || 0,
+          "",
+          ""
+        ]);
+      });
+
+    // 🧱 Create sheet
+    const ws = XLSX.utils.aoa_to_sheet(data);
+
+    // 📍 Get range
+    const range = XLSX.utils.decode_range(ws["!ref"]);
+
+    // 🔵 HEADER STYLING
+    for (let col = range.s.c; col <= range.e.c; col++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: col });
+
+      if (!ws[cellRef]) continue;
+
+      ws[cellRef].s = {
+        fill: {
+          fgColor: { rgb: "B7DEE8" } // light blue
+        },
+        font: {
+          bold: true,
+          color: { rgb: "000000" }
+        },
+        alignment: {
+          wrapText: true,
+          vertical: "center",
+          horizontal: "center"
+        },
+        border: {
+          top: { style: "thin" },
+          bottom: { style: "thin" },
+          left: { style: "thin" },
+          right: { style: "thin" }
+        }
+      };
+    }
+
+    // 🧨 FULL TABLE BORDERS (header + data)
+    for (let R = range.s.r; R <= range.e.r; ++R) {
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+
+        if (!ws[cellRef]) continue;
+
+        ws[cellRef].s = {
+          ...(ws[cellRef].s || {}),
+          border: {
+            top: { style: "thin" },
+            bottom: { style: "thin" },
+            left: { style: "thin" },
+            right: { style: "thin" }
+          }
+        };
+      }
+    }
+
+    // 📏 Column widths
+    ws["!cols"] = [
+      { wch: 20 },
+      { wch: 25 },
+      { wch: 40 },
+      { wch: 20 },
+      { wch: 55 },
+      { wch: 30 }
+    ];
+
+    // 📦 Workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "ESI Upload");
+
+    // 💾 Download
+    XLSX.writeFile(wb, `ESI_Upload_${selectedMonth}.xlsx`);
+  };
+
   return (
     <div
       className="card"
@@ -389,14 +490,24 @@ export default function ESIReport() {
           />
         </div>
 
-        {/* Right Side - Export Button */}
-        <button
-          className="btn btn-success"
-          onClick={handleExport}
-          disabled={!selectedMonth || !employees.length}
-        >
-          Export ESI
-        </button>
+        {/* Right Side - Buttons Group */}
+        <div style={{ display: "flex", gap: 10 }}>
+          <button
+            className="btn btn-success"
+            onClick={handleExport}
+            disabled={!selectedMonth || !employees.length}
+          >
+            Export ESI
+          </button>
+
+          <button
+            className="btn btn-primary"
+            onClick={handleExportUploadFormat}
+            disabled={!selectedMonth || !employees.length}
+          >
+            Upload ESI
+          </button>
+        </div>
       </div>
 
       {loading && <div>Loading ESI data...</div>}
