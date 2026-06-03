@@ -798,6 +798,9 @@ export default function GenerateSalary() {
             <div style="font-size:10px; margin-top:2px; color:#444;">
               For the Month of <b>${safe(row.Month)} ${safe(row.Year)}</b>
             </div>
+            <div style="font-size:10px; margin-top:2px; color:#444;">
+              Generated On: <b>${safeDate(row.SalaryGeneration)}</b>
+            </div>
           </div>
           <div style="flex:1.5; text-align:right; font-size:10px; line-height:1.4;">
             <div style="font-weight:800; font-size:11px;">Establishment:</div>
@@ -890,7 +893,7 @@ export default function GenerateSalary() {
         </tr>  
         <tr class="no-horiz-border">
           <td>Bonus</td><td class="v-bold">${row.Bonus || row.BONUS || 0}</td>
-          <td>Fine</td><td class="v-light">${row.Fine || 0}</td>
+          <td>Fine</td><td class="v-light">${row.FineDed || 0}</td>
           <td>EL</td><td>${row.EL || 0}</td>
         </tr>
         <tr class="no-horiz-border">
@@ -1145,7 +1148,7 @@ export default function GenerateSalary() {
       DocDed: Number(row.DocDeduction || row.DocDed) || 0,
       Food: Number(row.FOOD || row.Food) || 0,
       Maintenance: Number(row.MaintDeduction || row.Maintenance) || 0,
-      Fine: Number(row.Fine) || 0,
+      Fine: Number(row.FineDed) || 0,
       AcmdDed: Number(row.AccommodationDeduction || row.AcmdDed) || 0,
       IncomeTax: Number(row.INCOMETAX || row.IncomeTax) || 0,
       Uniform: Number(row.UNIFORM || row.Uniform) || 0,

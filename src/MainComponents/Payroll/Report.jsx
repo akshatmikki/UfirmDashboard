@@ -7,6 +7,8 @@ import PFReport from "../../ReactComponents/Reports/PFReport.jsx";
 import ESIReport from "../../ReactComponents/Reports/ESIReport.jsx";
 import CompanySalarySummary from "../../ReactComponents/Reports/CompanySalarySummary.jsx";
 import GenerateFreezeReport from "../../ReactComponents/Reports/GenerateFreezeReport.jsx";
+import EmployeeOverallReport from "../../ReactComponents/Reports/EmployeeOverallReport.jsx";
+import DeductionReport from "../../ReactComponents/Reports/DeductionReport.jsx";
 
 export default function Report() {
   const [selectedReport, setSelectedReport] = useState("");
@@ -20,7 +22,11 @@ export default function Report() {
       case "ESI":
         return <ESIReport />;
       case "GENERATEFREEZE":
-        return <GenerateFreezeReport />;        
+        return <GenerateFreezeReport />;
+      case "EMPLOYEE_OVERALL":
+        return <EmployeeOverallReport />;
+      case "DEDUCTION":
+        return <DeductionReport />;            
       case "SUMMARY":
         return <CompanySalarySummary />;
       case "OT":
@@ -56,6 +62,8 @@ export default function Report() {
             <option value="PF">PF Report</option>
             <option value="ESI">ESI Report</option>
             <option value="GENERATEFREEZE">Generate & Freeze Report</option>
+            <option value="EMPLOYEE_OVERALL">Employee Overall Report</option>
+            <option value="DEDUCTION">Deduction Report</option>
             <option value="SUMMARY">Company Salary Summary</option>
             <option value="OT">OT Report</option>
 
