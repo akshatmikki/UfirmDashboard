@@ -229,6 +229,7 @@ export default function SalaryReport() {
                         Washing: emp.WashingAllowance || 0,
                         SpecialAllowance: emp.SpecialAllowance || 0,
                         OtherAllowance: emp.OthAll || 0,
+                        AdjAmtIncentive: emp.AdjAmtIncentive || 0,
                         Bonus: emp.Bonus || 0,
                         TotalGross: emp.TotalGross || 0,
                         Gross: emp.TotalEarning || 0,
@@ -303,6 +304,7 @@ export default function SalaryReport() {
             acc.washing += emp.Washing || 0;
             acc.specialAllowance += emp.SpecialAllowance || 0;
             acc.otherAllowance += emp.OtherAllowance || 0;
+            acc.adjIncentive = (acc.adjIncentive || 0) + (emp.AdjAmtIncentive || 0);
             acc.bonus += emp.Bonus || 0;
             acc.gross += emp.Gross || 0;
             acc.pf += emp.PF || 0;
@@ -334,6 +336,7 @@ export default function SalaryReport() {
             washing: 0,
             specialAllowance: 0,
             otherAllowance: 0,
+            adjIncentive: 0,
             bonus: 0,
             gross: 0,
             pf: 0,
@@ -646,6 +649,7 @@ export default function SalaryReport() {
                             <th>Washing</th>
                             <th>Special Allowance</th>
                             <th>Other Allowance</th>
+                            <th>Adj Incentive</th>
                             <th>Bonus</th>
 
                             <th>Total Earning</th>
@@ -706,6 +710,8 @@ export default function SalaryReport() {
                                         <td>{formatCurrency(emp.SpecialAllowance)}</td>
 
                                         <td>{formatCurrency(emp.OtherAllowance)}</td>
+
+                                        <td>{formatCurrency(emp.AdjAmtIncentive)}</td>
 
                                         <td>{formatCurrency(emp.Bonus)}</td>
 
@@ -773,6 +779,8 @@ export default function SalaryReport() {
                                     <td>{formatCurrency(totals.specialAllowance)}</td>
 
                                     <td>{formatCurrency(totals.otherAllowance)}</td>
+
+                                    <td>{formatCurrency(totals.adjIncentive)}</td>
 
                                     <td>{formatCurrency(totals.bonus)}</td>
 

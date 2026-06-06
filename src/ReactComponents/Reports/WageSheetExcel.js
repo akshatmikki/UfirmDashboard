@@ -13,6 +13,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     acc.Wash += emp.Washing || 0;
     acc.Spl += emp.SpecialAllowance || 0;
     acc.Other += emp.OtherAllowance || 0;
+    acc.AdjIncentive = (acc.AdjIncentive || 0) + (emp.AdjAmtIncentive || 0);
     acc.Bonus += emp.Bonus || 0;
     acc.TotalSalary += emp.TotalGross || 0;
     acc.OTAmt += emp.OTAmount || 0;
@@ -38,7 +39,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     acc.NetSalary += emp.NetSalary || 0;
     return acc;
   }, {
-    Basic: 0, HRA: 0, Conv: 0, DA: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0,
+    Basic: 0, HRA: 0, Conv: 0, DA: 0, Wash: 0, Spl: 0, Other: 0, AdjIncentive: 0, Bonus: 0,
     TotalSalary: 0, OTAmt: 0, Gross: 0,
     PF: 0, ESI: 0, LWF: 0, PT: 0, Advance: 0, Food: 0,
     Maintenance: 0, Uniform: 0, Tax: 0, Room: 0, JoiningKits: 0, BGV: 0, OtherDed: 0, DocDed: 0, Fine: 0, Accommodation: 0, Loan: 0,
@@ -72,6 +73,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
     "Wash": emp.Washing || 0,
     "Spl": emp.SpecialAllowance || 0,
     "Other": emp.OtherAllowance || 0,
+    "Adj Incentive": emp.AdjAmtIncentive || 0,
     "Bonus": emp.Bonus || 0,
     "Total Salary": emp.TotalGross || 0,
     "OT Amt": emp.OTAmount || 0,
@@ -124,6 +126,7 @@ export const generateWageSheetExcel = (employees, filters, preview = false) => {
       case "Wash": return totals.Wash;
       case "Spl": return totals.Spl;
       case "Other": return totals.Other;
+      case "Adj Incentive": return totals.AdjIncentive;
       case "Bonus": return totals.Bonus;
       case "Total Salary": return totals.TotalSalary;
       case "OT Amt": return totals.OTAmt;

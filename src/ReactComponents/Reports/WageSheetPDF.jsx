@@ -16,6 +16,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     acc.Other += emp.OtherAllowance || 0;
     acc.Bonus += emp.Bonus || 0;
     acc.OTAmt += emp.OTAmount || 0;
+    acc.AdjIncentive += emp.AdjAmtIncentive || 0;
     acc.Gross += emp.Gross || 0;
 
     acc.PF += emp.PF || 0;
@@ -39,7 +40,7 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
 
     return acc;
   }, {
-    Basic: 0, HRA: 0, Conv: 0, DA: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0, OTAmt: 0, Gross: 0,
+    Basic: 0, HRA: 0, Conv: 0, DA: 0, Wash: 0, Spl: 0, Other: 0, Bonus: 0, OTAmt: 0, AdjIncentive: 0, Gross: 0,
     PF: 0, ESI: 0, LWF: 0, PT: 0, Advance: 0, Food: 0, Maintenance: 0, Uniform: 0, Room: 0, JoiningKits: 0, OtherDed: 0, DocDed: 0, Accommodation: 0, Fine: 0, BGV: 0,
     TotalDeduction: 0, NetSalary: 0
   });
@@ -116,8 +117,9 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   doc.text("Spl", 139, startY);
   doc.text("Oth", 144, startY);
   doc.text("Bonus", 149, startY);
-  doc.text("OT Amt", 156, startY);
-  doc.text("Gross", 167, startY);
+  doc.text("OTAmt", 156, startY);
+  doc.text("Incent", 163, startY);
+  doc.text("Gross", 170, startY);
 
   // ================= DEDUCTIONS =================
   doc.text("PF", 180, startY);
@@ -182,7 +184,8 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
     doc.text(String(emp.OtherAllowance || 0), 144, y);
     doc.text(String(emp.Bonus || 0), 149, y);
     doc.text(String(emp.OTAmount || 0), 156, y);
-    doc.text(String(emp.Gross || 0), 167, y);
+    doc.text(String(emp.AdjAmtIncentive || 0), 163, y);
+    doc.text(String(emp.Gross || 0), 170, y);
 
     // ================= DEDUCTIONS =================
     doc.text(String(emp.PF || 0), 180, y);
@@ -248,7 +251,8 @@ export const generateWageSheetPDF = (employees, filters, preview = false) => {
   doc.text(String(totals.Other), 144, y);
   doc.text(String(totals.Bonus), 149, y);
   doc.text(String(totals.OTAmt), 156, y);
-  doc.text(String(totals.Gross), 167, y);
+  doc.text(String(totals.AdjIncentive), 163, y);
+  doc.text(String(totals.Gross), 170, y);
 
   // Deductions
   doc.text(String(totals.PF), 180, y);
