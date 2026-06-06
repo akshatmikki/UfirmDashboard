@@ -54,16 +54,13 @@ class DataProvider {
         return res.json();
     }
 
-    saveUser(formdata) {
-        let url = 'Master/User/Save';
-        // If we are local, we might need to use the local BASE_URL for this too
-        // or just fall back to srv if the old API is still there.
-        // Assuming user wants everything in this provider to respect the new URLs.
-        return axios.post(BASE_URL + url, formdata, {
+    saveUser(data) {
+        return axios.post(BASE_URL + 'CreateNewUser', data, {
             headers: {
-                'Content-Type': 'multipart/form-data',
+                'Content-Type': 'application/json',
                 Authorization: 'Bearer ' + appCommonJs.getapitoken()
-            }
+            },
+            withCredentials: false
         });
     }
 

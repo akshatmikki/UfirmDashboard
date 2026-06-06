@@ -1,4 +1,5 @@
 import moment from 'moment';
+import { emitTaskNotificationRefresh } from '../../../../../Services/notificationService';
 
 export default function attachActionMethods(TaskList) {
   const normalizeStatus = (value) => String(value || "").trim().toLowerCase();
@@ -208,6 +209,7 @@ export default function attachActionMethods(TaskList) {
       () => {
         this.getCategory();
         this.getTasks();
+        emitTaskNotificationRefresh();
       }
     );
   };

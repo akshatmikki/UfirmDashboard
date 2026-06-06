@@ -43,7 +43,7 @@ const ApiConstants = {
 
     saveUser: {
       apiConfig: {
-        url: 'Master/User/Save/',
+        url: 'CreateNewUser',
         method: 'POST'
       },
       attachPrefix: true,

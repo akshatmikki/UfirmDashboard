@@ -190,3 +190,41 @@ export const fetchDeviceLogsByMonth = async (deviceId, monthYear) => {
 
   return await response.json();
 };
+
+// ================= DMR PDF LAYOUT CONFIG =================
+export const fetchPdfLayoutConfig = async (propertyId) => {
+  const query = new URLSearchParams({ propertyId }).toString();
+  const response = await fetch(
+    `https://api.urest.in:8096/api/dmrreport/pdf-layout-config?${query}`,
+    { method: "GET", headers: { "Content-Type": "application/json" } }
+  );
+  if (!response.ok) return null;
+  return await response.json();
+};
+
+export const savePdfLayoutConfig = async (propertyId, layoutJson) => {
+  const response = await fetch(
+    "https://api.urest.in:8096/api/dmrreport/pdf-layout-config",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId, layoutJson }),
+    }
+  );
+  if (!response.ok) throw new Error("Failed to save PDF layout config");
+  return await response.json();
+};
+
+// ================= DMR MANUAL TRIGGER =================
+export const triggerManualDmrReport = async (propertyId, fromDate, toDate) => {
+  const response = await fetch(
+    "https://api.urest.in:8096/api/dmrreport/trigger-send",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ propertyId, fromDate, toDate }),
+    }
+  );
+  if (!response.ok) throw new Error("Failed to trigger DMR send");
+  return await response.json();
+};

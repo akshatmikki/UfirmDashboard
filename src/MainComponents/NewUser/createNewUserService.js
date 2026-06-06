@@ -62,25 +62,40 @@ export const fetchCompanies = async () => {
 // Service function to submit the form data using fetch
 export const submitUserForm = async (payload) => {
     try {
-        const formData = new FormData();
-        for (const key in payload) {
-            if (payload[key] !== null && payload[key] !== undefined) {
-                formData.append(key, payload[key]);
+        const { profileImage, ...rest } = payload;
+        let body;
+        const headers = { Accept: "application/json" };
+
+        if (profileImage) {
+            const formData = new FormData();
+            for (const key in rest) {
+                if (rest[key] !== null && rest[key] !== undefined) {
+                    formData.append(key, rest[key]);
+                }
             }
+            formData.append("profileImage", profileImage);
+            body = formData;
+            // Do NOT set Content-Type manually — browser adds boundary automatically
+        } else {
+            const jsonPayload = {};
+            for (const key in rest) {
+                if (rest[key] !== null && rest[key] !== undefined) {
+                    jsonPayload[key] = rest[key];
+                }
+            }
+            body = JSON.stringify(jsonPayload);
+            headers["Content-Type"] = "application/json";
         }
 
         const response = await fetch(`${API_BASE_URL}/CreateNewUser`, {
             method: "POST",
-            headers: {
-                'Accept': 'application/json'
-            },
-            body: formData,
+            headers,
+            body,
         });
-        // Check if the response is successful
+
         if (!response.ok) {
             throw new Error(`Error: ${response.statusText}`);
         }
-        // Parse and return the response data
         const data = await response.json();
         return data;
     } catch (error) {

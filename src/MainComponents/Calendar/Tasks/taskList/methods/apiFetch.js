@@ -43,9 +43,8 @@ export default function attachApiFetch(TaskList) {
       taskPriorityId: Number(taskPriorityId || 0),
     });
 
-    // Dedupe rapid repeated calls (setState is async, so state-based key checks can race)
+    // Dedupe only in-flight concurrent requests (same key already loading)
     if (key === this._dashboardCountRequestKey) return this._dashboardCountRequestPromise;
-    if (key === this.state.dashboardCountKey) return this._dashboardCountRequestPromise;
 
     this._dashboardCountRequestKey = key;
     this.setState({ dashboardCountLoading: true, dashboardCountKey: key });

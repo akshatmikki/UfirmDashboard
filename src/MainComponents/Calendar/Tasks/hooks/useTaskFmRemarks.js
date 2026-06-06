@@ -3,7 +3,7 @@ import moment from "moment";
 import swal from "sweetalert";
 import {
   emitTaskNotificationRefresh,
-  fetchNotifications,
+  fetchFmRemarkNotifications,
   getTaskRemarks,
   markTaskComplete,
 } from "../../../../Services/notificationService";
@@ -92,8 +92,8 @@ export default function useTaskFmRemarks({
       }
 
       try {
-        const list = await fetchNotifications("task", propertyId);
         const selectedDate = normalizeDateOnly(taskDate || resolvedTaskDate);
+        const list = await fetchFmRemarkNotifications(propertyId, selectedDate || undefined);
         const filtered = (list || []).filter((n) => {
           if (Number(n.TaskId) !== Number(taskId)) return false;
           if (!selectedDate) return true;

@@ -252,7 +252,7 @@
 .ufirm-user-toggle {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding-right: 14px;
 }
 
@@ -261,13 +261,17 @@
 }
 
 .ufirm-topbar .dropdown-user-link .user-name {
-  font-size: 14px;
+  font-size: 15px;
+  font-weight: 500;
   color: #334155;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
 }
 
 .ufirm-user-toggle .avatar {
-  width: 32px !important;
-  height: 32px !important;
+  width: 36px !important;
+  height: 36px !important;
   border-radius: 50% !important;
   overflow: hidden !important;
   display: inline-flex !important;
@@ -288,8 +292,8 @@
 }
 
 .ufirm-user-initials {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -297,7 +301,7 @@
   background: #0f6b80;
   color: #ffffff;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   letter-spacing: 0.5px;
   flex-shrink: 0;
 }

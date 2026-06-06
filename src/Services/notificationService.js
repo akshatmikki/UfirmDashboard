@@ -81,6 +81,21 @@ export const fetchAssetServiceNotifications = async (propertyId) => {
   }
 };
 
+export const fetchFmRemarkNotifications = async (propertyId, taskDate = null) => {
+  if (!propertyId) return [];
+  try {
+    let url = `${BASE_URL}/taskFMRemark?propertyId=${propertyId}`;
+    if (taskDate) url += `&taskDate=${encodeURIComponent(taskDate)}`;
+    const response = await fetch(url);
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data) ? data : [];
+  } catch (error) {
+    console.error("Error fetching FM remark notifications:", error);
+    return [];
+  }
+};
+
 export const getTaskRemarks = async (taskId, questionId, taskDate) => {
   try {
     const res = await axios.get(

@@ -127,21 +127,21 @@ class UserNew extends React.Component {
                 })
                 .catch(() => appCommon.ShownotifyError('Failed to update user'));
         } else {
-            const fd = new FormData();
-            fd.append('profileImageUrl', profileImageUrl || '');
-            fd.append('userId',        0);
-            fd.append('firstName',     firstName);
-            fd.append('lastName',      lastName);
-            fd.append('emailAddress',  email);
-            fd.append('contactNumber', contactNumber);
-            fd.append('userTypeId',    userTypeId);
-            fd.append('cityId',        cityId);
-            fd.append('branchId',      branchId);
-            fd.append('departmentId',  '0');
-            fd.append('companyId',     '0');
-            fd.append('roleId',        roleId);
-            fd.append('propertyId',    selectedPropertyIds.join(','));
-            this.ApiProvider.saveUser(fd)
+            const payload = {
+                EmployeeId:      empCode,
+                FirstName:       firstName,
+                LastName:        lastName,
+                Email:           email,
+                PhoneNumber:     contactNumber,
+                UserTypeId:      parseInt(userTypeId) || 0,
+                CityId:          parseInt(cityId)     || null,
+                BranchId:        parseInt(branchId)   || null,
+                DepartmentId:    null,
+                RoleId:          parseInt(roleId)     || 0,
+                PropertyId:      selectedPropertyIds.join(','),
+                ProfileImageUrl: profileImageUrl      || null,
+            };
+            this.ApiProvider.saveUser(payload)
                 .then((res) => {
                     if (res.data <= 0) appCommon.ShownotifyError('User Email already exists');
                     else { appCommon.showtextalert('User Created Successfully', '', 'success'); this.props.Action('Home'); }
