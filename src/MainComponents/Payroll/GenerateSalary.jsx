@@ -593,11 +593,10 @@ export default function GenerateSalary() {
 
         const allowanceKeys = getRowAllowanceKeys(row);
         const deductionKeys = getRowDeductionKeys(row);
-        const totalAllowance = computeTotalAllowance(row, allowanceKeys);
+        const totalAllowance = row.TotalAllowance ?? computeTotalAllowance(row, allowanceKeys);
         const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
         const net = row.NetSalary ?? (totalAllowance - totalDeduction);
 
-        row.TotalAllowance = totalAllowance;
         row.TotalDeduction = totalDeduction;
         row.NetSalary = net;
 
@@ -745,8 +744,9 @@ export default function GenerateSalary() {
       val && val.includes("T") ? val.split("T")[0] : "-";
     const allowanceKeysForRow = getRowAllowanceKeys(row);
     const deductionKeysForRow = getRowDeductionKeys(row);
-    const totalAllowance = computeTotalAllowance(row, allowanceKeysForRow);
+    const totalAllowance = row.TotalAllowance ?? computeTotalAllowance(row, allowanceKeysForRow);
     const totalDeduction = computeTotalDeduction(row, deductionKeysForRow);
+    const generatedDate = row.SalaryGeneration || new Date().toISOString();
 
     return `
   <html>
@@ -799,7 +799,7 @@ export default function GenerateSalary() {
               For the Month of <b>${safe(row.Month)} ${safe(row.Year)}</b>
             </div>
             <div style="font-size:10px; margin-top:2px; color:#444;">
-              Generated On: <b>${safeDate(row.SalaryGeneration)}</b>
+              Generated On: <b>${safeDate(generatedDate)}</b>
             </div>
           </div>
           <div style="flex:1.5; text-align:right; font-size:10px; line-height:1.4;">
@@ -1136,7 +1136,7 @@ export default function GenerateSalary() {
       PerformanceAllowance: Number(row.PerfAll || row.PerformanceAllowance) || 0,
       SpecialAllowance: Number(row.SPLALL || row.SpecialAllowance) || 0,
       WashingAllowance: Number(row.WASH || row.WashingAllowance) || 0,
-      TotalEarning: Number(row.TotalAllowance || row.TotalGross || row.TotalGrossSalary) || 0,
+      TotalEarning: Number(row.TotalAllowance) || 0,
 
       // Deductions
       PF: Number(row.PF) || 0,
@@ -2254,7 +2254,7 @@ export default function GenerateSalary() {
                       salaryData.map((row, index) => {
                         const allowanceKeys = getRowAllowanceKeys(row);
                         const deductionKeys = getRowDeductionKeys(row);
-                        const totalAllowance = computeTotalAllowance(row, allowanceKeys);
+                        const totalAllowance = row.TotalAllowance ?? computeTotalAllowance(row, allowanceKeys);
                         const totalDeduction = row.TotalDeduction ?? computeTotalDeduction(row, deductionKeys);
                         const net = row.NetSalary ?? (totalAllowance - totalDeduction);
 

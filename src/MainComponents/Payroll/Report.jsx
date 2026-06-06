@@ -26,7 +26,7 @@ export default function Report() {
       case "EMPLOYEE_OVERALL":
         return <EmployeeOverallReport />;
       case "DEDUCTION":
-        return <DeductionReport />;            
+        return <DeductionReport />;
       case "SUMMARY":
         return <CompanySalarySummary />;
       case "OT":
@@ -40,13 +40,22 @@ export default function Report() {
     <div className="content-wrapper" style={{ padding: 30 }}>
 
       {/* Page Header */}
-      <div style={{ marginBottom: 25 }}>
-        <h2 style={{ fontWeight: "bold", marginBottom: 15 }}>
-          Reports
+      <div
+        style={{
+          marginBottom: 25,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
+        {/* Left Side - Heading */}
+        <h2 style={{ fontWeight: "bold", margin: 0 }}>
+          Payroll Reports
         </h2>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 15 }}>
-          <label style={{ fontWeight: 500 }}>
+        {/* Right Side - Dropdown */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <label style={{ fontWeight: 500, margin: 0 }}>
             Select Report Type:
           </label>
 
@@ -66,7 +75,6 @@ export default function Report() {
             <option value="DEDUCTION">Deduction Report</option>
             <option value="SUMMARY">Company Salary Summary</option>
             <option value="OT">OT Report</option>
-
           </select>
         </div>
       </div>
