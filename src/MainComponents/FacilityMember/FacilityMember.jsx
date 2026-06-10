@@ -33,7 +33,7 @@ import {
   uploadEmployeeDocuments,
   deleteEmployeeDocument
 } from "../../Services/FacilityService";
-import { getEmployeesByOffices, getSalaryGroupsByDesignation, importEmployees, importFinancialInfo } from "../../Services/PayrollService";
+import { getEmployeesByOffices, getInactiveEmployeesByOffices, regenerateEmployee, getSalaryGroupsByDesignation, importEmployees, importFinancialInfo } from "../../Services/PayrollService";
 
 import {
   getAllClients,
@@ -47,6 +47,7 @@ import { getAllBranches } from "../../Services/BranchMaster";
 
 // Import existing components from old project
 import SalaryGroupView from "../../ReactComponents/DataGrid/SalaryGroupView.jsx";
+import InactiveEmployeesTable from "../../ReactComponents/DataGrid/InactiveEmployeesTable.jsx";
 import LoanAdvanceDialog from "../../ReactComponents/DataGrid/LoanAdvances.jsx";
 
 const StaffPage = () => {
@@ -112,6 +113,9 @@ const StaffPage = () => {
   const [selectedFacilityMemberName, setSelectedFacilityMemberName] = useState("");
   const [showLoanAdvanceDialog, setShowLoanAdvanceDialog] = useState(false);
   const [selectedLoanAdvanceId, setSelectedLoanAdvanceId] = useState(null);
+  const [activeTab, setActiveTab] = useState("active");
+  const [inactiveStaff, setInactiveStaff] = useState([]);
+  const [inactiveLoading, setInactiveLoading] = useState(false);
 
   // Form fields
   const [employeeCode, setEmployeeCode] = useState("");
@@ -540,6 +544,16 @@ const StaffPage = () => {
     setManagerOptions(options);
   }, [staff]);
 
+  useEffect(() => {
+    // only refresh if inactive tab is open
+    if (activeTab === "inactive") {
+      loadInactiveEmployees();
+    } else {
+      // also clear old inactive data to avoid ghost employees
+      setInactiveStaff([]);
+    }
+  }, [officeIdsStr]); // 🔥 this tracks property/client change
+
   const addDocument = (type, file) => {
     if (!file) return;
 
@@ -547,6 +561,36 @@ const StaffPage = () => {
       ...prev,
       [type]: [...prev[type], file]
     }));
+  };
+
+  const loadInactiveEmployees = async () => {
+    try {
+      const officeIds = getCurrentOfficeIds();
+
+      if (!officeIds.length) {
+        setInactiveStaff([]);
+        return;
+      }
+
+      setInactiveLoading(true);
+
+      const data = await getInactiveEmployeesByOffices(officeIds);
+
+      setInactiveStaff(data || []);
+    } catch (err) {
+      console.error("Inactive employee load failed", err);
+      setInactiveStaff([]);
+    } finally {
+      setInactiveLoading(false);
+    }
+  };
+
+  const handleTabChange = (type) => {
+    setActiveTab(type);
+
+    if (type === "inactive") {
+      loadInactiveEmployees();
+    }
   };
 
   const removeDocument = (type, index) => {
@@ -1663,6 +1707,40 @@ const StaffPage = () => {
     }
   };
 
+  const handleRegenerateEmployee = async (row) => {
+    const fmId = row?.FacilityMemberId || row?.FacilityMember?.FacilityMemberId;
+
+    if (!fmId) {
+      toast.current.show({
+        severity: "warn",
+        summary: "Warning",
+        detail: "Facility Member Id not found",
+      });
+      return;
+    }
+
+    try {
+      await regenerateEmployee(fmId);
+
+      toast.current.show({
+        severity: "success",
+        summary: "Success",
+        detail: "Employee activated successfully",
+      });
+
+      // 🔥 reload both lists
+      loadInactiveEmployees();
+      setReloadEmployeesToken((prev) => prev + 1);
+
+    } catch (err) {
+      toast.current.show({
+        severity: "error",
+        summary: "Error",
+        detail: err.message || "Failed to regenerate employee",
+      });
+    }
+  };
+
   const handleResetPassword = async () => {
     const facilityMemberId = selectedRow?.FacilityMember?.FacilityMemberId;
 
@@ -2124,22 +2202,41 @@ const StaffPage = () => {
               <div className="p-3">
                 <div
                   className="d-flex align-items-center justify-content-between mb-3"
-                  style={{ gap: 16, flexWrap: "wrap" }}
+                  style={{ gap: 16 }}
                 >
+                  {/* LEFT - CLIENT */}
                   <div>
-                    <strong>Client:</strong>{" "}
-                    {clientName || "-"}
+                    <strong>Client:</strong> {clientName || "-"}
                   </div>
+
+                  {/* CENTER - ACTIVE / INACTIVE */}
+                  <div className="d-flex gap-2 justify-content-center">
+                    <Button
+                      label="Active"
+                      className={activeTab === "active" ? "p-button-primary" : "p-button-outlined"}
+                      onClick={() => handleTabChange("active")}
+                    />
+
+                    <Button
+                      label="Inactive"
+                      className={activeTab === "inactive" ? "p-button-danger" : "p-button-outlined"}
+                      onClick={() => handleTabChange("inactive")}
+                    />
+                  </div>
+
+                  {/* RIGHT - PROPERTY */}
                   <div>
                     <strong>Property:</strong>{" "}
                     {propertyId ? (propertyName || `#${propertyId}`) : "All Properties"}
                   </div>
-                  {!reduxClientId && !propertyId && (
-                    <div className="text-danger" style={{ fontWeight: 600 }}>
-                      Select a client from the top navbar to view staff.
-                    </div>
-                  )}
                 </div>
+
+                {/* ⚠️ KEEP THIS BELOW (warning message) */}
+                {!reduxClientId && !propertyId && (
+                  <div className="text-danger mb-3" style={{ fontWeight: 600 }}>
+                    Select a client from the top navbar to view staff.
+                  </div>
+                )}
                 <OverlayPanel
                   ref={departmentFilterRef}
                   dismissable
@@ -2210,76 +2307,85 @@ const StaffPage = () => {
                     </div>
                   </div>
                 </OverlayPanel>
-                <DataTable
-                  value={
-                    selectedDepartmentFilter
-                      ? finalStaffList.filter(
-                        row => row?.Profile?.Department === selectedDepartmentFilter
-                      )
-                      : finalStaffList
-                  }
-                  sortField={sortFieldState}
-                  sortOrder={sortOrderState}
-                  onSort={(e) => {
-                    setSortFieldState(e.sortField);
-                    setSortOrderState(e.sortOrder);
-                    setNewEmployeeId(null); // 🔥 kill top behavior when user sorts
-                  }}
-                  removableSort
-                  dataKey="FacilityMember.FacilityMemberId"
-                  header={header}
-                  paginator
-                  rows={10}
-                  loading={loading}
-                  responsiveLayout="scroll"
-                  emptyMessage="No staff found."
-                  selection={selectedRow}
-                  onSelectionChange={handleRowSelection}
-                  globalFilter={globalFilterValue}
-                  paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
-                  currentPageReportTemplate="{first}–{last} of {totalRecords}"
-                  globalFilterFields={[
-                    "Profile.EmployeeCode",
-                    "Profile.EmployeeName",
-                    "Profile.Gender",
-                    "Profile.PhoneNumber",
-                    "Profile.AadharCard",
-                    "Profile.PanCard",
-                    "FinancialInfo.UANNumber",
-                    "FinancialInfo.PFNumber",
-                    "FinancialInfo.ESINumber",
-                    "FinancialInfo.BankAccountNumber"
-                  ]}
-                >
-                  <Column selectionMode="single" headerStyle={{ width: '3em' }} />
-                  <Column field="Profile.EmployeeCode" header="Employee Code" sortable body={(row) => row.Profile?.EmployeeCode || "-"} />
-                  <Column field="Profile.EmployeeName" header="Name" sortable body={(row) => row.Profile?.EmployeeName || "-"} />
-                  <Column
-                    header={
-                      <div
-                        style={{
-                          cursor: "pointer",
-                          fontWeight: 500,
-                          display: "flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          color: selectedDepartmentFilter ? "#4CAF50" : "inherit"
-                        }}
-                        onClick={(e) => departmentFilterRef.current.toggle(e)}
-                      >
-                        Department
-                        {selectedDepartmentFilter && ` (${selectedDepartmentFilter})`}
-                        <i className="pi pi-filter" style={{ fontSize: "12px" }}></i>
-                      </div>
+
+                {activeTab === "active" ? (
+                  <DataTable
+                    value={
+                      selectedDepartmentFilter
+                        ? finalStaffList.filter(
+                          row => row?.Profile?.Department === selectedDepartmentFilter
+                        )
+                        : finalStaffList
                     }
-                    body={(row) => row.Profile?.Department || "-"}
+                    sortField={sortFieldState}
+                    sortOrder={sortOrderState}
+                    onSort={(e) => {
+                      setSortFieldState(e.sortField);
+                      setSortOrderState(e.sortOrder);
+                      setNewEmployeeId(null); // 🔥 kill top behavior when user sorts
+                    }}
+                    removableSort
+                    dataKey="FacilityMember.FacilityMemberId"
+                    header={header}
+                    paginator
+                    rows={10}
+                    loading={loading}
+                    responsiveLayout="scroll"
+                    emptyMessage="No staff found."
+                    selection={selectedRow}
+                    onSelectionChange={handleRowSelection}
+                    globalFilter={globalFilterValue}
+                    paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport"
+                    currentPageReportTemplate="{first}–{last} of {totalRecords}"
+                    globalFilterFields={[
+                      "Profile.EmployeeCode",
+                      "Profile.EmployeeName",
+                      "Profile.Gender",
+                      "Profile.PhoneNumber",
+                      "Profile.AadharCard",
+                      "Profile.PanCard",
+                      "FinancialInfo.UANNumber",
+                      "FinancialInfo.PFNumber",
+                      "FinancialInfo.ESINumber",
+                      "FinancialInfo.BankAccountNumber"
+                    ]}
+                  >
+                    <Column selectionMode="single" headerStyle={{ width: '3em' }} />
+                    <Column field="Profile.EmployeeCode" header="Employee Code" sortable body={(row) => row.Profile?.EmployeeCode || "-"} />
+                    <Column field="Profile.EmployeeName" header="Name" sortable body={(row) => row.Profile?.EmployeeName || "-"} />
+                    <Column
+                      header={
+                        <div
+                          style={{
+                            cursor: "pointer",
+                            fontWeight: 500,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            color: selectedDepartmentFilter ? "#4CAF50" : "inherit"
+                          }}
+                          onClick={(e) => departmentFilterRef.current.toggle(e)}
+                        >
+                          Department
+                          {selectedDepartmentFilter && ` (${selectedDepartmentFilter})`}
+                          <i className="pi pi-filter" style={{ fontSize: "12px" }}></i>
+                        </div>
+                      }
+                      body={(row) => row.Profile?.Department || "-"}
+                    />
+                    <Column header="Designation" body={(row) => row.Profile?.Designation || "-"} />
+                    <Column header="Gender" body={(row) => row.Profile?.Gender || "-"} />
+                    <Column header="Contact" body={(row) => row.Profile?.PhoneNumber || "-"} />
+                    <Column header="Father's Name" body={(row) => row.Profile?.FatherName || "-"} />
+                    <Column header="Spouse Name" body={(row) => row.Profile?.SpouseName || "-"} />
+                  </DataTable>
+                ) : (
+                  <InactiveEmployeesTable
+                    data={inactiveStaff}
+                    loading={inactiveLoading}
+                    onRegenerate={handleRegenerateEmployee}
                   />
-                  <Column header="Designation" body={(row) => row.Profile?.Designation || "-"} />
-                  <Column header="Gender" body={(row) => row.Profile?.Gender || "-"} />
-                  <Column header="Contact" body={(row) => row.Profile?.PhoneNumber || "-"} />
-                  <Column header="Father's Name" body={(row) => row.Profile?.FatherName || "-"} />
-                  <Column header="Spouse Name" body={(row) => row.Profile?.SpouseName || "-"} />
-                </DataTable>
+                )}
               </div>
 
               {showSalaryGroupView && (

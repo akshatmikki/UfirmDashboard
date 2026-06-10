@@ -123,6 +123,8 @@ import Designation from "../MainComponents/Payroll/Designation.jsx";
 import EmployeeShiftMapping from "../MainComponents/Payroll/EmployeeShiftMapping/EmployeeShiftMapping.jsx";
 import EmployeeTransfer from "../MainComponents/Payroll/EmployeeTransfer.jsx";
 import FundsApproval from "../MainComponents/Payroll/FundsApproval.jsx";
+import HoldSalary from "../MainComponents/Payroll/HoldSalary.jsx";
+import BankTransfer from "../MainComponents/Payroll/BankTransfer.jsx";
 import StockLedger from "../MainComponents/Inventory/StockLedger.jsx";
 
 var currentpropertyid;
@@ -546,6 +548,8 @@ class MainNav extends React.Component {
       "/Account/App/EmployeeTransfer",
       "/Account/App/FundsApproval",
       "/Account/App/AgreementMaster",
+      "/Account/App/HoldSalary",
+      "/Account/App/BankTransfer",
     ];
 
     const hrDefaultPath = canAccessFacilityManagement
@@ -1412,6 +1416,18 @@ class MainNav extends React.Component {
                             <p>Funds Approval</p>
                           </Link>
                         </li>
+                        <li className="nav-item">
+                          <Link to="/Account/App/HoldSalary" className="nav-link">
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Hold Salary</p>
+                          </Link>
+                        </li>
+                        <li className="nav-item">
+                          <Link to="/Account/App/BankTransfer" className="nav-link">
+                            <i className="fas fa-caret-right nav-icon"></i>
+                            <p>Bank Transfer</p>
+                          </Link>
+                        </li>
 
                         {/* <li className="nav-item">
                           <Link to="/Account/App/Formula" className="nav-link">
@@ -1952,6 +1968,12 @@ class MainNav extends React.Component {
             </Route>
             <Route path="/Account/App/FundsApproval">
               <FundsApproval />
+            </Route>
+            <Route path="/Account/App/HoldSalary">
+              <HoldSalary />
+            </Route>
+            <Route path="/Account/App/BankTransfer">
+              <BankTransfer />
             </Route>
             <Route path="/Account/App/ParkingDetails">
               <ParkingDetailsPage />

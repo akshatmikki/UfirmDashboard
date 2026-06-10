@@ -745,7 +745,7 @@ export default function SalaryReport() {
 
                                         <td>{formatCurrency(emp.Fine)}</td>
 
-                                        <td>{formatCurrency(emp.Acmd)}</td>
+                                        <td>{formatCurrency(emp.Accommodation)}</td>
 
                                         <td>{formatCurrency(emp.Loan)}</td>
 

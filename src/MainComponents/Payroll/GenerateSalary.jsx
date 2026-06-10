@@ -49,7 +49,7 @@ const displayNameMap = {
   OthDeduction: "OthDed",
   FOOD: "Food",
   MaintDeduction: "Maint",
-  AccommodationDeduction: "Acmd",
+  ACCOMMODATION: "Acmd",
   IncomeTax: "IncomeTax",
   ABC: "ABC",
   SEPARATEBONUS: "SEPARATEBONUS",
@@ -898,7 +898,7 @@ export default function GenerateSalary() {
         </tr>
         <tr class="no-horiz-border">
           <td>Separate Bonus</td><td class="v-bold">${row.SEPARATEBONUS || row.SeparateBonus || 0}</td>
-          <td>Acmd.Ded</td><td class="v-light">${row.AccommodationDeduction || row.AcmdDed || 0}</td>
+          <td>Acmd.Ded</td><td class="v-light">${row.ACCOMMODATION || row.AcmdDed || 0}</td>
           <td>CL</td><td>${row.CL || 0}</td>
         </tr>
         <tr class="no-horiz-border">
@@ -1149,7 +1149,7 @@ export default function GenerateSalary() {
       Food: Number(row.FOOD || row.Food) || 0,
       Maintenance: Number(row.MaintDeduction || row.Maintenance) || 0,
       Fine: Number(row.FineDed) || 0,
-      AcmdDed: Number(row.AccommodationDeduction || row.AcmdDed) || 0,
+      AcmdDed: Number(row.ACCOMMODATION || row.AcmdDed) || 0,
       IncomeTax: Number(row.INCOMETAX || row.IncomeTax) || 0,
       Uniform: Number(row.UNIFORM || row.Uniform) || 0,
       BGV: Number(row.BGVDed) || 0,
@@ -1495,25 +1495,87 @@ export default function GenerateSalary() {
 
     try {
       const { PDFDocument } = await loadPdfLib();
-
-      // 🔥 FINAL MERGED PDF
       const mergedPdf = await PDFDocument.create();
+
+      const fetchPdf = async (url) => {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error("PDF fetch failed");
+        return await res.blob();
+      };
+
+      // 🔥 Map generated PDFs
+      const generatedMap = new Map();
+      generatedEmployees.forEach((emp) => {
+        generatedMap.set(
+          `${emp.EmployeeId}_${emp.DesignationId}`,
+          emp.generated_PDF
+        );
+      });
+
       const delay = (ms) => new Promise((res) => setTimeout(res, ms));
 
       for (let i = 0; i < selectedRows.length; i += 2) {
         const current = Math.min(i + 2, selectedRows.length);
-        setGeneratingBatchStatus(`Processing ${current}/${selectedRows.length}...`);
+        setGeneratingBatchStatus(
+          `Processing ${current}/${selectedRows.length}...`
+        );
+
         const row1 = selectedRows[i];
         const row2 = selectedRows[i + 1];
 
-        // ✅ generate 2-per-page PDF
-        const pdfBlob = await generatePairedPdf(row1, row2);
+        // 🔥 FIX ID mismatch here
+        const getId = (row) => row.FacilityMemberId || row.EmployeeId;
+
+        const key1 = `${getId(row1)}_${row1.DesignationId}`;
+        const key2 = row2
+          ? `${getId(row2)}_${row2.DesignationId}`
+          : null;
+
+        const url1 = generatedMap.get(key1);
+        const url2 = key2 ? generatedMap.get(key2) : null;
+
+        let pdfBlob = null;
+
+        // ✅ USE STORED PDFs IF AVAILABLE
+        if (url1 && (!row2 || url2)) {
+          try {
+            const blobs = await Promise.all([
+              fetchPdf(url1),
+              row2 ? fetchPdf(url2) : null,
+            ]);
+
+            const tempPdf = await PDFDocument.create();
+
+            for (const blob of blobs.filter(Boolean)) {
+              const buffer = await blob.arrayBuffer();
+              const pdfDoc = await PDFDocument.load(buffer);
+
+              const pages = await tempPdf.copyPages(
+                pdfDoc,
+                pdfDoc.getPageIndices()
+              );
+
+              pages.forEach((p) => tempPdf.addPage(p));
+            }
+
+            const mergedBytes = await tempPdf.save();
+            pdfBlob = new Blob([mergedBytes], {
+              type: "application/pdf",
+            });
+          } catch (err) {
+            console.warn("Stored PDF failed, fallback triggered", err);
+          }
+        }
+
+        // 🔁 FALLBACK → GENERATE LIVE PDF
+        if (!pdfBlob) {
+          pdfBlob = await generatePairedPdf(row1, row2);
+        }
+
         await delay(100);
         if (!pdfBlob) continue;
 
-        // ✅ convert blob → arrayBuffer
         const arrayBuffer = await pdfBlob.arrayBuffer();
-
         const tempPdf = await PDFDocument.load(arrayBuffer);
 
         const copiedPages = await mergedPdf.copyPages(
@@ -1524,7 +1586,7 @@ export default function GenerateSalary() {
         copiedPages.forEach((page) => mergedPdf.addPage(page));
       }
 
-      // ✅ SAVE FINAL PDF (ONLY ONCE)
+      // ✅ FINAL DOWNLOAD
       const finalPdfBytes = await mergedPdf.save();
 
       const finalBlob = new Blob([finalPdfBytes], {
@@ -1542,7 +1604,6 @@ export default function GenerateSalary() {
       document.body.removeChild(a);
 
       window.URL.revokeObjectURL(url);
-
     } catch (err) {
       console.error("Failed to merge PDFs:", err);
       alert("Error: " + err.message);

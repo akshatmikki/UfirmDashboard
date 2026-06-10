@@ -1420,6 +1420,48 @@ export const getEmployeesByOffices = async (officeIds = []) => {
   }
 };
 
+export const getInactiveEmployeesByOffices = async (officeIds = []) => {
+  if (!officeIds.length) return [];
+
+  try {
+    const response = await axios.post(
+      `${EMPLOYEE_API_BASE_URL}/getInactiveByOffices`,
+      {
+        OfficeIds: officeIds,
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        withCredentials: false,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch inactive employees by offices", error);
+    throw error;
+  }
+};
+
+export const regenerateEmployee = async (facilityMemberId) => {
+  try {
+    const response = await axios.post(
+      `${EMPLOYEE_API_BASE_URL}/regenerateEmployee`,
+      facilityMemberId, // 🔥 THIS IS THE KEY
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+        withCredentials: false,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error("Failed to regenerate employee", error);
+    throw error;
+  }
+};
+
 export const getCrossUnitEmployeeDetails = async (employeeIds = [], monthYear) => {
   if (!employeeIds.length) return [];
 
@@ -1621,7 +1663,7 @@ export const getEmployeeOverallSalary = async ({
   year,
 }) => {
   // ❌ validation (same logic as backend)
-  if ((!propertyIds.length && !employeeCode) ) return [];
+  if ((!propertyIds.length && !employeeCode)) return [];
 
   // convert propertyIds array → comma string
   const ids = propertyIds.length ? propertyIds.join(",") : "";
@@ -1770,6 +1812,74 @@ export const getFundsApprovalHistorybyProperty = async ({ propertyId, month, yea
     return res.data || [];
   } catch (err) {
     console.error("Funds approval history fetch failed", err);
+    return [];
+  }
+};
+
+export const holdSalary = async (payload) => {
+  try {
+    const res = await axios.post(
+      `https://api.urest.in:8096/api/fundsapproval/hold-salary`,
+      payload,
+      {
+        withCredentials: false,
+      }
+    );
+
+    return res.data;
+  } catch (err) {
+    console.error("Hold salary failed", err);
+    return null;
+  }
+};
+
+export const releaseHoldSalary = async (payload) => {
+  try {
+    const res = await axios.post(
+      `https://api.urest.in:8096/api/fundsapproval/release-hold`,
+      payload,
+      {
+        withCredentials: false,
+      }
+    );
+
+    return res.data;
+  } catch (err) {
+    console.error("Release hold failed", err);
+    return null;
+  }
+};
+
+export const getHeldEmployees = async ({ propertyId, month, year }) => {
+  try {
+    const res = await axios.get(
+      `https://api.urest.in:8096/api/fundsapproval/get-held-employees`,
+      {
+        params: { propertyId, month, year },
+        withCredentials: false,
+      }
+    );
+
+    return res.data || [];
+  } catch (err) {
+    console.error("Get held employees failed", err);
+    return [];
+  }
+};
+
+export const getBankTransferEmployees = async ({ propertyId, month, year }) => {
+  try {
+    const res = await axios.get(
+      `https://api.urest.in:8096/api/fundsapproval/get-bank-transfer-employees`,
+      {
+        params: { propertyId, month, year },
+        withCredentials: false,
+      }
+    );
+
+    return res.data || [];
+  } catch (err) {
+    console.error("Get bank transfer employees failed", err);
     return [];
   }
 };
